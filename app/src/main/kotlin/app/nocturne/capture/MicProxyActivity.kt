@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.nocturne.NocturneApp
 import app.nocturne.dictation.DictationState
+import app.nocturne.dictation.TriggerSource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -27,7 +28,7 @@ class MicProxyActivity : ComponentActivity() {
 
         val dictation = NocturneApp.graph(this).dictation
         Log.i(TAG, "mic proxy activity started as foreground anchor")
-        dictation.start(viaProxyActivity = true)
+        dictation.start(TriggerSource.PROXY_ACTIVITY)
 
         lifecycleScope.launch {
             // Wait for the run to end, then get out of the way.

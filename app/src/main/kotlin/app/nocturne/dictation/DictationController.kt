@@ -2,7 +2,10 @@ package app.nocturne.dictation
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.nocturne.Graph
 import app.nocturne.capture.AudioCapture
@@ -45,6 +48,7 @@ class DictationController(
 
     private val capture = AudioCapture()
     private val stopRequested = AtomicBoolean(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
     private var job: Job? = null
@@ -60,7 +64,7 @@ class DictationController(
         if (isRunning) stop() else start()
     }
 
-    fun start(viaProxyActivity: Boolean = false) {
+    fun start(source: TriggerSource = TriggerSource.BUBBLE) {
         if (isRunning) return
 
         if (!hasMicrophonePermission()) {
@@ -69,16 +73,24 @@ class DictationController(
         }
 
         // Android 14+ refuses a background microphone start. The foreground service is the
-        // normal answer; if it is not up, hand over to the proxy activity, which is
-        // foreground by definition, and let it call back in.
-        if (!viaProxyActivity && !MicForegroundService.isRunning) {
+        // normal answer; if it is not up and the request came from the bubble - with a
+        // foreign app in front - hand over to the proxy activity, which is foreground by
+        // definition, and let it call back in. A press inside Nocturne is already
+        // foreground, so it must never open that window.
+        if (source.mayUseProxyFallback && !MicForegroundService.isRunning) {
             Log.i(TAG, "mic service not running - routing through proxy activity")
             MicProxyActivity.launch(context)
             return
         }
 
+        if (source == TriggerSource.IN_APP && !MicForegroundService.isRunning) {
+            // Visible right now, so this start is permitted and keeps later bubble taps
+            // off the proxy path.
+            MicForegroundService.start(context)
+        }
+
         stopRequested.set(false)
-        job = scope.launch { run(viaProxyActivity) }
+        job = scope.launch { run(source) }
     }
 
     /** Finish the current recording and transcribe what was captured. */
@@ -93,7 +105,7 @@ class DictationController(
         _state.value = DictationState.Idle
     }
 
-    private suspend fun run(viaProxyActivity: Boolean) {
+    private suspend fun run(source: TriggerSource) {
         _state.value = DictationState.Starting
 
         val settings = graph.settings.value
@@ -113,10 +125,10 @@ class DictationController(
         try {
             val transcript = when (engine) {
                 is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                else -> recordThenTranscribe(engine, options, viaProxyActivity)
+                else -> recordThenTranscribe(engine, options, source)
             } ?: return
 
-            deliver(transcript, settings)
+            deliver(transcript, settings, engineConfig.id)
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
             fail("Unerwarteter Fehler: ${e.message ?: e::class.simpleName}")
@@ -152,7 +164,7 @@ class DictationController(
     private suspend fun recordThenTranscribe(
         engine: SttEngine,
         options: TranscribeOptions,
-        viaProxyActivity: Boolean,
+        source: TriggerSource,
     ): Transcript? {
         _state.value = DictationState.Listening()
 
@@ -176,7 +188,7 @@ class DictationController(
                 Log.w(TAG, "capture failed: ${outcome.technical}")
                 // Classic symptom of a ROM blocking the microphone for a background
                 // service. Retry once through the activity path before giving up.
-                if (!viaProxyActivity) {
+                if (source.mayUseProxyFallback) {
                     Log.i(TAG, "retrying capture via proxy activity")
                     MicProxyActivity.launch(context)
                 } else {
@@ -198,19 +210,20 @@ class DictationController(
     private suspend fun deliver(
         transcript: Transcript,
         settings: app.nocturne.core.settings.NocturneSettings,
+        engineId: String,
     ) {
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.capture.toNormalizeOptions(),
         )
         if (cleaned.isBlank()) {
-            fail("Es wurde nichts erkannt.")
+            fail("Es wurde nichts erkannt.", engineId)
             return
         }
 
         val inserter = graph.accessibilityService?.textInserter
         if (inserter == null) {
-            fail("Bedienungshilfe ist nicht aktiv - Text konnte nicht eingefügt werden.")
+            fail("Bedienungshilfe ist nicht aktiv - Text konnte nicht eingefügt werden.", engineId)
             return
         }
 
@@ -222,8 +235,16 @@ class DictationController(
                 "trust=${transcript.trustLevel}, ${transcript.latencyMs}ms)",
         )
 
+        val finalTranscript = transcript.copy(text = cleaned)
+        graph.dictationLog.recordSuccess(
+            transcript = finalTranscript,
+            strategy = insertion.strategy,
+            inserted = insertion.success,
+            targetPackage = insertion.targetPackage,
+        )
+
         _state.value = DictationState.Done(
-            transcript = transcript.copy(text = cleaned),
+            transcript = finalTranscript,
             strategy = insertion.strategy,
             insertedIntoApp = insertion.targetPackage,
         )
@@ -238,8 +259,17 @@ class DictationController(
         if (current is DictationState.Listening) _state.value = transform(current)
     }
 
-    private fun fail(message: String) {
+    private fun fail(message: String, engineId: String? = null) {
+        Log.w(TAG, "dictation failed: $message")
+        graph.dictationLog.recordFailure(message, engineId)
         _state.value = DictationState.Failed(message)
+
+        // While dictating into another app the bubble is the only visible surface, and a red
+        // ring does not say why. A toast does, without making the user switch back.
+        mainHandler.post {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+
         scope.launch {
             delay(FAILED_DISPLAY_MS)
             if (_state.value is DictationState.Failed) _state.value = DictationState.Idle

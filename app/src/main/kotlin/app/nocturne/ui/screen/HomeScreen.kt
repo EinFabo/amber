@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.nocturne.core.dictation.DictationRecord
 import app.nocturne.core.settings.NocturneSettings
 import app.nocturne.dictation.DictationState
 import app.nocturne.ui.Hint
@@ -31,6 +32,10 @@ fun HomeScreen(
     actions: SetupActions,
     settings: NocturneSettings,
     dictation: DictationState,
+    records: List<DictationRecord>,
+    onStartTest: () -> Unit,
+    onStopTest: () -> Unit,
+    onClearDiagnostics: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -62,6 +67,13 @@ fun HomeScreen(
                 )
             }
         }
+
+        TestDictationCard(
+            dictation = dictation,
+            canDictate = setup.ready,
+            onStartTest = onStartTest,
+            onStopTest = onStopTest,
+        )
 
         SectionCard(
             title = "Zuverlässigkeit",
@@ -151,5 +163,7 @@ fun HomeScreen(
                 }
             }
         }
+
+        DiagnosticsCard(records = records, onClear = onClearDiagnostics)
     }
 }

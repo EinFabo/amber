@@ -3,6 +3,7 @@ package app.nocturne
 import android.app.Application
 import android.content.Context
 import app.nocturne.accessibility.NocturneAccessibilityService
+import app.nocturne.core.dictation.DictationLog
 import app.nocturne.core.settings.NocturneSettings
 import app.nocturne.data.SecretStore
 import app.nocturne.data.SettingsStore
@@ -54,6 +55,9 @@ class Graph(app: Application) {
         .stateIn(appScope, SharingStarted.Eagerly, NocturneSettings.defaults())
 
     val engineFactory = EngineFactory(app, OkHttpTransport(), secretStore)
+
+    /** Outcomes of the last dictations, for the diagnostics card. */
+    val dictationLog = DictationLog()
 
     val dictation = DictationController(app, this, appScope)
 

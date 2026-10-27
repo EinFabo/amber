@@ -23,16 +23,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import app.nocturne.Graph
 import app.nocturne.NocturneApp
 import app.nocturne.capture.MicForegroundService
 import app.nocturne.core.settings.EngineConfig
 import app.nocturne.core.settings.NocturneSettings
+import app.nocturne.dictation.TriggerSource
 import app.nocturne.ui.screen.EngineDetailScreen
 import app.nocturne.ui.screen.HomeScreen
 import app.nocturne.ui.screen.SettingsScreen
 import app.nocturne.ui.theme.NocturnePalette
 import app.nocturne.ui.theme.NocturneTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -86,10 +89,34 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Accessibility and battery state change outside the app, in system settings.
         refreshSetup()
+        ensureMicServiceRunning()
+    }
+
+    /**
+     * Starting a microphone foreground service is only permitted while the app is visible,
+     * and this is the one moment that is reliably true. Doing it on every resume keeps later
+     * bubble taps off the proxy-activity fallback - including after a reboot, where nothing
+     * else could have started it.
+     */
+    private fun ensureMicServiceRunning() {
+        val state = setupState.value
+        if (!state.microphoneGranted || state.micServiceRunning) return
+
+        MicForegroundService.start(this)
+        // The service flips its flag in onStartCommand, so re-read it a moment later
+        // instead of showing a stale "not running" to the user.
+        lifecycleScope.launch {
+            delay(SERVICE_START_GRACE_MS)
+            refreshSetup()
+        }
     }
 
     private fun refreshSetup() {
         setupState.value = Setup.snapshot(this)
+    }
+
+    private companion object {
+        const val SERVICE_START_GRACE_MS = 600L
     }
 }
 
@@ -115,6 +142,7 @@ private fun NocturneRoot(graph: Graph, setup: SetupState, actions: SetupActions)
     val tester = remember(graph) { ConnectionTester(graph) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val dictation by graph.dictation.state.collectAsStateWithLifecycle()
+    val records by graph.dictationLog.records.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     fun updateSettings(transform: (NocturneSettings) -> NocturneSettings) {
@@ -163,6 +191,10 @@ private fun NocturneRoot(graph: Graph, setup: SetupState, actions: SetupActions)
                 actions = actions,
                 settings = settings,
                 dictation = dictation,
+                records = records,
+                onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
+                onStopTest = { graph.dictation.stop() },
+                onClearDiagnostics = { graph.dictationLog.clear() },
                 onOpenSettings = { screen = Screen.Settings },
             )
 
