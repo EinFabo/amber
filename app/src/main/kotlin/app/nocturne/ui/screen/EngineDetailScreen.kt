@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import app.nocturne.core.engine.EngineConfigValidator
 import app.nocturne.core.engine.EngineKind
 import app.nocturne.core.engine.EnginePresets
 import app.nocturne.core.settings.EngineConfig
@@ -73,10 +74,20 @@ fun EngineDetailScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        val problems = EngineConfigValidator.validate(edited(), hasApiKey = apiKey.isNotBlank())
+
         SectionCard(title = config.displayName) {
             TrustBadge(config.trustLevelForDisplay())
             Hint(config.trustLevelForDisplay().badgeExplanation())
             if (preset?.note?.isNotBlank() == true) Hint(preset.note)
+
+            if (problems.isEmpty()) {
+                Hint("Einsatzbereit.", NocturnePalette.TrustOnDevice)
+            } else {
+                // Listed while typing, so the user is never left guessing which field the
+                // engine is still waiting for.
+                problems.forEach { problem -> Hint(problem, NocturnePalette.Error) }
+            }
         }
 
         when (config.kind) {

@@ -10,125 +10,62 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import app.nocturne.R
-import app.nocturne.core.insert.InsertionStrategy
+import app.nocturne.core.insert.Clipboard
+import app.nocturne.core.insert.EditableTarget
+import app.nocturne.core.insert.InsertionEngine
+import app.nocturne.core.insert.InsertionOutcome
 import app.nocturne.core.text.FieldState
 import app.nocturne.core.text.SpliceOptions
-import app.nocturne.core.text.TextSplicer
 import app.nocturne.data.StrategyStore
-import app.nocturne.dictation.InsertionOutcome
 
 /**
- * Writes dictated text into whatever field has focus, in another app.
+ * Connects the accessibility node tree to the insertion chain in :core.
  *
- * There is no single method that works everywhere: ACTION_SET_TEXT gives the best result but
- * is ignored by many WebViews, games and cross-platform toolkits - sometimes while still
- * reporting success. So each attempt is verified by reading the field back, the working
- * method is remembered per app, and the clipboard is the floor nobody falls through.
+ * All the decision-making - which method to try, how to verify it, what to remember per app -
+ * lives in [InsertionEngine], where it is unit-tested against fields that misbehave. What is
+ * left here is the part that genuinely needs Android: finding the focused node, reading and
+ * writing it, and the clipboard.
  */
 class TextInserter(
     private val service: AccessibilityService,
-    private val strategyStore: StrategyStore,
+    strategyStore: StrategyStore,
 ) {
 
-    private val memory = strategyStore.load()
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val engine = InsertionEngine(
+        memory = strategyStore.load(),
+        clipboard = Clipboard { text -> copyToClipboard(text) },
+        onMemoryChanged = { memory -> strategyStore.save(memory) },
+    )
 
     fun insert(text: String, options: SpliceOptions): InsertionOutcome {
         val focused = service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        val targetPackage = focused?.packageName?.toString()
-            ?: service.rootInActiveWindow?.packageName?.toString()
-            ?: UNKNOWN_PACKAGE
+        val fallbackPackage = service.rootInActiveWindow?.packageName?.toString()
+        val target = focused?.let { NodeTarget(it, fallbackPackage) }
 
-        for (strategy in memory.order(targetPackage)) {
-            val success = when (strategy) {
-                InsertionStrategy.SET_TEXT -> focused != null && trySetText(focused, text, options)
-                InsertionStrategy.PASTE -> focused != null && tryPaste(focused, text)
-                InsertionStrategy.CLIPBOARD_ONLY -> copyToClipboard(text, notifyUser = true)
+        val outcome = engine.insert(target, text, options)
+
+        // Only nag when the text really did not make it into the field. A successful paste
+        // also uses the clipboard, and announcing that every time would be noise.
+        if (!outcome.insertedIntoField && outcome.copiedToClipboard) {
+            mainHandler.post {
+                Toast.makeText(service, R.string.clipboard_fallback, Toast.LENGTH_SHORT).show()
             }
-
-            if (success) {
-                memory.recordSuccess(targetPackage, strategy)
-                strategyStore.save(memory)
-                return InsertionOutcome(strategy, success = true, targetPackage = targetPackage)
-            }
-
-            Log.i(TAG, "$strategy did not take in $targetPackage, trying next")
-            memory.recordFailure(targetPackage, strategy)
-            strategyStore.save(memory)
         }
 
-        return InsertionOutcome(
-            strategy = InsertionStrategy.CLIPBOARD_ONLY,
-            success = false,
-            targetPackage = targetPackage,
-        )
-    }
-
-    private fun trySetText(
-        node: AccessibilityNodeInfo,
-        text: String,
-        options: SpliceOptions,
-    ): Boolean {
-        if (!node.isEditable) return false
-        node.refresh()
-
-        val existing = node.text?.toString().orEmpty()
-        val selectionStart = node.textSelectionStart
-        val selectionEnd = node.textSelectionEnd
-        val field = if (selectionStart in 0..existing.length && selectionEnd in 0..existing.length) {
-            FieldState(existing, selectionStart, selectionEnd)
-        } else {
-            // No usable selection reported: append at the end rather than overwrite.
-            FieldState(existing, existing.length, existing.length)
-        }
-
-        val spliced = TextSplicer.splice(field, text, options)
-
-        val setTextArgs = Bundle().apply {
-            putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                spliced.text,
-            )
-        }
-        if (!node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, setTextArgs)) return false
-
-        val selectionArgs = Bundle().apply {
-            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, spliced.cursor)
-            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, spliced.cursor)
-        }
-        node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, selectionArgs)
-
-        // performAction returning true is not proof: read the field back. Compared loosely,
-        // because fields legitimately reformat what they are given (phone numbers, amounts).
-        node.refresh()
-        val after = node.text?.toString().orEmpty()
-        return after.contains(text.trim(), ignoreCase = true)
-    }
-
-    private fun tryPaste(node: AccessibilityNodeInfo, text: String): Boolean {
-        if (!node.isEditable) return false
-        if (!copyToClipboard(text, notifyUser = false)) return false
-        node.refresh()
-        if (!node.performAction(AccessibilityNodeInfo.ACTION_PASTE)) return false
-        node.refresh()
-        return node.text?.toString()?.contains(text.trim(), ignoreCase = true) == true
+        return outcome
     }
 
     /**
      * The previous clipboard content is deliberately not restored: since Android 10 an app
-     * that is not in the foreground cannot read the clipboard, so a "restore" would just
-     * overwrite it with null. Better to leave the dictation there than to destroy whatever
-     * the user had copied.
+     * that is not in the foreground cannot read the clipboard, so a "restore" would overwrite
+     * it with null. Better to leave the dictation there than to destroy what the user copied.
      */
-    private fun copyToClipboard(text: String, notifyUser: Boolean): Boolean {
+    private fun copyToClipboard(text: String): Boolean {
         val clipboard = service.getSystemService(ClipboardManager::class.java) ?: return false
         return try {
             clipboard.setPrimaryClip(ClipData.newPlainText("Nocturne", text))
-            if (notifyUser) {
-                mainHandler.post {
-                    Toast.makeText(service, R.string.clipboard_fallback, Toast.LENGTH_SHORT).show()
-                }
-            }
             true
         } catch (e: Exception) {
             Log.w(TAG, "clipboard write failed", e)
@@ -136,8 +73,68 @@ class TextInserter(
         }
     }
 
+    /** One focused accessibility node, seen as an editable field. */
+    private class NodeTarget(
+        private val node: AccessibilityNodeInfo,
+        fallbackPackage: String?,
+    ) : EditableTarget {
+
+        override val packageName: String =
+            node.packageName?.toString() ?: fallbackPackage ?: InsertionEngine.UNKNOWN_PACKAGE
+
+        override val isEditable: Boolean get() = node.isEditable
+
+        override fun readField(): FieldState? {
+            // refresh() failing means the node is stale - the window changed under us - which
+            // is the only genuine "cannot read" case.
+            if (!node.refresh()) return null
+
+            val existing = currentText()
+            val start = node.textSelectionStart
+            val end = node.textSelectionEnd
+            return if (start in 0..existing.length && end in 0..existing.length) {
+                FieldState(existing, start, end)
+            } else {
+                // No usable selection reported: append at the end rather than overwrite.
+                FieldState(existing, existing.length, existing.length)
+            }
+        }
+
+        override fun setText(text: String): Boolean {
+            val arguments = Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            }
+            return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+        }
+
+        override fun setSelection(cursor: Int) {
+            val arguments = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, cursor)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, cursor)
+            }
+            node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, arguments)
+        }
+
+        override fun paste(): Boolean =
+            node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+
+        override fun readBack(): String? {
+            if (!node.refresh()) return null
+            return currentText()
+        }
+
+        /**
+         * An empty field reports null text, which must read as "" and not as unreadable -
+         * otherwise dictation would never work into an empty field. And a field showing its
+         * placeholder reports that placeholder as its text, which must not be spliced onto.
+         */
+        private fun currentText(): String = when {
+            node.isShowingHintText -> ""
+            else -> node.text?.toString().orEmpty()
+        }
+    }
+
     private companion object {
         const val TAG = "Nocturne"
-        const val UNKNOWN_PACKAGE = "unknown"
     }
 }

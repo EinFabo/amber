@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.nocturne.core.engine.EngineConfigValidator
 import app.nocturne.core.engine.EnginePresets
 import app.nocturne.core.settings.EngineConfig
 import app.nocturne.core.settings.NocturneSettings
@@ -56,7 +57,10 @@ fun SettingsScreen(
                 EngineRow(
                     config = engine,
                     active = engine.id == settings.activeEngineId,
-                    needsKey = engine.apiKeyAlias != null && !hasKeyFor(engine.apiKeyAlias),
+                    problems = EngineConfigValidator.validate(
+                        engine,
+                        hasApiKey = hasKeyFor(engine.apiKeyAlias),
+                    ),
                     onSelect = { onUpdateSettings { it.copy(activeEngineId = engine.id) } },
                     onOpen = { onOpenEngine(engine.id) },
                 )
@@ -163,7 +167,7 @@ fun SettingsScreen(
 private fun EngineRow(
     config: EngineConfig,
     active: Boolean,
-    needsKey: Boolean,
+    problems: List<String>,
     onSelect: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -182,12 +186,10 @@ private fun EngineRow(
                 color = NocturnePalette.Text,
             )
             Hint(
-                text = if (needsKey) {
-                    "API-Schlüssel fehlt noch"
-                } else {
-                    config.modelId ?: "Systemmodell"
-                },
-                color = if (needsKey) NocturnePalette.Error else NocturnePalette.Muted,
+                // Name the first missing thing rather than a generic "not configured":
+                // the user should not have to open the detail screen to find out.
+                text = problems.firstOrNull() ?: config.modelId ?: "Systemmodell",
+                color = if (problems.isEmpty()) NocturnePalette.Muted else NocturnePalette.Error,
             )
         }
         TextButton(onClick = onOpen) {

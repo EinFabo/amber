@@ -17,7 +17,6 @@ import app.nocturne.core.engine.SelfCapturingSttEngine
 import app.nocturne.core.engine.SttEngine
 import app.nocturne.core.engine.SttFailure
 import app.nocturne.core.engine.TranscribeOptions
-import app.nocturne.core.insert.InsertionStrategy
 import app.nocturne.core.text.Transcript
 import app.nocturne.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CoroutineScope
@@ -230,16 +229,24 @@ class DictationController(
         val insertion = inserter.insert(cleaned, settings.insertion.toSpliceOptions())
         Log.i(
             TAG,
-            "inserted via ${insertion.strategy} into ${insertion.targetPackage} " +
-                "(success=${insertion.success}, engine=${transcript.engineId}, " +
-                "trust=${transcript.trustLevel}, ${transcript.latencyMs}ms)",
+            "insertion via ${insertion.strategy} into ${insertion.targetPackage}: " +
+                "field=${insertion.insertedIntoField} clipboard=${insertion.copiedToClipboard} " +
+                "(engine=${transcript.engineId}, trust=${transcript.trustLevel}, " +
+                "${transcript.latencyMs}ms)",
         )
+
+        if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
+            // Neither the field nor the clipboard took it - the text is gone, so say so
+            // instead of showing a success state.
+            fail("Text konnte weder eingefügt noch kopiert werden.", engineId)
+            return
+        }
 
         val finalTranscript = transcript.copy(text = cleaned)
         graph.dictationLog.recordSuccess(
             transcript = finalTranscript,
             strategy = insertion.strategy,
-            inserted = insertion.success,
+            inserted = insertion.insertedIntoField,
             targetPackage = insertion.targetPackage,
         )
 
@@ -291,10 +298,3 @@ class DictationController(
         const val FAILED_DISPLAY_MS = 3_500L
     }
 }
-
-/** Convenience for the insertion result, so the strategy is visible in logs and UI. */
-data class InsertionOutcome(
-    val strategy: InsertionStrategy,
-    val success: Boolean,
-    val targetPackage: String?,
-)

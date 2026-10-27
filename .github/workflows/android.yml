@@ -29,6 +29,11 @@ jobs:
 
       # :core is pure JVM and holds the engine, splicing and VAD logic, so this is the
       # step that actually proves behaviour. It also runs locally without an Android SDK.
+      # Catches typo-level breakage in :app (imports, R.* ids, manifest classes) even when
+      # the Android build itself cannot run.
+      - name: Check internal references
+        run: python3 -I tools/check_refs.py
+
       - name: Core unit tests
         run: ./gradlew :core:test
 

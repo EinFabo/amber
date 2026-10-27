@@ -2,6 +2,7 @@ package app.nocturne.engine
 
 import android.content.Context
 import app.nocturne.core.engine.EngineCapabilities
+import app.nocturne.core.engine.EngineConfigValidator
 import app.nocturne.core.engine.EngineKind
 import app.nocturne.core.engine.OpenAiCompatibleEngine
 import app.nocturne.core.engine.SttEngine
@@ -28,11 +29,13 @@ class EngineFactory(
         EngineKind.ANDROID_ON_DEVICE -> Result.success(AndroidOnDeviceEngine(context))
 
         EngineKind.OPENAI_COMPATIBLE -> {
-            val baseUrl = config.baseUrl?.takeIf { it.isNotBlank() }
-            val modelId = config.modelId?.takeIf { it.isNotBlank() }
+            val problems = EngineConfigValidator.validate(config, secrets.has(config.apiKeyAlias))
+            val baseUrl = config.baseUrl?.trim()
+            val modelId = config.modelId?.trim()
             when {
-                baseUrl == null -> incomplete(config, "Base-URL")
-                modelId == null -> incomplete(config, "Modellname")
+                problems.isNotEmpty() -> incomplete(config, problems)
+                baseUrl.isNullOrBlank() -> incomplete(config, listOf("Die Base-URL fehlt."))
+                modelId.isNullOrBlank() -> incomplete(config, listOf("Der Modellname fehlt."))
                 else -> Result.success(
                     OpenAiCompatibleEngine(
                         id = config.id,
@@ -71,10 +74,12 @@ class EngineFactory(
         )
     }
 
-    private fun incomplete(config: EngineConfig, field: String): Result<SttEngine> = Result.failure(
-        SttFailure(
-            userMessage = "Für \"${config.displayName}\" fehlt noch: $field.",
-            technical = "incomplete config for ${config.id}: missing $field",
-        ),
-    )
+    private fun incomplete(config: EngineConfig, problems: List<String>): Result<SttEngine> =
+        Result.failure(
+            SttFailure(
+                userMessage = "\"${config.displayName}\" ist noch nicht einsatzbereit. " +
+                    problems.joinToString(" "),
+                technical = "incomplete config for ${config.id}: $problems",
+            ),
+        )
 }
