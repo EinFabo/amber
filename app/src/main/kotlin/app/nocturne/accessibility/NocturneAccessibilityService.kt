@@ -49,11 +49,13 @@ class NocturneAccessibilityService : AccessibilityService() {
         graph = NocturneApp.graph(this)
         textInserter = TextInserter(this, graph.strategyStore)
 
+        // Attaching is left to the settings collector below, so the bubble switch is the
+        // single place that decides whether the overlay exists.
         bubble = BubbleController(
             service = this,
             onTap = { graph.dictation.toggle() },
             onLongPress = { openSettings() },
-        ).also { it.attach() }
+        )
 
         graph.accessibilityService = this
 
@@ -61,7 +63,15 @@ class NocturneAccessibilityService : AccessibilityService() {
             graph.dictation.state.collect { state -> bubble?.render(state) }
         }
         scope.launch {
-            graph.settings.collectLatest { settings -> bubble?.applySettings(settings.bubble) }
+            graph.settings.collectLatest { settings ->
+                val controller = bubble ?: return@collectLatest
+                if (settings.bubble.enabled) {
+                    controller.attach()
+                    controller.applySettings(settings.bubble)
+                } else {
+                    controller.detach()
+                }
+            }
         }
     }
 

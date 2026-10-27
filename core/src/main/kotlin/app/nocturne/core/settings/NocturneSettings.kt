@@ -38,6 +38,12 @@ data class EngineConfig(
 @Serializable
 data class CaptureSettings(
     val autoStopOnSilence: Boolean = true,
+    /**
+     * Hard ceiling for one whole dictation, recording plus transcription. A stuck recognizer
+     * or a server that accepts the upload and never answers would otherwise leave the bubble
+     * spinning with no way back except force-stopping the app.
+     */
+    val totalTimeoutMs: Int = 180_000,
     val preRollMs: Int = 300,
     val silenceTimeoutMs: Int = 900,
     val minSpeechMs: Int = 350,
@@ -61,6 +67,17 @@ data class CaptureSettings(
     )
 
     fun toNormalizeOptions(): NormalizeOptions = NormalizeOptions(stripFillers = stripFillers)
+
+    /**
+     * The watchdog always has to outlast the recording itself, or a long dictation would be
+     * killed just as it was about to be transcribed.
+     */
+    fun effectiveTotalTimeoutMs(): Long =
+        maxOf(totalTimeoutMs.toLong(), maxDurationMs.toLong() + TRANSCRIPTION_HEADROOM_MS)
+
+    private companion object {
+        const val TRANSCRIPTION_HEADROOM_MS = 60_000L
+    }
 }
 
 @Serializable
@@ -68,6 +85,12 @@ enum class BubbleEdge { LEFT, RIGHT }
 
 @Serializable
 data class BubbleSettings(
+    /**
+     * Off hides the overlay without touching the accessibility service. Without this the only
+     * way to get the bubble out of the way is the system accessibility screen, which also
+     * kills insertion - so the in-app test path would die with it.
+     */
+    val enabled: Boolean = true,
     val edge: BubbleEdge = BubbleEdge.RIGHT,
     /** 0f = top of screen, 1f = bottom. */
     val verticalBias: Float = 0.72f,

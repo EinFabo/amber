@@ -128,6 +128,15 @@ fun SettingsScreen(
 
         SectionCard(title = "Blase") {
             ToggleRow(
+                label = "Blase anzeigen",
+                description = "Aus versteckt die Blase, ohne die Bedienungshilfe " +
+                    "abzuschalten - Diktieren im Testfeld funktioniert weiter.",
+                checked = settings.bubble.enabled,
+                onChange = { value ->
+                    onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) }
+                },
+            )
+            ToggleRow(
                 label = "Abdunkeln ohne Textfeld",
                 description = "Die Blase wird blass, solange kein Eingabefeld aktiv ist.",
                 checked = settings.bubble.dimWhenNoTextField,

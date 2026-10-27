@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -128,12 +129,21 @@ class DictationController(
         val options = TranscribeOptions(languageTag = engineConfig.languageTag)
 
         try {
-            val transcript = when (engine) {
-                is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                else -> recordThenTranscribe(engine, options, source)
-            } ?: return
+            // A recognizer that never calls back, or a server that accepts the upload and
+            // goes quiet, would otherwise leave the bubble spinning with no way out but
+            // force-stopping the app.
+            val finished = withTimeoutOrNull(settings.capture.effectiveTotalTimeoutMs()) {
+                val transcript = when (engine) {
+                    is SelfCapturingSttEngine -> listenWithEngine(engine, options)
+                    else -> recordThenTranscribe(engine, options, source)
+                } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
-            deliver(transcript, settings, engineConfig.id)
+                deliver(transcript, settings, engineConfig.id)
+            }
+
+            if (finished == null) {
+                fail("Zeitüberschreitung - das Diktat wurde abgebrochen.", engineConfig.id)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
             fail("Unerwarteter Fehler: ${e.message ?: e::class.simpleName}")
@@ -262,9 +272,12 @@ class DictationController(
             insertedIntoApp = insertion.targetPackage,
         )
 
-        // Let the bubble show the result for a moment, then go back to resting.
-        delay(DONE_DISPLAY_MS)
-        if (_state.value is DictationState.Done) _state.value = DictationState.Idle
+        // Let the bubble show the result for a moment, then go back to resting. Launched
+        // separately so this pause is not charged to the dictation's timeout.
+        scope.launch {
+            delay(DONE_DISPLAY_MS)
+            if (_state.value is DictationState.Done) _state.value = DictationState.Idle
+        }
     }
 
     private fun updateListening(transform: (DictationState.Listening) -> DictationState.Listening) {

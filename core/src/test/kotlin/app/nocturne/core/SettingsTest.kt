@@ -2,12 +2,14 @@ package app.nocturne.core
 
 import app.nocturne.core.engine.EngineKind
 import app.nocturne.core.engine.EnginePresets
+import app.nocturne.core.settings.BubbleSettings
 import app.nocturne.core.settings.CaptureSettings
 import app.nocturne.core.settings.EngineConfig
 import app.nocturne.core.settings.NocturneSettings
 import app.nocturne.core.settings.SettingsCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -86,5 +88,37 @@ class SettingsTest {
     fun `calibration window stays within sane bounds`() {
         assertEquals(3, CaptureSettings(preRollMs = 0).toVadConfig().calibrationFrames)
         assertEquals(50, CaptureSettings(preRollMs = 5_000).toVadConfig().calibrationFrames)
+    }
+}
+
+class CaptureTimeoutTest {
+
+    @Test
+    fun `the watchdog always outlasts the recording`() {
+        // A two minute recording cap with a one minute watchdog would kill the dictation
+        // just as it was about to be transcribed.
+        val settings = CaptureSettings(maxDurationMs = 120_000, totalTimeoutMs = 60_000)
+        assertEquals(180_000L, settings.effectiveTotalTimeoutMs())
+    }
+
+    @Test
+    fun `a generous watchdog is kept as configured`() {
+        val settings = CaptureSettings(maxDurationMs = 30_000, totalTimeoutMs = 300_000)
+        assertEquals(300_000L, settings.effectiveTotalTimeoutMs())
+    }
+
+    @Test
+    fun `defaults leave room for a slow server`() {
+        val settings = CaptureSettings()
+        assertTrue(
+            settings.effectiveTotalTimeoutMs() >= settings.maxDurationMs + 60_000L,
+            "got ${settings.effectiveTotalTimeoutMs()}",
+        )
+    }
+
+    @Test
+    fun `the bubble is on by default but can be switched off`() {
+        assertTrue(BubbleSettings().enabled)
+        assertFalse(BubbleSettings(enabled = false).enabled)
     }
 }
