@@ -29,7 +29,13 @@ class BubbleController(
     private val onLongPress: () -> Unit,
 ) {
 
-    private val windowManager =
+    /**
+     * Nullable on purpose: getSystemService can return null for a service this context does
+     * not offer, and whether the public SDK stub declares that is not something to gamble a
+     * build on. Treating it as absent is also the honest behaviour - without a WindowManager
+     * there simply is no bubble, and everything else still works.
+     */
+    private val windowManager: WindowManager? =
         service.getSystemService(WindowManager::class.java)
 
     private val view = BubbleView(service)
@@ -43,6 +49,12 @@ class BubbleController(
 
     fun attach() {
         if (attached) return
+
+        val windows = windowManager
+        if (windows == null) {
+            Log.e(TAG, "no WindowManager available - the bubble cannot be shown")
+            return
+        }
 
         val size = dp(settings.sizeDp)
         val layoutParams = WindowManager.LayoutParams(
@@ -62,7 +74,7 @@ class BubbleController(
         view.setOnTouchListener(TouchHandler())
 
         try {
-            windowManager.addView(view, layoutParams)
+            windows.addView(view, layoutParams)
             params = layoutParams
             attached = true
             Log.i(TAG, "bubble attached as accessibility overlay")
@@ -73,7 +85,7 @@ class BubbleController(
 
     fun detach() {
         if (!attached) return
-        runCatching { windowManager.removeView(view) }
+        runCatching { windowManager?.removeView(view) }
             .onFailure { Log.w(TAG, "bubble already gone", it) }
         attached = false
         params = null
@@ -207,19 +219,25 @@ class BubbleController(
 
     @Suppress("DEPRECATION")
     private fun screenSize(): Pair<Int, Int> {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val bounds = windowManager.currentWindowMetrics.bounds
-            return bounds.width() to bounds.height()
+        val windows = windowManager
+        if (windows != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val bounds = windows.currentWindowMetrics.bounds
+                return bounds.width() to bounds.height()
+            }
+            val metrics = android.util.DisplayMetrics()
+            windows.defaultDisplay.getMetrics(metrics)
+            return metrics.widthPixels to metrics.heightPixels
         }
-        val metrics = android.util.DisplayMetrics()
-        windowManager.defaultDisplay.getMetrics(metrics)
+        // Falls back to the display metrics, which are close enough for edge snapping.
+        val metrics = service.resources.displayMetrics
         return metrics.widthPixels to metrics.heightPixels
     }
 
     private fun update() {
         if (!attached) return
         val layoutParams = params ?: return
-        runCatching { windowManager.updateViewLayout(view, layoutParams) }
+        runCatching { windowManager?.updateViewLayout(view, layoutParams) }
             .onFailure { Log.w(TAG, "could not update bubble layout", it) }
     }
 

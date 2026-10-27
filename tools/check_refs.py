@@ -3,6 +3,9 @@ import re, pathlib, sys, collections
 root = pathlib.Path(__file__).resolve().parent.parent
 kt = list(root.rglob('*.kt'))
 kt = [p for p in kt if '/build/' not in str(p)]
+# The type-check stubs stand in for AndroidX and the generated R class. Including them here
+# would let a stub declaration satisfy an import that has no real counterpart.
+kt = [p for p in kt if 'tools/typecheck-stubs' not in str(p)]
 
 MODIFIERS = r'(?:public |internal |private |abstract |sealed |open |data |value |enum |annotation |inline |expect |actual |fun )*'
 type_re = re.compile(r'^\s*(?:@\w+\s+)*' + MODIFIERS +

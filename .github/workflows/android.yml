@@ -37,6 +37,12 @@ jobs:
       - name: Core unit tests
         run: ./gradlew :core:test
 
+      # Independent of the SDK: checks the non-Compose Android sources against real
+      # framework classes from Maven Central. Keeps working even if the Android build
+      # breaks for an unrelated reason.
+      - name: Type-check Android sources against android-all
+        run: tools/typecheck-android.sh
+
       - name: Lint
         run: ./gradlew :app:lintDebug
         continue-on-error: true
