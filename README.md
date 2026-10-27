@@ -38,12 +38,19 @@ gewählte Engine nicht kann, gibt es eine Fehlermeldung, keine Umleitung deiner 
 ## Aufbau
 
 ```
-core/   reines Kotlin/JVM — Engine-Schicht, Text-Splicing, VAD, Settings-Schema
-app/    Android — Blase, Bedienungshilfe, Aufnahme, Compose-UI
+core/   reines Kotlin/JVM — Engine-Schicht, Text-Splicing, Einfüge-Kette, VAD,
+        Mikrofon-Routing, Settings-Schema, Diagnose-Log   → 111 Tests
+app/    Android — Blase, Bedienungshilfe-Adapter, Aufnahme, Compose-UI
 ```
 
-Die Trennung ist nicht Kosmetik: `core` enthält die Logik, die schiefgehen kann, und läuft
-ohne Android SDK und ohne Gerät. `gradle :core:test` ist damit überall ausführbar.
+Die Trennung ist nicht Kosmetik, sondern die Grundregel des Projekts: **alles, was schiefgehen
+kann, gehört nach `core`.** Dort läuft es ohne Android SDK und ohne Gerät, also ist es
+testbar. In `app` bleibt nur, was zwingend eine Plattform-API braucht — das Finden des
+fokussierten Knotens, `AudioRecord`, das Overlay-Fenster.
+
+Zwei echte Fehler sind dadurch vor dem ersten Build aufgefallen: der Cursor wurde gesetzt,
+bevor geprüft war, ob das Schreiben überhaupt angekommen ist, und ein leeres Textfeld
+(`text == null`) galt als unlesbar — Diktieren in ein leeres Feld hätte nie funktioniert.
 
 ### Einfügen in fremde Apps
 
@@ -73,7 +80,10 @@ Weg 2 greift automatisch, wenn Weg 1 scheitert.
 
 ```bash
 ./gradlew :core:test          # läuft überall, ohne Android SDK
+python3 -I tools/check_refs.py  # Imports, R.*-IDs, Manifest-Klassen
 ./gradlew :app:assembleDebug  # braucht ein Android SDK
+
+tools/setup-android-sdk.sh    # SDK holen und bauen, falls keins da ist
 ```
 
 `settings.gradle.kts` bindet `:app` nur ein, wenn ein SDK gefunden wird (`ANDROID_HOME`,
@@ -90,8 +100,27 @@ adb install -r app-debug.apk
 adb logcat -s Nocturne:V     # Zustände, gewählte Einfüge-Strategie, Latenzen
 ```
 
-Checkliste: Onboarding durchlaufen → Blase erscheint über einer Fremd-App → Diktat landet in
-WhatsApp / Chrome / Gmail → Engine-Wechsel wirkt sofort → „Verbindung testen" zeigt Latenz.
+Die Reihenfolge ist absichtlich so — sie grenzt Fehler ein, statt sie zu vermischen:
+
+1. App öffnen, Mikrofon erlauben.
+2. **Testdiktat** im Testfeld der App. Hier ist Nocturne im Vordergrund, wo Mikrofonzugriff
+   nie verweigert wird, und das Ziel ist ein gewöhnliches Eingabefeld. Klappt das, stehen
+   Mikrofon, Engine, Normalisierung und Einfügen.
+3. Bedienungshilfe aktivieren → Blase erscheint, lässt sich ziehen und rastet am Rand ein.
+4. Blase in WhatsApp, Chrome und Gmail. Die **Diagnose-Karte** zeigt pro Diktat Engine,
+   Latenz, benutzte Einfüge-Methode und Ziel-App.
+5. Eigene Engine eintragen → **„Verbindung testen"** zeigt Latenz, ohne dass du sprechen musst.
+6. Gerät neu starten, ohne die App zu öffnen, Blase antippen → die Proxy-Activity muss
+   einspringen. Hier treiben Hersteller-ROMs am ehesten quer.
+
+Wenn Schritt 2 geht und Schritt 4 nicht, liegt es am Einfügen, nicht an der Erkennung.
+Geht Schritt 2 schon nicht, ist es Mikrofon oder Engine — und die Diagnose-Karte sagt, welches.
+
+## Wenn etwas im Weg ist
+
+Die Blase lässt sich in den Einstellungen abschalten, ohne die Bedienungshilfe anzufassen —
+das Testfeld funktioniert dann weiter. Ein Diktat hat außerdem eine harte Obergrenze, damit
+ein hängender Erkenner oder ein stiller Server die Blase nicht endlos drehen lässt.
 
 ## Noch nicht drin
 
