@@ -11,11 +11,11 @@ import app.nocturne.core.audio.StopReason
 import app.nocturne.core.audio.VadConfig
 import app.nocturne.core.audio.VadDecision
 import app.nocturne.core.audio.VadPolicy
+import app.nocturne.core.capture.PcmAccumulator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlin.math.log10
 
 /**
  * Records 16 kHz mono PCM and asks [VadPolicy] after every frame whether to stop.
@@ -71,9 +71,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         }
 
         val vad = VadPolicy(config)
-        val chunks = ArrayList<ShortArray>()
+        val recorded = PcmAccumulator(sampleRate)
         val frame = ShortArray(frameSamples)
-        var totalSamples = 0
 
         try {
             recorder.startRecording()
@@ -96,18 +95,17 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     continue
                 }
 
-                chunks.add(frame.copyOf(read))
-                totalSamples += read
+                recorded.append(frame, read)
 
                 val rms = PcmAudio.rms(frame, 0, read)
-                onAmplitude(normalizeAmplitude(rms))
+                onAmplitude(PcmAccumulator.normalizeLoudness(rms))
 
                 val decision = if (stopRequested()) vad.onManualStop() else vad.onFrame(rms)
                 when (decision) {
                     is VadDecision.Continue -> Unit
                     is VadDecision.Discard -> return@withContext Outcome.Discarded(decision.reason)
                     is VadDecision.Stop -> return@withContext Outcome.Captured(
-                        PcmAudio(flatten(chunks, totalSamples), sampleRate),
+                        recorded.build(),
                         decision.reason,
                     )
                 }
@@ -120,24 +118,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         }
     }
 
-    private fun flatten(chunks: List<ShortArray>, total: Int): ShortArray {
-        val out = ShortArray(total)
-        var offset = 0
-        for (chunk in chunks) {
-            chunk.copyInto(out, offset)
-            offset += chunk.size
-        }
-        return out
-    }
-
-    /** Log scale, because a linear RMS ring barely moves for normal speech. */
-    private fun normalizeAmplitude(rms: Double): Float {
-        if (rms <= 1.0) return 0f
-        return (log10(rms) / log10(MAX_PCM_VALUE)).toFloat().coerceIn(0f, 1f)
-    }
-
     private companion object {
         const val TAG = "Nocturne"
-        const val MAX_PCM_VALUE = 32_768.0
     }
 }

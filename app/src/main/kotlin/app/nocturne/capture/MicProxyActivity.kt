@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.nocturne.NocturneApp
 import app.nocturne.dictation.DictationState
-import app.nocturne.dictation.TriggerSource
+import app.nocturne.core.capture.TriggerSource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 

@@ -29,7 +29,7 @@ import app.nocturne.NocturneApp
 import app.nocturne.capture.MicForegroundService
 import app.nocturne.core.settings.EngineConfig
 import app.nocturne.core.settings.NocturneSettings
-import app.nocturne.dictation.TriggerSource
+import app.nocturne.core.capture.TriggerSource
 import app.nocturne.ui.screen.EngineDetailScreen
 import app.nocturne.ui.screen.HomeScreen
 import app.nocturne.ui.screen.SettingsScreen

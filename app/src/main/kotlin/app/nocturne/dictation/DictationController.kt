@@ -12,6 +12,9 @@ import app.nocturne.capture.AudioCapture
 import app.nocturne.capture.MicForegroundService
 import app.nocturne.capture.MicProxyActivity
 import app.nocturne.core.audio.DiscardReason
+import app.nocturne.core.capture.MicrophoneRoute
+import app.nocturne.core.capture.MicrophoneRouter
+import app.nocturne.core.capture.TriggerSource
 import app.nocturne.core.engine.ListenCallbacks
 import app.nocturne.core.engine.SelfCapturingSttEngine
 import app.nocturne.core.engine.SttEngine
@@ -66,26 +69,29 @@ class DictationController(
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
         if (isRunning) return
 
-        if (!hasMicrophonePermission()) {
-            fail("Mikrofon-Berechtigung fehlt. Bitte in Nocturne erteilen.")
-            return
-        }
+        when (
+            MicrophoneRouter.route(
+                source = source,
+                hasPermission = hasMicrophonePermission(),
+                foregroundServiceRunning = MicForegroundService.isRunning,
+            )
+        ) {
+            MicrophoneRoute.NEEDS_PERMISSION -> {
+                fail("Mikrofon-Berechtigung fehlt. Bitte in Nocturne erteilen.")
+                return
+            }
 
-        // Android 14+ refuses a background microphone start. The foreground service is the
-        // normal answer; if it is not up and the request came from the bubble - with a
-        // foreign app in front - hand over to the proxy activity, which is foreground by
-        // definition, and let it call back in. A press inside Nocturne is already
-        // foreground, so it must never open that window.
-        if (source.mayUseProxyFallback && !MicForegroundService.isRunning) {
-            Log.i(TAG, "mic service not running - routing through proxy activity")
-            MicProxyActivity.launch(context)
-            return
-        }
+            MicrophoneRoute.VIA_PROXY_ACTIVITY -> {
+                // Android 14+ refuses a background microphone start and a foreign app is in
+                // front, so hand over to the invisible activity and let it call back in.
+                Log.i(TAG, "no foreground anchor - routing through the proxy activity")
+                MicProxyActivity.launch(context)
+                return
+            }
 
-        if (source == TriggerSource.IN_APP && !MicForegroundService.isRunning) {
-            // Visible right now, so this start is permitted and keeps later bubble taps
-            // off the proxy path.
-            MicForegroundService.start(context)
+            MicrophoneRoute.START_SERVICE_THEN_RECORD -> MicForegroundService.start(context)
+
+            MicrophoneRoute.RECORD_NOW -> Unit
         }
 
         stopRequested.set(false)
