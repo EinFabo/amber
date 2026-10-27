@@ -1,10 +1,5 @@
-package app.nocturne.engine
+package app.nocturne.core.net
 
-import app.nocturne.core.net.HttpBody
-import app.nocturne.core.net.HttpRequest
-import app.nocturne.core.net.HttpResponse
-import app.nocturne.core.net.HttpTransport
-import app.nocturne.core.net.MultipartPart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -14,7 +9,14 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-/** The Android side of [HttpTransport]. Keeps OkHttp out of :core. */
+/**
+ * The real HTTP implementation of [HttpTransport].
+ *
+ * It lives in :core rather than in the Android module on purpose: OkHttp is an ordinary JVM
+ * library, so keeping it here means the actual network path - multipart assembly, headers,
+ * response handling - is covered by tests that run without a device. A transport that only
+ * existed in :app would be the one piece nothing could verify.
+ */
 class OkHttpTransport(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)

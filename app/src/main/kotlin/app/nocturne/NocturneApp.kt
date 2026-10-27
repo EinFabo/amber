@@ -9,7 +9,7 @@ import app.nocturne.data.SettingsStore
 import app.nocturne.data.StrategyStore
 import app.nocturne.dictation.DictationController
 import app.nocturne.engine.EngineFactory
-import app.nocturne.engine.OkHttpTransport
+import app.nocturne.core.net.OkHttpTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
