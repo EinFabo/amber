@@ -1,0 +1,90 @@
+package app.nocturne.core
+
+import app.nocturne.core.engine.EngineKind
+import app.nocturne.core.engine.EnginePresets
+import app.nocturne.core.settings.CaptureSettings
+import app.nocturne.core.settings.EngineConfig
+import app.nocturne.core.settings.NocturneSettings
+import app.nocturne.core.settings.SettingsCodec
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class SettingsTest {
+
+    @Test
+    fun `defaults start on the engine that needs no setup`() {
+        val settings = NocturneSettings.defaults()
+        assertEquals(EnginePresets.ANDROID_ON_DEVICE.id, settings.activeEngineId)
+        val active = assertNotNull(settings.activeEngine)
+        assertEquals(EngineKind.ANDROID_ON_DEVICE, active.kind)
+        assertNull(active.apiKeyAlias, "the on-device engine must not ask for a key")
+    }
+
+    @Test
+    fun `presets that need a key get an alias, never the key itself`() {
+        val config = EngineConfig.fromPreset(EnginePresets.TINFOIL)
+        assertEquals("key.tinfoil-whisper", config.apiKeyAlias)
+        assertEquals("https://whisper-large-v3-turbo.inf.tinfoil.sh/v1", config.baseUrl)
+        assertEquals("whisper-large-v3-turbo", config.modelId)
+    }
+
+    @Test
+    fun `settings survive a json round trip`() {
+        val original = NocturneSettings.defaults()
+            .withEngine(EngineConfig.fromPreset(EnginePresets.TINFOIL, "de-DE"))
+            .copy(activeEngineId = EnginePresets.TINFOIL.id)
+
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(original))
+        assertEquals(original, decoded)
+        assertEquals(2, decoded.engines.size)
+    }
+
+    @Test
+    fun `unknown fields from a newer build are ignored`() {
+        val raw = """{"activeEngineId":"android-on-device","engines":[],"somethingNew":42}"""
+        assertEquals("android-on-device", SettingsCodec.decode(raw).activeEngineId)
+    }
+
+    @Test
+    fun `corrupt settings fall back to defaults instead of crashing`() {
+        assertEquals(NocturneSettings.defaults(), SettingsCodec.decode("}{ not json"))
+    }
+
+    @Test
+    fun `withEngine replaces an existing entry rather than duplicating it`() {
+        val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
+        val settings = NocturneSettings.defaults()
+            .withEngine(tinfoil)
+            .withEngine(tinfoil.copy(modelId = "whisper-large-v3"))
+
+        assertEquals(2, settings.engines.size)
+        assertEquals("whisper-large-v3", settings.engines.last().modelId)
+    }
+
+    @Test
+    fun `auto-stop off pushes the silence timeout out of reach`() {
+        val vad = CaptureSettings(autoStopOnSilence = false).toVadConfig()
+        assertEquals(Int.MAX_VALUE, vad.silenceTimeoutMs)
+
+        val auto = CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 750).toVadConfig()
+        assertEquals(750, auto.silenceTimeoutMs)
+    }
+
+    @Test
+    fun `capture settings carry the pre-roll into the vad config`() {
+        val vad = CaptureSettings(preRollMs = 420).toVadConfig(frameMs = 20)
+        assertEquals(420, vad.preRollMs)
+        assertTrue(vad.maxDurationMs > 0)
+        // The pre-roll is also the calibration window: 420ms / 20ms per frame.
+        assertEquals(21, vad.calibrationFrames)
+    }
+
+    @Test
+    fun `calibration window stays within sane bounds`() {
+        assertEquals(3, CaptureSettings(preRollMs = 0).toVadConfig().calibrationFrames)
+        assertEquals(50, CaptureSettings(preRollMs = 5_000).toVadConfig().calibrationFrames)
+    }
+}

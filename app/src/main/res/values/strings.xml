@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nocturne</string>
+    <string name="accessibility_label">Nocturne Diktat</string>
+    <string name="accessibility_summary">Blase zum Diktieren und Einfügen in jede App</string>
+    <string name="accessibility_description">Nocturne braucht diesen Dienst für zwei Dinge: die Diktat-Blase über anderen Apps anzuzeigen und den erkannten Text in das gerade aktive Textfeld zu schreiben. Es wird nichts mitgelesen, gespeichert oder verschickt, was nicht aus einem Diktat stammt.</string>
+
+    <string name="notification_channel_name">Nocturne bereit</string>
+    <string name="notification_channel_description">Hält das Mikrofon für die Diktat-Blase verfügbar</string>
+    <string name="notification_ready_title">Nocturne ist bereit</string>
+    <string name="notification_ready_text">Tippe die Blase an, um zu diktieren</string>
+
+    <string name="clipboard_fallback">Text in der Zwischenablage – bitte einfügen</string>
+</resources>

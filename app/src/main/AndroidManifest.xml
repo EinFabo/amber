@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      No SYSTEM_ALERT_WINDOW on purpose: the bubble is hosted by the accessibility service
+      as a TYPE_ACCESSIBILITY_OVERLAY, which needs no draw-over-other-apps grant.
+    -->
+
+    <application
+        android:name=".NocturneApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Nocturne">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Nocturne">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Fallback path for ROMs that deny microphone access to a long-lived foreground
+          service: a 1x1 transparent activity is, by definition, in the foreground.
+        -->
+        <activity
+            android:name=".capture.MicProxyActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Nocturne.Invisible" />
+
+        <service
+            android:name=".accessibility.NocturneAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".capture.MicForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+    </application>
+</manifest>
