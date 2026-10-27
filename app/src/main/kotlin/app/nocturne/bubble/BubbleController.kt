@@ -79,6 +79,10 @@ class BubbleController(
         params = null
     }
 
+    /**
+     * Safe to call before [attach]: the settings are stored either way, so a later attach
+     * builds the window from them instead of from defaults.
+     */
     fun applySettings(bubbleSettings: BubbleSettings) {
         settings = bubbleSettings
         hapticsEnabled = bubbleSettings.haptics
@@ -87,6 +91,7 @@ class BubbleController(
         layoutParams.width = size
         layoutParams.height = size
         layoutParams.x = horizontalPosition(bubbleSettings.edge, size)
+        layoutParams.y = verticalPosition(bubbleSettings.verticalBias, size)
         update()
     }
 

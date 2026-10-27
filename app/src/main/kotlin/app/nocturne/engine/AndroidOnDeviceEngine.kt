@@ -1,9 +1,12 @@
 package app.nocturne.engine
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -44,14 +47,24 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
     @Volatile
     private var recognizer: SpeechRecognizer? = null
 
+    /**
+     * Every SpeechRecognizer method checks that it was called from the main thread and throws
+     * if it was not. Cancellation handlers and the controller's cleanup both run on whatever
+     * thread got there first, so every call is posted instead of made directly - otherwise a
+     * timed-out dictation takes the process down with it.
+     */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun requestStop() {
+        val current = recognizer ?: return
         // stopListening() delivers what was heard so far; cancel() would throw it away.
-        recognizer?.stopListening()
+        mainHandler.post { runCatching { current.stopListening() } }
     }
 
     override fun close() {
-        recognizer?.destroy()
+        val current = recognizer ?: return
         recognizer = null
+        mainHandler.post { runCatching { current.destroy() } }
     }
 
     override suspend fun listen(
@@ -79,7 +92,8 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             fun settle(result: Result<Transcript>) {
                 if (settled) return
                 settled = true
-                recognizer.destroy()
+                // Listener callbacks arrive on the main thread, so this one is safe direct.
+                runCatching { recognizer.destroy() }
                 this@AndroidOnDeviceEngine.recognizer = null
                 continuation.resume(result)
             }
@@ -130,9 +144,14 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             recognizer.startListening(buildIntent(options))
 
             continuation.invokeOnCancellation {
-                recognizer.cancel()
-                recognizer.destroy()
+                // Runs on the cancelling thread - the watchdog's, not the main one.
                 this@AndroidOnDeviceEngine.recognizer = null
+                mainHandler.post {
+                    runCatching {
+                        recognizer.cancel()
+                        recognizer.destroy()
+                    }
+                }
             }
         }
     }
@@ -164,6 +183,10 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
     private fun firstResult(bundle: Bundle?): String? =
         bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
 
+    // ERROR_SERVER_DISCONNECTED and the two language errors are API 31+ constants. They are
+    // compile-time ints, so referencing them is safe at minSdk 28 - those codes simply never
+    // arrive on older versions, where the branches are dead rather than wrong.
+    @SuppressLint("NewApi")
     private fun failureFor(error: Int): SttFailure {
         val message = when (error) {
             SpeechRecognizer.ERROR_AUDIO -> "Mikrofon konnte nicht gelesen werden."

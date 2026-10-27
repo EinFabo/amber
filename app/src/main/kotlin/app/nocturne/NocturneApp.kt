@@ -47,14 +47,22 @@ class Graph(app: Application) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settingsStore = SettingsStore(app)
-    val secretStore = SecretStore(app)
     val strategyStore = StrategyStore(app)
+
+    /**
+     * Lazy on purpose. Building this generates or unwraps a keystore-backed master key and
+     * initialises Tink - the slowest thing in the app on a first launch. In
+     * Application.onCreate it would delay the first frame for everyone, including users who
+     * never configure a cloud engine at all.
+     */
+    val secretStore: SecretStore by lazy { SecretStore(app) }
 
     /** Synchronously readable settings, for the service paths that cannot suspend. */
     val settings: StateFlow<NocturneSettings> = settingsStore.settings
         .stateIn(appScope, SharingStarted.Eagerly, NocturneSettings.defaults())
 
-    val engineFactory = EngineFactory(app, OkHttpTransport(), secretStore)
+    // Lazy too, so that merely building the graph does not force the secret store open.
+    val engineFactory: EngineFactory by lazy { EngineFactory(app, OkHttpTransport(), secretStore) }
 
     /** Outcomes of the last dictations, for the diagnostics card. */
     val dictationLog = DictationLog()

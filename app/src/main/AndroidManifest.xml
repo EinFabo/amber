@@ -6,8 +6,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      Android 11+ package visibility: without this, queryIntentServices for the recognition
+      service returns nothing, SpeechRecognizer.isRecognitionAvailable() is false on every
+      device, and the engine that is meant to work out of the box never does.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <!--
       No SYSTEM_ALERT_WINDOW on purpose: the bubble is hosted by the accessibility service
@@ -19,6 +28,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Nocturne">
 

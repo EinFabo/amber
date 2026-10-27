@@ -42,6 +42,17 @@ fun SettingsScreen(
 ) {
     var showPresets by remember { mutableStateOf(false) }
 
+    // Each hasKeyFor() is an AES-SIV decrypt out of EncryptedSharedPreferences. Computing it
+    // per engine row on every recomposition made scrolling the settings screen do crypto.
+    val problemsByEngine = remember(settings) {
+        settings.engines.associate { engine ->
+            engine.id to EngineConfigValidator.validate(
+                engine,
+                hasApiKey = hasKeyFor(engine.apiKeyAlias),
+            )
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -57,10 +68,7 @@ fun SettingsScreen(
                 EngineRow(
                     config = engine,
                     active = engine.id == settings.activeEngineId,
-                    problems = EngineConfigValidator.validate(
-                        engine,
-                        hasApiKey = hasKeyFor(engine.apiKeyAlias),
-                    ),
+                    problems = problemsByEngine[engine.id].orEmpty(),
                     onSelect = { onUpdateSettings { it.copy(activeEngineId = engine.id) } },
                     onOpen = { onOpenEngine(engine.id) },
                 )

@@ -2,8 +2,8 @@
 <resources>
     <!-- Nocturne is dark-only by design; no light variant exists. -->
     <style name="Theme.Nocturne" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#07060B</item>
-        <item name="android:navigationBarColor">#07060B</item>
+        <!-- statusBarColor/navigationBarColor are ignored from targetSdk 35 (enforced
+             edge-to-edge); the insets are handled by Scaffold and TopAppBar instead. -->
         <item name="android:windowBackground">#07060B</item>
         <item name="android:colorAccent">#A855F7</item>
     </style>

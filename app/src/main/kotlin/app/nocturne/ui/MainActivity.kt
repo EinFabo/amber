@@ -216,7 +216,11 @@ private fun NocturneRoot(graph: Graph, setup: SetupState, actions: SetupActions)
                     EngineDetailScreen(
                         modifier = Modifier.padding(innerPadding),
                         config = config,
-                        storedKey = graph.secretStore.get(config.apiKeyAlias),
+                        // Read once per engine, not on every recomposition: this is a
+                        // decrypt out of EncryptedSharedPreferences.
+                        storedKey = remember(config.apiKeyAlias) {
+                            graph.secretStore.get(config.apiKeyAlias)
+                        },
                         onSaveKey = { alias, value ->
                             if (value.isBlank()) graph.secretStore.clear(alias)
                             else graph.secretStore.put(alias, value)

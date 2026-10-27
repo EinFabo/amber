@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -26,7 +27,14 @@ import kotlinx.coroutines.launch
 class NocturneAccessibilityService : AccessibilityService() {
 
     private lateinit var graph: Graph
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * Recreated on every connect: onServiceConnected can run again on the same instance
+     * (a service-info update, a rebind) and teardown cancels this scope. A cancelled scope
+     * would leave the bubble attached but frozen - never rendering state, never reacting to
+     * the on/off switch.
+     */
+    private var scope = newScope()
 
     lateinit var textInserter: TextInserter
         private set
@@ -45,6 +53,8 @@ class NocturneAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.i(TAG, "accessibility service connected")
+
+        if (!scope.isActive) scope = newScope()
 
         graph = NocturneApp.graph(this)
         textInserter = TextInserter(this, graph.strategyStore)
@@ -66,8 +76,10 @@ class NocturneAccessibilityService : AccessibilityService() {
             graph.settings.collectLatest { settings ->
                 val controller = bubble ?: return@collectLatest
                 if (settings.bubble.enabled) {
-                    controller.attach()
+                    // Settings first: attach() builds the window from them, so applying
+                    // afterwards would create it at the default position every time.
                     controller.applySettings(settings.bubble)
+                    controller.attach()
                 } else {
                     controller.detach()
                 }
@@ -113,6 +125,8 @@ class NocturneAccessibilityService : AccessibilityService() {
         }
         scope.cancel()
     }
+
+    private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private fun openSettings() {
         startActivity(

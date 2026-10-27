@@ -22,6 +22,7 @@ import app.nocturne.core.engine.SttFailure
 import app.nocturne.core.engine.TranscribeOptions
 import app.nocturne.core.text.Transcript
 import app.nocturne.core.text.TranscriptNormalizer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -86,7 +87,14 @@ class DictationController(
                 // Android 14+ refuses a background microphone start and a foreign app is in
                 // front, so hand over to the invisible activity and let it call back in.
                 Log.i(TAG, "no foreground anchor - routing through the proxy activity")
+
+                // Set synchronously, before the activity exists. The activity waits for the
+                // run to *leave* this state; seeing Idle it would finish during its own
+                // onCreate - before AudioRecord opened - and the anchor it exists to provide
+                // would be gone again.
+                _state.value = DictationState.Starting
                 MicProxyActivity.launch(context)
+                watchProxyHandover()
                 return
             }
 
@@ -96,7 +104,27 @@ class DictationController(
         }
 
         stopRequested.set(false)
+        // Also set here, synchronously: anything watching the state must see the dictation
+        // begin before the coroutine gets its first dispatch.
+        _state.value = DictationState.Starting
         job = scope.launch { run(source) }
+    }
+
+    /**
+     * Background activity launches are dropped on some vendor builds. When that happens the
+     * proxy never calls back and a bubble tap would do nothing at all - no state change, no
+     * message. So say something after a moment instead of staying silent.
+     */
+    private fun watchProxyHandover() {
+        scope.launch {
+            delay(PROXY_HANDOVER_TIMEOUT_MS)
+            if (!isRunning && _state.value is DictationState.Starting) {
+                fail(
+                    "Mikrofon konnte nicht geöffnet werden. Öffne Nocturne einmal, " +
+                        "danach funktioniert die Blase direkt.",
+                )
+            }
+        }
     }
 
     /** Finish the current recording and transcribe what was captured. */
@@ -144,6 +172,10 @@ class DictationController(
             if (finished == null) {
                 fail("Zeitüberschreitung - das Diktat wurde abgebrochen.", engineConfig.id)
             }
+        } catch (e: CancellationException) {
+            // cancel() already set the state, and a cancelled parent scope is not a dictation
+            // error. Rethrow so structured concurrency still sees it.
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
             fail("Unerwarteter Fehler: ${e.message ?: e::class.simpleName}")
@@ -314,6 +346,7 @@ class DictationController(
     private companion object {
         const val TAG = "Nocturne"
         const val DONE_DISPLAY_MS = 1_200L
+        const val PROXY_HANDOVER_TIMEOUT_MS = 3_000L
         const val FAILED_DISPLAY_MS = 3_500L
     }
 }
