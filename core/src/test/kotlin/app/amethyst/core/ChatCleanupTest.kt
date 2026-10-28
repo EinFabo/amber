@@ -96,4 +96,20 @@ class ChatCleanupTest {
         val formal = "Ich möchte Sie kurz darüber informieren, dass das Meeting morgen um 10 Uhr stattfindet und wir dafür Raum 3 nutzen werden."
         assertTrue(ChatCleanup.plausible(text, formal, WritingStyle.FORMAL))
     }
+
+    @Test
+    fun `an empty reply is a failure, never the text null`() = runTest {
+        val transport = FakeHttpTransport.json("""{"choices":[{"message":{"content":null},"finish_reason":"length"}]}""")
+        assertTrue(cleanup(transport).clean("Ja, bis gleich").isFailure)
+        val noReason = FakeHttpTransport.json("""{"choices":[{"message":{"content":null}}]}""")
+        assertTrue(cleanup(noReason).clean("Ja, bis gleich").isFailure)
+    }
+
+    @Test
+    fun `a reply cut off at the token limit is rejected`() = runTest {
+        val transport = FakeHttpTransport.json(
+            """{"choices":[{"message":{"content":"Das Meeting ist morgen um zehn und wir"},"finish_reason":"length"}]}""",
+        )
+        assertTrue(cleanup(transport).clean("das meeting ist morgen um zehn und wir nehmen raum drei").isFailure)
+    }
 }

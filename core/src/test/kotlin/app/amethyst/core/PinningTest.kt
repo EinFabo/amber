@@ -8,7 +8,9 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.HeldCertificate
+import java.io.InterruptedIOException
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLPeerUnverifiedException
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -77,5 +79,23 @@ class PinningTest {
         val first = transport.pinnedTo("localhost", spkiHex)
         assertTrue(first === transport.pinnedTo("localhost", spkiHex.uppercase()))
         assertTrue(first !== transport.pinnedTo("localhost", "0".repeat(64)), "a new key gets a new copy")
+    }
+
+    @Test
+    fun `the pinned copy does not follow a redirect elsewhere`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(307).setHeader("Location", "https://example.com/v1/models"))
+        val response = transport.pinnedTo("localhost", spkiHex).execute(request())
+        assertEquals(307, response.code)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a request is bounded by its own timeout`() = runTest {
+        server.enqueue(MockResponse().setBody("late").setHeadersDelay(5, TimeUnit.SECONDS))
+        val started = System.currentTimeMillis()
+        assertFailsWith<InterruptedIOException> {
+            transport.execute(request().copy(timeoutMs = 300))
+        }
+        assertTrue(System.currentTimeMillis() - started < 3_000)
     }
 }

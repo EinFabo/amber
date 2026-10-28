@@ -42,15 +42,19 @@ class AmethystApp : Application() {
     }
 
     /**
-     * The Whisper context is the largest thing in this process. When the system is about to
-     * start killing apps, giving it back is cheaper for the user than losing the service.
+     * The models are the largest thing in this process. When the system is about to start
+     * killing apps, giving them back is cheaper for the user than losing the service.
+     *
+     * Only on real memory pressure: UI_HIDDEN and BACKGROUND are numerically higher but only
+     * mean the screens went away - the bubble still dictates, and the idle release handles
+     * the rest. And never here on the main thread: a running transcription holds the model's
+     * lock, and waiting for it would freeze the bubble.
      */
     @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
-            graph.whisperRuntime.release()
-            graph.sherpaRuntime.release()
+        if (level == TRIM_MEMORY_RUNNING_CRITICAL || level >= TRIM_MEMORY_COMPLETE) {
+            graph.releaseModelsWhenIdle()
         }
     }
 
@@ -175,11 +179,18 @@ class Graph(app: Application) {
         releaseJob?.cancel()
         releaseJob = appScope.launch {
             delay(MODEL_IDLE_RELEASE_MS)
-            if (!dictation.isRunning) {
-                whisperRuntime.release()
-                sherpaRuntime.release()
-            }
+            releaseModelsWhenIdle()
         }
+    }
+
+    /**
+     * Frees both models on their own threads - queued behind any running inference rather
+     * than blocking the caller on its lock - unless a dictation is using one right now.
+     */
+    fun releaseModelsWhenIdle() {
+        if (dictation.isRunning) return
+        appScope.launch(whisperRuntime.dispatcher) { if (!dictation.isRunning) whisperRuntime.release() }
+        appScope.launch(sherpaRuntime.dispatcher) { if (!dictation.isRunning) sherpaRuntime.release() }
     }
 
     private companion object {

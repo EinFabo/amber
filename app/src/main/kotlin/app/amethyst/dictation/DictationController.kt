@@ -80,6 +80,13 @@ class DictationController(
     @Volatile
     private var trace: RunTrace? = null
 
+    /**
+     * The app whose field had focus when the dictation started. Text is only typed into that
+     * app: if the user switched meanwhile, it would land in another chat - maybe to someone
+     * else. Kept across the proxy activity's re-entry, which itself has focus.
+     */
+    private var startTarget: String? = null
+
     /** A release that came while the proxy activity was still on its way. */
     private val stopDuringHandover = AtomicBoolean(false)
 
@@ -96,6 +103,7 @@ class DictationController(
         if (source != TriggerSource.PROXY_ACTIVITY) {
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
+            startTarget = graph.accessibilityService?.focusedInputPackage()
         }
 
         val route = MicrophoneRouter.route(
@@ -367,7 +375,7 @@ class DictationController(
         // The style belongs to the app whose field gets the text; after the proxy activity
         // that is only known once focus is back.
         awaitFocusReturn()
-        val target = graph.accessibilityService?.targetPackage()
+        val target = startTarget ?: graph.accessibilityService?.targetPackage()
         val profile = AppProfiles.forPackage(graph.settings.value.profiles, target)
         if (profile?.cleanup == false) {
             trace?.cleanup = "cleanup off for ${profile.label}"
@@ -391,7 +399,8 @@ class DictationController(
             },
             onFailure = { error ->
                 trace?.cleanup = "cleanup skipped: ${userMessageOf(error)}"
-                Log.w(TAG, "cleanup failed", error)
+                // The error's own text may quote the model's reply, i.e. the dictation.
+                Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.take(80) ?: error.javaClass.simpleName}")
                 transcript
             },
         )
@@ -419,6 +428,20 @@ class DictationController(
 
         awaitFocusReturn()
 
+        val nowFocused = graph.accessibilityService?.focusedInputPackage()
+        val started = startTarget
+        if (started != null && nowFocused != null && nowFocused != started) {
+            Log.i(TAG, "focus moved from $started to $nowFocused during the dictation - not inserting")
+            val copied = inserter.copyToClipboard(cleaned)
+            fail(
+                if (copied) "You switched apps meanwhile - the text is on the clipboard instead."
+                else "You switched apps meanwhile - the text was not inserted.",
+                engineId,
+                logAs = "focus moved to another app",
+            )
+            return
+        }
+
         trace?.insertingStarts()
         val insertion = inserter.insert(
             cleaned,
@@ -441,6 +464,7 @@ class DictationController(
                 "No text field accepted the text: \u201C$cleaned\u201D " +
                     "[${inserter.lastTrace}]",
                 engineId,
+                logAs = "no text field accepted the text [${inserter.lastTrace}]",
             )
             return
         }
@@ -497,8 +521,10 @@ class DictationController(
         message: String,
         engineId: String? = null,
         remedy: SttFailure.Remedy? = null,
+        // What goes to logcat when the message quotes the dictated text.
+        logAs: String = message,
     ) {
-        Log.w(TAG, "dictation failed: $message")
+        Log.w(TAG, "dictation failed: $logAs")
         graph.dictationLog.recordFailure(message, engineId, trace?.summary())
         _state.value = DictationState.Failed(message, remedy)
 

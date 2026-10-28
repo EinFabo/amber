@@ -78,10 +78,12 @@ class SparkView(context: Context) : View(context) {
             canvas.drawLine(x, y, x, y + length, stroke)
         }
 
-        if (listening || alive) postInvalidateOnAnimation() else lastFrame = 0L
+        // 30 frames a second: sparks this small look the same, at a quarter of 120 Hz's cost.
+        if (listening || alive) postInvalidateDelayed(FRAME_MS) else lastFrame = 0L
     }
 
     private companion object {
+        const val FRAME_MS = 33L
         const val ATTACK = 0.35f
         const val RELEASE = 0.08f
     }

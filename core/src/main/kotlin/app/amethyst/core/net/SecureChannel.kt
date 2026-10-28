@@ -29,11 +29,23 @@ class SecureChannel(
 
     class Sent(val response: HttpResponse, val trust: TrustLevel)
 
-    private class Route(val transport: HttpTransport, val trust: TrustLevel)
+    /** [host] is the attested host a pinned route may talk to; null for a plain route. */
+    private class Route(val transport: HttpTransport, val trust: TrustLevel, val host: String? = null)
 
     /** [what] names the payload in messages: "recording" or "text". */
     suspend fun send(request: HttpRequest, what: String = "recording"): Result<Sent> {
         var route = route(forceFresh = false, what).getOrElse { return Result.failure(it) }
+        route.host?.let { attested ->
+            val target = runCatching { URI(request.url) }.getOrNull()
+            if (target?.scheme != "https" || !attested.equals(target.host, ignoreCase = true)) {
+                return Result.failure(
+                    SttFailure(
+                        userMessage = "The request did not go to the verified enclave. The $what was not sent.",
+                        technical = "request ${target?.scheme}://${target?.host}, attested $attested",
+                    ),
+                )
+            }
+        }
         return try {
             val response = try {
                 route.transport.execute(request)
@@ -59,7 +71,12 @@ class SecureChannel(
         } catch (e: Exception) {
             Result.failure(
                 SttFailure(
-                    userMessage = "No connection to \"$displayName\".",
+                    // The call's own time limit; a socket timeout means no connection at all.
+                    userMessage = if (e is java.io.InterruptedIOException && e !is java.net.SocketTimeoutException) {
+                        "\"$displayName\" did not answer in time."
+                    } else {
+                        "No connection to \"$displayName\"."
+                    },
                     technical = e.toString(),
                     cause = e,
                 ),
@@ -105,7 +122,7 @@ class SecureChannel(
                     technical = "transport ${transport::class.simpleName} cannot pin",
                 ),
             )
-        return Result.success(Route(pinnable.pinnedTo(proof.host, proof.tlsKeySha256Hex), TrustLevel.ENCLAVE_VERIFIED))
+        return Result.success(Route(pinnable.pinnedTo(proof.host, proof.tlsKeySha256Hex), TrustLevel.ENCLAVE_VERIFIED, proof.host))
     }
 
     private suspend fun verify(verifier: AttestationVerifier, forceFresh: Boolean): AttestationResult =

@@ -8,6 +8,7 @@
 #include <android/log.h>
 #include <dirent.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <set>
@@ -119,11 +120,19 @@ std::vector<std::string> split_languages(const std::string &list) {
 // whisper_full, so a first whisper_full that stops before encoding sets this dictation's
 // context (and computes the mel) without paying for a transcription. whisper.cpp logs that
 // stop as "encoder_begin_callback returned false - aborting"; here it is expected.
+//
+// Detection looks at the first ~10 s only, with an encoder context to match: the language is
+// clear by then, and a full 30 s encoder pass here would nearly double the cost of the
+// dictation - the encoder is most of large-v3-turbo's work.
+constexpr int kDetectSamples = 16000 * 10;
+constexpr int kDetectAudioCtx = 512;  // 1500 positions are 30 s; 512 cover ~10 s
+
 std::string detect_among(whisper_context *ctx, const std::vector<std::string> &allowed,
                          const float *samples, int count, int audio_ctx, int threads) {
     whisper_full_params prime = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     prime.n_threads = threads;
-    prime.audio_ctx = audio_ctx;
+    prime.audio_ctx = audio_ctx > 0 ? std::min(audio_ctx, kDetectAudioCtx) : kDetectAudioCtx;
+    count = std::min(count, kDetectSamples);
     prime.language = allowed.front().c_str();
     prime.detect_language = false;
     prime.print_progress = false;

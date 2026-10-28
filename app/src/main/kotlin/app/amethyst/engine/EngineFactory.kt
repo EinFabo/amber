@@ -137,6 +137,8 @@ class EngineFactory(
         val model = config.cleanupModel?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (config.kind != EngineKind.OPENAI_COMPATIBLE) return null
         val baseUrl = config.baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        // Recognition already refuses such an engine; the cleanup must not send its text anyway.
+        if (config.requireEnclave && !EnginePresets.isEnclaveHost(baseUrl)) return null
         val channel = SecureChannel(
             baseUrl = baseUrl,
             displayName = config.displayName,

@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -219,9 +220,11 @@ fun EngineDetailScreen(
                             shape = AmberShapes.Inner,
                             colors = fieldColors(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            // Masked: off screenshots, recordings and other services' eyes.
+                            visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Hint("Stored encrypted, never written to a settings export.")
+                        Hint("Stored encrypted on this phone only.")
                     }
     
                     LanguageField(language) { language = it }

@@ -89,11 +89,15 @@ class ParakeetModelStore(
         _state.value = currentState()
     }
 
+    /** Off the main thread: release waits for a transcription that may still hold the model. */
     fun delete() {
         cancel()
-        runtime.release()
-        dir.deleteRecursively()
         _state.value = ParakeetState.Missing
+        scope.launch(runtime.dispatcher) {
+            runtime.release()
+            dir.deleteRecursively()
+            _state.value = ParakeetState.Missing
+        }
     }
 
     private fun fetch(file: ParakeetModel.FileSpec, onProgress: (Long) -> Unit): Result<Unit> {

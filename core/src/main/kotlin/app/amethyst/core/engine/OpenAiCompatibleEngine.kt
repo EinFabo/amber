@@ -12,6 +12,7 @@ import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -69,6 +70,8 @@ class OpenAiCompatibleEngine(
         fun request(withPrompt: Boolean) = HttpRequest(
             method = "POST",
             url = endpointUrl(baseUrl),
+            // Upload plus recognition: a minute of headroom on top of the audio's own length.
+            timeoutMs = 60_000 + audio.durationMs,
             headers = buildMap {
                 if (!apiKey.isNullOrBlank()) put("Authorization", "Bearer $apiKey")
                 put("Accept", "application/json")
@@ -160,11 +163,12 @@ class OpenAiCompatibleEngine(
 
     private fun parseResponse(body: String): ParsedResponse {
         val obj = json.parseToJsonElement(body).jsonObject
-        val text = obj["text"]?.jsonPrimitive?.content
-            ?: error("no 'text' field in response")
+        // contentOrNull: a JSON null is no text, not the four letters "null".
+        val text = obj["text"]?.jsonPrimitive?.contentOrNull
+            ?: error("no 'text' in response")
         return ParsedResponse(
             text = text.trim(),
-            language = obj["language"]?.jsonPrimitive?.content,
+            language = obj["language"]?.jsonPrimitive?.contentOrNull,
         )
     }
 

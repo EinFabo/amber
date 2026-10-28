@@ -78,7 +78,10 @@ class KeyboardPolicy(
     }
 
     fun onReading(reading: Reading, now: Long, screenHeight: Int): Decision {
-        val moving = reading is Reading.Window && reading.bottom > screenHeight + TOLERANCE_PX
+        // Bounds that make no sense are treated like a keyboard in motion: looked at again,
+        // but only for as long as an animation can take.
+        val moving = reading is Reading.Window &&
+            (reading.bottom > screenHeight + TOLERANCE_PX || reading.bottom <= reading.top || reading.top < 0)
         if (!moving) movingSince = null
         if (reading != Reading.Absent) missingSince = null
         return read(reading, now, screenHeight)
@@ -89,7 +92,10 @@ class KeyboardPolicy(
             phoneReportsKeyboard = true
             val sane = reading.bottom > reading.top && reading.top >= 0
             when {
-                !sane -> decide(current, RECHECK_MS, "implausible keyboard bounds")
+                !sane -> {
+                    val since = movingSince ?: now.also { movingSince = it }
+                    decide(current, if (now - since < MAX_MOVING_MS) RECHECK_MS else null, "implausible keyboard bounds")
+                }
 
                 reading.bottom > screenHeight + TOLERANCE_PX -> {
                     // Sliding in or out. Hold position and look again shortly - but only for

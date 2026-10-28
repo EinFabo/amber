@@ -128,7 +128,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                                 Transcript(
                                     text = text.trim(),
                                     engineId = id,
-                                    trustLevel = TrustLevel.ON_DEVICE,
+                                    trustLevel = usedTrust,
                                     latencyMs = SystemClock.elapsedRealtime() - startedAt,
                                 ),
                             ),
@@ -156,9 +156,18 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         }
     }
 
+    /**
+     * What the last recognizer guaranteed. Only the on-device recognizer (Android 13+) keeps
+     * the audio on the phone; the general one merely prefers offline and may send it to the
+     * recognition service's servers, so its text is labelled as cloud.
+     */
+    @Volatile
+    private var usedTrust: TrustLevel = TrustLevel.ON_DEVICE
+
     private fun createRecognizer(): SpeechRecognizer {
         val onDeviceAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+        usedTrust = if (onDeviceAvailable) TrustLevel.ON_DEVICE else TrustLevel.CLOUD
         return if (onDeviceAvailable) {
             SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
         } else {

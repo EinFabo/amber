@@ -140,4 +140,11 @@ class KeyboardPolicyTest {
 
         assertEquals(648, policy.onFocusChanged(true, now = 5_000, screenHeight = 1080).top)
     }
+
+    @Test
+    fun `nonsense keyboard bounds are not polled forever`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        assertNotNull(policy.onReading(Reading.Window(-50, 900), now = 60, screenHeight = screen).recheckInMs)
+        assertNull(policy.onReading(Reading.Window(-50, 900), now = 60_000, screenHeight = screen).recheckInMs)
+    }
 }

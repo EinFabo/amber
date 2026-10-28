@@ -127,7 +127,7 @@ class TextInserter(
      * that is not in the foreground cannot read the clipboard, so a "restore" would overwrite
      * it with null. Better to leave the dictation there than to destroy what the user copied.
      */
-    private fun copyToClipboard(text: String): Boolean {
+    fun copyToClipboard(text: String): Boolean {
         val clipboard = service.getSystemService(ClipboardManager::class.java) ?: return false
         return try {
             clipboard.setPrimaryClip(ClipData.newPlainText("Amber", text))

@@ -13,6 +13,7 @@ import app.amethyst.core.engine.whisper.WhisperModels
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,7 +29,7 @@ import java.util.concurrent.TimeUnit
  */
 class WhisperModelStore(
     private val context: Context,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     private val runtime: NativeWhisperRuntime,
 ) {
 
@@ -127,10 +128,14 @@ class WhisperModelStore(
 
     fun delete(id: String) {
         cancel(id)
-        // The runtime may hold exactly this file; it reloads whatever is needed next.
-        runtime.release()
-        fileFor(id).delete()
         slots.set(id, SlotState.Missing)
+        // The runtime may hold exactly this file; it reloads whatever is needed next. On its
+        // own thread, since release waits for a transcription that may still be running.
+        scope.launch(runtime.dispatcher) {
+            runtime.release()
+            fileFor(id).delete()
+            slots.set(id, SlotState.Missing)
+        }
     }
 
     private fun install(

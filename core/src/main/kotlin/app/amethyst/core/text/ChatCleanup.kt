@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -50,8 +51,9 @@ class ChatCleanup(
             put("model", model)
             put("temperature", 0)
             // A cleaned text is about as long as the dictation; this bounds the bill if a model
-            // runs on regardless.
-            put("max_tokens", text.length / 2 + 256)
+            // runs on regardless. A model whose reasoning cannot be switched off spends tokens
+            // on it first and gets room for that, or a short dictation comes back empty.
+            put("max_tokens", text.length / 2 + 256 + if (templateKwargs.isEmpty()) REASONING_HEADROOM else 0)
             if (templateKwargs.isNotEmpty()) {
                 put("chat_template_kwargs", buildJsonObject { templateKwargs.forEach { (k, v) -> put(k, v) } })
             }
@@ -71,6 +73,7 @@ class ChatCleanup(
                 put("Accept", "application/json")
             },
             body = HttpBody.Bytes(body.toString().encodeToByteArray(), "application/json"),
+            timeoutMs = TIMEOUT_MS,
         )
 
         val sent = channel.send(request, what = "text").getOrElse { return Result.failure(it) }
@@ -78,9 +81,14 @@ class ChatCleanup(
         if (!response.isSuccessful) {
             return Result.failure(SttFailure("Cleanup failed (${response.code}).", "HTTP ${response.code}: ${response.bodyAsText().take(200)}"))
         }
-        val reply = runCatching { replyText(response.bodyAsText()) }.getOrNull()
-            ?: return Result.failure(SttFailure("Cleanup answer could not be read.", response.bodyAsText().take(200)))
-        val cleaned = unwrap(reply)
+        val reply = runCatching { replyOf(response.bodyAsText()) }.getOrNull()
+            ?: return Result.failure(SttFailure("Cleanup answer could not be read.", "unparseable reply, ${response.body.size} bytes"))
+        // A reply cut off at max_tokens has lost the end of the dictation; an empty one (all
+        // tokens spent on reasoning) would otherwise be typed as nothing - or as "null".
+        if (reply.finishReason != null && reply.finishReason != "stop") {
+            return Result.failure(SttFailure("Cleanup was cut off; kept the original.", "finish_reason=${reply.finishReason}"))
+        }
+        val cleaned = unwrap(reply.content ?: "")
         if (!plausible(text, cleaned, style)) {
             return Result.failure(SttFailure("Cleanup changed too much; kept the original.", "in=${text.length} out=${cleaned.length}"))
         }
@@ -138,9 +146,20 @@ class ChatCleanup(
             return "$versioned/chat/completions"
         }
 
-        private fun replyText(body: String): String =
-            json.parseToJsonElement(body).jsonObject["choices"]!!.jsonArray[0]
-                .jsonObject["message"]!!.jsonObject["content"]!!.jsonPrimitive.content
+        private const val REASONING_HEADROOM = 1024
+
+        /** A cleanup is worth a short wait, never a long one; the original text is ready. */
+        const val TIMEOUT_MS = 12_000L
+
+        private class Reply(val content: String?, val finishReason: String?)
+
+        private fun replyOf(body: String): Reply {
+            val choice = json.parseToJsonElement(body).jsonObject["choices"]!!.jsonArray[0].jsonObject
+            return Reply(
+                content = choice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull,
+                finishReason = choice["finish_reason"]?.jsonPrimitive?.contentOrNull,
+            )
+        }
 
         /** Drops reasoning blocks and stray tags some models add around the answer. */
         internal fun unwrap(reply: String): String =

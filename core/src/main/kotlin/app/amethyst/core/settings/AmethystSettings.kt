@@ -26,6 +26,12 @@ data class EngineConfig(
      * mis-hearings), on the same service and connection as the recognition; null for none.
      */
     val cleanupModel: String? = null,
+    /**
+     * Send only over a verified enclave connection, or not at all. Set by presets like
+     * Tinfoil: whether a connection gets verified is decided by its host, so without this an
+     * edited URL would quietly turn the engine into a plain cloud one - with the same key.
+     */
+    val requireEnclave: Boolean = false,
 ) {
     companion object {
         fun fromPreset(preset: EnginePreset, languageTag: String? = null) = EngineConfig(
@@ -36,6 +42,7 @@ data class EngineConfig(
             modelId = preset.modelId,
             languageTag = languageTag,
             apiKeyAlias = if (preset.needsApiKey) "key.${preset.id}" else null,
+            requireEnclave = preset.requireEnclave,
         )
 
         /**
@@ -160,9 +167,10 @@ data class AmethystSettings(
         /**
          * 2: Whisper takes a list of languages. 3: Tinfoil moved behind one router.
          * 4: per-app profiles - nothing to migrate, an absent field decodes to the defaults.
+         * 5: the Tinfoil engine requires its enclave.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 4
+        const val SCHEMA_VERSION = 5
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -209,7 +217,7 @@ object SettingsCodec {
                     engine.baseUrl?.contains(".inf.tinfoil.sh") == true ->
                         engine.copy(baseUrl = EnginePresets.TINFOIL_BASE_URL)
                     else -> engine
-                }
+                }.let { if (it.id == EnginePresets.TINFOIL.id) it.copy(requireEnclave = true) else it }
             },
             schemaVersion = AmethystSettings.SCHEMA_VERSION,
         )

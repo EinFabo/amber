@@ -60,32 +60,34 @@ As of 2026-10-28, after 0.11.0. Urgent things at the top, later stages at the bo
 ## Code review findings (2026-10-28, at 9156c9a)
 
 Battery/security review by a review agent. The enclave send path holds (verify before send,
-pin mismatch stops before any byte, cleanup on the same channel). To fix:
-- [ ] HIGH: ChatCleanup and the transcription parser turn a JSON `null` into the text "null";
+pin mismatch stops before any byte, cleanup on the same channel). Fixed in 0.12.0 unless
+marked open:
+- [x] HIGH: ChatCleanup and the transcription parser turn a JSON `null` into the text "null";
       `finish_reason` is not checked, so a cut-off reply is accepted. Use contentOrNull, reject
       null/blank and finish_reason != "stop"; reasoning-only models get headroom or are dropped.
-- [ ] Enclave status is decided from the URL: an edited Tinfoil URL silently falls back to plain
+- [x] Enclave status is decided from the URL: an edited Tinfoil URL silently falls back to plain
       cloud with the Tinfoil key. Add `requireEnclave` to EngineConfig and refuse instead.
-- [ ] HTTP ignores cancellation and `timeoutMs`: the 12 s cleanup limit and the watchdog do not
+- [x] HTTP ignores cancellation and `timeoutMs`: the 12 s cleanup limit and the watchdog do not
       cut a stalled request. Use enqueue + cancel on cancellation, per-call timeout.
-- [ ] Several Whisper languages run the encoder twice (detection + transcription); detect on a
+- [x] Several Whisper languages run the encoder twice (detection + transcription); detect on a
       short window or remember the language for a while.
-- [ ] onTrimMemory releases models on the main thread while a transcription holds the lock
+- [x] onTrimMemory releases models on the main thread while a transcription holds the lock
       (bubble freeze/ANR), and on UI_HIDDEN too. Release on the model's thread, only on real
       memory pressure.
 - [ ] Debug build: debuggable, debug key, no AOT/R8 - a security risk and slower. Release build
       with own key (also on the housekeeping list).
-- [ ] Android recognizer fallback (no on-device recognizer, API < 33) is labelled ON_DEVICE but
+- [x] Android recognizer fallback (no on-device recognizer, API < 33) is labelled ON_DEVICE but
       may go online; label it honestly.
-- [ ] Text goes into whatever field has focus at the end; if the user switched apps meanwhile,
+- [x] Text goes into whatever field has focus at the end; if the user switched apps meanwhile,
       do not insert into the other app (clipboard + toast instead).
-- [ ] Low: pinned client follows redirects; channel should require https and the request host;
-      verifier should check config_repo and the fingerprint format. API key field not masked.
-      Secrets fall back to plain storage silently. Dictated text reaches logcat in two places.
-      Bubble/spark frames at full refresh rate and in still mode; home recomposes at 50/s while
-      listening; keyboard tracker runs with the bubble off, one unbounded recheck; Parakeet not
-      abortable; WAV uploads (FLAC/Opus would halve them); supply-chain pin gaps (tinfoil-go
-      tarball hash, AAR hashes at build time, Gradle wrapper checksum, CI actions by SHA).
+- [x] Low, fixed: pinned client no longer follows redirects; the channel requires https and
+      the attested host per request; API key field masked; no dictated text in logcat;
+      bubble/spark at 30 fps, no frames in still mode; keyboard tracker idle with the bubble
+      off, implausible bounds rechecked only briefly.
+- [ ] Low, open: verifier should check config_repo and the fingerprint format. Secrets fall
+      back to plain storage silently. Parakeet not abortable. WAV uploads (FLAC/Opus would
+      halve them). Supply-chain pin gaps (tinfoil-go tarball hash, AAR hashes at build time,
+      Gradle wrapper checksum, CI actions by SHA).
 
 ## Layout and statistics lab (2026-10-28)
 

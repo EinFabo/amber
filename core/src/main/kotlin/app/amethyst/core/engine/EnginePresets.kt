@@ -36,12 +36,22 @@ data class EnginePreset(
     val needsApiKey: Boolean = false,
     /** Shown under the preset in settings. User-facing. */
     val note: String = "",
+    /** Refuse to send unless the connection is a verified enclave; see EngineConfig. */
+    val requireEnclave: Boolean = false,
 )
 
 object EnginePresets {
 
     /** Tinfoil's confidential model router; see [TINFOIL]. */
     const val TINFOIL_BASE_URL = "https://inference.tinfoil.sh/v1"
+
+    /** Hosts whose enclave Amber can verify (the app's TinfoilVerifier knows their repos). */
+    val ENCLAVE_HOSTS = setOf("inference.tinfoil.sh")
+
+    fun isEnclaveHost(baseUrl: String?): Boolean {
+        val uri = runCatching { java.net.URI(baseUrl.orEmpty().trim()) }.getOrNull() ?: return false
+        return uri.scheme == "https" && uri.host?.lowercase() in ENCLAVE_HOSTS
+    }
 
     val ANDROID_ON_DEVICE = EnginePreset(
         id = "android-on-device",
@@ -90,6 +100,7 @@ object EnginePresets {
         // Whisper is billed per request; see TINFOIL_SPEECH_MODELS.
         modelId = "voxtral-small-24b",
         needsApiKey = true,
+        requireEnclave = true,
         note = "Confidential computing in an enclave. Shows " +
             "\"Enclave verified\" only once the attestation is confirmed.",
     )

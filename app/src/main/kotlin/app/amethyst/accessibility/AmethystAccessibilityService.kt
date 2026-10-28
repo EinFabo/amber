@@ -120,7 +120,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         val event = incoming ?: return
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                keyboard?.windowsChanged()
+                if (bubbleShown) keyboard?.windowsChanged()
                 event.packageName?.toString()
                     ?.takeIf { it != packageName }
                     ?.let { foregroundPackage = it }
@@ -132,9 +132,13 @@ class AmethystAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_VIEW_FOCUSED ->
                 if (!tracksInputDirectly) updateTextFieldFocus(event.source?.isEditable == true)
 
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> keyboard?.windowsChanged()
+            // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged()
         }
     }
+
+    private val bubbleShown: Boolean
+        get() = graph.settings.value.bubble.enabled
 
     private val tracksInputDirectly: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -143,9 +147,11 @@ class AmethystAccessibilityService : AccessibilityService() {
      * The app that owns the field the text will go into: the focused input's package, which
      * can be Amber itself (its test field), else the last app in front.
      */
-    fun targetPackage(): String? =
+    fun targetPackage(): String? = focusedInputPackage() ?: foregroundPackage
+
+    /** The package of the node with input focus, if any - the most certain target there is. */
+    fun focusedInputPackage(): String? =
         runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.packageName?.toString() }.getOrNull()
-            ?: foregroundPackage
 
     private fun currentFocusIsEditable(): Boolean =
         runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isEditable == true }

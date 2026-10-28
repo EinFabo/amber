@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.BubbleSettings
@@ -175,5 +176,24 @@ class CaptureTimeoutTest {
         assertEquals(AppProfiles.DEFAULTS.size, changed.size)
         assertEquals(WritingStyle.FORMAL, AppProfiles.forPackage(changed, "com.whatsapp")?.style)
         assertEquals(AppProfiles.DEFAULTS.size + 1, AppProfiles.upsert(changed, AppProfile("x.y", "X")).size)
+    }
+
+    @Test
+    fun `a tinfoil engine refuses any address but its enclave`() {
+        val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
+        assertTrue(tinfoil.requireEnclave)
+        assertTrue(EngineConfigValidator.validate(tinfoil, hasApiKey = true).isEmpty())
+        for (url in listOf("https://api.tinfoil.sh/v1", "http://inference.tinfoil.sh/v1", "https://inference.tinfoil.sh.evil.example/v1")) {
+            assertFalse(EngineConfigValidator.isReady(tinfoil.copy(baseUrl = url), hasApiKey = true), url)
+        }
+    }
+
+    @Test
+    fun `tinfoil engines saved before version 5 get to require the enclave`() {
+        val old = AmethystSettings(
+            engines = listOf(EngineConfig.fromPreset(EnginePresets.TINFOIL).copy(requireEnclave = false)),
+            schemaVersion = 4,
+        )
+        assertTrue(SettingsCodec.decode(SettingsCodec.encode(old)).engines.single().requireEnclave)
     }
 }

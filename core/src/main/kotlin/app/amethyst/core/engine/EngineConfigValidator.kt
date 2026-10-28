@@ -25,6 +25,9 @@ object EngineConfigValidator {
                 addAll(validateUrl(config))
                 if (config.modelId.isNullOrBlank()) add("The model name is missing.")
                 if (config.apiKeyAlias != null && !hasApiKey) add("The API key is missing.")
+                if (config.requireEnclave && !EnginePresets.isEnclaveHost(config.baseUrl)) {
+                    add("This engine only sends to its verifiable enclave address (${EnginePresets.TINFOIL_BASE_URL}).")
+                }
             }
         }
 

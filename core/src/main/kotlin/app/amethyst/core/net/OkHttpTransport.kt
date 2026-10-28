@@ -1,7 +1,8 @@
 package app.amethyst.core.net
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.CertificatePinner
 import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
@@ -9,9 +10,13 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * The real HTTP implementation of [HttpTransport].
@@ -49,13 +54,49 @@ class OkHttpTransport(
             client.newBuilder()
                 .connectionPool(ConnectionPool())
                 .certificatePinner(CertificatePinner.Builder().add(host, pin).build())
+                // A redirect would replay the body to another address, outside the pin.
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .build(),
         )
         pinned[host] = key to transport
         return transport
     }
 
-    override suspend fun execute(request: HttpRequest): HttpResponse = withContext(Dispatchers.IO) {
+    /**
+     * Runs the call asynchronously so a cancelled coroutine cancels it - a stopped dictation
+     * stops uploading, and a caller's timeout really ends the request - and bounds the whole
+     * call by [HttpRequest.timeoutMs].
+     */
+    override suspend fun execute(request: HttpRequest): HttpResponse {
+        val call = client.newCall(toOkRequest(request))
+        call.timeout().timeout(request.timeoutMs, TimeUnit.MILLISECONDS)
+        return suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(
+                object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        continuation.resumeWithException(e)
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        val result = runCatching {
+                            response.use {
+                                HttpResponse(
+                                    code = it.code,
+                                    body = it.body?.bytes() ?: ByteArray(0),
+                                    headers = it.headers.toMultimap().mapValues { h -> h.value.joinToString(", ") },
+                                )
+                            }
+                        }
+                        result.fold(continuation::resume, continuation::resumeWithException)
+                    }
+                },
+            )
+        }
+    }
+
+    private fun toOkRequest(request: HttpRequest): Request {
         val body = when (val b = request.body) {
             null -> null
             is HttpBody.Bytes -> b.bytes.toRequestBody(b.contentType.toMediaType())
@@ -76,19 +117,11 @@ class OkHttpTransport(
                 .build()
         }
 
-        val okRequest = Request.Builder()
+        return Request.Builder()
             .url(request.url)
             .method(request.method, body)
             .apply { request.headers.forEach { (name, value) -> header(name, value) } }
             .build()
-
-        client.newCall(okRequest).execute().use { response ->
-            HttpResponse(
-                code = response.code,
-                body = response.body?.bytes() ?: ByteArray(0),
-                headers = response.headers.toMultimap().mapValues { it.value.joinToString(", ") },
-            )
-        }
     }
 
     private companion object {

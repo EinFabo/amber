@@ -134,7 +134,11 @@ class BubbleView(context: Context) : View(context) {
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
 
-        if (needsFrames(elapsed)) postInvalidateOnAnimation()
+        when (val delay = nextFrameMs(elapsed, still)) {
+            null -> Unit
+            0L -> postInvalidateOnAnimation()
+            else -> postInvalidateDelayed(delay)
+        }
     }
 
     /** A spark running clockwise around the rim, its tail fading behind it in four steps. */
@@ -256,11 +260,23 @@ class BubbleView(context: Context) : View(context) {
         canvas.drawCircle(cx, cy + r * 0.27f, r * 0.07f, glyph)
     }
 
-    private fun needsFrames(elapsed: Float): Boolean = when (visual) {
-        BubbleVisual.LISTENING, BubbleVisual.TRANSCRIBING -> true
+    /**
+     * When to draw next: 0 for the next vsync, a delay in ms, or null for not until something
+     * changes. Listening is driven by the recorder's amplitude (50 a second) once faded in.
+     * The burning flame and the fuse run for as long as recognition takes - up to a minute
+     * and more on a local model, next to whisper on the CPU - so they get 30 frames a second,
+     * not 120; with animations off only a progress ring still moves, four times a second.
+     */
+    private fun nextFrameMs(elapsed: Float, still: Boolean): Long? = when (visual) {
+        BubbleVisual.LISTENING -> if (elapsed < ENTER_MS) 0L else null
+        BubbleVisual.TRANSCRIBING -> when {
+            !still -> WORKING_FRAME_MS
+            expectedWorkMs != null -> STILL_PROGRESS_MS
+            else -> null
+        }
         // Keep drawing until the fade-in, the tick, the burst and the level decay have settled;
         // a resting bubble then costs nothing.
-        else -> elapsed < SETTLE_MS || level > 0.01f
+        else -> if (elapsed < SETTLE_MS || level > 0.01f) 0L else null
     }
 
     /** Brings the bubble in. Called when a text field gains focus. */
@@ -308,6 +324,8 @@ class BubbleView(context: Context) : View(context) {
         const val RELEASE = 0.08f
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f
+        const val WORKING_FRAME_MS = 33L
+        const val STILL_PROGRESS_MS = 250L
 
         val BAR_PROFILE = floatArrayOf(0.75f, 1f, 0.75f)
         val BAR_SPEED = floatArrayOf(2.6f, 3.2f, 2.2f)
