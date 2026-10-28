@@ -1,6 +1,7 @@
 package app.amethyst.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
@@ -30,7 +31,10 @@ class KeyboardTracker(
     private val onTop: (Int?) -> Unit,
 ) {
 
-    private val policy = KeyboardPolicy()
+    /** Where the keyboard settled, so the first field after a restart needs no estimate. */
+    private val prefs = service.getSharedPreferences("keyboard", Context.MODE_PRIVATE)
+    private val policy = KeyboardPolicy(remembered = remembered())
+    private var kept = policy.settled
     private val handler = Handler(Looper.getMainLooper())
     private val check = Runnable { measure() }
 
@@ -68,8 +72,18 @@ class KeyboardTracker(
     private fun apply(decision: KeyboardPolicy.Decision) {
         onTop(decision.top)
         record(decision)
+        policy.settled?.takeIf { it != kept }?.let { settled ->
+            kept = settled
+            prefs.edit().putInt(KEY_TOP, settled.top).putInt(KEY_HEIGHT, settled.screenHeight).apply()
+        }
         handler.removeCallbacks(check)
         decision.recheckInMs?.let { handler.postDelayed(check, it) }
+    }
+
+    private fun remembered(): KeyboardPolicy.Settled? {
+        val top = prefs.getInt(KEY_TOP, -1)
+        val height = prefs.getInt(KEY_HEIGHT, -1)
+        return if (top > 0 && height > top) KeyboardPolicy.Settled(top, height) else null
     }
 
     private fun read(): Reading = runCatching {
@@ -159,5 +173,7 @@ class KeyboardTracker(
         const val MAX_NODES = 80
         const val MAX_DEPTH = 6
         const val LOG_LINES = 12
+        const val KEY_TOP = "top"
+        const val KEY_HEIGHT = "screenHeight"
     }
 }

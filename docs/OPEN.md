@@ -30,10 +30,20 @@ Done in 0.14.0:
 - [x] **App picker**: icons, the apps you dictate in first (from the statistics), search by
       name or package ignoring accents, several apps at once for "Hidden in".
 
-Findings and candidates, best first:
-- [ ] **Follow the keyboard while it slides.** A reading with the window partly below the
-      screen is the keyboard's real position mid-animation; today the policy holds still and
-      jumps at the end. Move to `reading.top` instead (still capped by MAX_MOVING_MS).
+Measured on the device (Pixel 9a, Android 17, Gboard; USB, screen recording + logcat,
+2026-10-29):
+- Opening: the bubble starts ~90 ms after the keyboard and is up ~200 ms after it. Fine.
+- Android reports the keyboard only as "below the edge" once and then "settled" - the window
+  bounds do not follow the slide frame by frame, so following it is not possible this way.
+- [x] **Closing** (0.14.1): the bubble hung ~430 ms in the air after the keyboard was gone (the
+      250 ms gap protection). A keyboard at rest that reaches below the edge is now taken as
+      leaving: the bubble goes down with it, and the following missing report is a close.
+- [x] **First field after a restart** (0.14.1): estimated 1405, then settled 1466 - up and back
+      down. The settled height is now kept across restarts.
+- [ ] Confirm both on the device (screen recording); Fabi saw the bubble wobble while typing -
+      not reproduced in Settings search (bubble steady over 7 key taps); ask where.
+
+Candidates, best first:
 - [ ] **Smoother motion**: animate `translationY` inside a briefly taller window instead of
       one `updateViewLayout` per frame (each is a round trip to the window manager).
 - [ ] **Floating keyboards** (Gboard floating, Samsung floating/one-handed): the window frame

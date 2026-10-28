@@ -75,15 +75,55 @@ class KeyboardPolicyTest {
     }
 
     @Test
-    fun `a hiding keyboard holds the bubble until it is gone`() {
+    fun `a keyboard sliding away takes the bubble down at once`() {
+        // Pixel 9a, Android 17, back pressed with the field still focused: one reading below
+        // the edge, then nothing until it is gone. The bubble used to hang ~430 ms after it.
         policy.onFocusChanged(true, now = 0, screenHeight = screen)
-        policy.onReading(Reading.Window(1500, 2400), now = 300, screenHeight = screen)
-        policy.onFocusChanged(false, now = 1_000, screenHeight = screen)
+        policy.onReading(Reading.Window(1466, 2400), now = 300, screenHeight = screen)
 
-        val sliding = policy.onReading(Reading.Window(1900, 2800), now = 1_060, screenHeight = screen)
-        assertEquals(1500, sliding.top)
-        // Focus is gone, so a missing keyboard is simply gone - no waiting.
-        assertNull(policy.onReading(Reading.Absent, now = 1_300, screenHeight = screen).top)
+        val sliding = policy.onReading(Reading.Window(1625, 2583), now = 3_000, screenHeight = screen)
+        assertNull(sliding.top)
+        assertNotNull(sliding.recheckInMs)
+        val gone = policy.onReading(Reading.Absent, now = 3_130, screenHeight = screen)
+        assertNull(gone.top)
+        assertNull(gone.recheckInMs, "no waiting for a close that was seen coming")
+    }
+
+    @Test
+    fun `a keyboard coming back after sliding away is followed again`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        policy.onReading(Reading.Window(1466, 2400), now = 300, screenHeight = screen)
+        policy.onReading(Reading.Window(1625, 2583), now = 3_000, screenHeight = screen)
+        policy.onReading(Reading.Absent, now = 3_130, screenHeight = screen)
+
+        // Same field tapped again: it slides in (below the edge) - the bubble goes up to the
+        // height it had at once - and settles.
+        assertEquals(1466, policy.onReading(Reading.Window(2169, 3127), now = 5_000, screenHeight = screen).top)
+        assertEquals(1466, policy.onReading(Reading.Window(1466, 2400), now = 5_300, screenHeight = screen).top)
+    }
+
+    @Test
+    fun `a keyboard sliding in is never taken for one sliding away`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        // The prediction is up, the first reading is far below it - that is an arrival.
+        assertEquals(1440, policy.onReading(Reading.Window(2169, 3127), now = 100, screenHeight = screen).top)
+    }
+
+    @Test
+    fun `the height from the last run is used for the first field`() {
+        val restarted = KeyboardPolicy(defaultTopFraction = 0.6f, remembered = KeyboardPolicy.Settled(1466, screen))
+        assertEquals(1466, restarted.onFocusChanged(true, now = 0, screenHeight = screen).top)
+        // Measured on another screen size (rotated, unfolded): the estimate instead.
+        val rotated = KeyboardPolicy(defaultTopFraction = 0.6f, remembered = KeyboardPolicy.Settled(1466, 1080))
+        assertEquals(1440, rotated.onFocusChanged(true, now = 0, screenHeight = screen).top)
+    }
+
+    @Test
+    fun `the settled height is offered for keeping`() {
+        assertNull(policy.settled)
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        policy.onReading(Reading.Window(1466, 2400), now = 300, screenHeight = screen)
+        assertEquals(KeyboardPolicy.Settled(1466, screen), policy.settled)
     }
 
     @Test

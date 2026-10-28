@@ -23,7 +23,16 @@ package app.amethyst.core.bubble
 class KeyboardPolicy(
     /** Typical top edge of a docked keyboard as a fraction of the screen, before one is seen. */
     private val defaultTopFraction: Float = 0.58f,
+    /**
+     * Where the keyboard settled last time, kept across restarts. Without it the first field
+     * after an update or a reboot moved the bubble to an estimate and then a few pixels
+     * again to the real edge - up, and back down.
+     */
+    remembered: Settled? = null,
 ) {
+
+    /** A keyboard's top edge, measured on a screen of [screenHeight]. */
+    data class Settled(val top: Int, val screenHeight: Int)
 
     sealed interface Reading {
         /** No keyboard window on screen. */
@@ -51,11 +60,20 @@ class KeyboardPolicy(
     /** This phone reports keyboard windows at all. Until then, missing proves nothing. */
     private var phoneReportsKeyboard = false
 
-    private var lastSettledTop: Int? = null
+    private var lastSettledTop: Int? = remembered?.top
 
     /** Screen height [lastSettledTop] was measured at; after a rotation it does not apply. */
-    private var settledAtHeight = 0
+    private var settledAtHeight = remembered?.screenHeight ?: 0
     private var current: Int? = null
+
+    /** What to keep for the next start; null until a keyboard has settled once. */
+    val settled: Settled? get() = lastSettledTop?.let { Settled(it, settledAtHeight) }
+
+    /** The keyboard is up and has come to rest - so the next move below the edge is a close. */
+    private var resting = false
+
+    /** It started sliding away; the next missing report is a close, not a gap. */
+    private var leaving = false
 
     /** When the keyboard was first seen moving, so a window parked off screen is not polled forever. */
     private var movingSince: Long? = null
@@ -68,6 +86,7 @@ class KeyboardPolicy(
             focused = isFocused
             focusedAt = now
             seenThisFocus = false
+            leaving = false
         }
         // Moving at once is the point: the bubble and the keyboard should travel together.
         return if (focused) {
@@ -98,11 +117,21 @@ class KeyboardPolicy(
                 }
 
                 reading.bottom > screenHeight + TOLERANCE_PX -> {
-                    // Sliding in or out. Hold position and look again shortly - but only for
-                    // as long as an animation can take.
                     val since = movingSince ?: now.also { movingSince = it }
                     val recheck = if (now - since < MAX_MOVING_MS) RECHECK_MS else null
-                    decide(current ?: if (focused) predicted(screenHeight) else null, recheck, "keyboard moving (bottom ${reading.bottom})")
+                    val top = current
+                    if (resting && top != null && reading.top > top) {
+                        // A keyboard that was at rest and now reaches below the edge is going
+                        // away. Android reports that once, then nothing until it is gone - so
+                        // the bubble goes down now, together with it, not half a second later.
+                        resting = false
+                        leaving = true
+                        decide(null, recheck, "keyboard sliding away (bottom ${reading.bottom})")
+                    } else {
+                        // Sliding in. Hold position and look again shortly - but only for as
+                        // long as an animation can take.
+                        decide(top ?: if (focused && !leaving) predicted(screenHeight) else null, recheck, "keyboard moving (bottom ${reading.bottom})")
+                    }
                 }
 
                 reading.bottom - reading.top > screenHeight * TALL_FRAME -> {
@@ -112,6 +141,8 @@ class KeyboardPolicy(
 
                 else -> {
                     seenThisFocus = true
+                    resting = true
+                    leaving = false
                     lastSettledTop = reading.top
                     settledAtHeight = screenHeight
                     decide(reading.top, null, "keyboard settled at ${reading.top}")
@@ -126,7 +157,12 @@ class KeyboardPolicy(
         }
 
         Reading.Absent -> when {
-            !focused -> decide(null, null, "no keyboard")
+            leaving -> {
+                leaving = false
+                resting = false
+                decide(null, null, "keyboard closed")
+            }
+            !focused -> decide(null, null, "no keyboard").also { resting = false }
             // It was up for this field and is not reported now. Android drops the keyboard
             // window from the list for a moment now and then (seen on a device: up at +66 ms,
             // missing at +156 ms, field still focused) - only a gap that lasts is a close.
@@ -135,6 +171,7 @@ class KeyboardPolicy(
                 if (now - since < CLOSE_CONFIRM_MS) {
                     decide(current, RECHECK_MS, "keyboard briefly unreported")
                 } else {
+                    resting = false
                     decide(null, null, "keyboard closed")
                 }
             }
