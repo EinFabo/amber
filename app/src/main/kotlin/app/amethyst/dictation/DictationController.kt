@@ -25,9 +25,13 @@ import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.WritingStyle
+import app.amethyst.core.stats.DictationStat
+import app.amethyst.core.stats.TinfoilCost
+import app.amethyst.core.stats.countWords
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
@@ -391,6 +395,7 @@ class DictationController(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
                 trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote)"
+                trace?.cleanupModel = cleanup.model
                 transcript.copy(
                     text = cleaned.text,
                     // The text is only as trustworthy as the weaker of the two trips it made.
@@ -480,6 +485,7 @@ class DictationController(
             timing = trace?.summary(),
         )
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary()}") }
+        recordStat(finalTranscript, insertion.targetPackage, settings)
 
         _state.value = DictationState.Done(
             transcript = finalTranscript,
@@ -493,6 +499,38 @@ class DictationController(
             delay(DONE_DISPLAY_MS)
             if (_state.value is DictationState.Done) _state.value = DictationState.Idle
         }
+    }
+
+    /** One line for the statistics: counts and timings only, never the text. */
+    private fun recordStat(
+        transcript: Transcript,
+        targetPackage: String?,
+        settings: app.amethyst.core.settings.AmethystSettings,
+    ) {
+        if (!settings.stats.keep) return
+        val config = settings.engines.firstOrNull { it.id == transcript.engineId }
+        val audioMs = trace?.recordingMs ?: 0
+        val now = System.currentTimeMillis()
+        graph.stats.record(
+            DictationStat(
+                at = now,
+                day = graph.stats.dayOf(now),
+                engine = transcript.engineId,
+                model = config?.modelId,
+                trust = transcript.trustLevel,
+                words = countWords(transcript.text),
+                audioMs = audioMs,
+                waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
+                app = (startTarget ?: targetPackage)?.takeIf { it != context.packageName },
+                cleanupModel = trace?.cleanupModel,
+                // Only Tinfoil bills by these prices; a self-hosted server with the same model name does not.
+                costMicroUsd = if (config != null && EnginePresets.isEnclaveHost(config.baseUrl)) {
+                    TinfoilCost.microUsd(config.modelId, audioMs, transcript.text.length, trace?.cleanupModel)
+                } else {
+                    null
+                },
+            ),
+        )
     }
 
     /**

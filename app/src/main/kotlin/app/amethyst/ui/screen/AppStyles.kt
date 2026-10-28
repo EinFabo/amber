@@ -43,74 +43,86 @@ import kotlin.math.roundToInt
 /** An app that can get a profile: what the launcher shows. */
 data class InstalledApp(val packageName: String, val label: String)
 
-/**
- * Everything the plain settings leave out: recording limits, recognizing while speaking, and a
- * writing style per app. Collapsed by default, so the everyday settings stay short.
- */
+/** Silence before stopping and the longest dictation; part of the Recording page. */
 @Composable
-fun AdvancedSection(
+fun RecordingLimits(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+) {
+    val capture = settings.capture
+    StepSlider(
+        label = "Silence before stopping",
+        valueText = "${capture.silenceTimeoutMs} ms",
+        value = capture.silenceTimeoutMs,
+        range = 500..2_500,
+        step = 100,
+        enabled = capture.autoStopOnSilence,
+        onChange = { ms -> onUpdateSettings { it.copy(capture = it.capture.copy(silenceTimeoutMs = ms)) } },
+    )
+    StepSlider(
+        label = "Longest dictation",
+        valueText = "${capture.maxDurationMs / 1000} s",
+        value = capture.maxDurationMs / 1000,
+        range = 30..300,
+        step = 30,
+        onChange = { s -> onUpdateSettings { it.copy(capture = it.capture.copy(maxDurationMs = s * 1000)) } },
+    )
+}
+
+/** Recognizing longer dictations in parts while the user still speaks. */
+@Composable
+fun ChunkingSettings(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+) {
+    val capture = settings.capture
+    ToggleRow(
+        label = "Recognize in parts",
+        description = "Longer dictations are cut at pauses and recognized while you keep " +
+            "talking, so stopping only waits for the last part. Local engines only.",
+        checked = capture.chunking,
+        onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
+    )
+    StepSlider(
+        label = "Shortest part",
+        valueText = capture.chunkMinMs?.let { "${it / 1000} s" } ?: "engine default",
+        value = (capture.chunkMinMs ?: 0) / 1000,
+        range = 0..30,
+        step = 2,
+        enabled = capture.chunking,
+        onChange = { s ->
+            onUpdateSettings { it.copy(capture = it.capture.copy(chunkMinMs = if (s == 0) null else s * 1000)) }
+        },
+    )
+}
+
+/** A writing style per app: casual in messengers, formal in mail, short in notes. */
+@Composable
+fun AppStylesScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     loadApps: suspend () -> List<InstalledApp>,
+    modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<AppProfile?>(null) }
     var picking by remember { mutableStateOf(false) }
-    val capture = settings.capture
+    val hasCleanup = settings.activeEngine?.cleanupModel != null
 
-    SectionCard(
-        title = "Advanced",
-        subtitle = "Recording limits, recognizing while you speak, and a writing style per app.",
-        collapsible = true,
-        initiallyExpanded = false,
-    ) {
-        SubHeading("Recording")
-        StepSlider(
-            label = "Silence before stopping",
-            valueText = "${capture.silenceTimeoutMs} ms",
-            value = capture.silenceTimeoutMs,
-            range = 500..2_500,
-            step = 100,
-            enabled = capture.autoStopOnSilence,
-            onChange = { ms -> onUpdateSettings { it.copy(capture = it.capture.copy(silenceTimeoutMs = ms)) } },
-        )
-        StepSlider(
-            label = "Longest dictation",
-            valueText = "${capture.maxDurationMs / 1000} s",
-            value = capture.maxDurationMs / 1000,
-            range = 30..300,
-            step = 30,
-            onChange = { s -> onUpdateSettings { it.copy(capture = it.capture.copy(maxDurationMs = s * 1000)) } },
-        )
-
-        SubHeading("Recognize while speaking")
-        ToggleRow(
-            label = "Recognize in parts",
-            description = "Longer dictations are cut at pauses and recognized while you keep " +
-                "talking, so stopping only waits for the last part. Local engines only.",
-            checked = capture.chunking,
-            onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
-        )
-        StepSlider(
-            label = "Shortest part",
-            valueText = capture.chunkMinMs?.let { "${it / 1000} s" } ?: "engine default",
-            value = (capture.chunkMinMs ?: 0) / 1000,
-            range = 0..30,
-            step = 2,
-            enabled = capture.chunking,
-            onChange = { s ->
-                onUpdateSettings { it.copy(capture = it.capture.copy(chunkMinMs = if (s == 0) null else s * 1000)) }
-            },
-        )
-
-        SubHeading("Writing style per app")
-        Hint(
-            "Applied by the cleanup model (Tinfoil engine → Cleanup). Without one the text goes " +
-                "in as recognized. Apps without a profile get it tidied as spoken.",
-        )
-        settings.profiles.forEach { profile ->
-            ProfileRow(profile) { editing = profile }
+    SubPage(modifier) {
+        SectionCard(
+            title = "App styles",
+            subtitle = "How the text is phrased depends on the app it goes into.",
+        ) {
+            Hint(
+                if (hasCleanup) "Applied by the cleanup model of the active engine. Apps without a style get the text tidied as spoken."
+                else "Styles need a cleanup model - choose one under Engine → Tinfoil → Cleanup. Until then the text goes in as recognized.",
+                if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
+            )
+            settings.profiles.forEach { profile ->
+                ProfileRow(profile) { editing = profile }
+            }
+            GhostButton("Add app", { picking = true })
         }
-        GhostButton("Add app", { picking = true })
     }
 
     editing?.let { profile ->
@@ -141,14 +153,9 @@ fun AdvancedSection(
     }
 }
 
-@Composable
-private fun SubHeading(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Muted, modifier = Modifier.padding(top = 4.dp))
-}
-
 /** A slider in steps that writes once the finger lifts, like the bubble size. */
 @Composable
-private fun StepSlider(
+internal fun StepSlider(
     label: String,
     valueText: String,
     value: Int,

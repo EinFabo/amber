@@ -39,6 +39,15 @@ internal class RunTrace(val route: String) {
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
+    /** The cleanup model that changed the text, for the cost estimate. */
+    var cleanupModel: String? = null
+
+    /** How long the user spoke. */
+    val recordingMs: Long get() = if (recordingTo > 0) recordingTo - recordingFrom else 0
+
+    /** From the stop until now: what the user has waited for the text. */
+    val sinceStopMs: Long get() = if (recordingTo > 0) now() - recordingTo else 0
+
     fun recordingStarts() { recordingFrom = now() }
     fun recordingEnds() { recordingTo = now() }
 

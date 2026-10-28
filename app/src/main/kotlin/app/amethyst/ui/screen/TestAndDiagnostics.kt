@@ -53,7 +53,7 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
         OutlinedTextField(
             value = testText,
             onValueChange = { testText = it },
-            placeholder = { Text("Tap the circle and speak …", color = AmberPalette.Muted) },
+            placeholder = { Text("Tap the flame and speak …", color = AmberPalette.Muted) },
             minLines = 3,
             shape = AmberShapes.Inner,
             textStyle = MaterialTheme.typography.bodyLarge,
@@ -92,8 +92,6 @@ fun DiagnosticsCard(
     SectionCard(
         title = "Diagnostics",
         subtitle = if (records.isEmpty()) "Nothing dictated yet." else "The last ${minOf(records.size, MAX_SHOWN)} dictations.",
-        collapsible = true,
-        initiallyExpanded = false,
         modifier = modifier,
     ) {
         if (keyboardLog.isNotEmpty()) {

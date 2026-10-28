@@ -1,6 +1,6 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.11.0. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
@@ -91,10 +91,23 @@ marked open:
 
 ## Layout and statistics lab (2026-10-28)
 
-- [ ] The layout lab: three directions (Hearth, Logbook,
-      Route) for home and settings, plus on-device statistics. The agent suggests Hearth with
-      Route's settings order and Logbook's per-engine numbers, and the statistics store first
-      (StatsLedger in :core, JSON Lines without text or audio, ~2 MB a year). Fabi to choose.
+- [x] From the layout lab Fabi chose **Hearth**. Built in 0.12.0:
+      quiet home (engine line, flame, today line, test field; setup and reliability only while
+      open), settings as a list of pages with their values ("Advanced" split into Recording
+      and App styles), engines grouped by where the voice goes with the measured wait,
+      statistics screen. StatsLedger in :core (JSON Lines, counts and timings only).
+- [ ] Not built from the lab yet: rolling the ledger up per day after 90 days (only matters
+      after years of use), detected language per dictation, token counts from Tinfoil's
+      replies instead of the cost estimate.
+- [ ] **Confirm on the device**: the today line and statistics fill after a few dictations;
+      back navigation through settings pages; Clear statistics.
+
+## Screenshots and icons (2026-10-28)
+
+- [x] 0.12.0: screenshots rendered with Robolectric (StoreShots), PNG launcher icons next to
+      the adaptive one, for stores and installers that cannot read the vector icon.
+- [ ] If the icon still does not show: give the application a PNG-only icon and the
+      launcher activity the adaptive one.
 
 ## Per-app style, under Advanced settings (Fabi, 2026-10-28)
 

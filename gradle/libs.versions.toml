@@ -12,6 +12,9 @@ activityCompose = "1.9.3"
 lifecycle = "2.8.7"
 datastore = "1.1.1"
 securityCrypto = "1.1.0-alpha06"
+# Renders the screens on the JVM for the screenshots (app/src/test/.../ui/StoreShots.kt)
+junit4 = "4.13.2"
+robolectric = "4.14.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -34,6 +37,8 @@ compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

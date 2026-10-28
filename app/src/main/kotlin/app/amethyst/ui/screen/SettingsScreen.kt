@@ -38,6 +38,15 @@ import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.AmethystSettings
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.ui.Hairline
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.SetupActions
+import app.amethyst.ui.SetupState
+import app.amethyst.ui.theme.badgeLabel
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
@@ -45,13 +54,75 @@ import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
+/** Where a settings row leads. */
+enum class SettingsPage { ENGINES, RECORDING, INSERTING, APP_STYLES, BUBBLE, STATS, RELIABILITY, DIAGNOSTICS }
+
+/**
+ * Hearth's settings: a short list, each row showing its current value, each leading to one
+ * sub-screen. Nothing collapses, nothing is "advanced" - the rarer options sit lower on the
+ * page they belong to.
+ */
 @Composable
 fun SettingsScreen(
     settings: AmethystSettings,
+    setup: SetupState,
+    diagnosticsCount: Int,
+    version: String,
+    onOpen: (SettingsPage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val capture = settings.capture
+    val insertion = settings.insertion
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp),
+    ) {
+        Hairline()
+        NavRow("Engine", settings.activeEngine?.let { "${it.displayName} · ${it.trustLevelForDisplay().badgeLabel()}" } ?: "None selected") { onOpen(SettingsPage.ENGINES) }
+        NavRow(
+            "Recording",
+            if (capture.autoStopOnSilence) "Stops after %.1f s of silence".format(java.util.Locale.US, capture.silenceTimeoutMs / 1000.0)
+            else "Runs until you tap",
+        ) { onOpen(SettingsPage.RECORDING) }
+        NavRow(
+            "Inserting",
+            listOfNotNull(
+                "spaces".takeIf { insertion.autoSpace },
+                "capitals".takeIf { insertion.autoCapitalize },
+                "clipboard fallback".takeIf { insertion.allowClipboard },
+            ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "As recognized" },
+        ) { onOpen(SettingsPage.INSERTING) }
+        NavRow("App styles", "${settings.profiles.size} ${if (settings.profiles.size == 1) "app" else "apps"} with their own style") { onOpen(SettingsPage.APP_STYLES) }
+        NavRow("Bubble", if (settings.bubble.enabled) "On · ${settings.bubble.sizeDp} dp" else "Off") { onOpen(SettingsPage.BUBBLE) }
+        Hairline()
+        NavRow("Statistics", if (settings.stats.keep) "Kept on this phone" else "Off") { onOpen(SettingsPage.STATS) }
+        val open = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
+        NavRow(
+            "Reliability",
+            if (open == 0) "All set" else "$open ${if (open == 1) "thing" else "things"} open",
+            valueColor = if (open == 0) AmberPalette.Muted else AmberPalette.Primary,
+        ) { onOpen(SettingsPage.RELIABILITY) }
+        NavRow("Diagnostics", if (diagnosticsCount == 0) "Nothing dictated yet" else "The last $diagnosticsCount dictations") { onOpen(SettingsPage.DIAGNOSTICS) }
+        Hairline()
+        Spacer(Modifier.height(16.dp))
+        Hint("Amber $version", AmberPalette.Muted)
+    }
+}
+
+/**
+ * The engines, grouped by where they send your voice, each with the wait measured here. The
+ * radio picks the active one; the row's button opens its details.
+ */
+@Composable
+fun EnginesScreen(
+    settings: AmethystSettings,
     hasKeyFor: (String?) -> Boolean,
+    medianWaitMs: Map<String, Long>,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onOpenEngine: (String) -> Unit,
-    loadApps: suspend () -> List<InstalledApp>,
     modifier: Modifier = Modifier,
 ) {
     var showPresets by remember { mutableStateOf(false) }
@@ -74,35 +145,67 @@ fun SettingsScreen(
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp),
     ) {
-        SectionCard(
-            title = "Engines",
-            subtitle = "The active engine decides where your voice goes.",
-        ) {
-            settings.engines.forEach { engine ->
-                EngineRow(
-                    config = engine,
-                    active = engine.id == settings.activeEngineId,
-                    problems = problemsByEngine[engine.id].orEmpty(),
-                    onSelect = { onUpdateSettings { it.copy(activeEngineId = engine.id) } },
-                    onOpen = { onOpenEngine(engine.id) },
-                )
+        val groups = settings.engines.groupBy { it.trustLevelForDisplay() }
+        listOf(
+            Triple(TrustLevel.ON_DEVICE, "On this phone", "Your voice never leaves the phone."),
+            Triple(TrustLevel.ENCLAVE_VERIFIED, "Verified enclave", "Sent only after the enclave's code is verified."),
+            Triple(TrustLevel.CLOUD, "Server", "Sent over TLS, no further guarantee."),
+        ).forEach { (level, title, subtitle) ->
+            val engines = groups[level].orEmpty()
+            if (engines.isNotEmpty()) {
+                SectionCard(title = title, subtitle = subtitle) {
+                    engines.forEach { engine ->
+                        EngineRow(
+                            config = engine,
+                            active = engine.id == settings.activeEngineId,
+                            problems = problemsByEngine[engine.id].orEmpty(),
+                            measuredWaitMs = medianWaitMs[engine.id],
+                            onSelect = { onUpdateSettings { it.copy(activeEngineId = engine.id) } },
+                            onOpen = { onOpenEngine(engine.id) },
+                        )
+                    }
+                }
             }
-            GhostButton("Add engine", { showPresets = true })
         }
+        Hairline()
+        GhostButton("Add engine", { showPresets = true })
+    }
 
-        SectionCard(
-            title = "Recording",
-            subtitle = "When a recording ends and how raw the text stays.",
-        ) {
+    if (showPresets) {
+        PresetDialog(
+            existingIds = settings.engines.map { it.id }.toSet(),
+            onDismiss = { showPresets = false },
+            onPick = { preset ->
+                showPresets = false
+                onUpdateSettings {
+                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
+                }
+                onOpenEngine(preset.id)
+            },
+        )
+    }
+}
+
+/** When a recording ends, how raw the text stays, and recognizing while you speak. */
+@Composable
+fun RecordingScreen(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SubPage(modifier) {
+        SectionCard(title = "Ending") {
             ToggleRow(
                 label = "Stop automatically on silence",
-                description = "After ${settings.capture.silenceTimeoutMs} ms of silence the recording is " +
-                    "transcribed. Off: it runs until the next tap.",
+                description = "Off: it runs until the next tap.",
                 checked = settings.capture.autoStopOnSilence,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = value)) }
                 },
             )
+            RecordingLimits(settings, onUpdateSettings)
+        }
+        SectionCard(title = "Text") {
             ToggleRow(
                 label = "Remove filler words",
                 description = "Drops \"ähm\", \"äh\", \"um\" and the like. " +
@@ -113,11 +216,21 @@ fun SettingsScreen(
                 },
             )
         }
+        SectionCard(title = "Recognize while speaking") {
+            ChunkingSettings(settings, onUpdateSettings)
+        }
+    }
+}
 
-        SectionCard(
-            title = "Inserting",
-            subtitle = "How the text arrives at the cursor.",
-        ) {
+/** How the text arrives at the cursor. */
+@Composable
+fun InsertingScreen(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SubPage(modifier) {
+        SectionCard(title = "Inserting", subtitle = "How the text arrives at the cursor.") {
             ToggleRow(
                 label = "Add spaces",
                 description = "Separates from the previous word automatically.",
@@ -135,15 +248,6 @@ fun SettingsScreen(
                 },
             )
             ToggleRow(
-                label = "Clipboard as a fallback",
-                description = "Off: text is only typed straight into the field, the clipboard " +
-                    "stays untouched. On: if that fails, it is pasted or copied.",
-                checked = settings.insertion.allowClipboard,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
-                },
-            )
-            ToggleRow(
                 label = "Attach punctuation",
                 description = "Turns \"Hello , world\" into \"Hello, world\".",
                 checked = settings.insertion.gluePunctuation,
@@ -153,9 +257,27 @@ fun SettingsScreen(
                     }
                 },
             )
+            ToggleRow(
+                label = "Clipboard as a fallback",
+                description = "Off: text is only typed straight into the field, the clipboard " +
+                    "stays untouched. On: if that fails, it is pasted or copied.",
+                checked = settings.insertion.allowClipboard,
+                onChange = { value ->
+                    onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
+                },
+            )
         }
+    }
+}
 
-        SectionCard(title = "Bubble") {
+@Composable
+fun BubbleScreen(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SubPage(modifier) {
+        SectionCard(title = "Bubble", subtitle = "Tap to dictate, hold to talk, drag to move.") {
             ToggleRow(
                 label = "Show bubble",
                 description = "Off hides the bubble without turning off the accessibility " +
@@ -191,23 +313,30 @@ fun SettingsScreen(
                 },
             )
         }
-
-        AdvancedSection(settings, onUpdateSettings, loadApps)
     }
+}
 
-    if (showPresets) {
-        PresetDialog(
-            existingIds = settings.engines.map { it.id }.toSet(),
-            onDismiss = { showPresets = false },
-            onPick = { preset ->
-                showPresets = false
-                onUpdateSettings {
-                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
-                }
-                onOpenEngine(preset.id)
-            },
-        )
+/** The three things that keep the microphone available while you are in other apps. */
+@Composable
+fun ReliabilityScreen(setup: SetupState, actions: SetupActions, modifier: Modifier = Modifier) {
+    SubPage(modifier) {
+        SectionCard(title = "Reliability", subtitle = "Optional. Keeps Android from cutting off the microphone.") {
+            ReliabilityRows(setup, actions)
+        }
     }
+}
+
+/** A scrolling page of sections, the frame every sub-screen shares. */
+@Composable
+internal fun SubPage(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp),
+        content = content,
+    )
 }
 
 @Composable
@@ -215,6 +344,7 @@ private fun EngineRow(
     config: EngineConfig,
     active: Boolean,
     problems: List<String>,
+    measuredWaitMs: Long?,
     onSelect: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -242,7 +372,8 @@ private fun EngineRow(
             Hint(
                 // Name the first missing thing rather than a generic "not configured":
                 // the user should not have to open the detail screen to find out.
-                text = problems.firstOrNull() ?: config.modelId ?: "System model",
+                text = problems.firstOrNull()
+                    ?: listOfNotNull(config.modelId ?: "System model", measuredWaitMs?.let { "typically ${formatSeconds(it)} here" }).joinToString(" · "),
                 color = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
             )
         }

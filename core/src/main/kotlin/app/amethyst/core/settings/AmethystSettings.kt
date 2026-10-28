@@ -153,6 +153,7 @@ data class AmethystSettings(
     val insertion: InsertionSettings = InsertionSettings(),
     /** Per-app writing style and cleanup, edited under Advanced settings. */
     val profiles: List<AppProfile> = AppProfiles.DEFAULTS,
+    val stats: StatsSettings = StatsSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -223,3 +224,11 @@ object SettingsCodec {
         )
     }
 }
+
+/** The statistics: kept on this phone only, without text or audio. */
+@Serializable
+data class StatsSettings(
+    val keep: Boolean = true,
+    /** What "time saved" compares with; 40 words a minute is a typical phone typist. */
+    val typingWpm: Int = 40,
+)

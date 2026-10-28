@@ -37,10 +37,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.amethyst.core.dictation.DictationRecord
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.dictation.DictationState
+import app.amethyst.ui.Hairline
+import app.amethyst.ui.ChevronRight
+import app.amethyst.core.stats.StatsSummary
+import kotlinx.coroutines.flow.StateFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.amethyst.ui.DictateOrb
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -53,27 +57,28 @@ import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
+/**
+ * Hearth: one quiet home. The engine on top, the flame alone in the middle, one line of today's
+ * numbers that opens the statistics, and the test field. Setup shows above the flame until
+ * it is done, reliability only while something is open; diagnostics live in the settings.
+ */
 @Composable
 fun HomeScreen(
     setup: SetupState,
     actions: SetupActions,
     settings: AmethystSettings,
-    dictation: DictationState,
-    records: List<DictationRecord>,
-    keyboardLog: List<String>,
+    dictationState: StateFlow<DictationState>,
+    stats: StatsSummary?,
     onStartTest: () -> Unit,
     onStopTest: () -> Unit,
-    onClearDiagnostics: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onOpenEngines: () -> Unit,
+    onOpenStats: () -> Unit,
     onOpenActiveEngine: () -> Unit,
     onInstallLanguage: () -> Unit,
     onUseLocalWhisper: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val testField = remember { FocusRequester() }
-    val running = dictation !is DictationState.Idle &&
-        dictation !is DictationState.Failed &&
-        dictation !is DictationState.Done
 
     Column(
         modifier = modifier
@@ -82,41 +87,7 @@ fun HomeScreen(
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp),
     ) {
-        EngineChip(settings, onOpenSettings, Modifier)
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            DictateOrb(
-                state = dictation,
-                enabled = setup.ready,
-                size = 112.dp,
-                onClick = {
-                    if (running) {
-                        onStopTest()
-                    } else {
-                        // The words are typed into whatever has focus, so make sure it is
-                        // the test field and not nothing.
-                        runCatching { testField.requestFocus() }
-                        onStartTest()
-                    }
-                },
-            )
-            StatusLine(
-                state = dictation,
-                ready = setup.ready,
-                onInstallLanguage = onInstallLanguage,
-                onUseLocalWhisper = onUseLocalWhisper,
-                onOpenActiveEngine = onOpenActiveEngine,
-            )
-        }
-
-        TestFieldCard(testField, Modifier)
-
+        // First run: nothing else matters until these two are done.
         AnimatedVisibility(
             visible = !setup.ready,
             enter = fadeIn() + expandVertically(),
@@ -125,52 +96,76 @@ fun HomeScreen(
             SetupCard(setup, actions, Modifier)
         }
 
-        val reliable = setup.micServiceRunning && setup.notificationsGranted && setup.batteryUnrestricted
-        SectionCard(
-            title = "Reliability",
-            subtitle = if (reliable) "All set." else "Optional. Keeps Android from cutting off the microphone.",
-            collapsible = true,
-            initiallyExpanded = !reliable,
-        ) {
-            StatusRow(
-                label = "Microphone service",
-                description = "Keeps the microphone ready while you are in other apps.",
-                done = setup.micServiceRunning,
-                actionLabel = "Start",
-                onAction = actions.startMicService,
-            )
-            StatusRow(
-                label = "Notifications",
-                description = "Only for the silent \"Amber is ready\" notice.",
-                done = setup.notificationsGranted,
-                actionLabel = "Allow",
-                onAction = actions.requestNotifications,
-            )
-            StatusRow(
-                label = "Unrestricted battery",
-                description = "Otherwise some manufacturers kill the service in the background.",
-                done = setup.batteryUnrestricted,
-                actionLabel = "Open",
-                onAction = actions.openBattery,
-            )
-        }
+        EngineLine(settings, onOpenEngines)
 
-        DiagnosticsCard(
-            records = records,
-            keyboardLog = keyboardLog,
-            onClear = onClearDiagnostics,
+        // Collected here, not at the root: the amplitude changes 50 times a second while
+        // listening, and only the flame and its status line need to follow it.
+        OrbArea(dictationState, setup.ready, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine)
+
+        if (settings.stats.keep) TodayLine(stats, onOpenStats)
+
+        TestFieldCard(testField, Modifier)
+
+        val reliable = setup.micServiceRunning && setup.notificationsGranted && setup.batteryUnrestricted
+        if (setup.ready && !reliable) ReliabilitySection(setup, actions)
+    }
+}
+
+@Composable
+private fun OrbArea(
+    dictationState: StateFlow<DictationState>,
+    ready: Boolean,
+    testField: FocusRequester,
+    onStartTest: () -> Unit,
+    onStopTest: () -> Unit,
+    onInstallLanguage: () -> Unit,
+    onUseLocalWhisper: () -> Unit,
+    onOpenActiveEngine: () -> Unit,
+) {
+    val dictation by dictationState.collectAsStateWithLifecycle()
+    val running = dictation !is DictationState.Idle &&
+        dictation !is DictationState.Failed &&
+        dictation !is DictationState.Done
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        DictateOrb(
+            state = dictation,
+            enabled = ready,
+            size = 112.dp,
+            onClick = {
+                if (running) {
+                    onStopTest()
+                } else {
+                    // The words are typed into whatever has focus, so make sure it is
+                    // the test field and not nothing.
+                    runCatching { testField.requestFocus() }
+                    onStartTest()
+                }
+            },
+        )
+        StatusLine(
+            state = dictation,
+            ready = ready,
+            onInstallLanguage = onInstallLanguage,
+            onUseLocalWhisper = onUseLocalWhisper,
+            onOpenActiveEngine = onOpenActiveEngine,
         )
     }
 }
 
-/** Which engine dictates, as one plain row that leads to the settings. */
+/** Which engine dictates and where the voice goes; leads to the engine choice. */
 @Composable
-private fun EngineChip(settings: AmethystSettings, onOpenSettings: () -> Unit, modifier: Modifier) {
+private fun EngineLine(settings: AmethystSettings, onOpenEngines: () -> Unit) {
     val active = settings.activeEngine
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpenSettings)
+            .clickable(onClick = onOpenEngines)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -185,6 +180,77 @@ private fun EngineChip(settings: AmethystSettings, onOpenSettings: () -> Unit, m
         }
         Text("Change", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
     }
+}
+
+/** Today in one line - the door to the statistics. */
+@Composable
+private fun TodayLine(stats: StatsSummary?, onOpenStats: () -> Unit) {
+    Hairline()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenStats)
+            .padding(vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (stats == null || stats.dictationsToday == 0) {
+                Text(
+                    if (stats == null || stats.isEmpty) "No dictations yet" else "Nothing dictated today",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AmberPalette.Text,
+                )
+                Hint(
+                    if (stats == null || stats.isEmpty) "Your numbers appear here, counted on this phone."
+                    else "${formatCount(stats.totalWords)} words so far · ${stats.streakDays.daysInARow()}",
+                )
+            } else {
+                Text(
+                    "${formatCount(stats.wordsToday)} words today",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AmberPalette.Text,
+                )
+                Hint("${stats.dictationsToday} ${if (stats.dictationsToday == 1) "dictation" else "dictations"} · ${formatMinutesSaved(stats.minutesSavedToday)}")
+            }
+        }
+        ChevronRight()
+    }
+}
+
+@Composable
+private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
+    SectionCard(
+        title = "Reliability",
+        subtitle = "Optional. Keeps Android from cutting off the microphone.",
+    ) {
+        ReliabilityRows(setup, actions)
+    }
+}
+
+/** The three things that keep the microphone available in the background. */
+@Composable
+fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
+    StatusRow(
+        label = "Microphone service",
+        description = "Keeps the microphone ready while you are in other apps.",
+        done = setup.micServiceRunning,
+        actionLabel = "Start",
+        onAction = actions.startMicService,
+    )
+    StatusRow(
+        label = "Notifications",
+        description = "Only for the silent \"Amber is ready\" notice.",
+        done = setup.notificationsGranted,
+        actionLabel = "Allow",
+        onAction = actions.requestNotifications,
+    )
+    StatusRow(
+        label = "Unrestricted battery",
+        description = "Otherwise some manufacturers kill the service in the background.",
+        done = setup.batteryUnrestricted,
+        actionLabel = "Open",
+        onAction = actions.openBattery,
+    )
 }
 
 @Composable

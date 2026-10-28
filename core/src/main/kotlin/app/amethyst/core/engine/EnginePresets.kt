@@ -117,6 +117,10 @@ object EnginePresets {
         val note: String,
         val recommended: Boolean = false,
         val noThinking: Map<String, Boolean> = emptyMap(),
+        /** Price in US dollars: per million tokens in and out, or per request. */
+        val usdPerMIn: Double = 0.0,
+        val usdPerMOut: Double = 0.0,
+        val usdPerRequest: Double = 0.0,
     )
 
     /*
@@ -129,9 +133,9 @@ object EnginePresets {
     val TINFOIL_SPEECH_MODELS = listOf(
         // $0.20 / $0.60 per million tokens; English, German, French, Spanish, Italian,
         // Portuguese, Dutch, Hindi.
-        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "most accurate · ~\$0.0001 per dictation", recommended = true),
+        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "most accurate · ~\$0.0001 per dictation", recommended = true, usdPerMIn = 0.20, usdPerMOut = 0.60),
         // $0.01 per request whatever its length; 90+ languages.
-        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "90+ languages · \$0.01 per dictation"),
+        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "90+ languages · \$0.01 per dictation", usdPerRequest = 0.01),
     )
 
     /** Tinfoil's chat models, for cleaning up transcripts; recommended first. */
@@ -139,18 +143,18 @@ object EnginePresets {
         // $0.65 / $1.45; reasoning on by default, switched off here.
         ModelChoice(
             "deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "smart and fast · ~\$0.00025",
-            recommended = true, noThinking = mapOf("thinking" to false),
+            recommended = true, noThinking = mapOf("thinking" to false), usdPerMIn = 0.65, usdPerMOut = 1.45,
         ),
         // $0.40 / $1.00; reasoning on by default, switched off here.
-        ModelChoice("gemma4-31b", "Gemma 4 31B", "cheapest · ~\$0.00016", noThinking = mapOf("enable_thinking" to false)),
+        ModelChoice("gemma4-31b", "Gemma 4 31B", "cheapest · ~\$0.00016", noThinking = mapOf("enable_thinking" to false), usdPerMIn = 0.40, usdPerMOut = 1.00),
         // $0.15 / $0.60, but it always reasons first: cheap tokens, slower answers.
-        ModelChoice("gpt-oss-120b", "gpt-oss 120B", "always reasons, slower · ~\$0.0002"),
+        ModelChoice("gpt-oss-120b", "gpt-oss 120B", "always reasons, slower · ~\$0.0002", usdPerMIn = 0.15, usdPerMOut = 0.60),
         // $1.75 / $2.75; no reasoning.
-        ModelChoice("llama3-3-70b", "Llama 3.3 70B", "steady · ~\$0.0006"),
+        ModelChoice("llama3-3-70b", "Llama 3.3 70B", "steady · ~\$0.0006", usdPerMIn = 1.75, usdPerMOut = 2.75),
         // $1.80 / $5.75; its reasoning cannot be switched off.
-        ModelChoice("glm-5-3", "GLM 5.3", "reasons, pricier · ~\$0.0008+"),
+        ModelChoice("glm-5-3", "GLM 5.3", "reasons, pricier · ~\$0.0008+", usdPerMIn = 1.80, usdPerMOut = 5.75),
         // $4 / $20.
-        ModelChoice("kimi-k3", "Kimi K3", "overkill here · ~\$0.0023"),
+        ModelChoice("kimi-k3", "Kimi K3", "overkill here · ~\$0.0023", usdPerMIn = 4.0, usdPerMOut = 20.0),
     )
 
     val SELF_HOSTED = EnginePreset(

@@ -8,6 +8,7 @@ import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.SecretStore
 import app.amethyst.data.SettingsStore
+import app.amethyst.data.StatsStore
 import app.amethyst.data.StrategyStore
 import app.amethyst.dictation.DictationController
 import app.amethyst.core.engine.EngineKind
@@ -118,6 +119,9 @@ class Graph(app: Application) {
 
     /** Outcomes of the last dictations, for the diagnostics card. */
     val dictationLog = DictationLog()
+
+    /** Counts and timings of every dictation, for the statistics; never text or audio. */
+    val stats = StatsStore(app, appScope)
 
     val dictation = DictationController(app, this, appScope)
 

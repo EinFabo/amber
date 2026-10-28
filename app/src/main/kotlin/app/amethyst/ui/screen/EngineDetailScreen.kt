@@ -582,12 +582,13 @@ private fun LanguageField(value: String, onChange: (String) -> Unit) {
 }
 
 /**
- * The level this engine would report *today*. Enclave verification only exists from stage 4,
- * so a Tinfoil endpoint is honestly shown as CLOUD until then.
+ * Where this engine sends the voice. An engine that requires its enclave sends nothing unless
+ * the attestation passes, so it is shown as verified; any other server is plain cloud.
  */
 internal fun EngineConfig.trustLevelForDisplay(): TrustLevel = when (kind) {
     EngineKind.ANDROID_ON_DEVICE, EngineKind.LOCAL_SHERPA, EngineKind.WHISPER_CPP -> TrustLevel.ON_DEVICE
-    EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME -> TrustLevel.CLOUD
+    EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME ->
+        if (requireEnclave && EnginePresets.isEnclaveHost(baseUrl)) TrustLevel.ENCLAVE_VERIFIED else TrustLevel.CLOUD
 }
 
 /**

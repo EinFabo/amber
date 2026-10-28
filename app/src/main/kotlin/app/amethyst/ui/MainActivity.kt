@@ -53,6 +53,17 @@ import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.InstalledApp
 import app.amethyst.ui.screen.SettingsScreen
+import app.amethyst.ui.screen.SubPage
+import app.amethyst.ui.screen.StatsScreen
+import app.amethyst.ui.screen.SettingsPage
+import app.amethyst.ui.screen.ReliabilityScreen
+import app.amethyst.ui.screen.RecordingScreen
+import app.amethyst.ui.screen.InsertingScreen
+import app.amethyst.ui.screen.EnginesScreen
+import app.amethyst.ui.screen.DiagnosticsCard
+import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.AppStylesScreen
+import app.amethyst.core.stats.StatsSummary
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
 import kotlinx.coroutines.Dispatchers
@@ -179,7 +190,24 @@ class SetupActions(
 private sealed interface Screen {
     data object Home : Screen
     data object Settings : Screen
+    data class Page(val page: SettingsPage) : Screen
     data class EngineDetail(val engineId: String) : Screen
+}
+
+private fun Screen.title(): String = when (this) {
+    Screen.Home -> "Amber"
+    Screen.Settings -> "Settings"
+    is Screen.EngineDetail -> "Engine"
+    is Screen.Page -> when (page) {
+        SettingsPage.ENGINES -> "Engine"
+        SettingsPage.RECORDING -> "Recording"
+        SettingsPage.INSERTING -> "Inserting"
+        SettingsPage.APP_STYLES -> "App styles"
+        SettingsPage.BUBBLE -> "Bubble"
+        SettingsPage.STATS -> "Statistics"
+        SettingsPage.RELIABILITY -> "Reliability"
+        SettingsPage.DIAGNOSTICS -> "Diagnostics"
+    }
 }
 
 @Composable
@@ -189,30 +217,33 @@ private fun AmethystRoot(
     actions: SetupActions,
     onInstallLanguage: (String?) -> Unit,
 ) {
-    var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+    // A back stack: Home → Settings → a page → an engine, and back the same way.
+    var stack by remember { mutableStateOf(listOf<Screen>(Screen.Home)) }
+    val screen = stack.last()
     val tester = remember(graph) { ConnectionTester(graph) }
     val settings by graph.settings.collectAsStateWithLifecycle()
-    val dictation by graph.dictation.state.collectAsStateWithLifecycle()
-    val records by graph.dictationLog.records.collectAsStateWithLifecycle()
-    val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
-    val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
-    val parakeetState by graph.parakeetModels.state.collectAsStateWithLifecycle()
-    val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
+    val statList by graph.stats.all.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val today = remember(statList) { graph.stats.dayOf(System.currentTimeMillis()) }
+    val stats = remember(statList, settings.stats.typingWpm, today) {
+        StatsSummary.of(statList, today, settings.stats.typingWpm)
+    }
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
     }
 
-    fun back() {
-        screen = when (screen) {
-            is Screen.EngineDetail -> Screen.Settings
-            else -> Screen.Home
-        }
+    fun open(next: Screen) {
+        stack = stack + next
     }
 
-    BackHandler(enabled = screen != Screen.Home) { back() }
+    fun back() {
+        if (stack.size > 1) stack = stack.dropLast(1)
+    }
+
+    BackHandler(enabled = stack.size > 1) { back() }
 
     AmberBackground {
         Column(
@@ -222,15 +253,11 @@ private fun AmethystRoot(
                 .navigationBarsPadding(),
         ) {
             TopBar(
-                title = when (screen) {
-                    Screen.Home -> "Amber"
-                    Screen.Settings -> "Settings"
-                    is Screen.EngineDetail -> "Engine"
-                },
+                title = screen.title(),
                 showBack = screen != Screen.Home,
                 showSettings = screen == Screen.Home,
                 onBack = ::back,
-                onSettings = { screen = Screen.Settings },
+                onSettings = { open(Screen.Settings) },
             )
 
             AnimatedContent(
@@ -245,19 +272,13 @@ private fun AmethystRoot(
                         setup = setup,
                         actions = actions,
                         settings = settings,
-                        dictation = dictation,
-                        records = records,
-                        keyboardLog = keyboardLog,
+                        dictationState = graph.dictation.state,
+                        stats = stats,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
-                        onClearDiagnostics = {
-                            graph.dictationLog.clear()
-                            graph.keyboardLog.value = emptyList()
-                        },
-                        onOpenSettings = { screen = Screen.Settings },
-                        onOpenActiveEngine = {
-                            screen = Screen.EngineDetail(settings.activeEngineId)
-                        },
+                        onOpenEngines = { open(Screen.Page(SettingsPage.ENGINES)) },
+                        onOpenStats = { open(Screen.Page(SettingsPage.STATS)) },
+                        onOpenActiveEngine = { open(Screen.EngineDetail(settings.activeEngineId)) },
                         onInstallLanguage = { onInstallLanguage(settings.activeEngine?.languageTag) },
                         onUseLocalWhisper = {
                             val preset = EnginePresets.LOCAL_WHISPER
@@ -266,28 +287,70 @@ private fun AmethystRoot(
                                     it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
                                 }
                             }
-                            screen = Screen.EngineDetail(preset.id)
+                            open(Screen.EngineDetail(preset.id))
                         },
                     )
 
-                    Screen.Settings -> SettingsScreen(
-                        settings = settings,
-                        hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                        onUpdateSettings = ::updateSettings,
-                        onOpenEngine = { engineId -> screen = Screen.EngineDetail(engineId) },
-                        loadApps = { launcherApps(context) },
-                    )
+                    Screen.Settings -> {
+                        val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                        SettingsScreen(
+                            settings = settings,
+                            setup = setup,
+                            diagnosticsCount = records.size,
+                            version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() },
+                            onOpen = { page -> open(Screen.Page(page)) },
+                        )
+                    }
+
+                    is Screen.Page -> when (current.page) {
+                        SettingsPage.ENGINES -> EnginesScreen(
+                            settings = settings,
+                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                            medianWaitMs = stats.medianWaitMs,
+                            onUpdateSettings = ::updateSettings,
+                            onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
+                        )
+                        SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
+                        SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
+                        SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, loadApps = { launcherApps(context) })
+                        SettingsPage.BUBBLE -> BubbleScreen(settings, ::updateSettings)
+                        SettingsPage.STATS -> StatsScreen(
+                            settings = settings,
+                            stats = stats,
+                            today = today,
+                            engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
+                            appName = { pkg -> appLabel(context, pkg) },
+                            onUpdateSettings = ::updateSettings,
+                            onClear = { graph.stats.clear() },
+                        )
+                        SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
+                        SettingsPage.DIAGNOSTICS -> {
+                            val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                            val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+                            SubPage {
+                                DiagnosticsCard(
+                                    records = records,
+                                    keyboardLog = keyboardLog,
+                                    onClear = {
+                                        graph.dictationLog.clear()
+                                        graph.keyboardLog.value = emptyList()
+                                    },
+                                )
+                            }
+                        }
+                    }
 
                     is Screen.EngineDetail -> {
+                        val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
+                        val parakeetState by graph.parakeetModels.state.collectAsStateWithLifecycle()
+                        val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
                         val config = settings.engines.firstOrNull { it.id == current.engineId }
                         if (config == null) {
                             // Not in the settings yet (just added) or deleted from under us;
                             // decide in an effect, never during composition.
                             LaunchedEffect(current.engineId) {
                                 delay(ENGINE_APPEAR_GRACE_MS)
-                                if (graph.settings.value.engines.none { it.id == current.engineId }) {
-                                    screen = Screen.Settings
-                                }
+                                if (graph.settings.value.engines.none { it.id == current.engineId }) back()
                             }
                         } else {
                             EngineDetailScreen(
@@ -319,7 +382,7 @@ private fun AmethystRoot(
                                             },
                                         )
                                     }
-                                    screen = Screen.Settings
+                                    back()
                                 },
                                 onTest = { candidate -> tester.test(candidate) },
                                 onDownloadModel = { spec -> graph.whisperModels.download(spec) },
@@ -342,7 +405,7 @@ private fun AmethystRoot(
 }
 
 @Composable
-private fun TopBar(
+internal fun TopBar(
     title: String,
     showBack: Boolean,
     showSettings: Boolean,
@@ -379,3 +442,9 @@ private suspend fun launcherApps(context: Context): List<InstalledApp> = withCon
         .distinctBy { it.packageName }
         .sortedBy { it.label.lowercase() }
 }
+
+/** An app's name as the launcher shows it, or its package when it is gone. */
+private fun appLabel(context: Context, packageName: String): String = runCatching {
+    val packages = context.packageManager
+    packages.getApplicationInfo(packageName, 0).loadLabel(packages).toString()
+}.getOrDefault(packageName)

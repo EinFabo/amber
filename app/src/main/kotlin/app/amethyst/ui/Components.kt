@@ -382,3 +382,101 @@ fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
         }
     }
 }
+
+/** One row of a list that leads to a sub-screen: a label, its current value, a chevron. */
+@Composable
+fun NavRow(label: String, value: String?, valueColor: Color = AmberPalette.Muted, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            if (value != null) Text(value, style = MaterialTheme.typography.bodySmall, color = valueColor)
+        }
+        ChevronRight()
+    }
+}
+
+@Composable
+fun ChevronRight() {
+    Canvas(
+        Modifier
+            .size(24.dp)
+            .padding(7.dp),
+    ) {
+        val path = Path().apply {
+            moveTo(size.width * 0.3f, 0f)
+            lineTo(size.width * 0.75f, size.height / 2)
+            lineTo(size.width * 0.3f, size.height)
+        }
+        drawPath(path, AmberPalette.Muted, style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+/** A hairline between groups of rows. */
+@Composable
+fun Hairline() = HorizontalDivider(thickness = 1.dp, color = AmberPalette.Outline)
+
+/**
+ * A few days as thin columns, today in amber, the rest in outline grey: one glance at the
+ * week, no axes. Empty days keep a dot so the rhythm stays readable.
+ */
+@Composable
+fun DayBars(values: List<Int>, modifier: Modifier = Modifier) {
+    val top = (values.maxOrNull() ?: 0).coerceAtLeast(1)
+    Canvas(modifier.fillMaxWidth().height(56.dp)) {
+        val gap = 6.dp.toPx()
+        val width = (size.width - gap * (values.size - 1)) / values.size
+        values.forEachIndexed { i, value ->
+            val x = i * (width + gap)
+            val color = if (i == values.lastIndex) AmberPalette.Primary else AmberPalette.Outline
+            val h = if (value == 0) 2.dp.toPx() else (size.height * value / top).coerceAtLeast(3.dp.toPx())
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x, size.height - h),
+                size = androidx.compose.ui.geometry.Size(width, h),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
+            )
+        }
+    }
+}
+
+/** A label with a bar for its share and the number beside it, for "words per app". */
+@Composable
+fun ShareBar(label: String, value: String, fraction: Float, color: Color = AmberPalette.Primary) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Text, modifier = Modifier.weight(1f))
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Muted)
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(CircleShape)
+                .background(AmberPalette.Outline),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(color),
+            )
+        }
+    }
+}
+
+/** One big number with a small label under it. */
+@Composable
+fun Figure(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
+    }
+}

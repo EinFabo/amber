@@ -28,6 +28,16 @@ While the text is being written a spark runs around the rim; when it is in, a ti
 short burst of sparks ("Fuse"). Failure turns the disc red and puts the sparks out. Nothing
 moves at rest. The sparks fly in a second overlay window that takes no touches.
 
+The app itself ("Hearth"): the engine and where it sends your voice, the flame, one line of
+today's numbers and a test field. Settings are a short list of pages, each showing its value:
+engine (grouped by where the voice goes), recording, inserting, app styles, bubble,
+statistics, reliability, diagnostics.
+
+**Statistics** are counted on the phone only - words, dictations per app, where the voice
+went, the wait after stopping per engine, days in a row, an estimate of Tinfoil's bill - from
+counts and timings, never the text or audio (`noBackupFilesDir/stats/dictations.jsonl`). Time
+saved compares typing at 40 words a minute (adjustable) with speaking plus waiting.
+
 ## Engines
 
 | Engine | Trust | Status |
@@ -141,6 +151,9 @@ python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
 tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned and checksummed
 ./gradlew :app:assembleDebug    # needs an Android SDK
+./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.StoreShots
+                                # renders the main screens and the icon PNGs (Robolectric)
+                                # into app/build/store-shots - screenshots, layout check
 
 tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none
 ```
@@ -183,5 +196,4 @@ recognizer or a silent server cannot keep the bubble spinning forever.
 
 ## Not in yet
 
-LLM cleanup · command mode on selected text · dictionary and snippets · encrypted history ·
-app profiles. Open items and their state: [`docs/OPEN.md`](docs/OPEN.md).
+Command mode on selected text · dictionary and snippets · encrypted history. Open items and their state: [`docs/OPEN.md`](docs/OPEN.md).

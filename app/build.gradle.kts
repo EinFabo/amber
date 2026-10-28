@@ -16,8 +16,8 @@ android {
         applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.11.0"
+        versionCode = 20
+        versionName = "0.12.0"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -60,6 +60,11 @@ android {
         // on the device.
         dex.useLegacyPackaging = true
         jniLibs.useLegacyPackaging = true
+    }
+
+    testOptions {
+        // Robolectric renders with the real resources and native graphics.
+        unitTests.isIncludeAndroidResources = true
     }
 
     lint {
@@ -122,4 +127,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+
+    testImplementation(libs.junit4)
+    testImplementation(libs.robolectric)
 }
