@@ -11,6 +11,7 @@ import app.amethyst.core.audio.StopReason
 import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
+import app.amethyst.core.capture.ChunkPlanner
 import app.amethyst.core.capture.PcmAccumulator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -26,7 +27,16 @@ import kotlinx.coroutines.withContext
 class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
 
     sealed interface Outcome {
-        data class Captured(val audio: PcmAudio, val reason: StopReason) : Outcome
+        /**
+         * [tail] is what came after the last chunk handed to `onChunk`; null when nothing was
+         * chunked ([chunks] == 0) or when it holds no speech.
+         */
+        data class Captured(
+            val audio: PcmAudio,
+            val reason: StopReason,
+            val tail: PcmAudio?,
+            val chunks: Int,
+        ) : Outcome
         data class Discarded(val reason: DiscardReason) : Outcome
         data class Failed(val message: String, val technical: String) : Outcome
     }
@@ -36,6 +46,13 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         config: VadConfig,
         stopRequested: () -> Boolean,
         onAmplitude: (Float) -> Unit,
+        /**
+         * Receives each finished part of a running recording, cut at a pause, so it can be
+         * recognized while the user goes on speaking. Null records in one piece.
+         */
+        onChunk: ((PcmAudio) -> Unit)? = null,
+        /** The shortest chunk worth cutting off; see EngineCapabilities.minChunkMs. */
+        minChunkMs: Int = 4_000,
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -72,6 +89,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
 
         val vad = VadPolicy(config)
         val recorded = PcmAccumulator(sampleRate)
+        val planner = onChunk?.let { ChunkPlanner(sampleRate, config.frameMs, minChunkMs = minChunkMs) }
+        var chunks = 0
         val frame = ShortArray(frameSamples)
 
         try {
@@ -101,12 +120,22 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 onAmplitude(PcmAccumulator.normalizeLoudness(rms))
 
                 val decision = if (stopRequested()) vad.onManualStop() else vad.onFrame(rms)
+                planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->
+                    onChunk?.invoke(recorded.slice(chunk.start, chunk.end))
+                    chunks++
+                }
                 when (decision) {
                     is VadDecision.Continue -> Unit
                     is VadDecision.Discard -> return@withContext Outcome.Discarded(decision.reason)
                     is VadDecision.Stop -> return@withContext Outcome.Captured(
-                        recorded.build(),
-                        decision.reason,
+                        audio = recorded.build(),
+                        reason = decision.reason,
+                        tail = when {
+                            planner == null || chunks == 0 -> null
+                            planner.speechSinceCut -> recorded.slice(planner.chunkStart)
+                            else -> null
+                        },
+                        chunks = chunks,
                     )
                 }
             }

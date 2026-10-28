@@ -157,6 +157,8 @@ class WhisperTest {
         private val fail: Boolean = false,
     ) : WhisperRuntime {
         val loaded = mutableListOf<String>()
+        var prompt: String? = null
+        var detected: String? = null
         var language: String? = null
         var audioCtx: Int? = null
         var sampleCount = 0
@@ -165,15 +167,30 @@ class WhisperTest {
             loaded += modelPath
         }
 
-        override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int): String {
+        override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int, prompt: String): String {
             if (fail) throw WhisperRuntimeException("whisper_full returned -7")
             this.language = language
+            this.prompt = prompt
             this.audioCtx = audioCtx
             sampleCount = samples.size
             return answer
         }
 
         override fun abort() = Unit
+
+        override fun lastLanguage(): String? = detected
+    }
+
+    @Test
+    fun `a chunk's preceding text reaches whisper and the detected language comes back`() = runTest {
+        val runtime = FakeRuntime().apply { detected = "en" }
+        val transcript = engine(runtime)
+            .transcribe(speech(2), TranscribeOptions(languageTag = "de,en", precedingText = "Das ist"))
+            .getOrThrow()
+
+        assertEquals("Das ist", runtime.prompt)
+        assertEquals("de,en", runtime.language)
+        assertEquals("en", transcript.detectedLanguage)
     }
 
     private fun engine(
@@ -230,7 +247,7 @@ class WhisperTest {
         val aborted = java.util.concurrent.CountDownLatch(1)
         val blocking = object : WhisperRuntime {
             override fun ensureLoaded(modelPath: String) = Unit
-            override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int): String {
+            override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int, prompt: String): String {
                 started.countDown()
                 // Stands in for whisper_full: returns only once abort() was called.
                 check(aborted.await(5, java.util.concurrent.TimeUnit.SECONDS)) { "never aborted" }

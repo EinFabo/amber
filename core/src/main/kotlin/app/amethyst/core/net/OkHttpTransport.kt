@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -29,19 +30,29 @@ class OkHttpTransport(
         .build(),
 ) : PinnableTransport {
 
+    /** One pinned copy per host, replaced when the pinned key changes. */
+    private val pinned = ConcurrentHashMap<String, Pair<String, OkHttpTransport>>()
+
     /**
      * OkHttp pins by the base64 SHA-256 of the SubjectPublicKeyInfo - the same hash Tinfoil's
      * attestation endorses, only hex-encoded there. The copy gets its own connection pool, so
      * no connection opened without the pin can ever be reused for a pinned request.
+     *
+     * Copies are kept and reused: a chunked dictation sends several requests in a row, and a
+     * fresh client each time would mean a fresh TLS handshake, pool and threads per chunk.
      */
     override fun pinnedTo(host: String, spkiSha256Hex: String): HttpTransport {
-        val pin = "sha256/" + Base64.getEncoder().encodeToString(hexToBytes(spkiSha256Hex))
-        return OkHttpTransport(
+        val key = spkiSha256Hex.trim().lowercase()
+        pinned[host]?.let { (pinnedKey, transport) -> if (pinnedKey == key) return transport }
+        val pin = "sha256/" + Base64.getEncoder().encodeToString(hexToBytes(key))
+        val transport = OkHttpTransport(
             client.newBuilder()
                 .connectionPool(ConnectionPool())
                 .certificatePinner(CertificatePinner.Builder().add(host, pin).build())
                 .build(),
         )
+        pinned[host] = key to transport
+        return transport
     }
 
     override suspend fun execute(request: HttpRequest): HttpResponse = withContext(Dispatchers.IO) {

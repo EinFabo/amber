@@ -28,6 +28,9 @@ internal class RunTrace(val route: String) {
     /** How the whisper thread was scheduled during this run; see NativeWhisperRuntime. */
     var whisperScheduling: String? = null
 
+    /** How many parts the recording was recognized in; 0 means in one piece. */
+    var chunks = 0
+
     /** The enclave that answered, when the engine names one (Tinfoil). */
     var servedBy: String? = null
     private var cpuGroup: String? = null
@@ -60,7 +63,9 @@ internal class RunTrace(val route: String) {
                 false -> ", model had to load"
                 null -> ""
             }
-            add("recognition ${ms(transcribingTo - transcribingFrom)}$warm")
+            // With chunks this is only the wait after the stop - the rest ran while speaking.
+            val parts = if (chunks > 0) " after stop, $chunks chunks" else ""
+            add("recognition ${ms(transcribingTo - transcribingFrom)}$parts$warm")
         }
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")

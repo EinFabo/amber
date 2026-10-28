@@ -30,8 +30,12 @@ internal object WhisperNative {
         language: String,
         audioCtx: Int,
         threads: Int,
+        prompt: String,
     ): ByteArray
     external fun abort()
+
+    /** The language code the last transcription used. */
+    external fun lastLanguage(): String
 
     /** Kernel thread ids of the pool's workers; empty before the first load. */
     external fun workerTids(): IntArray
@@ -104,21 +108,28 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
         language: String,
         audioCtx: Int,
         threads: Int,
+        prompt: String,
     ): String = synchronized(lock) {
         if (handle == 0L) throw WhisperRuntimeException("model not loaded")
         val started = System.currentTimeMillis()
         val bytes = booster.during(listOf(inferenceTid) + WhisperNative.workerTids().toList()) {
-            WhisperNative.transcribe(handle, samples, language, audioCtx, threads)
+            WhisperNative.transcribe(handle, samples, language, audioCtx, threads, prompt)
         }
         Log.i(
             TAG,
             "whisper: ${samples.size / 16} ms audio, ctx=$audioCtx, lang=$language, " +
                 "$threads threads -> ${System.currentTimeMillis() - started} ms (${schedulingSummary()})",
         )
+        lastLanguage = runCatching { WhisperNative.lastLanguage() }.getOrNull()?.takeIf { it.isNotBlank() }
         // Decoded here, not in native code: a token boundary can split a multi-byte
         // character, and this replaces the broken bytes instead of aborting.
         String(bytes, Charsets.UTF_8)
     }
+
+    @Volatile
+    private var lastLanguage: String? = null
+
+    override fun lastLanguage(): String? = lastLanguage
 
     /** True when [modelPath] is in memory right now - read without the lock, for diagnostics. */
     fun isLoaded(modelPath: String): Boolean = loadedPath == modelPath

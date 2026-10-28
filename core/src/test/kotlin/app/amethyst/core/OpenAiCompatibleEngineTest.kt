@@ -97,6 +97,16 @@ class OpenAiCompatibleEngineTest {
     }
 
     @Test
+    fun `a chunk's preceding text and the vocabulary go out as the prompt`() = runTest {
+        val transport = FakeHttpTransport.json("""{"text":"ok"}""")
+        engine(transport).transcribe(audio, TranscribeOptions(vocabularyHint = "Tinfoil", precedingText = "Das ist"))
+
+        val fields = assertIs<HttpBody.Multipart>(transport.requests.single().body).parts
+            .filterIsInstance<MultipartPart.Field>().associate { it.name to it.value }
+        assertEquals("Tinfoil Das ist", fields["prompt"])
+    }
+
+    @Test
     fun `refuses to send audio when no key is configured`() = runTest {
         val transport = FakeHttpTransport.json("""{"text":"never"}""")
         val result = engine(transport, apiKey = null).transcribe(audio)

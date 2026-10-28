@@ -71,4 +71,11 @@ class PinningTest {
         val error = assertFailsWith<IllegalArgumentException> { transport.pinnedTo("localhost", "abc") }
         assertTrue("64 hex" in error.message.orEmpty())
     }
+
+    @Test
+    fun `the pinned copy is reused while the key stays the same`() {
+        val first = transport.pinnedTo("localhost", spkiHex)
+        assertTrue(first === transport.pinnedTo("localhost", spkiHex.uppercase()))
+        assertTrue(first !== transport.pinnedTo("localhost", "0".repeat(64)), "a new key gets a new copy")
+    }
 }

@@ -54,6 +54,9 @@ class EngineFactory(
                             // An alias is only assigned to presets that authenticate, so a
                             // self-hosted endpoint is never nagged for a key.
                             needsApiKey = config.apiKeyAlias != null,
+                            chunkable = true,
+                            // Each chunk is a request; a little longer keeps their number down.
+                            minChunkMs = 6_000,
                         ),
                         // A host Amber can verify gets the verifier, and the engine then
                         // sends only over a connection bound to the attested key. Any other

@@ -36,6 +36,9 @@ class KeyboardTracker(
 
     private var focused = false
     private var focusedAt = 0L
+
+    /** The keyboard-by-package fallback has found the keyboard on this phone before. */
+    private var packageFallbackWorks = false
     private var lastLogged: String? = null
 
     fun focusChanged(isFocused: Boolean) {
@@ -72,10 +75,7 @@ class KeyboardTracker(
     private fun read(): Reading = runCatching {
         val all = service.windows
         val keyboard = all.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
-            // Looking into each window costs a round trip, so only while a field is focused.
-            ?: keyboardPackage()?.takeIf { focused }?.let { ime ->
-                all.firstOrNull { window -> window.root?.packageName?.toString() == ime }
-            }
+            ?: packageFallback(all)
             ?: return@runCatching Reading.Absent
 
         val frame = Rect().also(keyboard::getBoundsInScreen)
@@ -111,6 +111,20 @@ class KeyboardTracker(
             }
         }
         return union.takeUnless { it.isEmpty }
+    }
+
+    /**
+     * For keyboards whose window is not typed as an input method. Looking into each window is a
+     * round trip per window, so it runs only while a keyboard is due (just after focus) or on a
+     * phone where it has worked before - not on every window event of a field that simply has
+     * no on-screen keyboard.
+     */
+    private fun packageFallback(all: List<AccessibilityWindowInfo>): AccessibilityWindowInfo? {
+        val keyboardDue = SystemClock.elapsedRealtime() - focusedAt < KeyboardPolicy.ARRIVAL_WINDOW_MS
+        if (!focused || !(keyboardDue || packageFallbackWorks)) return null
+        val ime = keyboardPackage() ?: return null
+        return all.firstOrNull { window -> window.root?.packageName?.toString() == ime }
+            ?.also { packageFallbackWorks = true }
     }
 
     private fun keyboardPackage(): String? = runCatching {

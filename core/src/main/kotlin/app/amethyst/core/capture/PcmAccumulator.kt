@@ -38,6 +38,25 @@ class PcmAccumulator(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE)
         return PcmAudio(out, sampleRate)
     }
 
+    /** Samples [from] until [to] (exclusive) as audio, without building the whole buffer. */
+    fun slice(from: Int, to: Int = sampleCount): PcmAudio {
+        val start = from.coerceIn(0, sampleCount)
+        val end = to.coerceIn(start, sampleCount)
+        val out = ShortArray(end - start)
+        var chunkOffset = 0
+        for (chunk in chunks) {
+            val chunkEnd = chunkOffset + chunk.size
+            if (chunkEnd > start && chunkOffset < end) {
+                val copyFrom = maxOf(start, chunkOffset)
+                val copyTo = minOf(end, chunkEnd)
+                chunk.copyInto(out, copyFrom - start, copyFrom - chunkOffset, copyTo - chunkOffset)
+            }
+            if (chunkOffset >= end) break
+            chunkOffset = chunkEnd
+        }
+        return PcmAudio(out, sampleRate)
+    }
+
     fun reset() {
         chunks.clear()
         sampleCount = 0

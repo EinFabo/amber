@@ -36,6 +36,11 @@ a small arc while writing, a tick when the text is in.
 | Local models: Parakeet TDT, Moonshine (sherpa-onnx) | `ON_DEVICE` | ⏳ later |
 | ElevenLabs Scribe v2 Realtime (streaming) | `CLOUD` | ⏳ stage 4 |
 
+**Recognized while you speak.** Longer dictations are cut at natural pauses, and every
+finished part is recognized in the background while you keep talking - each with the text so
+far as context, in the language the first part was spoken in. When you stop, only the last
+part is left, so the wait no longer grows with the length of the dictation.
+
 **Whisper and languages.** Whisper gets a list of languages (default: German and English) and
 detects per dictation which of them was spoken. A single fixed language forces Whisper to
 *translate* everything else into it - English speech used to come out German. Several

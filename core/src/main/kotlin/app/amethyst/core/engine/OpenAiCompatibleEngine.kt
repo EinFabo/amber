@@ -72,9 +72,12 @@ class OpenAiCompatibleEngine(
             options.languageTag?.takeIf { it.isNotBlank() }?.let {
                 add(MultipartPart.Field("language", it.substringBefore('-')))
             }
-            options.vocabularyHint?.takeIf { it.isNotBlank() }?.let {
-                add(MultipartPart.Field("prompt", it))
-            }
+            // The preceding chunk's text continues the sentence; names and jargon bias spelling.
+            listOfNotNull(options.vocabularyHint, options.precedingText)
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+                .takeIf { it.isNotEmpty() }
+                ?.let { add(MultipartPart.Field("prompt", it)) }
         }
 
         val request = HttpRequest(

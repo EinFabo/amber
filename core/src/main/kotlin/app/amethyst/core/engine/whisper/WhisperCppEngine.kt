@@ -25,8 +25,14 @@ interface WhisperRuntime {
     /** Loads [modelPath] unless it is already loaded. Expensive the first time only. */
     fun ensureLoaded(modelPath: String)
 
-    /** Runs whisper_full and returns the concatenated segment text. Blocks. */
-    fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int): String
+    /**
+     * Runs whisper_full and returns the concatenated segment text. Blocks. [prompt] is text
+     * that came just before this audio (empty for none).
+     */
+    fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int, prompt: String = ""): String
+
+    /** The language the last [transcribe] used - the detected one when several were allowed. */
+    fun lastLanguage(): String? = null
 
     /** Makes a running [transcribe] return early. Safe to call from any thread. */
     fun abort()
@@ -55,6 +61,11 @@ class WhisperCppEngine(
         trustLevel = TrustLevel.ON_DEVICE,
         worksOffline = true,
         needsModelDownload = true,
+        chunkable = true,
+        // Stock Whisper encodes a full 30 s window for any input, so every extra chunk is a
+        // whole extra encoder pass: cut those only near the window size. The ACFT models'
+        // cost follows the audio length, so short chunks are nearly free for them.
+        minChunkMs = if (shortContext) SHORT_CONTEXT_MIN_CHUNK_MS else FULL_CONTEXT_MIN_CHUNK_MS,
     )
 
     override suspend fun warmUp(): Result<Unit> = withContext(compute) {
@@ -75,9 +86,10 @@ class WhisperCppEngine(
                     language = WhisperInput.languageFor(options.languageTag),
                     audioCtx = if (shortContext) WhisperInput.audioCtxFor(samples.size) else 0,
                     threads = threads,
-                )
+                    prompt = options.precedingText.orEmpty(),
+                ) to runtime.lastLanguage()
             }
-        }.mapCatching { raw ->
+        }.mapCatching { (raw, language) ->
             val text = WhisperOutput.clean(raw)
             if (text.isBlank()) {
                 throw SttFailure(SttFailure.NOTHING_RECOGNIZED, "whisper returned no speech: \"$raw\"")
@@ -87,6 +99,7 @@ class WhisperCppEngine(
                 engineId = id,
                 trustLevel = TrustLevel.ON_DEVICE,
                 latencyMs = clock() - startedAt,
+                detectedLanguage = language,
             )
         }
     }
@@ -134,5 +147,10 @@ class WhisperCppEngine(
                 technical = "whisper $step: out of memory",
             ),
         )
+    }
+
+    private companion object {
+        const val SHORT_CONTEXT_MIN_CHUNK_MS = 4_000
+        const val FULL_CONTEXT_MIN_CHUNK_MS = 20_000
     }
 }

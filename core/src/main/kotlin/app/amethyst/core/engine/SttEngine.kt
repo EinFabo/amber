@@ -38,6 +38,17 @@ data class EngineCapabilities(
     val needsApiKey: Boolean = false,
     val needsModelDownload: Boolean = false,
     val maxAudioMs: Long = 10 * 60 * 1000L,
+    /**
+     * Parts of a recording may be transcribed separately while it is still running (see
+     * ChunkedTranscription). True for engines that take a recording and return text; false for
+     * engines that capture by themselves.
+     */
+    val chunkable: Boolean = false,
+    /**
+     * The shortest chunk worth cutting off. Short chunks only pay off when a short chunk is also
+     * cheap to compute; an engine that always processes a full window should get long ones.
+     */
+    val minChunkMs: Int = 4_000,
 )
 
 data class TranscribeOptions(
@@ -45,6 +56,11 @@ data class TranscribeOptions(
     val languageTag: String? = null,
     /** Names and jargon passed to engines that accept a biasing prompt. */
     val vocabularyHint: String? = null,
+    /**
+     * The text recognized just before this audio, when it is one chunk of a longer dictation:
+     * passed as the engine's prompt so sentence flow and spellings hold across the cut.
+     */
+    val precedingText: String? = null,
 )
 
 /**

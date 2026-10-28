@@ -16,6 +16,7 @@ import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.engine.ListenCallbacks
+import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
@@ -27,6 +28,7 @@ import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -260,11 +262,27 @@ class DictationController(
         val vadConfig = graph.settings.value.capture.toVadConfig().let { config ->
             if (holdToTalk) config.copy(silenceTimeoutMs = Int.MAX_VALUE) else config
         }
-        val outcome = capture.record(
-            config = vadConfig,
-            stopRequested = { stopRequested.get() },
-            onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
-        )
+        // Finished parts of a longer dictation are recognized while the user is still speaking,
+        // so stopping leaves only the last part to wait for.
+        // A child of this dictation's job: cancelling the dictation stops the chunk work too.
+        val chunked = if (engine.capabilities.chunkable) {
+            ChunkedTranscription(engine, options, CoroutineScope(currentCoroutineContext()))
+        } else {
+            null
+        }
+        val outcome = try {
+            capture.record(
+                config = vadConfig,
+                stopRequested = { stopRequested.get() },
+                onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
+                onChunk = chunked?.let { it::submit },
+                minChunkMs = engine.capabilities.minChunkMs,
+            )
+        } catch (e: Throwable) {
+            chunked?.cancel()
+            throw e
+        }
+        if (outcome !is AudioCapture.Outcome.Captured || outcome.chunks == 0) chunked?.cancel()
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
@@ -292,7 +310,11 @@ class DictationController(
                 trace?.recordingEnds()
                 _state.value = DictationState.Transcribing
                 trace?.transcribingStarts()
-                val result = engine.transcribe(outcome.audio, options)
+                val result = if (chunked != null && outcome.chunks > 0) {
+                    chunked.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
+                } else {
+                    engine.transcribe(outcome.audio, options)
+                }
                 trace?.transcribingEnds()
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
                 return result.getOrElse { error ->

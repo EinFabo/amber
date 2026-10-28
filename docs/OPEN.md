@@ -1,6 +1,6 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.7.1. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.8.0. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
@@ -19,9 +19,9 @@ As of 2026-10-28, after 0.7.1. Urgent things at the top, later stages at the bot
 
 ## Next: recognize while speaking
 
-- [ ] **Chunked recognition for longer dictations** (Fabi's idea, 2026-10-28). While the user
-      is still speaking, recognize every finished chunk in the background; after release only
-      the last chunk is left. Key points:
+- [x] **Chunked recognition for longer dictations** (0.8.0, Fabi's idea). While the user is
+      still speaking, every finished chunk is recognized in the background; after release only
+      the last chunk is left. Built as planned:
   - Cut only at real pauses (VadPolicy already finds them), never mid-word.
   - Pass the previous chunk's text as context/prompt, so sentence flow and spellings hold
     across the cuts.
@@ -29,6 +29,10 @@ As of 2026-10-28, after 0.7.1. Urgent things at the top, later stages at the bot
   - Logic (cut points, joining, spaces at the seams) in `:core`, with tests.
   - Applies to local Whisper and cloud engines; Tinfoil can additionally do true streaming
     (`voxtral-mini-4b-realtime`).
+  - Minimum chunk: 4 s for the FUTO models, 20 s for stock Whisper (large-v3-turbo encodes a
+    full 30 s window per chunk, so short chunks would multiply its work), 6 s for cloud.
+- [ ] **Confirm chunking on the device**: a ~20-30 s dictation through the bubble; diagnostics
+      should say "recognition … after stop, N chunks" with a short wait.
 
 ## Confirm on the device
 
@@ -56,6 +60,8 @@ As of 2026-10-28, after 0.7.1. Urgent things at the top, later stages at the bot
       (`kotlinx-coroutines-core-jvm` 1.8.0) and runs again.
 - [x] **`docs/PLAN.md`** marked as historical.
 - [x] **English everywhere** (0.7.1): app texts, docs, tool output; rule in `CLAUDE.md`.
+- [ ] **Design lab** (2026-10-28): four "fire and sparks" directions - Ember, Flame, Fuse, Heat -
+      with live state previews, icons and feasibility notes. Pick a direction, then implement it.
 - [ ] Optional: change package/application id from `app.amethyst` to Amber (means a reinstall).
 
 ## Later stages

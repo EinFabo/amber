@@ -52,6 +52,10 @@ void quiet_log(ggml_log_level level, const char *text, void * /* user_data */) {
 // One pool for the life of the process. Its threads sleep on a condition variable between
 // dictations (see pause_pool), so keeping it costs a few stacks of memory, not battery.
 ggml_threadpool_t g_pool = nullptr;
+
+// The language the last transcription ran in (detected, when several were allowed). Read by
+// Kotlin right after transcribe, on the same thread.
+std::string g_last_language;
 std::vector<int> g_pool_tids;
 
 std::set<int> list_threads() {
@@ -171,6 +175,11 @@ Java_app_amethyst_engine_WhisperNative_free(JNIEnv * /* env */, jobject /* this 
     if (handle != 0) whisper_free(reinterpret_cast<whisper_context *>(handle));
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_app_amethyst_engine_WhisperNative_lastLanguage(JNIEnv *env, jobject /* this */) {
+    return env->NewStringUTF(g_last_language.c_str());
+}
+
 // Kernel thread ids of the pool's workers, for the performance hint session. Empty when there
 // is no pool yet or it could not be created.
 extern "C" JNIEXPORT jintArray JNICALL
@@ -197,7 +206,8 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
         jfloatArray jsamples,
         jstring jlanguage,
         jint audio_ctx,
-        jint threads) {
+        jint threads,
+        jstring jprompt) {
     auto *ctx = reinterpret_cast<whisper_context *>(handle);
     if (ctx == nullptr) {
         throw_runtime(env, "model not loaded");
@@ -226,10 +236,16 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
         }
     }
 
+    // Text recognized just before this audio, when it is one chunk of a longer dictation.
+    const char *prompt_chars = env->GetStringUTFChars(jprompt, nullptr);
+    const std::string prompt(prompt_chars);
+    env->ReleaseStringUTFChars(jprompt, prompt_chars);
+
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads = threads;
     params.audio_ctx = audio_ctx;
     params.language = lang.c_str();
+    params.initial_prompt = prompt.empty() ? nullptr : prompt.c_str();
     params.detect_language = false;
     params.translate = false;
     params.no_context = true;
@@ -257,6 +273,9 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
         throw_runtime(env, "whisper_full returned " + std::to_string(rc));
         return nullptr;
     }
+
+    const int lang_id = whisper_full_lang_id(ctx);
+    g_last_language = lang_id >= 0 ? whisper_lang_str(lang_id) : lang;
 
     std::string text;
     const int segments = whisper_full_n_segments(ctx);
