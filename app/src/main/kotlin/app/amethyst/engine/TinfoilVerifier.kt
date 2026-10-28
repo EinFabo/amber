@@ -1,5 +1,6 @@
 package app.amethyst.engine
 
+import app.amethyst.core.engine.EnginePresets
 import android.util.Log
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
@@ -184,7 +185,7 @@ class TinfoilVerifier(
          * from. The router is the trust anchor: it verifies each model enclave itself before
          * forwarding (the trusted model repos are compiled into its measured code).
          */
-        val TRUSTED_REPOS = mapOf("inference.tinfoil.sh" to "tinfoilsh/confidential-model-router")
+        val TRUSTED_REPOS = EnginePresets.ENCLAVE_REPOS
 
         fun hostOf(url: String?): String? =
             runCatching { URI(url.orEmpty().trim()).host?.lowercase() }.getOrNull()

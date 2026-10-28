@@ -100,13 +100,22 @@ object ServerProviders {
      * the phone itself. Anything on the internet must be https.
      */
     fun isPrivateHost(host: String?): Boolean {
-        val h = host?.lowercase()?.trim('[', ']') ?: return false
-        if (h == "localhost" || h.endsWith(".local") || h.endsWith(".lan") || h.endsWith(".home.arpa")) return true
-        val parts = h.split('.').mapNotNull { it.toIntOrNull() }
-        if (parts.size == 4 && h.count { it == '.' } == 3) {
-            val (a, b) = parts
+        val h = host?.lowercase()?.trim('[', ']')?.takeIf { it.isNotEmpty() } ?: return false
+        // IPv6 literals: loopback, unique local (fc00::/7), link-local (fe80::/10). Only when
+        // it really is an address - a host name may well start with "fd".
+        if (':' in h) return h == "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe8") ||
+            h.startsWith("fe9") || h.startsWith("fea") || h.startsWith("feb")
+        val parts = h.split('.')
+        if (parts.size == 4 && parts.all { p -> p.toIntOrNull()?.let { it in 0..255 } == true }) {
+            val (a, b) = parts.map { it.toInt() }
+            // Private ranges, loopback, and 100.64/10 (carrier-grade NAT, used by Tailscale).
             return a == 10 || a == 127 || (a == 192 && b == 168) || (a == 172 && b in 16..31) || (a == 100 && b in 64..127)
         }
-        return h == "::1" || h.startsWith("fd") || h.startsWith("fe80")
+        // A single label ("nas", "raspberrypi") only resolves inside the local network.
+        if ('.' !in h) return true
+        return LOCAL_SUFFIXES.any { h.endsWith(it) }
     }
+
+    /** Names that only exist in a home network - or in a tailnet, which is encrypted itself. */
+    private val LOCAL_SUFFIXES = listOf(".local", ".lan", ".home", ".internal", ".localdomain", ".home.arpa", ".ts.net")
 }

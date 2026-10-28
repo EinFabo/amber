@@ -89,15 +89,15 @@ class ParakeetModelStore(
         _state.value = currentState()
     }
 
-    /** Off the main thread: release waits for a transcription that may still hold the model. */
+    /**
+     * The files go at once (a running transcription keeps what it loaded, and a new download
+     * is never wiped by a late delete); freeing the memory waits on the model's own thread.
+     */
     fun delete() {
         cancel()
+        dir.deleteRecursively()
         _state.value = ParakeetState.Missing
-        scope.launch(runtime.dispatcher) {
-            runtime.release()
-            dir.deleteRecursively()
-            _state.value = ParakeetState.Missing
-        }
+        scope.launch(runtime.dispatcher) { runtime.release() }
     }
 
     private fun fetch(file: ParakeetModel.FileSpec, onProgress: (Long) -> Unit): Result<Unit> {

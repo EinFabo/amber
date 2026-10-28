@@ -212,8 +212,12 @@ fun EngineDetailScreen(
             }
 
             EngineKind.OPENAI_COMPATIBLE -> {
-                // One backend for every server; the provider only decides what is offered.
-                val provider = ServerProviders.forUrl(baseUrl)
+                // One backend for every server; the provider only decides what is offered. Taken
+                // from the saved address, not the one being typed - otherwise typing a known host
+                // into an own server's field would make that field vanish mid-word.
+                val provider = remember(config.id, config.baseUrl) {
+                    if (config.id == EnginePresets.SELF_HOSTED.id) ServerProviders.CUSTOM else ServerProviders.forUrl(config.baseUrl)
+                }
                 SectionCard(
                     title = "Connection",
                     subtitle = if (provider.fixedAddress) "${provider.name} · ${baseUrl.trim()}"

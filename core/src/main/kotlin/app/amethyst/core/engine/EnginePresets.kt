@@ -45,8 +45,13 @@ object EnginePresets {
     /** Tinfoil's confidential model router; see [TINFOIL]. */
     const val TINFOIL_BASE_URL = "https://inference.tinfoil.sh/v1"
 
-    /** Hosts whose enclave Amber can verify (the app's TinfoilVerifier knows their repos). */
-    val ENCLAVE_HOSTS = setOf("inference.tinfoil.sh")
+    /**
+     * Hosts whose enclave Amber can verify, and the repository whose signed release the
+     * enclave must run. The one list both the verifier and the settings go by.
+     */
+    val ENCLAVE_REPOS = mapOf("inference.tinfoil.sh" to "tinfoilsh/confidential-model-router")
+
+    val ENCLAVE_HOSTS: Set<String> get() = ENCLAVE_REPOS.keys
 
     fun isEnclaveHost(baseUrl: String?): Boolean {
         val uri = runCatching { java.net.URI(baseUrl.orEmpty().trim()) }.getOrNull() ?: return false

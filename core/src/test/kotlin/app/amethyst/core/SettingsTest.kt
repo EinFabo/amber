@@ -234,4 +234,14 @@ class CaptureTimeoutTest {
             assertNotNull(ServerProviders.forUrl(preset.baseUrl).speechModel(preset.modelId), preset.id)
         }
     }
+
+    @Test
+    fun `a host name starting like an ipv6 prefix is not private`() {
+        for (host in listOf("fdn-transcribe.example.com", "fe80.example.org", "fc.example.net", "8.8.8.8", "example.com")) {
+            assertFalse(ServerProviders.isPrivateHost(host), host)
+        }
+        for (host in listOf("nas", "raspberrypi", "box.ts.net", "fd12:3456::1", "fe80::1", "::1", "100.101.1.2", "server.home")) {
+            assertTrue(ServerProviders.isPrivateHost(host), host)
+        }
+    }
 }

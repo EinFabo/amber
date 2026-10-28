@@ -97,7 +97,7 @@ fun StatsScreen(
 
             if (stats.wordsByApp.isNotEmpty()) {
                 SectionCard(title = "Words per app") {
-                    val top = stats.wordsByApp.first().second.toFloat()
+                    val top = stats.wordsByApp.first().second.coerceAtLeast(1).toFloat()
                     stats.wordsByApp.take(MAX_APPS).forEach { (pkg, words) ->
                         ShareBar(appName(pkg), formatCount(words), words / top)
                     }

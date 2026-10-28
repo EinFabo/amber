@@ -112,4 +112,12 @@ class ChatCleanupTest {
         )
         assertTrue(cleanup(transport).clean("das meeting ist morgen um zehn und wir nehmen raum drei").isFailure)
     }
+
+    @Test
+    fun `a server's own name for a normal end is not taken for a cut-off`() = runTest {
+        val transport = FakeHttpTransport.json(
+            """{"choices":[{"message":{"content":"Ja, bis gleich."},"finish_reason":"eos_token"}]}""",
+        )
+        assertEquals("Ja, bis gleich.", cleanup(transport).clean("ja bis gleich").getOrThrow().text)
+    }
 }

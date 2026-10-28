@@ -28,6 +28,7 @@ import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.LocalFallback
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
@@ -371,8 +372,8 @@ class DictationController(
                 // No signal, a timeout, a server down: the recording is still here, so a local
                 // model can take it instead of the dictation being lost.
                 val error = result.exceptionOrNull()
-                val recovered = if (error is SttFailure && error.serviceUnavailable && engine.capabilities.trustLevel != TrustLevel.ON_DEVICE) {
-                    recognizeLocally(outcome.audio, error)?.let { Result.success(it) } ?: result
+                val recovered = if (LocalFallback.applies(error, engine.capabilities.trustLevel, graph.settings.value.capture.localFallback)) {
+                    recognizeLocally(outcome.audio, error as SttFailure)?.let { Result.success(it) } ?: result
                 } else {
                     result
                 }
@@ -390,12 +391,7 @@ class DictationController(
      * error then stands.
      */
     private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure): Transcript? {
-        val settings = graph.settings.value
-        if (!settings.capture.localFallback) return null
-        val candidates = settings.engines
-            .filter { it.kind == EngineKind.LOCAL_SHERPA || it.kind == EngineKind.WHISPER_CPP }
-            .sortedBy { if (it.kind == EngineKind.LOCAL_SHERPA) 0 else 1 }
-        for (config in candidates) {
+        for (config in LocalFallback.candidates(graph.settings.value.engines)) {
             val local = graph.engineFactory.create(config).getOrNull() ?: continue
             Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
             _state.value = DictationState.Transcribing()
@@ -486,10 +482,12 @@ class DictationController(
         val started = startTarget
         if (started != null && nowFocused != null && nowFocused != started) {
             Log.i(TAG, "focus moved from $started to $nowFocused during the dictation - not inserting")
-            val copied = inserter.copyToClipboard(cleaned)
+            // Only when the user allows the clipboard at all; otherwise the text stays in the
+            // diagnostics, and the clipboard untouched as promised.
+            val copied = settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
             fail(
                 if (copied) "You switched apps meanwhile - the text is on the clipboard instead."
-                else "You switched apps meanwhile - the text was not inserted.",
+                else "You switched apps meanwhile - not inserted: \u201C$cleaned\u201D",
                 engineId,
                 logAs = "focus moved to another app",
             )

@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -226,7 +227,13 @@ private fun AmethystRoot(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val today = remember(statList) { graph.stats.dayOf(System.currentTimeMillis()) }
+    // Follows the clock, so an app left open overnight starts the new day at zero.
+    val today by produceState(graph.stats.dayOf(System.currentTimeMillis())) {
+        while (true) {
+            delay(DAY_CHECK_MS)
+            value = graph.stats.dayOf(System.currentTimeMillis())
+        }
+    }
     val stats = remember(statList, settings.stats.typingWpm, today) {
         StatsSummary.of(statList, today, settings.stats.typingWpm)
     }
@@ -435,6 +442,7 @@ internal fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
+private const val DAY_CHECK_MS = 60_000L
 
 /** Apps with a launcher icon, for picking one to give a writing style; Amber itself left out. */
 private suspend fun launcherApps(context: Context): List<InstalledApp> = withContext(Dispatchers.IO) {

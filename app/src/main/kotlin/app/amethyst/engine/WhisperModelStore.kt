@@ -128,14 +128,12 @@ class WhisperModelStore(
 
     fun delete(id: String) {
         cancel(id)
+        // The file goes at once - a running transcription has the model in memory already,
+        // and a download started right after is never wiped by a late delete. Freeing the
+        // memory waits on the model's own thread for that transcription to end.
+        fileFor(id).delete()
         slots.set(id, SlotState.Missing)
-        // The runtime may hold exactly this file; it reloads whatever is needed next. On its
-        // own thread, since release waits for a transcription that may still be running.
-        scope.launch(runtime.dispatcher) {
-            runtime.release()
-            fileFor(id).delete()
-            slots.set(id, SlotState.Missing)
-        }
+        scope.launch(runtime.dispatcher) { runtime.release() }
     }
 
     private fun install(
