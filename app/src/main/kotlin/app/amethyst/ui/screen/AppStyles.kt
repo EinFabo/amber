@@ -110,7 +110,7 @@ fun AppStylesScreen(
 
     SubPage(modifier) {
         SectionCard(
-            title = "App styles",
+            title = "Your apps",
             subtitle = "How the text is phrased depends on the app it goes into.",
         ) {
             Hint(
