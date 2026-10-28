@@ -29,6 +29,7 @@ Exceptions:
 ./gradlew :core:test                 # pure JVM, no SDK needed
 python3 -I tools/check_refs.py       # imports, R ids, manifest classes
 tools/build-tinfoil-aar.sh           # once per tinfoil-go pin: Tinfoil's verifier as an AAR
+tools/fetch-sherpa-aar.sh            # once per sherpa-onnx pin: the Parakeet runtime
 ./gradlew :app:lintDebug :app:assembleDebug
 tools/typecheck-android.sh           # non-Compose sources against real android-all
 ```

@@ -22,6 +22,7 @@ import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
+import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.settings.EngineConfig
@@ -189,6 +190,9 @@ class DictationController(
         }
 
         val options = TranscribeOptions(languageTag = engineConfig.languageTag)
+        if (engine is ParakeetEngine) {
+            trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
+        }
         if (engine is WhisperCppEngine) {
             val modelId = engineConfig.modelId ?: WhisperModels.default.id
             trace?.modelWarm = graph.whisperRuntime.isLoaded(graph.whisperModels.fileFor(modelId).path)

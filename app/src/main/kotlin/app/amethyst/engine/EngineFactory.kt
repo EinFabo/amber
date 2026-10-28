@@ -4,9 +4,11 @@ import android.content.Context
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
@@ -30,6 +32,8 @@ class EngineFactory(
     private val whisperModels: WhisperModelStore,
     private val whisperRuntime: NativeWhisperRuntime,
     private val tinfoil: TinfoilVerifier,
+    private val parakeetModels: ParakeetModelStore,
+    private val sherpaRuntime: SherpaRuntime,
 ) {
 
     fun create(config: EngineConfig): Result<SttEngine> = when (config.kind) {
@@ -97,13 +101,25 @@ class EngineFactory(
             }
         }
 
-        EngineKind.LOCAL_SHERPA -> Result.failure(
-            SttFailure(
-                userMessage = "Parakeet and Moonshine come in a later stage. " +
-                    "Until then use \"Whisper local\" or your own server.",
-                technical = "LOCAL_SHERPA not implemented",
-            ),
-        )
+        EngineKind.LOCAL_SHERPA -> if (parakeetModels.isReady()) {
+            Result.success(
+                ParakeetEngine(
+                    id = config.id,
+                    displayName = config.displayName,
+                    modelDir = parakeetModels.dir.path,
+                    runtime = sherpaRuntime,
+                    compute = sherpaRuntime.dispatcher,
+                ),
+            )
+        } else {
+            Result.failure(
+                SttFailure(
+                    userMessage = "The Parakeet model is not downloaded yet.",
+                    technical = "LOCAL_SHERPA model missing",
+                    remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
+                ),
+            )
+        }
 
         EngineKind.ELEVENLABS_REALTIME -> Result.failure(
             SttFailure(
@@ -128,7 +144,14 @@ class EngineFactory(
             verifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
             plainTrust = TrustLevel.CLOUD,
         )
-        return ChatCleanup(baseUrl, model, channel, apiKeyProvider = { secrets.get(config.apiKeyAlias) })
+        val choice = EnginePresets.TINFOIL_CLEANUP_MODELS.firstOrNull { it.id == model }
+        return ChatCleanup(
+            baseUrl = baseUrl,
+            model = model,
+            channel = channel,
+            apiKeyProvider = { secrets.get(config.apiKeyAlias) },
+            templateKwargs = choice?.noThinking.orEmpty(),
+        )
     }
 
     private fun incomplete(config: EngineConfig, problems: List<String>): Result<SttEngine> =

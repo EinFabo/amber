@@ -38,6 +38,9 @@ jobs:
       - name: Build Tinfoil verifier AAR
         run: tools/build-tinfoil-aar.sh
 
+      - name: Fetch sherpa-onnx AAR
+        run: tools/fetch-sherpa-aar.sh
+
       # :core is pure JVM and holds the engine, splicing and VAD logic, so this is the
       # step that actually proves behaviour. It also runs locally without an Android SDK.
       # Catches typo-level breakage in :app (imports, R.* ids, manifest classes) even when

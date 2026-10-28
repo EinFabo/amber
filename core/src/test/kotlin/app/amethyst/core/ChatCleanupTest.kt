@@ -26,6 +26,7 @@ class ChatCleanupTest {
         model = "deepseek-v4-1-flash",
         channel = SecureChannel("https://inference.tinfoil.sh/v1", "Tinfoil", transport, null, TrustLevel.CLOUD),
         apiKeyProvider = { "secret" },
+        templateKwargs = mapOf("thinking" to false),
     )
 
     @Test
@@ -39,6 +40,9 @@ class ChatCleanupTest {
         assertEquals("Bearer secret", request.headers["Authorization"])
         val body = Json.parseToJsonElement(assertIs<HttpBody.Bytes>(request.body).bytes.decodeToString()).jsonObject
         assertEquals("deepseek-v4-1-flash", body["model"]!!.jsonPrimitive.content)
+        // Reasoning off and the answer bounded: punctuation needs no thinking, and it is the bill.
+        assertEquals("false", body["chat_template_kwargs"]!!.jsonObject["thinking"]!!.jsonPrimitive.content)
+        assertTrue(body["max_tokens"]!!.jsonPrimitive.content.toInt() in 256..400)
         val user = body["messages"]!!.jsonArray[1].jsonObject["content"]!!.jsonPrimitive.content
         assertContains(user, "<dictation>\näh ich komme morgen okay\n</dictation>")
     }

@@ -56,6 +56,8 @@ import app.amethyst.core.privacy.EnclaveProof
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
+import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
@@ -88,6 +90,10 @@ fun EngineDetailScreen(
     enclaveLog: List<String>,
     /** Verifies the enclave behind a base URL afresh, bypassing the cache. */
     onVerifyEnclave: suspend (String) -> AttestationResult,
+    parakeetState: ParakeetState,
+    onDownloadParakeet: () -> Unit,
+    onCancelParakeet: () -> Unit,
+    onDeleteParakeet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var baseUrl by remember(config.id) { mutableStateOf(config.baseUrl.orEmpty()) }
@@ -255,11 +261,7 @@ fun EngineDetailScreen(
                 }
             }
 
-            EngineKind.LOCAL_SHERPA -> SectionCard(
-                title = "Not available yet",
-            ) {
-                Hint("Parakeet and Moonshine through sherpa-onnx come in a later stage.")
-            }
+            EngineKind.LOCAL_SHERPA -> ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
 
             EngineKind.ELEVENLABS_REALTIME -> SectionCard(
                 title = "Not available yet",
@@ -462,6 +464,43 @@ private fun progressText(busy: SlotState.Busy): String {
     return if (total != null && total > 0) "$mb of ${total / 1_000_000} MB" else "$mb MB"
 }
 
+/** Parakeet's one model: download with progress, then checked and ready, or delete. */
+@Composable
+private fun ParakeetCard(
+    state: ParakeetState,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    SectionCard(
+        title = "Model",
+        subtitle = "${ParakeetModel.DISPLAY_NAME} · ${ParakeetModel.TOTAL_BYTES / 1_000_000} MB · runs on this phone",
+    ) {
+        when (state) {
+            ParakeetState.Missing -> {
+                Hint(
+                    "A one-time download; Wi-Fi recommended. While you dictate it holds about 700 MB " +
+                        "of memory, freed again after three idle minutes.",
+                )
+                PrimaryButton("Download", onDownload)
+            }
+            is ParakeetState.Busy -> {
+                Hint("Downloading … ${state.received / 1_000_000} of ${state.total / 1_000_000} MB", AmberPalette.Text)
+                ProgressLine(state.received.toFloat() / state.total)
+                GhostButton("Cancel", onCancel)
+            }
+            is ParakeetState.Ready -> {
+                Hint("Downloaded and checked.", AmberPalette.TrustOnDevice)
+                GhostButton("Delete", onDelete, color = AmberPalette.Error)
+            }
+            is ParakeetState.Failed -> {
+                Hint(state.message, AmberPalette.Error)
+                GhostButton("Try again", onDownload)
+            }
+        }
+    }
+}
+
 /**
  * Models as chips with a short note each; [noneLabel] adds a choice for "none" (null). The
  * selected one is filled amber.
@@ -480,7 +519,8 @@ private fun ModelPicker(
     ) {
         if (noneLabel != null) Chip(noneLabel, null, on = selected == null) { onSelect(null) }
         choices.forEach { choice ->
-            Chip(choice.label, choice.note, on = choice.id == selected) { onSelect(choice.id) }
+            val note = if (choice.recommended) "Recommended · ${choice.note}" else choice.note
+            Chip(choice.label, note, on = choice.id == selected) { onSelect(choice.id) }
         }
     }
 }

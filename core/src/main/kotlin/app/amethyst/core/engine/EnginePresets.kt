@@ -68,8 +68,9 @@ object EnginePresets {
         kind = EngineKind.LOCAL_SHERPA,
         trustLevel = TrustLevel.ON_DEVICE,
         modelId = "parakeet-tdt-0.6b-v3-int8",
-        note = "Most accurate offline candidate, 25 European languages, no CJK. " +
-            "Needs a strong device.",
+        note = "Close to Whisper large-v3 accuracy, but fast on a phone: it reads the whole " +
+            "recording at once instead of in 30 s windows. 25 European languages, detected by " +
+            "itself, with punctuation. One-time 670 MB download, ~700 MB memory while in use.",
     )
 
     /**
@@ -85,34 +86,60 @@ object EnginePresets {
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD, // upgraded to ENCLAVE_VERIFIED once attestation passes
         baseUrl = TINFOIL_BASE_URL,
-        modelId = "whisper-large-v3-turbo",
+        // Voxtral: more accurate than Whisper here and about a hundredth of its price, since
+        // Whisper is billed per request; see TINFOIL_SPEECH_MODELS.
+        modelId = "voxtral-small-24b",
         needsApiKey = true,
         note = "Confidential computing in an enclave. Shows " +
-            "\"Enclave verified\" only once the attestation is confirmed. The model can also be " +
-            "voxtral-small-24b (more accurate, slower).",
+            "\"Enclave verified\" only once the attestation is confirmed.",
     )
-
-    /** A model offered in the settings: the id the service expects, and a few plain words. */
-    data class ModelChoice(val id: String, val label: String, val note: String)
 
     /**
-     * Tinfoil's speech models behind the router (POST /v1/audio/transcriptions). Prices as
-     * listed by Tinfoil in October 2026: Whisper per request, Voxtral per token (audio is about
-     * 12.5 tokens a second, so a minute costs a fraction of a cent).
+     * A model offered in the settings: the id the service expects, a few plain words, and for
+     * chat models the switch that turns their reasoning off ([noThinking], sent as
+     * chat_template_kwargs) - tidying punctuation needs no thinking, and thinking is both the
+     * slow part and most of the bill.
      */
-    val TINFOIL_SPEECH_MODELS = listOf(
-        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "fastest · \$0.01 per dictation"),
-        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "most accurate · ~\$0.0003 a minute"),
+    data class ModelChoice(
+        val id: String,
+        val label: String,
+        val note: String,
+        val recommended: Boolean = false,
+        val noThinking: Map<String, Boolean> = emptyMap(),
     )
 
-    /** Tinfoil's chat models, for cleaning up transcripts. The first is the suggested one. */
+    /*
+     * Tinfoil prices from its public model config (api.tinfoil.sh/api/config/models), October
+     * 2026, worked out for a ~15 s dictation: about 190 audio tokens in (Voxtral reads ~12.5 a
+     * second) and 60 text tokens out; a cleanup about 220 tokens in and 70 out, reasoning off.
+     */
+
+    /** Tinfoil's speech models behind the router (POST /v1/audio/transcriptions). */
+    val TINFOIL_SPEECH_MODELS = listOf(
+        // $0.20 / $0.60 per million tokens; English, German, French, Spanish, Italian,
+        // Portuguese, Dutch, Hindi.
+        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "most accurate · ~\$0.0001 per dictation", recommended = true),
+        // $0.01 per request whatever its length; 90+ languages.
+        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "90+ languages · \$0.01 per dictation"),
+    )
+
+    /** Tinfoil's chat models, for cleaning up transcripts; recommended first. */
     val TINFOIL_CLEANUP_MODELS = listOf(
-        ModelChoice("deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "clever and fast · ~\$0.0002 per dictation"),
-        ModelChoice("gpt-oss-120b", "gpt-oss 120B", "careful"),
-        ModelChoice("llama3-3-70b", "Llama 3.3 70B", "plain and steady"),
-        ModelChoice("gemma4-31b", "Gemma 4 31B", "light"),
-        ModelChoice("glm-5-3", "GLM 5.3", "large"),
-        ModelChoice("kimi-k3", "Kimi K3", "large"),
+        // $0.65 / $1.45; reasoning on by default, switched off here.
+        ModelChoice(
+            "deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "smart and fast · ~\$0.00025",
+            recommended = true, noThinking = mapOf("thinking" to false),
+        ),
+        // $0.40 / $1.00; reasoning on by default, switched off here.
+        ModelChoice("gemma4-31b", "Gemma 4 31B", "cheapest · ~\$0.00016", noThinking = mapOf("enable_thinking" to false)),
+        // $0.15 / $0.60, but it always reasons first: cheap tokens, slower answers.
+        ModelChoice("gpt-oss-120b", "gpt-oss 120B", "always reasons, slower · ~\$0.0002"),
+        // $1.75 / $2.75; no reasoning.
+        ModelChoice("llama3-3-70b", "Llama 3.3 70B", "steady · ~\$0.0006"),
+        // $1.80 / $5.75; its reasoning cannot be switched off.
+        ModelChoice("glm-5-3", "GLM 5.3", "reasons, pricier · ~\$0.0008+"),
+        // $4 / $20.
+        ModelChoice("kimi-k3", "Kimi K3", "overkill here · ~\$0.0023"),
     )
 
     val SELF_HOSTED = EnginePreset(

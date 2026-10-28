@@ -13,3 +13,6 @@
 # gomobile: the Go side calls back into these by name through JNI (tinfoil-mobile.aar).
 -keep class go.** { *; }
 -keep class sh.tinfoil.** { *; }
+
+# sherpa-onnx: its JNI library reads and writes these config and result classes by name.
+-keep class com.k2fsa.sherpa.onnx.** { *; }

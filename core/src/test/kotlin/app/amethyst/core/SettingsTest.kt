@@ -30,7 +30,8 @@ class SettingsTest {
         val config = EngineConfig.fromPreset(EnginePresets.TINFOIL)
         assertEquals("key.tinfoil-whisper", config.apiKeyAlias)
         assertEquals("https://inference.tinfoil.sh/v1", config.baseUrl)
-        assertEquals("whisper-large-v3-turbo", config.modelId)
+        // Voxtral: more accurate here and about a hundredth of Whisper's per-request price.
+        assertEquals("voxtral-small-24b", config.modelId)
     }
 
     @Test
@@ -148,7 +149,7 @@ class CaptureTimeoutTest {
         val old = AmethystSettings(
             engines = listOf(
                 EngineConfig.fromPreset(EnginePresets.TINFOIL)
-                    .copy(baseUrl = "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1"),
+                    .copy(baseUrl = "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1", modelId = "whisper-large-v3-turbo"),
             ),
             schemaVersion = 2,
         )

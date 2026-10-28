@@ -36,7 +36,7 @@ moves at rest. The sparks fly in a second overlay window that takes no touches.
 | Any OpenAI-compatible endpoint - own server (Speaches, whisper.cpp), Groq, Fireworks, OpenAI | `CLOUD` | ✅ stage 2 |
 | Tinfoil via `inference.tinfoil.sh`, attestation verified, connection bound to the verified key | `ENCLAVE_VERIFIED` | ✅ 0.7 |
 | Whisper locally through whisper.cpp with the FUTO models (Multilingual-74, 82 MB, and more) | `ON_DEVICE` | ✅ 0.2 |
-| Local models: Parakeet TDT, Moonshine (sherpa-onnx) | `ON_DEVICE` | ⏳ later |
+| Parakeet TDT 0.6B v3 locally through sherpa-onnx: near Whisper large-v3 accuracy at small-model speed, 25 European languages | `ON_DEVICE` | ✅ 0.10 |
 | ElevenLabs Scribe v2 Realtime (streaming) | `CLOUD` | ⏳ stage 4 |
 
 **Recognized while you speak.** Longer dictations are cut at natural pauses, and every
@@ -139,6 +139,7 @@ Route 2 kicks in automatically when route 1 fails.
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
+tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned and checksummed
 ./gradlew :app:assembleDebug    # needs an Android SDK
 
 tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none

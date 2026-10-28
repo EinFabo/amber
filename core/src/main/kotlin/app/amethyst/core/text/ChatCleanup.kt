@@ -28,6 +28,8 @@ class ChatCleanup(
     val model: String,
     private val channel: SecureChannel,
     private val apiKeyProvider: () -> String?,
+    /** Model-specific chat_template_kwargs, e.g. the switch that turns reasoning off. */
+    private val templateKwargs: Map<String, Boolean> = emptyMap(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
@@ -39,6 +41,12 @@ class ChatCleanup(
         val body = buildJsonObject {
             put("model", model)
             put("temperature", 0)
+            // A cleaned text is about as long as the dictation; this bounds the bill if a model
+            // runs on regardless.
+            put("max_tokens", text.length / 2 + 256)
+            if (templateKwargs.isNotEmpty()) {
+                put("chat_template_kwargs", buildJsonObject { templateKwargs.forEach { (k, v) -> put(k, v) } })
+            }
             put(
                 "messages",
                 buildJsonArray {

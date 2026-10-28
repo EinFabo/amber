@@ -16,8 +16,8 @@ android {
         applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.9.2"
+        versionCode = 18
+        versionName = "0.10.0"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -82,16 +82,23 @@ kotlin {
  */
 val tinfoilAar = file("libs/tinfoil-mobile.aar")
 
+/** sherpa-onnx, the runtime of the local Parakeet engine; fetched by tools/fetch-sherpa-aar.sh. */
+val sherpaAar = file("libs/sherpa-onnx.aar")
+
 // Checked when the app is built, not when Gradle configures - :core's tests need no AAR.
 tasks.named("preBuild") {
     // A plain File, so the check holds no reference to the build script (configuration cache).
     val aar = tinfoilAar
+    val sherpa = sherpaAar
     doFirst {
         if (!aar.exists()) {
             throw GradleException(
-                "app/libs/tinfoil-mobile.aar fehlt. Einmal bauen mit: tools/build-tinfoil-aar.sh " +
-                    "(braucht Go und das Android NDK).",
+                "app/libs/tinfoil-mobile.aar is missing. Build it once with: tools/build-tinfoil-aar.sh " +
+                    "(needs Go and the Android NDK).",
             )
+        }
+        if (!sherpa.exists()) {
+            throw GradleException("app/libs/sherpa-onnx.aar is missing. Fetch it with: tools/fetch-sherpa-aar.sh")
         }
     }
 }
@@ -99,6 +106,7 @@ tasks.named("preBuild") {
 dependencies {
     implementation(project(":core"))
     implementation(files(tinfoilAar))
+    implementation(files(sherpaAar))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -15,6 +15,8 @@ import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.NativeWhisperRuntime
+import app.amethyst.engine.ParakeetModelStore
+import app.amethyst.engine.SherpaRuntime
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
 import app.amethyst.core.net.OkHttpTransport
@@ -46,7 +48,10 @@ class AmethystApp : Application() {
     @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_RUNNING_CRITICAL) graph.whisperRuntime.release()
+        if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
+            graph.whisperRuntime.release()
+            graph.sherpaRuntime.release()
+        }
     }
 
     companion object {
@@ -86,6 +91,10 @@ class Graph(app: Application) {
 
     val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) }
 
+    val sherpaRuntime = SherpaRuntime()
+
+    val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) }
+
     /** What the Tinfoil verifier did lately, newest first, for the engine screen's debug section. */
     val tinfoilLog = MutableStateFlow<List<String>>(emptyList())
 
@@ -94,7 +103,7 @@ class Graph(app: Application) {
 
     // Lazy too, so that merely building the graph does not force the secret store open.
     val engineFactory: EngineFactory by lazy {
-        EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime, tinfoilVerifier)
+        EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime)
     }
 
     /** How long recognition takes per engine and model on this phone, for the progress ring. */
@@ -141,6 +150,15 @@ class Graph(app: Application) {
      */
     private fun prepareForDictation() {
         val engine = settings.value.activeEngine ?: return
+        if (engine.kind == EngineKind.LOCAL_SHERPA) {
+            if (!parakeetModels.isReady()) return
+            appScope.launch(sherpaRuntime.dispatcher) {
+                runCatching { sherpaRuntime.ensureLoaded(parakeetModels.dir.path) }
+                    .onFailure { android.util.Log.w("Amber", "parakeet warm-up failed", it) }
+            }
+            scheduleModelRelease()
+            return
+        }
         if (engine.kind != EngineKind.WHISPER_CPP) return
         val modelId = engine.modelId ?: WhisperModels.default.id
         if (!whisperModels.isReady(modelId)) return
@@ -157,7 +175,10 @@ class Graph(app: Application) {
         releaseJob?.cancel()
         releaseJob = appScope.launch {
             delay(MODEL_IDLE_RELEASE_MS)
-            if (!dictation.isRunning) whisperRuntime.release()
+            if (!dictation.isRunning) {
+                whisperRuntime.release()
+                sherpaRuntime.release()
+            }
         }
     }
 

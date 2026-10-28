@@ -191,6 +191,7 @@ private fun AmethystRoot(
     val records by graph.dictationLog.records.collectAsStateWithLifecycle()
     val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
     val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
+    val parakeetState by graph.parakeetModels.state.collectAsStateWithLifecycle()
     val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -320,6 +321,10 @@ private fun AmethystRoot(
                                 onDeleteModel = { id -> graph.whisperModels.delete(id) },
                                 enclaveLog = tinfoilLog,
                                 onVerifyEnclave = { url -> graph.tinfoilVerifier.verify(url, forceFresh = true) },
+                                parakeetState = parakeetState,
+                                onDownloadParakeet = { graph.parakeetModels.download() },
+                                onCancelParakeet = { graph.parakeetModels.cancel() },
+                                onDeleteParakeet = { graph.parakeetModels.delete() },
                             )
                         }
                     }
