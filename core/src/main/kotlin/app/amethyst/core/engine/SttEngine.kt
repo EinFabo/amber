@@ -49,6 +49,10 @@ data class EngineCapabilities(
      * cheap to compute; an engine that always processes a full window should get long ones.
      */
     val minChunkMs: Int = 4_000,
+    /** Typical milliseconds of work per millisecond of audio, before this phone taught better. */
+    val typicalRate: Double = 0.15,
+    /** Fixed cost per request on top of that: a network round trip, a warm-up. */
+    val overheadMs: Long = 200,
 )
 
 data class TranscribeOptions(

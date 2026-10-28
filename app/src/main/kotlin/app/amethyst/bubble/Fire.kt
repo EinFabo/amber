@@ -52,22 +52,38 @@ object Fire {
      * one definition. [cx]/[cy] is the glyph's centre, [r] the disc radius. Outer flame in ink,
      * inner tongue cut back out in the disc's colour - without it the silhouette reads as a drop.
      */
-    fun flame(cx: Float, cy: Float, r: Float, inner: Boolean, ops: FlameOps) {
+    fun flame(cx: Float, cy: Float, r: Float, inner: Boolean, ops: FlameOps, tip: Float = 1f, sway: Float = 0f) {
         val scale = if (inner) 0.5f else 1f
         val base = cy + r * 0.2f + if (inner) r * 0.06f else 0f
         val rb = r * 0.22f * scale
-        val h = r * 0.62f * scale
+        val h = r * 0.62f * scale * tip
         val tipY = base - h
+        val tipX = cx + sway * r * scale
         val p = ((h - rb) / (rb * 0.7f)).coerceIn(0f, 1f)
         val c1x = rb * (0.552f * (1 - p) + 0.18f * p)
         val c1y = tipY + p * h * 0.28f
         val c2y = base - rb * 0.552f - p * (h - rb) * 0.3f
-        ops.moveTo(cx, tipY)
-        ops.cubicTo(cx + c1x, c1y, cx + rb, c2y, cx + rb, base)
+        ops.moveTo(tipX, tipY)
+        ops.cubicTo(tipX + c1x, c1y, cx + rb, c2y, cx + rb, base)
         ops.arcTo(cx - rb, base - rb, cx + rb, base + rb, 0f, 180f)
-        ops.cubicTo(cx - rb, c2y, cx - c1x, c1y, cx, tipY)
+        ops.cubicTo(cx - rb, c2y, tipX - c1x, c1y, tipX, tipY)
         ops.close()
     }
+
+    /**
+     * A burning flame's height (as a factor) and lean (in disc radii) at [tMs]: a few sines at
+     * unrelated speeds, so it flickers without ever visibly repeating. [phase] lets the inner
+     * tongue move out of step with the outer flame.
+     */
+    fun flicker(tMs: Float, phase: Float = 0f): Pair<Float, Float> {
+        val t = tMs / 1000f
+        val tip = 1f + 0.11f * sin(t * 9.1f + phase) + 0.06f * sin(t * 15.7f + 1.3f + phase)
+        val sway = 0.07f * sin(t * 5.3f + phase) + 0.035f * sin(t * 12.9f + 0.7f)
+        return tip to sway
+    }
+
+    /** Progress ring: the faint full track and how bright the filled part is. */
+    const val TRACK_ALPHA = 0.2f
 
     interface FlameOps {
         fun moveTo(x: Float, y: Float)

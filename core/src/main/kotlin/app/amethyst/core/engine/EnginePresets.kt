@@ -95,15 +95,19 @@ object EnginePresets {
     /** A model offered in the settings: the id the service expects, and a few plain words. */
     data class ModelChoice(val id: String, val label: String, val note: String)
 
-    /** Tinfoil's speech models behind the router (POST /v1/audio/transcriptions). */
+    /**
+     * Tinfoil's speech models behind the router (POST /v1/audio/transcriptions). Prices as
+     * listed by Tinfoil in October 2026: Whisper per request, Voxtral per token (audio is about
+     * 12.5 tokens a second, so a minute costs a fraction of a cent).
+     */
     val TINFOIL_SPEECH_MODELS = listOf(
-        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "fastest, smallest"),
-        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "24 B parameters, most accurate"),
+        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "fastest · \$0.01 per dictation"),
+        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "most accurate · ~\$0.0003 a minute"),
     )
 
     /** Tinfoil's chat models, for cleaning up transcripts. The first is the suggested one. */
     val TINFOIL_CLEANUP_MODELS = listOf(
-        ModelChoice("deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "clever and fast"),
+        ModelChoice("deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "clever and fast · ~\$0.0002 per dictation"),
         ModelChoice("gpt-oss-120b", "gpt-oss 120B", "careful"),
         ModelChoice("llama3-3-70b", "Llama 3.3 70B", "plain and steady"),
         ModelChoice("gemma4-31b", "Gemma 4 31B", "light"),

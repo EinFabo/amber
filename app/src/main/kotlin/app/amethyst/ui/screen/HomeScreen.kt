@@ -226,7 +226,7 @@ private fun StatusLine(
                     }
                 }
 
-                DictationState.Transcribing -> Hint("Writing …", AmberPalette.Text)
+                is DictationState.Transcribing -> Hint("Writing …", AmberPalette.Text)
 
                 is DictationState.Done -> {
                     Row(

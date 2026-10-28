@@ -66,6 +66,10 @@ class WhisperCppEngine(
         // whole extra encoder pass: cut those only near the window size. The ACFT models'
         // cost follows the audio length, so short chunks are nearly free for them.
         minChunkMs = if (shortContext) SHORT_CONTEXT_MIN_CHUNK_MS else FULL_CONTEXT_MIN_CHUNK_MS,
+        // Measured on a mid-range phone: the FUTO models run well under real time, stock
+        // large-v3-turbo three to four times over it.
+        typicalRate = if (shortContext) 0.12 else 3.5,
+        overheadMs = 150,
     )
 
     override suspend fun warmUp(): Result<Unit> = withContext(compute) {

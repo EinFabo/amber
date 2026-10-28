@@ -11,6 +11,7 @@ import app.amethyst.data.SettingsStore
 import app.amethyst.data.StrategyStore
 import app.amethyst.dictation.DictationController
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.NativeWhisperRuntime
@@ -95,6 +96,9 @@ class Graph(app: Application) {
     val engineFactory: EngineFactory by lazy {
         EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime, tinfoilVerifier)
     }
+
+    /** How long recognition takes per engine and model on this phone, for the progress ring. */
+    val recognitionEstimate = RecognitionEstimate()
 
     /** What the keyboard tracker decided lately, newest first, for the diagnostics card. */
     val keyboardLog = MutableStateFlow<List<String>>(emptyList())

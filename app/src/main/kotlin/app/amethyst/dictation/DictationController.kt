@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -200,7 +201,7 @@ class DictationController(
             val finished = withTimeoutOrNull(settings.capture.effectiveTotalTimeoutMs()) {
                 val transcript = when (engine) {
                     is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                    else -> recordThenTranscribe(engine, options, source)
+                    else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}")
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
                 deliver(cleanUp(transcript, engineConfig), settings, engineConfig.id)
@@ -245,7 +246,7 @@ class DictationController(
 
         trace?.recordingEnds()
         trace?.transcribingEnds()
-        _state.value = DictationState.Transcribing
+        _state.value = DictationState.Transcribing()
         return result.getOrElse { error ->
             fail(userMessageOf(error), remedy = remedyOf(error))
             null
@@ -256,6 +257,8 @@ class DictationController(
         engine: SttEngine,
         options: TranscribeOptions,
         source: TriggerSource,
+        /** Engine and model, for learning how long recognition takes here. */
+        estimateKey: String,
     ): Transcript? {
         _state.value = DictationState.Listening()
 
@@ -313,14 +316,31 @@ class DictationController(
 
             is AudioCapture.Outcome.Captured -> {
                 trace?.recordingEnds()
-                _state.value = DictationState.Transcribing
+                val chunking = chunked != null && outcome.chunks > 0
+                // What is left to recognize after the stop: with chunks, only the unfinished
+                // ones and the tail.
+                val pendingMs = if (chunking) {
+                    chunked!!.pendingAudioMs + (outcome.tail?.durationMs ?: 0L)
+                } else {
+                    outcome.audio.durationMs
+                }
+                val caps = engine.capabilities
+                val coldModel = trace?.modelWarm == false
+                val overheadMs = caps.overheadMs + if (coldModel) MODEL_LOAD_MS else 0L
+                val expectedMs = graph.recognitionEstimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
+                _state.value = DictationState.Transcribing(expectedMs)
                 trace?.transcribingStarts()
-                val result = if (chunked != null && outcome.chunks > 0) {
-                    chunked.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
+                val startedAt = SystemClock.elapsedRealtime()
+                val result = if (chunking) {
+                    chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
                 } else {
                     engine.transcribe(outcome.audio, options)
                 }
                 trace?.transcribingEnds()
+                // A cold model's load time would teach the wrong rate.
+                if (result.isSuccess && !coldModel) {
+                    graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
+                }
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
                 return result.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error))
@@ -490,6 +510,9 @@ class DictationController(
     private companion object {
         const val TAG = "Amber"
         const val DONE_DISPLAY_MS = 1_200L
+
+        /** Rough cost of loading a Whisper model that was not in memory, for the estimate. */
+        const val MODEL_LOAD_MS = 1_000L
 
         /** Past this the dictation goes in as recognized rather than keep the user waiting. */
         const val CLEANUP_TIMEOUT_MS = 12_000L

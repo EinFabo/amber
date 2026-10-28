@@ -12,6 +12,7 @@ import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
+import app.amethyst.core.engine.RecognitionEstimate
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -28,8 +29,9 @@ enum class BubbleVisual { IDLE, LISTENING, TRANSCRIBING, DONE, FAILED }
  * more code than drawing it.
  *
  * Fire, kept minimal ([Fire]): a flat amber disc with one dark glyph - a flame at rest, level
- * bars while listening. Working is a spark running around the rim with a glowing tail (Fuse),
- * success a tick and one short burst of sparks. The rising sparks while listening are drawn by
+ * bars while listening. While the text is written the flame burns, flickering, and the rim
+ * fills as a progress ring with a spark at its head (Fuse); success closes the ring, draws a
+ * tick and lets one short burst of sparks go. The rising sparks while listening are drawn by
  * [SparkView] in a window of their own, because they leave this one. Nothing moves at rest.
  */
 class BubbleView(context: Context) : View(context) {
@@ -50,6 +52,12 @@ class BubbleView(context: Context) : View(context) {
             field = value.coerceIn(0f, 1f)
             if (visual == BubbleVisual.LISTENING) invalidate()
         }
+
+    /**
+     * How long the current recognition is expected to take; the rim fills against it. Null
+     * when there is no estimate - the spark then just runs around the rim.
+     */
+    var expectedWorkMs: Long? = null
 
     private var stateEnteredAt = SystemClock.elapsedRealtime()
 
@@ -104,8 +112,15 @@ class BubbleView(context: Context) : View(context) {
         canvas.drawCircle(cx, cy, r, disc)
 
         when (visual) {
-            BubbleVisual.TRANSCRIBING -> drawFuse(canvas, r, elapsed, still)
-            BubbleVisual.DONE -> if (!still) drawBurst(canvas, r, elapsed)
+            BubbleVisual.TRANSCRIBING -> {
+                val expected = expectedWorkMs
+                if (expected != null) drawProgress(canvas, r, RecognitionEstimate.progress(elapsed, expected.toFloat()), elapsed)
+                else drawFuse(canvas, r, elapsed, still)
+            }
+            BubbleVisual.DONE -> if (!still) {
+                drawClosingRing(canvas, r, elapsed)
+                drawBurst(canvas, r, elapsed)
+            }
             else -> Unit
         }
 
@@ -114,8 +129,7 @@ class BubbleView(context: Context) : View(context) {
         when (visual) {
             BubbleVisual.IDLE -> drawFlame(canvas, r)
             BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
-            // Working is shown by the fuse alone.
-            BubbleVisual.TRANSCRIBING -> Unit
+            BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else elapsed)
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
@@ -145,6 +159,31 @@ class BubbleView(context: Context) : View(context) {
         canvas.drawCircle(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr, fuse.strokeWidth * 1.1f, spark)
     }
 
+    /** The rim as a progress ring: a faint track, the filled part, a spark at its head. */
+    private fun drawProgress(canvas: Canvas, r: Float, progress: Float, elapsed: Float) {
+        val fr = r * Fire.FUSE_RADIUS
+        val enter = (elapsed / ENTER_MS).coerceIn(0f, 1f)
+        bounds.set(cx - fr, cy - fr, cx + fr, cy + fr)
+        fuse.strokeCap = Paint.Cap.ROUND
+        fuse.alpha = (255 * enter * Fire.TRACK_ALPHA).toInt()
+        canvas.drawCircle(cx, cy, fr, fuse)
+        val sweep = 360f * progress.coerceIn(0.02f, 1f)
+        fuse.alpha = (255 * enter).toInt()
+        canvas.drawArc(bounds, -90f, sweep, false, fuse)
+        val rad = Math.toRadians((-90f + sweep).toDouble())
+        spark.alpha = (255 * enter).toInt()
+        canvas.drawCircle(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr, fuse.strokeWidth * 1.1f, spark)
+    }
+
+    /** On success the ring stands full for a moment and fades with the burst. */
+    private fun drawClosingRing(canvas: Canvas, r: Float, elapsed: Float) {
+        if (elapsed >= Fire.BURST_MS || expectedWorkMs == null) return
+        val fr = r * Fire.FUSE_RADIUS
+        fuse.strokeCap = Paint.Cap.ROUND
+        fuse.alpha = (255 * (1 - elapsed / Fire.BURST_MS)).toInt()
+        canvas.drawCircle(cx, cy, fr, fuse)
+    }
+
     /** One burst of eight short sparks off the rim when the text is in. */
     private fun drawBurst(canvas: Canvas, r: Float, elapsed: Float) {
         if (elapsed >= Fire.BURST_MS) return
@@ -164,14 +203,19 @@ class BubbleView(context: Context) : View(context) {
         spark.style = Paint.Style.FILL
     }
 
-    /** The resting glyph: a flame, its inner tongue cut back out in amber. */
-    private fun drawFlame(canvas: Canvas, r: Float) {
+    /**
+     * The flame glyph, its inner tongue cut back out in amber. At rest ([burningMs] 0) it
+     * stands still; while the text is written it burns, the tongue flickering out of step.
+     */
+    private fun drawFlame(canvas: Canvas, r: Float, burningMs: Float = 0f) {
+        val (tip, sway) = if (burningMs > 0f) Fire.flicker(burningMs) else 1f to 0f
+        val (innerTip, innerSway) = if (burningMs > 0f) Fire.flicker(burningMs, phase = 2.1f) else 1f to 0f
         glyph.style = Paint.Style.FILL
         path.reset()
-        Fire.flame(cx, cy, r, inner = false, ops = flameOps)
+        Fire.flame(cx, cy, r, inner = false, ops = flameOps, tip = tip, sway = sway)
         canvas.drawPath(path, glyph)
         path.reset()
-        Fire.flame(cx, cy, r, inner = true, ops = flameOps)
+        Fire.flame(cx, cy, r, inner = true, ops = flameOps, tip = innerTip, sway = innerSway)
         disc.alpha = glyph.alpha
         canvas.drawPath(path, disc)
         disc.alpha = 255

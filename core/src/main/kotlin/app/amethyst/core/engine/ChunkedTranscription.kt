@@ -33,6 +33,12 @@ class ChunkedTranscription(
     private var servedBy: String? = null
     private var failure: Throwable? = null
 
+    /** Audio handed over but not transcribed yet: what is still to wait for. */
+    private val pendingMs = java.util.concurrent.atomic.AtomicLong(0)
+
+    /** Milliseconds of audio queued or being transcribed right now. */
+    val pendingAudioMs: Long get() = pendingMs.get()
+
     /** Chunks handed over so far, including the final one; for the diagnostics. */
     var chunkCount: Int = 0
         private set
@@ -40,12 +46,14 @@ class ChunkedTranscription(
     private val worker = scope.launch {
         for (chunk in queue) {
             if (failure == null) transcribe(chunk)
+            pendingMs.addAndGet(-chunk.durationMs)
         }
     }
 
     /** Queues a finished chunk. Safe to call from the recording thread. */
     fun submit(chunk: PcmAudio) {
         chunkCount++
+        pendingMs.addAndGet(chunk.durationMs)
         queue.trySend(chunk)
     }
 

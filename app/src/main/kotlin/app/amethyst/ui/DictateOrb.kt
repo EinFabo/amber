@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.amethyst.bubble.Fire
 import app.amethyst.bubble.SparkField
+import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.theme.AmberPalette
 import kotlin.math.PI
@@ -112,9 +113,22 @@ fun DictateOrb(
         val ink = Color(Fire.INK).copy(alpha = if (enabled) 1f else 0.5f)
 
         when (state) {
-            is DictationState.Transcribing -> drawFuse(cx, cy, r, w, elapsed, still)
+            is DictationState.Transcribing -> {
+                val expected = state.expectedMs
+                if (expected != null) {
+                    drawProgress(cx, cy, r, w, RecognitionEstimate.progress(elapsed, expected.toFloat()), elapsed)
+                } else {
+                    drawFuse(cx, cy, r, w, elapsed, still)
+                }
+                drawFlame(ink, stone, cx, cy, r, burningMs = if (still) 0f else elapsed)
+            }
             is DictationState.Done -> {
-                if (!still) drawBurst(cx, cy, r, w, elapsed)
+                if (!still) {
+                    if (elapsed < Fire.BURST_MS) {
+                        drawCircle(Color(Fire.AMBER).copy(alpha = 1 - elapsed / Fire.BURST_MS), r * Fire.FUSE_RADIUS, Offset(cx, cy), style = Stroke(w * 0.034f))
+                    }
+                    drawBurst(cx, cy, r, w, elapsed)
+                }
                 drawTick(ink, cx, cy, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             }
             is DictationState.Failed -> drawBang(ink, cx, cy, r)
@@ -156,6 +170,27 @@ private fun DrawScope.drawFuse(cx: Float, cy: Float, r: Float, w: Float, elapsed
     drawCircle(Color(Fire.SPARK).copy(alpha = alpha), stroke * 1.1f, Offset(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr))
 }
 
+/** The rim as a progress ring: a faint track, the filled part, a spark at its head. */
+private fun DrawScope.drawProgress(cx: Float, cy: Float, r: Float, w: Float, progress: Float, elapsed: Float) {
+    val fr = r * Fire.FUSE_RADIUS
+    val stroke = w * 0.034f
+    val enter = (elapsed / 200f).coerceIn(0f, 1f)
+    val amber = Color(Fire.AMBER)
+    drawCircle(amber.copy(alpha = enter * Fire.TRACK_ALPHA), fr, Offset(cx, cy), style = Stroke(stroke))
+    val sweep = 360f * progress.coerceIn(0.02f, 1f)
+    drawArc(
+        amber.copy(alpha = enter),
+        startAngle = -90f,
+        sweepAngle = sweep,
+        useCenter = false,
+        topLeft = Offset(cx - fr, cy - fr),
+        size = Size(fr * 2, fr * 2),
+        style = Stroke(stroke, cap = StrokeCap.Round),
+    )
+    val rad = Math.toRadians((-90f + sweep).toDouble())
+    drawCircle(Color(Fire.SPARK).copy(alpha = enter), stroke * 1.1f, Offset(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr))
+}
+
 private fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elapsed: Float) {
     if (elapsed >= Fire.BURST_MS) return
     val u = elapsed / Fire.BURST_MS
@@ -170,10 +205,14 @@ private fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elapse
     }
 }
 
-/** The flame glyph from [Fire.flame], its inner tongue cut back out in the disc's colour. */
-private fun DrawScope.drawFlame(ink: Color, disc: Color, cx: Float, cy: Float, r: Float) {
+/**
+ * The flame glyph from [Fire.flame], its inner tongue cut back out in the disc's colour;
+ * burning (flickering) while [burningMs] runs, still at 0.
+ */
+private fun DrawScope.drawFlame(ink: Color, disc: Color, cx: Float, cy: Float, r: Float, burningMs: Float = 0f) {
     fun flamePath(inner: Boolean) = Path().also { path ->
-        Fire.flame(cx, cy, r, inner, object : Fire.FlameOps {
+        val (tip, sway) = if (burningMs > 0f) Fire.flicker(burningMs, phase = if (inner) 2.1f else 0f) else 1f to 0f
+        Fire.flame(cx, cy, r, inner, tip = tip, sway = sway, ops = object : Fire.FlameOps {
             override fun moveTo(x: Float, y: Float) = path.moveTo(x, y)
             override fun cubicTo(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) =
                 path.cubicTo(x1, y1, x2, y2, x3, y3)

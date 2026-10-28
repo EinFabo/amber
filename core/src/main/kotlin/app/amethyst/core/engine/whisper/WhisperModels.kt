@@ -73,8 +73,9 @@ object WhisperModels {
         url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         sizeBytes = 574_041_195L,
         sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-        note = "The large OpenAI model, slimmed down. Much more accurate, but needs ~1 GB " +
-            "of memory and several seconds per dictation.",
+        note = "The large OpenAI model, slimmed down. Much more accurate, but a phone's CPU " +
+            "runs it about three times slower than you speak - a 30 s dictation can take " +
+            "over a minute. For this quality without the wait, use it through Tinfoil.",
         tier = "most accurate",
         shortContext = false,
     )

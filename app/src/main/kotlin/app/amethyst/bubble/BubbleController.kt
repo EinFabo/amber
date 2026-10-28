@@ -305,7 +305,7 @@ class BubbleController(
             DictationState.Idle -> BubbleVisual.IDLE
             DictationState.Starting -> BubbleVisual.LISTENING
             is DictationState.Listening -> BubbleVisual.LISTENING
-            DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
+            is DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
             is DictationState.Done -> BubbleVisual.DONE
             is DictationState.Failed -> BubbleVisual.FAILED
         }
@@ -313,6 +313,7 @@ class BubbleController(
             view.amplitude = state.amplitude
             sparkView.amplitude = state.amplitude
         }
+        if (state is DictationState.Transcribing) view.expectedWorkMs = state.expectedMs
         sparkView.listening = state is DictationState.Listening
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {

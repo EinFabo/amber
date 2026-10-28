@@ -13,7 +13,11 @@ sealed interface DictationState {
 
     data class Listening(val amplitude: Float = 0f, val partial: String? = null) : DictationState
 
-    data object Transcribing : DictationState
+    /**
+     * Turning the recording into text. [expectedMs] is how long that should take, learned from
+     * earlier dictations, for the progress ring; null when there is nothing to go by.
+     */
+    data class Transcribing(val expectedMs: Long? = null) : DictationState
 
     data class Done(
         val transcript: Transcript,

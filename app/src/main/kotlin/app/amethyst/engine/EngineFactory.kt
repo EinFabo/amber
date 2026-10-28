@@ -56,9 +56,12 @@ class EngineFactory(
                             // An alias is only assigned to presets that authenticate, so a
                             // self-hosted endpoint is never nagged for a key.
                             needsApiKey = config.apiKeyAlias != null,
-                            chunkable = true,
-                            // Each chunk is a request; a little longer keeps their number down.
-                            minChunkMs = 6_000,
+                            // Not chunked: a server recognizes 30 s of audio in about a second,
+                            // so cutting saves next to no waiting - and services that bill per
+                            // request (Tinfoil's Whisper: $0.01 each) would charge every chunk.
+                            chunkable = false,
+                            typicalRate = 0.08,
+                            overheadMs = 900,
                         ),
                         // A host Amber can verify gets the verifier, and the engine then
                         // sends only over a connection bound to the attested key. Any other
