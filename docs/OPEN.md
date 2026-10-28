@@ -222,7 +222,7 @@ Endurance
       Bubble, home orb, launcher (incl. Android 13 themed) and notification icons.
 - [ ] **Fire design on the device**: spark height and density, the fuse lap speed, the flame
       glyph at 44-96 dp; check that taps right above the bubble reach the app (spark window).
-- [ ] Optional: change package/application id from `app.amethyst` to Amber (means a reinstall).
+- [x] Application id is `app.amber` (debug: `app.amber.debug`) from 0.12.1 on; the code namespace stays `app.amethyst`, invisible to users.
 
 ## Later stages
 

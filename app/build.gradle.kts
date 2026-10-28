@@ -14,7 +14,9 @@ android {
     ndkVersion = "27.1.12297006"
 
     defaultConfig {
-        applicationId = "app.amethyst"
+        // The app is Amber; the code keeps its old namespace (app.amethyst), which nobody sees.
+        // Changed with the first release build, which is a fresh install anyway.
+        applicationId = "app.amber"
         minSdk = 28
         targetSdk = 35
         versionCode = 21
