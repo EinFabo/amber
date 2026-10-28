@@ -17,7 +17,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "nocturne"
+rootProject.name = "amethyst"
 
 include(":core")
 
@@ -28,10 +28,10 @@ val androidSdkPresent = sequenceOf("ANDROID_HOME", "ANDROID_SDK_ROOT")
     .any { !System.getenv(it).isNullOrBlank() } ||
     file("local.properties").let { it.isFile && it.readText().contains("sdk.dir") }
 
-if (androidSdkPresent || providers.gradleProperty("nocturne.withApp").orNull == "true") {
+if (androidSdkPresent || providers.gradleProperty("amethyst.withApp").orNull == "true") {
     include(":app")
 } else {
     gradle.rootProject {
-        logger.lifecycle("[nocturne] No Android SDK found - :app excluded. :core builds and tests normally.")
+        logger.lifecycle("[amethyst] No Android SDK found - :app excluded. :core builds and tests normally.")
     }
 }

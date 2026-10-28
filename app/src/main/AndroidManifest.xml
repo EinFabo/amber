@@ -24,18 +24,18 @@
     -->
 
     <application
-        android:name=".NocturneApp"
+        android:name=".AmethystApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Nocturne">
+        android:theme="@style/Theme.Amber">
 
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Nocturne">
+            android:theme="@style/Theme.Amber">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -53,10 +53,10 @@
             android:launchMode="singleInstance"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.Nocturne.Invisible" />
+            android:theme="@style/Theme.Amber.Invisible" />
 
         <service
-            android:name=".accessibility.NocturneAccessibilityService"
+            android:name=".accessibility.AmethystAccessibilityService"
             android:exported="true"
             android:label="@string/accessibility_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

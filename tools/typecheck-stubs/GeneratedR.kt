@@ -1,7 +1,7 @@
 // Stands in for the R class that AAPT2 generates from app/src/main/res.
 // The ids listed here are exactly the ones the non-Compose sources reference; the reference
 // checker already proves each one exists as a real resource.
-package app.nocturne
+package app.amethyst
 
 object R {
     object string {
@@ -14,6 +14,6 @@ object R {
     }
 
     object drawable {
-        const val ic_moon = 0
+        const val ic_amber = 0
     }
 }

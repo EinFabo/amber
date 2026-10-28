@@ -6,3 +6,4 @@ local.properties
 app/libs/*.aar
 .idea/
 .kotlin/
+.cxx/

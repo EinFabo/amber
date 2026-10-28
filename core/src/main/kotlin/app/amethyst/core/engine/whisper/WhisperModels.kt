@@ -1,0 +1,184 @@
+package app.amethyst.core.engine.whisper
+
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+/**
+ * A downloadable whisper.cpp model. Size and hash are pinned so a truncated download or a
+ * file swapped on the server is caught before it is ever handed to native code.
+ */
+data class WhisperModelSpec(
+    val id: String,
+    val displayName: String,
+    val url: String,
+    val sizeBytes: Long,
+    val sha256: String,
+    /** German, user-facing. */
+    val note: String,
+    /** One or two words placing it among the others, e.g. "schnell" or "am stärksten". */
+    val tier: String = "",
+    /**
+     * Fine-tuned (ACFT) to work with an encoder context cut to the length of the audio. Only
+     * then may the context be shortened; a stock Whisper model loses words when it is.
+     */
+    val shortContext: Boolean = false,
+)
+
+object WhisperModels {
+
+    /** Whisper tiny, ACFT. FUTO itself does not recommend it for German. */
+    val FUTO_MULTILINGUAL_39 = WhisperModelSpec(
+        id = "futo-multilingual-39",
+        displayName = "FUTO Multilingual-39",
+        url = "https://keyboard.futo.org/voice-input-multilingual-39.bin",
+        sizeBytes = 43_537_450L,
+        sha256 = "07aa4d514144deacf5ffec5cacb36c93dee272fda9e64ac33a801f8cd5cbd953",
+        note = "Whisper tiny. Am schnellsten und kleinsten, Deutsch aber nur mäßig.",
+        tier = "am schnellsten",
+        shortContext = true,
+    )
+
+    /** Whisper base, ACFT, q8_0. FUTO's recommendation for German. */
+    val FUTO_MULTILINGUAL_74 = WhisperModelSpec(
+        id = "futo-multilingual-74",
+        displayName = "FUTO Multilingual-74",
+        url = "https://keyboard.futo.org/voice-input-multilingual-74.bin",
+        sizeBytes = 81_768_602L,
+        sha256 = "e44f352c9aa2c3609dece20c733c4ad4a75c28cd9ab07d005383df55fa96efc4",
+        note = "Whisper base, für kurze Diktate nachtrainiert. Von FUTO für Deutsch empfohlen.",
+        tier = "schnell",
+        shortContext = true,
+    )
+
+    /** Whisper small, ACFT. Noticeably more accurate, still quick thanks to the short context. */
+    val FUTO_MULTILINGUAL_244 = WhisperModelSpec(
+        id = "futo-multilingual-244",
+        displayName = "FUTO Multilingual-244",
+        url = "https://keyboard.futo.org/voice-input-multilingual-244.bin",
+        sizeBytes = 264_464_624L,
+        sha256 = "15ef255465a6dc582ecf1ec651a4618c7ee2c18c05570bbe46493d248d465ac4",
+        note = "Whisper small, nachtrainiert. Merklich genauer, auf aktuellen Handys noch flott.",
+        tier = "genauer",
+        shortContext = true,
+    )
+
+    /**
+     * Whisper large-v3-turbo from the whisper.cpp model repository, q5_0. Far more accurate
+     * than the FUTO models, but stock Whisper: it needs the full 30 s context and is
+     * correspondingly slower.
+     */
+    val LARGE_V3_TURBO_Q5 = WhisperModelSpec(
+        id = "whisper-large-v3-turbo-q5_0",
+        displayName = "Whisper large-v3-turbo",
+        url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
+        sizeBytes = 574_041_195L,
+        sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+        note = "Das große OpenAI-Modell in schlank. Deutlich genauer, braucht aber ~1 GB " +
+            "Arbeitsspeicher und mehrere Sekunden pro Diktat.",
+        tier = "am stärksten",
+        shortContext = false,
+    )
+
+    val all: List<WhisperModelSpec> = listOf(
+        FUTO_MULTILINGUAL_39,
+        FUTO_MULTILINGUAL_74,
+        FUTO_MULTILINGUAL_244,
+        LARGE_V3_TURBO_Q5,
+    )
+
+    val default: WhisperModelSpec = FUTO_MULTILINGUAL_74
+
+    /** Id under which a file the user picked is stored when it matches no known model. */
+    const val IMPORTED_ID = "eigene-datei"
+
+    fun byId(id: String?): WhisperModelSpec? = all.firstOrNull { it.id == id }
+
+    /**
+     * Recognises a picked file as one of the known downloads by its size, so an imported FUTO
+     * file still gets the short context it was trained for (and its hash checked).
+     */
+    fun matchingSize(sizeBytes: Long?): WhisperModelSpec? =
+        sizeBytes?.let { size -> all.firstOrNull { it.sizeBytes == size } }
+}
+
+/** What the header of a ggml whisper model says about it. */
+data class WhisperModelInfo(
+    val vocabularySize: Int,
+    val audioLayers: Int,
+    val textLayers: Int,
+    val audioState: Int,
+) {
+    /** English-only Whisper models have 51864 tokens, multilingual ones 51865 or more. */
+    val multilingual: Boolean get() = vocabularySize >= MULTILINGUAL_VOCAB
+
+    val sizeName: String
+        get() = when (audioState) {
+            384 -> "tiny"
+            512 -> "base"
+            768 -> "small"
+            1024 -> "medium"
+            1280 -> "large"
+            else -> "unbekannt"
+        }
+
+    private companion object {
+        const val MULTILINGUAL_VOCAB = 51_865
+    }
+}
+
+object WhisperModelFile {
+
+    /** Enough bytes to cover the magic and the hyperparameter block. */
+    const val HEADER_BYTES = 48
+
+    /** "ggml" as a little-endian uint32, which is how whisper.cpp writes it. */
+    private const val GGML_MAGIC = 0x67676d6c
+
+    /**
+     * Reads the header of a whisper.cpp model file. A failure names the problem in German,
+     * because the most likely cause is the user picking the wrong file - an APK, a zip, a
+     * model for a different runtime - and native code would only crash on it.
+     */
+    fun inspect(header: ByteArray): Result<WhisperModelInfo> {
+        if (header.size < HEADER_BYTES) {
+            return failure("Die Datei ist zu klein für ein Whisper-Modell.")
+        }
+        val buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
+        if (buffer.getInt(0) != GGML_MAGIC) {
+            return failure(
+                "Das ist kein whisper.cpp-Modell. Erwartet wird eine .bin-Datei " +
+                    "im ggml-Format, z.B. von FUTO.",
+            )
+        }
+        // Layout after the magic: n_vocab, n_audio_ctx, n_audio_state, n_audio_head,
+        // n_audio_layer, n_text_ctx, n_text_state, n_text_head, n_text_layer, n_mels, ftype.
+        val vocabulary = buffer.getInt(4)
+        val audioCtx = buffer.getInt(8)
+        val audioState = buffer.getInt(12)
+        val audioLayers = buffer.getInt(20)
+        val textLayers = buffer.getInt(36)
+        val mels = buffer.getInt(40)
+
+        val plausible = vocabulary in 50_000..60_000 &&
+            audioCtx == 1500 &&
+            audioState in 256..2048 &&
+            audioLayers in 1..64 &&
+            textLayers in 1..64 &&
+            (mels == 80 || mels == 128)
+        if (!plausible) {
+            return failure("Die Datei hat einen ggml-Kopf, sieht aber nicht nach Whisper aus.")
+        }
+
+        return Result.success(
+            WhisperModelInfo(
+                vocabularySize = vocabulary,
+                audioLayers = audioLayers,
+                textLayers = textLayers,
+                audioState = audioState,
+            ),
+        )
+    }
+
+    private fun failure(message: String): Result<WhisperModelInfo> =
+        Result.failure(IllegalArgumentException(message))
+}

@@ -1,0 +1,355 @@
+package app.amethyst.ui
+
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import app.amethyst.Graph
+import app.amethyst.AmethystApp
+import app.amethyst.capture.MicForegroundService
+import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.capture.TriggerSource
+import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.ui.screen.EngineDetailScreen
+import app.amethyst.ui.screen.HomeScreen
+import app.amethyst.ui.screen.SettingsScreen
+import app.amethyst.ui.theme.AmberPalette
+import app.amethyst.ui.theme.AmberTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+
+    private val setupState = MutableStateFlow(SetupState())
+
+    private val requestMicrophone =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            refreshSetup()
+            // The mic foreground service may only be started while we are visible, so this
+            // is the right moment - right after the grant, with the app in front.
+            if (granted) MicForegroundService.start(this)
+        }
+
+    private val requestNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { refreshSetup() }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // The glass background runs behind the status and navigation bars.
+        enableEdgeToEdge()
+        val graph = AmethystApp.graph(this)
+        refreshSetup()
+
+        setContent {
+            AmberTheme {
+                AmethystRoot(
+                    graph = graph,
+                    onInstallLanguage = { tag -> installLanguage(tag) },
+                    setup = setupState.collectAsStateWithLifecycle().value,
+                    actions = SetupActions(
+                        requestMicrophone = {
+                            requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        requestNotifications = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
+                        openAccessibility = { Setup.openAccessibilitySettings(this) },
+                        openAppInfo = { Setup.openAppSettings(this) },
+                        openBattery = { Setup.openBatterySettings(this) },
+                        startMicService = {
+                            MicForegroundService.start(this)
+                            refreshSetup()
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Accessibility and battery state change outside the app, in system settings.
+        refreshSetup()
+        ensureMicServiceRunning()
+    }
+
+    /**
+     * Starting a microphone foreground service is only permitted while the app is visible,
+     * and this is the one moment that is reliably true. Doing it on every resume keeps later
+     * bubble taps off the proxy-activity fallback - including after a reboot, where nothing
+     * else could have started it.
+     */
+    private fun ensureMicServiceRunning() {
+        val state = setupState.value
+        if (!state.microphoneGranted || state.micServiceRunning) return
+
+        MicForegroundService.start(this)
+        // The service flips its flag in onStartCommand, so re-read it a moment later
+        // instead of showing a stale "not running" to the user.
+        lifecycleScope.launch {
+            delay(SERVICE_START_GRACE_MS)
+            refreshSetup()
+        }
+    }
+
+    /**
+     * Asks the system recognizer to fetch the offline pack. Where that API is missing or
+     * refuses, the voice-input settings are the next best place to do it by hand.
+     */
+    private fun installLanguage(languageTag: String?) {
+        if (AndroidOnDeviceEngine.requestLanguageDownload(this, languageTag)) {
+            Toast.makeText(this, "Download gestartet. Android meldet sich gleich.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val opened = runCatching {
+            startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
+        }.isSuccess
+        if (!opened) Setup.openAppSettings(this)
+        Toast.makeText(
+            this,
+            "Unter Spracherkennung → Offline-Spracherkennung die Sprache herunterladen.",
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
+    private fun refreshSetup() {
+        setupState.value = Setup.snapshot(this)
+    }
+
+    private companion object {
+        const val SERVICE_START_GRACE_MS = 600L
+    }
+}
+
+/** Callbacks that need an Activity, passed down so the screens stay free of Android plumbing. */
+class SetupActions(
+    val requestMicrophone: () -> Unit,
+    val requestNotifications: () -> Unit,
+    val openAccessibility: () -> Unit,
+    val openAppInfo: () -> Unit,
+    val openBattery: () -> Unit,
+    val startMicService: () -> Unit,
+)
+
+private sealed interface Screen {
+    data object Home : Screen
+    data object Settings : Screen
+    data class EngineDetail(val engineId: String) : Screen
+}
+
+@Composable
+private fun AmethystRoot(
+    graph: Graph,
+    setup: SetupState,
+    actions: SetupActions,
+    onInstallLanguage: (String?) -> Unit,
+) {
+    var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+    val tester = remember(graph) { ConnectionTester(graph) }
+    val settings by graph.settings.collectAsStateWithLifecycle()
+    val dictation by graph.dictation.state.collectAsStateWithLifecycle()
+    val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+    val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+    val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+
+    fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
+        scope.launch { graph.settingsStore.update(transform) }
+    }
+
+    fun back() {
+        screen = when (screen) {
+            is Screen.EngineDetail -> Screen.Settings
+            else -> Screen.Home
+        }
+    }
+
+    BackHandler(enabled = screen != Screen.Home) { back() }
+
+    AmberBackground {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            TopBar(
+                title = when (screen) {
+                    Screen.Home -> "Amber"
+                    Screen.Settings -> "Einstellungen"
+                    is Screen.EngineDetail -> "Engine"
+                },
+                showBack = screen != Screen.Home,
+                showSettings = screen == Screen.Home,
+                onBack = ::back,
+                onSettings = { screen = Screen.Settings },
+            )
+
+            AnimatedContent(
+                targetState = screen,
+                // A plain cross-fade; screens do not slide or bounce.
+                transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+                label = "screen",
+                modifier = Modifier.fillMaxSize(),
+            ) { current ->
+                when (current) {
+                    Screen.Home -> HomeScreen(
+                        setup = setup,
+                        actions = actions,
+                        settings = settings,
+                        dictation = dictation,
+                        records = records,
+                        keyboardLog = keyboardLog,
+                        onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
+                        onStopTest = { graph.dictation.stop() },
+                        onClearDiagnostics = {
+                            graph.dictationLog.clear()
+                            graph.keyboardLog.value = emptyList()
+                        },
+                        onOpenSettings = { screen = Screen.Settings },
+                        onOpenActiveEngine = {
+                            screen = Screen.EngineDetail(settings.activeEngineId)
+                        },
+                        onInstallLanguage = { onInstallLanguage(settings.activeEngine?.languageTag) },
+                        onUseLocalWhisper = {
+                            val preset = EnginePresets.LOCAL_WHISPER
+                            if (settings.engines.none { it.id == preset.id }) {
+                                updateSettings {
+                                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
+                                }
+                            }
+                            screen = Screen.EngineDetail(preset.id)
+                        },
+                    )
+
+                    Screen.Settings -> SettingsScreen(
+                        settings = settings,
+                        hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                        onUpdateSettings = ::updateSettings,
+                        onOpenEngine = { engineId -> screen = Screen.EngineDetail(engineId) },
+                    )
+
+                    is Screen.EngineDetail -> {
+                        val config = settings.engines.firstOrNull { it.id == current.engineId }
+                        if (config == null) {
+                            // Not in the settings yet (just added) or deleted from under us;
+                            // decide in an effect, never during composition.
+                            LaunchedEffect(current.engineId) {
+                                delay(ENGINE_APPEAR_GRACE_MS)
+                                if (graph.settings.value.engines.none { it.id == current.engineId }) {
+                                    screen = Screen.Settings
+                                }
+                            }
+                        } else {
+                            EngineDetailScreen(
+                                config = config,
+                                active = config.id == settings.activeEngineId,
+                                // Read once per engine, not on every recomposition: this is a
+                                // decrypt out of EncryptedSharedPreferences.
+                                storedKey = remember(config.apiKeyAlias) {
+                                    graph.secretStore.get(config.apiKeyAlias)
+                                },
+                                whisperModels = whisperModels,
+                                onSaveKey = { alias, value ->
+                                    if (value.isBlank()) graph.secretStore.clear(alias)
+                                    else graph.secretStore.put(alias, value)
+                                },
+                                onSave = { updated: EngineConfig ->
+                                    updateSettings { it.withEngine(updated) }
+                                },
+                                onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
+                                onDelete = {
+                                    updateSettings { current ->
+                                        val remaining = current.engines.filterNot { it.id == config.id }
+                                        current.copy(
+                                            engines = remaining,
+                                            activeEngineId = if (current.activeEngineId == config.id) {
+                                                remaining.firstOrNull()?.id ?: ""
+                                            } else {
+                                                current.activeEngineId
+                                            },
+                                        )
+                                    }
+                                    screen = Screen.Settings
+                                },
+                                onTest = { candidate -> tester.test(candidate) },
+                                onDownloadModel = { spec -> graph.whisperModels.download(spec) },
+                                onImportModel = { uri -> graph.whisperModels.import(uri) },
+                                onCancelModel = { id -> graph.whisperModels.cancel(id) },
+                                onDeleteModel = { id -> graph.whisperModels.delete(id) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopBar(
+    title: String,
+    showBack: Boolean,
+    showSettings: Boolean,
+    onBack: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (showBack) IconAction(onClick = onBack, contentDescription = "Zurück", glyph = BackGlyph)
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineMedium,
+            color = AmberPalette.Text,
+            modifier = Modifier.weight(1f),
+        )
+        if (showSettings) IconAction(onClick = onSettings, contentDescription = "Einstellungen", glyph = GearGlyph)
+    }
+}
+
+private const val ENGINE_APPEAR_GRACE_MS = 500L

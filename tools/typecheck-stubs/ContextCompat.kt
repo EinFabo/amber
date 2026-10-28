@@ -1,4 +1,4 @@
-// Minimal stand-ins for the AndroidX surface that Nocturne touches, so the Kotlin compiler
+// Minimal stand-ins for the AndroidX surface that Amethyst touches, so the Kotlin compiler
 // can resolve the non-Compose part of :app against the REAL android framework jar.
 // Written to match the real AndroidX signatures - but they are a transcription of them, so
 // this harness verifies the android.* layer strongly and androidx.* only as far as the

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Nocturne is dark-only by design; no light variant exists. -->
-    <style name="Theme.Nocturne" parent="android:Theme.Material.NoActionBar">
+    <!-- Amber is dark-only by design; no light variant exists. -->
+    <style name="Theme.Amber" parent="android:Theme.Material.NoActionBar">
         <!-- statusBarColor/navigationBarColor are ignored from targetSdk 35 (enforced
              edge-to-edge); the insets are handled by Scaffold and TopAppBar instead. -->
-        <item name="android:windowBackground">#07060B</item>
-        <item name="android:colorAccent">#A855F7</item>
+        <item name="android:windowBackground">#0A0A0A</item>
+        <item name="android:colorAccent">#FFB020</item>
     </style>
 
-    <style name="Theme.Nocturne.Invisible" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Amber.Invisible" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowNoTitle">true</item>

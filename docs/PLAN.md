@@ -1,8 +1,12 @@
-# Nocturne — wie die App zum Testen aufs Handy kommt
+> **Historisch.** Der Plan, wie die allererste APK aus einem Container aufs Handy kam (damals noch
+> als „Amethyst“). Gebaut wird inzwischen lokal, siehe README → *Bauen*; was offen ist, steht in
+> [`OFFEN.md`](OFFEN.md).
+
+# Amethyst — wie die App zum Testen aufs Handy kommt
 
 ## Context
 
-Nocturne ist fertig geschrieben: 8 Commits, 84 Dateien, 111 grüne Tests in `:core`, alle
+Amethyst ist fertig geschrieben: 8 Commits, 84 Dateien, 111 grüne Tests in `:core`, alle
 Audit-Befunde eingearbeitet. Was fehlt, ist eine installierbare APK.
 
 Zwei Dinge stehen dem im Weg, und beide sind Umgebungs-Einstellungen, keine Code-Probleme:
@@ -37,7 +41,7 @@ schicken, und den Befehls-Block ausgeben.
 Das Archiv ist ein vollständiges Git-Repository auf Branch `main`. Du kannst es von **jedem**
 Rechner mit `git` in dein eigenes GitHub-Repository pushen — ohne dass Claude GitHub-Zugang
 braucht. Der Workflow `.github/workflows/android.yml` liegt bereits drin, läuft beim ersten
-Push los und legt die APK als Artifact `nocturne-debug-apk` ab. Du lädst sie im Browser
+Push los und legt die APK als Artifact `amethyst-debug-apk` ab. Du lädst sie im Browser
 herunter, auch am Handy.
 
 Das umgeht meine beiden Blockaden vollständig und braucht keinen Android-Studio-Download —
@@ -60,7 +64,7 @@ Vorgehen:
    liegen: die generierte `R`-Klasse und `androidx.core.content.ContextCompat`.
 3. Den Kotlin-Compiler über die **framework-nahen** Dateien laufen lassen, mit `:core` +
    `android-all` + Stubs im Klassenpfad. Vollständig prüfbar sind damit:
-   `accessibility/TextInserter.kt`, `accessibility/NocturneAccessibilityService.kt`,
+   `accessibility/TextInserter.kt`, `accessibility/AmethystAccessibilityService.kt`,
    `bubble/BubbleView.kt`, `bubble/BubbleController.kt`, `capture/AudioCapture.kt`,
    `capture/MicForegroundService.kt`, `capture/MicProxyActivity.kt`,
    `engine/AndroidOnDeviceEngine.kt`, `dictation/DictationController.kt`,
@@ -73,7 +77,7 @@ ausschließlich auf Googles Maven); Compose-Fehler sind aber meist einfache
 Signatur-Abweichungen, die der erste echte Build sofort zeigt.
 
 **Grenze, die ich benennen muss:** `android-all` enthält auch interne `@hide`-APIs. Code, der
-dagegen kompiliert, könnte theoretisch eine nicht-öffentliche API benutzen. Nocturne benutzt
+dagegen kompiliert, könnte theoretisch eine nicht-öffentliche API benutzen. Amethyst benutzt
 nur öffentliche APIs, und der Zweck ist, Namens-, Signatur- und Override-Fehler zu finden —
 dafür ist es verlässlich.
 
@@ -95,7 +99,7 @@ Schnellster Weg zum Ziel und der mit der kürzesten Rückkopplung bei Fehlern.
 ### Route B — GitHub verbinden
 https://claude.ai/connect-github, dort die Claude-GitHub-App installieren. Dann lege ich das
 Repository an, pushe die 8 Commits, und der vorhandene Workflow
-`.github/workflows/android.yml` baut die APK als Artifact `nocturne-debug-apk`. Das lädst du
+`.github/workflows/android.yml` baut die APK als Artifact `amethyst-debug-apk`. Das lädst du
 im Browser herunter — auch direkt am Handy.
 
 Dauerhaft reproduzierbare Builds und der Code liegt sicher. Dafür 3–5 Minuten pro
@@ -119,7 +123,6 @@ der Code nicht nur in einem Container liegt.
 
 **Jetzt, ohne Freigabe:**
 ```bash
-cd /home/user/nocturne
 gradle :core:test                 # 111 Tests, müssen grün bleiben
 python3 -I tools/check_refs.py    # Imports, R.*-IDs, Manifest-Klassen
 # neu: Typprüfung der framework-nahen Dateien gegen android-all
@@ -135,7 +138,7 @@ ls -lh app/build/outputs/apk/debug/*.apk
 
 1. APK installieren, App öffnen → Startbild in Schwarz/Violett, kein Crash.
 2. Mikrofon erlauben → „Mikrofon-Dienst läuft" wird grün.
-3. **Testdiktat** im Testfeld der App. Nocturne ist dabei im Vordergrund, wo Android das
+3. **Testdiktat** im Testfeld der App. Amethyst ist dabei im Vordergrund, wo Android das
    Mikrofon nie verweigert, und das Ziel ist ein gewöhnliches Eingabefeld. Klappt das, stehen
    Mikrofon, Engine, Normalisierung und Einfügen.
 4. Bedienungshilfe aktivieren → Blase erscheint, ziehbar, rastet am Rand ein.
@@ -147,7 +150,7 @@ ls -lh app/build/outputs/apk/debug/*.apk
    einspringen. Hier treiben Hersteller-ROMs am ehesten quer.
 
 Geht Schritt 3 und Schritt 5 nicht, liegt es am Einfügen. Geht Schritt 3 schon nicht, ist es
-Mikrofon oder Engine — und die Diagnose-Karte sagt, welches. `adb logcat -s Nocturne:V` zeigt
+Mikrofon oder Engine — und die Diagnose-Karte sagt, welches. `adb logcat -s Amethyst:V` zeigt
 Zustände, gewählte Einfüge-Strategie und Latenzen, falls du ein Kabel zur Hand hast.
 
 Schritte 1–7 kann nur du ausführen. Ich werde kein Ergebnis behaupten, das ich nicht gesehen

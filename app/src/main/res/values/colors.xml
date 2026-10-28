@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="nocturne_background">#07060B</color>
-    <color name="nocturne_primary">#A855F7</color>
+    <color name="amber_background">#0A0A0A</color>
+    <color name="amber_primary">#FFB020</color>
 </resources>

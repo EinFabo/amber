@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-WORK="${TMPDIR:-/tmp}/nocturne-typecheck"
+WORK="${TMPDIR:-/tmp}/amethyst-typecheck"
 KOTLIN_VERSION="2.1.20"
 # Android 15 == API 35 == compileSdk of this project.
 ANDROID_ALL="15-robolectric-13954326"
@@ -37,6 +37,8 @@ fetch "org/jetbrains/kotlin/kotlin-script-runtime/$KOTLIN_VERSION" "kotlin-scrip
 fetch "org/jetbrains/kotlin/kotlin-daemon-embeddable/$KOTLIN_VERSION" "kotlin-daemon-embeddable-$KOTLIN_VERSION.jar"
 fetch "org/jetbrains/intellij/deps/trove4j/1.0.20200330" "trove4j-1.0.20200330.jar"
 fetch "org/jetbrains/annotations/13.0" "annotations-13.0.jar"
+# A runtime dependency of the compiler itself (see its pom), not of the checked sources.
+fetch "org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0" "kotlinx-coroutines-core-jvm-1.8.0.jar"
 fetch "org/robolectric/android-all/$ANDROID_ALL" "android-all-$ANDROID_ALL.jar"
 
 echo "==> building :core so its classes are on the classpath"

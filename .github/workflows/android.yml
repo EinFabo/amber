@@ -22,7 +22,8 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        # NDK and CMake for whisper.cpp; versions match app/build.gradle.kts.
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -53,7 +54,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nocturne-debug-apk
+          name: amethyst-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 

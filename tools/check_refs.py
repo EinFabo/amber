@@ -41,8 +41,8 @@ for p in kt:
 errors = []
 for p in kt:
     text = p.read_text()
-    for imp in re.findall(r'^import\s+(app\.nocturne[\w.]*)', text, re.M):
-        if imp in ('app.nocturne.R',) or imp.startswith('app.nocturne.R.'):
+    for imp in re.findall(r'^import\s+(app\.amethyst[\w.]*)', text, re.M):
+        if imp in ('app.amethyst.R',) or imp.startswith('app.amethyst.R.'):
             continue
         parts = imp.split('.')
         # try longest package prefix that we know
@@ -75,7 +75,7 @@ for p in kt:
 
 # Manifest class references
 manifest = (root / 'app/src/main/AndroidManifest.xml').read_text()
-app_pkg = 'app.nocturne'
+app_pkg = 'app.amethyst'
 classes = {f"{pkg_of[p]}.{n}" for p in kt for n in declared[pkg_of[p]]}
 for m in re.finditer(r'android:name="(\.[\w.]+)"', manifest):
     fq = app_pkg + m.group(1)

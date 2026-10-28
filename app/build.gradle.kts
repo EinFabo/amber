@@ -7,15 +7,30 @@ plugins {
 }
 
 android {
-    namespace = "app.nocturne"
+    namespace = "app.amethyst"
     compileSdk = 35
+    // Pinned so CI and local builds use the same toolchain for whisper.cpp.
+    ndkVersion = "27.1.12297006"
 
     defaultConfig {
-        applicationId = "app.nocturne"
+        applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-stage1"
+        versionCode = 10
+        versionName = "0.6.2"
+
+        ndk {
+            // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
+            // APK and the native build time down.
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
@@ -40,6 +55,11 @@ android {
 
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
+        // Compressed instead of stored: the APK is installed by hand after a download, where
+        // download size matters more than the few MB of extra space the unpacked copy takes
+        // on the device.
+        dex.useLegacyPackaging = true
+        jniLibs.useLegacyPackaging = true
     }
 
     lint {
