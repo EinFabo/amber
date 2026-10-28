@@ -32,6 +32,8 @@ class ChatCleanup(
     private val apiKeyProvider: () -> String?,
     /** Model-specific chat_template_kwargs, e.g. the switch that turns reasoning off. */
     private val templateKwargs: Map<String, Boolean> = emptyMap(),
+    /** Other top-level request fields the model needs, e.g. reasoning_effort. */
+    private val extraParams: Map<String, String> = emptyMap(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
@@ -54,6 +56,7 @@ class ChatCleanup(
             // runs on regardless. A model whose reasoning cannot be switched off spends tokens
             // on it first and gets room for that, or a short dictation comes back empty.
             put("max_tokens", text.length / 2 + 256 + if (templateKwargs.isEmpty()) REASONING_HEADROOM else 0)
+            extraParams.forEach { (k, v) -> put(k, v) }
             if (templateKwargs.isNotEmpty()) {
                 put("chat_template_kwargs", buildJsonObject { templateKwargs.forEach { (k, v) -> put(k, v) } })
             }

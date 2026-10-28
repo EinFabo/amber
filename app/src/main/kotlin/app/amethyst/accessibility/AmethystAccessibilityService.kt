@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import app.amethyst.core.capture.TriggerSource
+import android.provider.Settings
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
 import app.amethyst.Graph
@@ -121,16 +122,22 @@ class AmethystAccessibilityService : AccessibilityService() {
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 if (bubbleShown) keyboard?.windowsChanged()
-                event.packageName?.toString()
-                    ?.takeIf { it != packageName }
-                    ?.let { foregroundPackage = it }
+                event.packageName?.toString()?.let { pkg ->
+                    if (pkg != packageName) foregroundPackage = pkg
+                    // The keyboard and the system bars send window changes too; they are not
+                    // the app the user is in.
+                    if (pkg != SYSTEM_UI && !isKeyboard(pkg)) bubble?.setCurrentApp(pkg)
+                }
                 // Switching apps or closing a dialog sends no focus event for the field that
                 // went away, so look at what has input focus now.
                 if (!tracksInputDirectly) updateTextFieldFocus(currentFocusIsEditable())
             }
 
-            AccessibilityEvent.TYPE_VIEW_FOCUSED ->
-                if (!tracksInputDirectly) updateTextFieldFocus(event.source?.isEditable == true)
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> if (!tracksInputDirectly) {
+                val editable = event.source?.isEditable == true
+                if (editable) event.packageName?.toString()?.let { bubble?.setCurrentApp(it) }
+                updateTextFieldFocus(editable)
+            }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged()
@@ -139,6 +146,11 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     private val bubbleShown: Boolean
         get() = graph.settings.value.bubble.enabled
+
+    /** Whether [pkg] is the keyboard in use, e.g. "com.google.android.inputmethod.latin/...". */
+    private fun isKeyboard(pkg: String): Boolean = runCatching {
+        Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.startsWith("$pkg/") == true
+    }.getOrDefault(false)
 
     private val tracksInputDirectly: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -180,6 +192,8 @@ class AmethystAccessibilityService : AccessibilityService() {
         override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
             super.onStartInput(attribute, restarting)
             inputActive = attribute.inputType != EditorInfo.TYPE_NULL
+            // The field's own app: the surest answer to "where is the user typing".
+            if (inputActive) attribute.packageName?.let { bubble?.setCurrentApp(it) }
             updateTextFieldFocus(false)
         }
 
@@ -218,5 +232,6 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     private companion object {
         const val TAG = "Amber"
+        const val SYSTEM_UI = "com.android.systemui"
     }
 }

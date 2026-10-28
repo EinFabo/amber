@@ -83,6 +83,13 @@ class SttFailure(
     /** The audio reached the engine and it found no speech - a working round trip. */
     val nothingRecognized: Boolean get() = userMessage == NOTHING_RECOGNIZED
 
+    /**
+     * The server could not be reached, did not answer, or is down - worth recognizing the
+     * same recording elsewhere. A refused key or a bad request is not: that needs the user.
+     */
+    val serviceUnavailable: Boolean
+        get() = (statusCode == null && cause is java.io.IOException) || statusCode in 500..599
+
     enum class Remedy {
         /** The system recognizer lacks the offline pack for the dictation language. */
         INSTALL_LANGUAGE,

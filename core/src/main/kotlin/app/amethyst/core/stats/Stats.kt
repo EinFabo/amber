@@ -1,6 +1,6 @@
 package app.amethyst.core.stats
 
-import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.privacy.TrustLevel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -142,21 +142,24 @@ data class StatsSummary(
     }
 }
 
-/** Tinfoil's bill for one dictation, from the per-model prices in [EnginePresets]. An estimate. */
-object TinfoilCost {
+/** A server's bill for one dictation, from the prices in [ServerProviders]. An estimate. */
+object ServerCost {
 
     /** Voxtral reads audio as about 12.5 tokens a second; text is about 4 characters a token. */
     private const val AUDIO_MS_PER_TOKEN = 80
     private const val CHARS_PER_TOKEN = 4
     private const val PROMPT_TOKENS = 250
 
-    fun microUsd(speechModel: String?, audioMs: Long, chars: Int, cleanupModel: String?): Long? {
-        val speech = EnginePresets.TINFOIL_SPEECH_MODELS.firstOrNull { it.id == speechModel }
-        val cleanup = EnginePresets.TINFOIL_CLEANUP_MODELS.firstOrNull { it.id == cleanupModel }
+    /** Null for an own server or an unknown model: nothing to estimate, nothing billed by us. */
+    fun microUsd(baseUrl: String?, speechModel: String?, audioMs: Long, chars: Int, cleanupModel: String?): Long? {
+        val provider = ServerProviders.forUrl(baseUrl)
+        val speech = provider.speechModel(speechModel)
+        val cleanup = provider.cleanupModel(cleanupModel)
         if (speech == null && cleanup == null) return null
         val textTokens = chars / CHARS_PER_TOKEN + 1
         val speechUsd = speech?.let {
-            it.usdPerRequest + (audioMs / AUDIO_MS_PER_TOKEN) * it.usdPerMIn / 1e6 + textTokens * it.usdPerMOut / 1e6
+            it.usdPerRequest + audioMs / 60_000.0 * it.usdPerMinute +
+                (audioMs / AUDIO_MS_PER_TOKEN) * it.usdPerMIn / 1e6 + textTokens * it.usdPerMOut / 1e6
         } ?: 0.0
         val cleanupUsd = cleanup?.let {
             (PROMPT_TOKENS + textTokens) * it.usdPerMIn / 1e6 + textTokens * it.usdPerMOut / 1e6

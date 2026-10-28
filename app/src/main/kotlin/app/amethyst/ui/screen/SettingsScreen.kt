@@ -2,6 +2,10 @@ package app.amethyst.ui.screen
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import app.amethyst.core.settings.BubbleSettings
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -47,6 +51,7 @@ import app.amethyst.ui.NavRow
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.theme.badgeLabel
+import app.amethyst.ui.theme.placeExplanation
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
@@ -96,7 +101,16 @@ fun SettingsScreen(
             ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "As recognized" },
         ) { onOpen(SettingsPage.INSERTING) }
         NavRow("App styles", "${settings.profiles.size} ${if (settings.profiles.size == 1) "app" else "apps"} with their own style") { onOpen(SettingsPage.APP_STYLES) }
-        NavRow("Bubble", if (settings.bubble.enabled) "On · ${settings.bubble.sizeDp} dp" else "Off") { onOpen(SettingsPage.BUBBLE) }
+        NavRow(
+            "Bubble",
+            if (!settings.bubble.enabled) "Off"
+            else listOfNotNull(
+                "On",
+                "${settings.bubble.sizeDp} dp",
+                "${(settings.bubble.restingOpacity * 100).roundToInt()} % at rest".takeIf { settings.bubble.restingOpacity < 1f },
+                "hidden in ${settings.bubble.hiddenIn.size} ${if (settings.bubble.hiddenIn.size == 1) "app" else "apps"}".takeIf { settings.bubble.hiddenIn.isNotEmpty() },
+            ).joinToString(" · "),
+        ) { onOpen(SettingsPage.BUBBLE) }
         Hairline()
         NavRow("Statistics", if (settings.stats.keep) "Kept on this phone" else "Off") { onOpen(SettingsPage.STATS) }
         val open = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
@@ -147,13 +161,13 @@ fun EnginesScreen(
     ) {
         val groups = settings.engines.groupBy { it.trustLevelForDisplay() }
         listOf(
-            Triple(TrustLevel.ON_DEVICE, "On this phone", "Your voice never leaves the phone."),
-            Triple(TrustLevel.ENCLAVE_VERIFIED, "Verified enclave", "Sent only after the enclave's code is verified."),
-            Triple(TrustLevel.CLOUD, "Server", "Sent over TLS, no further guarantee."),
-        ).forEach { (level, title, subtitle) ->
+            TrustLevel.ON_DEVICE to "On this phone",
+            TrustLevel.ENCLAVE_VERIFIED to "Verified enclave",
+            TrustLevel.CLOUD to "Server",
+        ).forEach { (level, title) ->
             val engines = groups[level].orEmpty()
             if (engines.isNotEmpty()) {
-                SectionCard(title = title, subtitle = subtitle) {
+                SectionCard(title = title, subtitle = level.placeExplanation()) {
                     engines.forEach { engine ->
                         EngineRow(
                             config = engine,
@@ -169,6 +183,16 @@ fun EnginesScreen(
         }
         Hairline()
         GhostButton("Add engine", { showPresets = true })
+
+        SectionCard(title = "Without a connection") {
+            ToggleRow(
+                label = "Fall back to the phone",
+                description = "If a server cannot be reached, a downloaded local model (Parakeet, " +
+                    "then Whisper) recognizes the recording instead of it being lost.",
+                checked = settings.capture.localFallback,
+                onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(localFallback = on)) } },
+            )
+        }
     }
 
     if (showPresets) {
@@ -274,8 +298,12 @@ fun InsertingScreen(
 fun BubbleScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    loadApps: suspend () -> List<InstalledApp>,
+    appName: (String) -> String,
     modifier: Modifier = Modifier,
 ) {
+    var picking by remember { mutableStateOf(false) }
+    val bubble = settings.bubble
     SubPage(modifier) {
         SectionCard(title = "Bubble", subtitle = "Tap to dictate, hold to talk, drag to move.") {
             ToggleRow(
@@ -312,6 +340,83 @@ fun BubbleScreen(
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
                 },
             )
+        }
+
+        SectionCard(title = "Look") {
+            StepSlider(
+                label = "Opacity at rest",
+                valueText = "${(bubble.restingOpacity * 100).roundToInt()} %",
+                value = (bubble.restingOpacity * 100).roundToInt(),
+                range = 20..100,
+                step = 10,
+                onChange = { percent -> onUpdateSettings { it.copy(bubble = it.bubble.copy(restingOpacity = percent / 100f)) } },
+            )
+            Hint("While you dictate, the bubble is always fully visible.")
+            BubbleOpacityPreview(bubble.restingOpacity)
+        }
+
+        SectionCard(title = "Hidden in", subtitle = "Apps the bubble stays out of - games, or apps with their own voice input.") {
+            if (bubble.hiddenIn.isEmpty()) Hint("Shown in every app.")
+            bubble.hiddenIn.forEach { pkg ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(appName(pkg), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
+                    GhostButton("Show again", {
+                        onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
+                    })
+                }
+            }
+            GhostButton("Add app", { picking = true })
+        }
+
+        SectionCard(title = "Position") {
+            Hint("Drag the bubble anywhere; it stays where you drop it.")
+            GhostButton("Put it back in the corner", {
+                onUpdateSettings {
+                    it.copy(
+                        bubble = it.bubble.copy(
+                            horizontalBias = BubbleSettings.DEFAULT_HORIZONTAL_BIAS,
+                            verticalBias = BubbleSettings.DEFAULT_VERTICAL_BIAS,
+                        ),
+                    )
+                }
+            })
+        }
+    }
+
+    if (picking) {
+        AppPickerDialog(
+            existing = bubble.hiddenIn.toSet(),
+            loadApps = loadApps,
+            onDismiss = { picking = false },
+            onPick = { app ->
+                picking = false
+                onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn + app.packageName)) }
+            },
+        )
+    }
+}
+
+/** The resting bubble over a strip of text, so the opacity can be judged before trying it. */
+@Composable
+private fun BubbleOpacityPreview(opacity: Float) {
+    val animated by animateFloatAsState(opacity, tween(150), label = "opacity")
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(84.dp)
+            .background(AmberPalette.Surface, AmberShapes.Inner)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        // The disc sits on the text, as the bubble does over an app.
+        Text(
+            "Hi, I'll be there in ten minutes - bring the key, I left mine at home again.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AmberPalette.Text,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Canvas(Modifier.padding(end = 8.dp).size(52.dp).alpha(animated)) {
+            drawCircle(AmberPalette.Primary)
         }
     }
 }

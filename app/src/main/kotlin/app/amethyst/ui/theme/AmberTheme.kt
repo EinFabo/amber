@@ -62,6 +62,13 @@ fun TrustLevel.badgeLabel(): String = when (this) {
     TrustLevel.CLOUD -> "Cloud"
 }
 
+/** Where an engine of this level sends your voice - for settings, before anything is sent. */
+fun TrustLevel.placeExplanation(): String = when (this) {
+    TrustLevel.ON_DEVICE -> "Your voice never leaves the phone."
+    TrustLevel.ENCLAVE_VERIFIED -> "Sent only after the enclave's code is verified."
+    TrustLevel.CLOUD -> "Sent to a server over TLS, no further guarantee."
+}
+
 fun TrustLevel.badgeExplanation(): String = when (this) {
     TrustLevel.ON_DEVICE -> "The recording never left the device."
     TrustLevel.ENCLAVE_VERIFIED ->

@@ -4,7 +4,7 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.StatsLedger
 import app.amethyst.core.stats.StatsSummary
-import app.amethyst.core.stats.TinfoilCost
+import app.amethyst.core.stats.ServerCost
 import app.amethyst.core.stats.countWords
 import java.nio.file.Files
 import java.time.ZoneOffset
@@ -71,13 +71,18 @@ class StatsTest {
     }
 
     @Test
-    fun `tinfoil cost follows the model's price`() {
+    fun `server cost follows the provider's price`() {
         // Whisper is billed per request, whatever its length.
-        assertEquals(10_000L, TinfoilCost.microUsd("whisper-large-v3-turbo", 15_000, 100, null))
-        val voxtral = assertNotNull(TinfoilCost.microUsd("voxtral-small-24b", 15_000, 200, null))
+        val tinfoil = "https://inference.tinfoil.sh/v1"
+        assertEquals(10_000L, ServerCost.microUsd(tinfoil, "whisper-large-v3-turbo", 15_000, 100, null))
+        val voxtral = assertNotNull(ServerCost.microUsd(tinfoil, "voxtral-small-24b", 15_000, 200, null))
         assertTrue(voxtral in 30..100, "about \$0.00005 for 15 s, got $voxtral")
-        assertNull(TinfoilCost.microUsd(null, 15_000, 200, null))
-        assertNull(TinfoilCost.microUsd("my-own-model", 15_000, 200, null))
+        assertNull(ServerCost.microUsd(tinfoil, null, 15_000, 200, null))
+        assertNull(ServerCost.microUsd(tinfoil, "my-own-model", 15_000, 200, null))
+        // OpenAI bills per minute: a minute of gpt-4o-mini-transcribe is $0.003.
+        assertEquals(3_000L, ServerCost.microUsd("https://api.openai.com/v1", "gpt-4o-mini-transcribe", 60_000, 0, null))
+        // A server of your own costs nothing we could know - even with a known model name.
+        assertNull(ServerCost.microUsd("http://192.168.1.20:8000/v1", "whisper-large-v3-turbo", 60_000, 0, null))
     }
 
     @Test

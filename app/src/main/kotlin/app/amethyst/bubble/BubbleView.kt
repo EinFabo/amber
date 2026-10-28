@@ -279,6 +279,22 @@ class BubbleView(context: Context) : View(context) {
         else -> if (elapsed < SETTLE_MS || level > 0.01f) 0L else null
     }
 
+    /** How visible the bubble is at rest (BubbleSettings.restingOpacity). */
+    var restingOpacity: Float = 1f
+        set(value) {
+            field = value.coerceIn(MIN_OPACITY, 1f)
+        }
+
+    /** At rest the chosen opacity; listening, working and the result fully visible. */
+    fun targetAlpha(): Float = if (visual == BubbleVisual.IDLE) restingOpacity else 1f
+
+    /** Fades to [targetAlpha] - for a shown bubble whose state or setting changed. */
+    fun settleAlpha() {
+        val target = targetAlpha()
+        if (alpha == target) return
+        animate().alpha(target).setDuration(200).setInterpolator(DecelerateInterpolator()).withEndAction(null).start()
+    }
+
     /** Brings the bubble in. Called when a text field gains focus. */
     fun appear() {
         animate().cancel()
@@ -287,7 +303,7 @@ class BubbleView(context: Context) : View(context) {
             scaleY = 0.8f
         }
         animate()
-            .alpha(1f)
+            .alpha(targetAlpha())
             .scaleX(1f)
             .scaleY(1f)
             .setDuration(180)
@@ -325,6 +341,7 @@ class BubbleView(context: Context) : View(context) {
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f
         const val WORKING_FRAME_MS = 33L
+        const val MIN_OPACITY = 0.2f
         const val STILL_PROGRESS_MS = 250L
 
         val BAR_PROFILE = floatArrayOf(0.75f, 1f, 0.75f)

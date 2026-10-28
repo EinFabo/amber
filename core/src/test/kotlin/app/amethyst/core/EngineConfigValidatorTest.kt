@@ -97,19 +97,16 @@ class EngineConfigValidatorTest {
     }
 
     @Test
-    fun `the streaming engine wants a websocket scheme`() {
-        val http = EngineConfig(
+    fun `the never-built streaming engine is reported as unsupported`() {
+        val elevenlabs = EngineConfig(
             id = "elevenlabs-realtime",
             kind = EngineKind.ELEVENLABS_REALTIME,
             displayName = "ElevenLabs",
-            baseUrl = "https://api.elevenlabs.io/v1/speech-to-text/realtime",
+            baseUrl = "wss://api.elevenlabs.io/v1/speech-to-text/realtime",
             modelId = "scribe_v2_realtime",
             apiKeyAlias = "key.elevenlabs",
         )
-        assertContains(EngineConfigValidator.validate(http, hasApiKey = true).single(), "wss://")
-
-        val wss = http.copy(baseUrl = "wss://api.elevenlabs.io/v1/speech-to-text/realtime")
-        assertTrue(EngineConfigValidator.isReady(wss, hasApiKey = true))
+        assertContains(EngineConfigValidator.validate(elevenlabs, hasApiKey = true).single(), "not supported")
     }
 
     @Test

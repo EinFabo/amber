@@ -5,6 +5,7 @@ import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
@@ -134,6 +135,7 @@ class EngineFactory(
      * the recognition, over the same kind of channel - verified and pinned for Tinfoil.
      */
     fun cleanupFor(config: EngineConfig): ChatCleanup? {
+        if (!EngineConfigValidator.isReady(config, secrets.has(config.apiKeyAlias))) return null
         val model = config.cleanupModel?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (config.kind != EngineKind.OPENAI_COMPATIBLE) return null
         val baseUrl = config.baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
@@ -146,13 +148,15 @@ class EngineFactory(
             verifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
             plainTrust = TrustLevel.CLOUD,
         )
-        val choice = EnginePresets.TINFOIL_CLEANUP_MODELS.firstOrNull { it.id == model }
+        // The same backend for every server: only the model's own switches differ.
+        val choice = ServerProviders.forUrl(baseUrl).cleanupModel(model)
         return ChatCleanup(
             baseUrl = baseUrl,
             model = model,
             channel = channel,
             apiKeyProvider = { secrets.get(config.apiKeyAlias) },
             templateKwargs = choice?.noThinking.orEmpty(),
+            extraParams = choice?.extraParams.orEmpty(),
         )
     }
 

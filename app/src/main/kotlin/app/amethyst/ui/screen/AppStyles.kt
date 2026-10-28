@@ -115,7 +115,7 @@ fun AppStylesScreen(
         ) {
             Hint(
                 if (hasCleanup) "Applied by the cleanup model of the active engine. Apps without a style get the text tidied as spoken."
-                else "Styles need a cleanup model - choose one under Engine → Tinfoil → Cleanup. Until then the text goes in as recognized.",
+                else "Styles need a cleanup model: open a server engine (Tinfoil, Groq, OpenAI or your own) and pick one under Cleanup. Until then the text goes in as recognized.",
                 if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
             )
             settings.profiles.forEach { profile ->
@@ -285,7 +285,7 @@ private fun ProfileDialog(
 }
 
 @Composable
-private fun AppPickerDialog(
+internal fun AppPickerDialog(
     existing: Set<String>,
     loadApps: suspend () -> List<InstalledApp>,
     onDismiss: () -> Unit,

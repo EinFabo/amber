@@ -34,7 +34,7 @@ engine (grouped by where the voice goes), recording, inserting, app styles, bubb
 statistics, reliability, diagnostics.
 
 **Statistics** are counted on the phone only - words, dictations per app, where the voice
-went, the wait after stopping per engine, days in a row, an estimate of Tinfoil's bill - from
+went, the wait after stopping per engine, days in a row, an estimate of the server bill - from
 counts and timings, never the text or audio (`noBackupFilesDir/stats/dictations.jsonl`). Time
 saved compares typing at 40 words a minute (adjustable) with speaking plus waiting.
 
@@ -43,11 +43,10 @@ saved compares typing at 40 words a minute (adjustable) with speaking plus waiti
 | Engine | Trust | Status |
 |---|---|---|
 | Android (on device) | `ON_DEVICE` | ✅ stage 1 |
-| Any OpenAI-compatible endpoint - own server (Speaches, whisper.cpp), Groq, Fireworks, OpenAI | `CLOUD` | ✅ stage 2 |
+| Groq, OpenAI, or your own server (Speaches, LocalAI, whisper.cpp) - one shared server backend | `CLOUD` | ✅ stage 2 |
 | Tinfoil via `inference.tinfoil.sh`, attestation verified, connection bound to the verified key | `ENCLAVE_VERIFIED` | ✅ 0.7 |
 | Whisper locally through whisper.cpp with the FUTO models (Multilingual-74, 82 MB, and more) | `ON_DEVICE` | ✅ 0.2 |
 | Parakeet TDT 0.6B v3 locally through sherpa-onnx: near Whisper large-v3 accuracy at small-model speed, 25 European languages | `ON_DEVICE` | ✅ 0.10 |
-| ElevenLabs Scribe v2 Realtime (streaming) | `CLOUD` | ⏳ stage 4 |
 
 **Recognized while you speak.** Longer dictations are cut at natural pauses, and every
 finished part is recognized in the background while you keep talking - each with the text so
@@ -59,13 +58,18 @@ detects per dictation which of them was spoken. A single fixed language forces W
 *translate* everything else into it - English speech used to come out German. Several
 languages inside one dictation are beyond Whisper; it picks the dominant one.
 
-One driver serves every OpenAI-compatible service: base URL, model name and key are settings,
-not code. Adding a provider means filling in three fields.
+**One server backend.** Tinfoil, Groq, OpenAI and your own server all go through the same
+code: the OpenAI audio endpoint for recognition, the chat endpoint for the cleanup and the
+writing style per app. What differs lives in a provider catalog (`ServerProviders`): the
+models each one offers, their prices for the cost estimate, and whether the address is fixed.
+Known providers get pickers; an own server gets free fields, and `http://` works there for
+addresses in your own network only.
 
 **Amber never claims more trust than it can prove.** An enclave engine only shows
-`ENCLAVE_VERIFIED` once its attestation has actually been verified. There is never a silent
-fallback to another engine: if the chosen engine cannot do it, you get an error message, not a
-detour for your voice.
+`ENCLAVE_VERIFIED` once its attestation has actually been verified. Your voice is never
+detoured to a less private place. The one fallback goes the other way: if a server cannot be
+reached, a downloaded local model recognizes the recording instead of it being lost - shown
+as it happens, and switchable under Engine.
 
 ### Tinfoil: what "Enclave verified" means
 

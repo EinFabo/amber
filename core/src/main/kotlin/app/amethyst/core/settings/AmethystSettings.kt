@@ -72,6 +72,11 @@ data class CaptureSettings(
     val chunking: Boolean = true,
     /** Shortest part worth cutting off; null keeps each engine's own (see EngineCapabilities). */
     val chunkMinMs: Int? = null,
+    /**
+     * When a server cannot be reached, recognize the recording with a local model that is
+     * ready on the phone. Only ever towards the phone, so privacy never gets weaker.
+     */
+    val localFallback: Boolean = true,
 ) {
     /**
      * [preRollMs] doubles as the calibration window: inside it the policy only learns the
@@ -122,7 +127,16 @@ data class BubbleSettings(
      * so it never covers anything when there is nothing to dictate into.
      */
     val onlyWithTextField: Boolean = true,
-)
+    /** How visible the bubble is at rest, 0.2..1; while dictating it is always fully there. */
+    val restingOpacity: Float = 1f,
+    /** Apps the bubble stays out of (games, apps with their own voice input). */
+    val hiddenIn: List<String> = emptyList(),
+) {
+    companion object {
+        val DEFAULT_HORIZONTAL_BIAS = 1f
+        val DEFAULT_VERTICAL_BIAS = 0.72f
+    }
+}
 
 @Serializable
 data class InsertionSettings(
@@ -169,9 +183,10 @@ data class AmethystSettings(
          * 2: Whisper takes a list of languages. 3: Tinfoil moved behind one router.
          * 4: per-app profiles - nothing to migrate, an absent field decodes to the defaults.
          * 5: the Tinfoil engine requires its enclave.
+         * 6: ElevenLabs Realtime engines (never implemented) are dropped.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 5
+        const val SCHEMA_VERSION = 6
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -209,8 +224,13 @@ object SettingsCodec {
      */
     internal fun migrate(settings: AmethystSettings): AmethystSettings {
         if (settings.schemaVersion >= AmethystSettings.SCHEMA_VERSION) return settings
+        // Version 6: ElevenLabs Realtime was offered but never worked.
+        val kept = settings.engines.filterNot { it.kind == EngineKind.ELEVENLABS_REALTIME }
+        val active = settings.activeEngineId.takeIf { id -> kept.any { it.id == id } }
+            ?: kept.firstOrNull()?.id ?: EnginePresets.ANDROID_ON_DEVICE.id
         return settings.copy(
-            engines = settings.engines.map { engine ->
+            activeEngineId = active,
+            engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
                         engine.copy(languageTag = AmethystSettings.WHISPER_DEFAULT_LANGUAGES)

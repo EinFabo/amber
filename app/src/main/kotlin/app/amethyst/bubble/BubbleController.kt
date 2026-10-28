@@ -60,6 +60,9 @@ class BubbleController(
 
     private var textFieldFocused = false
     private var dictating = false
+
+    /** The app in front, as far as the service can tell; the bubble stays out of hidden ones. */
+    private var currentApp: String? = null
     private var shown = false
     private val hideLater = Runnable { applyVisibility(immediate = true) }
 
@@ -107,7 +110,8 @@ class BubbleController(
         // Start hidden when the bubble is only wanted with a text field; the first focus
         // event pops it in.
         shown = wantsVisible()
-        view.alpha = if (shown) 1f else 0f
+        view.restingOpacity = settings.restingOpacity
+        view.alpha = if (shown) view.targetAlpha() else 0f
         if (!shown) layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
         try {
@@ -200,6 +204,8 @@ class BubbleController(
     fun applySettings(bubbleSettings: BubbleSettings) {
         settings = bubbleSettings
         hapticsEnabled = bubbleSettings.haptics
+        view.restingOpacity = bubbleSettings.restingOpacity
+        if (shown) view.settleAlpha()
         val layoutParams = params ?: return
         // A drag in progress wins over a settings write that may be its own echo.
         if (!touching) {
@@ -257,8 +263,19 @@ class BubbleController(
         applyVisibility(immediate = false)
     }
 
-    private fun wantsVisible(): Boolean =
-        !settings.onlyWithTextField || textFieldFocused || dictating
+    /** The app in front changed; in an app on the hidden list the bubble steps aside. */
+    fun setCurrentApp(packageName: String?) {
+        if (packageName == currentApp) return
+        currentApp = packageName
+        applyVisibility(immediate = false)
+    }
+
+    private fun wantsVisible(): Boolean {
+        // A running dictation keeps its bubble, wherever it is.
+        if (dictating) return true
+        if (currentApp != null && currentApp in settings.hiddenIn) return false
+        return !settings.onlyWithTextField || textFieldFocused
+    }
 
     /**
      * Showing is immediate; hiding waits a moment. Moving from one field to the next reports
@@ -309,6 +326,8 @@ class BubbleController(
             is DictationState.Done -> BubbleVisual.DONE
             is DictationState.Failed -> BubbleVisual.FAILED
         }
+        // Fully there while it works, back to the chosen opacity at rest.
+        if (shown) view.settleAlpha()
         if (state is DictationState.Listening) {
             view.amplitude = state.amplitude
             sparkView.amplitude = state.amplitude

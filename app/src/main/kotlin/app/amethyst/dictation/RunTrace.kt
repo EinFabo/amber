@@ -39,6 +39,9 @@ internal class RunTrace(val route: String) {
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
+    /** Set when a local model took over from an unreachable server. */
+    var fallback: String? = null
+
     /** The cleanup model that changed the text, for the cost estimate. */
     var cleanupModel: String? = null
 
@@ -81,6 +84,7 @@ internal class RunTrace(val route: String) {
         }
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
+        fallback?.let(::add)
         cleanup?.let(::add)
         servedBy?.let { add("enclave $it") }
         // The whisper thread's own group says more than the caller's, when there is one.

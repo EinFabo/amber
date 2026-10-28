@@ -57,6 +57,42 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
   overhead and repeated prompt cost a little more, the 5 s wait on a 39 s dictation is fine).
   Measured: Tinfoil Voxtral, 39.2 s recording, 5.1 s recognition, ~$0.0002.
 
+## Engines and bubble: UX pass (Fabi, 2026-10-28)
+
+Fabi: every engine except local ones should share one server backend; look at everything
+and question whether it is a good experience; more bubble settings (opacity).
+
+Built in 0.13.0 (each item below); to confirm on the device: Groq/OpenAI with cleanup and an
+app style, an own server over http in the Wi-Fi, flight mode with a server engine (falls back
+to Parakeet/Whisper with a notice), opacity at rest, a hidden app.
+
+Engines - findings and what was done:
+- [x] One server backend for Tinfoil, Groq, OpenAI and own servers: a provider catalog with
+      speech models, cleanup models and prices per provider. Today only Tinfoil gets model
+      pickers and cleanup - Groq/OpenAI users must type model ids and get no cleanup, so app
+      styles silently do nothing for them.
+- [x] ElevenLabs Realtime is offered under "Add engine" but not implemented: picking it only
+      ever fails. Remove it from the list; drop stored ones (schema 6).
+- [x] Own server: the preset fills in a made-up address (192.168.1.10) and http:// to a LAN
+      server is blocked by Android's cleartext rule - the preset could never work. Empty fields
+      with placeholders; allow http only to private/LAN addresses.
+- [x] Known providers show an editable base URL (Tinfoil's even must not change) and a free
+      model field next to the picker: hide both, keep them for own servers.
+- [x] Edits in text fields are lost when leaving without "Save": save on leaving.
+- [x] "Remove engine" deletes at once: ask first.
+- [x] Language for servers is a free text field ("de-DE"): chips - automatic or one language.
+- [x] When the server cannot be reached (no signal), the dictation is lost: recognize the same
+      recording with a ready local model instead - never the other way round, so privacy only
+      ever gets stricter. Switchable.
+- [x] The Android engine on phones without on-device recognition may go online: say so.
+- [x] The cost estimate in the statistics knows only Tinfoil: price every known provider.
+
+Bubble:
+- [x] Opacity at rest (fully visible while dictating).
+- [x] Hide the bubble in chosen apps (games, apps with their own voice input). Follows the
+      app of the focused field and the app in front, ignoring the keyboard and system bars.
+- [x] Put the bubble back to its default place.
+
 ## Code review findings (2026-10-28, at 9156c9a)
 
 Battery/security review by a review agent. The enclave send path holds (verify before send,

@@ -25,12 +25,15 @@ import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.stats.DictationStat
-import app.amethyst.core.stats.TinfoilCost
+import app.amethyst.core.stats.ServerCost
 import app.amethyst.core.stats.countWords
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
@@ -91,6 +94,9 @@ class DictationController(
      */
     private var startTarget: String? = null
 
+    /** The local engine that took over this dictation from an unreachable server, if any. */
+    private var fellBack: String? = null
+
     /** A release that came while the proxy activity was still on its way. */
     private val stopDuringHandover = AtomicBoolean(false)
 
@@ -107,6 +113,7 @@ class DictationController(
         if (source != TriggerSource.PROXY_ACTIVITY) {
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
+            fellBack = null
             startTarget = graph.accessibilityService?.focusedInputPackage()
         }
 
@@ -361,7 +368,15 @@ class DictationController(
                     graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
                 }
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
-                return result.getOrElse { error ->
+                // No signal, a timeout, a server down: the recording is still here, so a local
+                // model can take it instead of the dictation being lost.
+                val error = result.exceptionOrNull()
+                val recovered = if (error is SttFailure && error.serviceUnavailable && engine.capabilities.trustLevel != TrustLevel.ON_DEVICE) {
+                    recognizeLocally(outcome.audio, error)?.let { Result.success(it) } ?: result
+                } else {
+                    result
+                }
+                return recovered.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error))
                     null
                 }
@@ -370,11 +385,45 @@ class DictationController(
     }
 
     /**
+     * The first local model that is ready - Parakeet, then Whisper - for a recording the
+     * server could not take. Null when switched off or none is downloaded; the original
+     * error then stands.
+     */
+    private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure): Transcript? {
+        val settings = graph.settings.value
+        if (!settings.capture.localFallback) return null
+        val candidates = settings.engines
+            .filter { it.kind == EngineKind.LOCAL_SHERPA || it.kind == EngineKind.WHISPER_CPP }
+            .sortedBy { if (it.kind == EngineKind.LOCAL_SHERPA) 0 else 1 }
+        for (config in candidates) {
+            val local = graph.engineFactory.create(config).getOrNull() ?: continue
+            Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
+            _state.value = DictationState.Transcribing()
+            val result = try {
+                local.transcribe(audio, TranscribeOptions(languageTag = config.languageTag))
+            } finally {
+                runCatching { local.close() }
+            }
+            result.getOrNull()?.let { transcript ->
+                fellBack = config.displayName
+                trace?.fallback = "server unreachable, recognized by ${config.displayName}"
+                mainHandler.post {
+                    Toast.makeText(context, "No connection - recognized on the phone with ${config.displayName}.", Toast.LENGTH_SHORT).show()
+                }
+                return transcript
+            }
+        }
+        return null
+    }
+
+    /**
      * Runs the engine's chosen cleanup model over the transcript, if any. Never fails the
      * dictation: on an error, a timeout or an implausible answer the transcript is kept as
      * recognized, and the diagnostics say why. The bubble stays on "working" meanwhile.
      */
     private suspend fun cleanUp(transcript: Transcript, config: EngineConfig): Transcript {
+        // The server just failed; its cleanup would only add a timeout.
+        if (fellBack != null) return transcript
         val cleanup = graph.engineFactory.cleanupFor(config) ?: return transcript
         // The style belongs to the app whose field gets the text; after the proxy activity
         // that is only known once focus is back.
@@ -523,11 +572,9 @@ class DictationController(
                 waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
                 app = (startTarget ?: targetPackage)?.takeIf { it != context.packageName },
                 cleanupModel = trace?.cleanupModel,
-                // Only Tinfoil bills by these prices; a self-hosted server with the same model name does not.
-                costMicroUsd = if (config != null && EnginePresets.isEnclaveHost(config.baseUrl)) {
-                    TinfoilCost.microUsd(config.modelId, audioMs, transcript.text.length, trace?.cleanupModel)
-                } else {
-                    null
+                // Priced by the provider the engine talks to; an own server gives null.
+                costMicroUsd = config?.takeIf { it.kind == EngineKind.OPENAI_COMPATIBLE }?.let {
+                    ServerCost.microUsd(it.baseUrl, it.modelId, audioMs, transcript.text.length, trace?.cleanupModel)
                 },
             ),
         )

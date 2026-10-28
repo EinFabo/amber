@@ -21,7 +21,9 @@ object EngineConfigValidator {
                 if (config.modelId.isNullOrBlank()) add("No model is selected.")
             }
 
-            EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME -> {
+            EngineKind.ELEVENLABS_REALTIME -> add("ElevenLabs Realtime is not supported.")
+
+            EngineKind.OPENAI_COMPATIBLE -> {
                 addAll(validateUrl(config))
                 if (config.modelId.isNullOrBlank()) add("The model name is missing.")
                 if (config.apiKeyAlias != null && !hasApiKey) add("The API key is missing.")
@@ -68,6 +70,14 @@ object EngineConfigValidator {
             }
             if (url.any { it.isWhitespace() }) {
                 add("The base URL contains a space.")
+            }
+            // Plain http only inside the user's own network; Android blocks the rest anyway,
+            // and a recording should not cross the internet unencrypted.
+            if (url.startsWith("http://", ignoreCase = true)) {
+                val host = runCatching { java.net.URI(url).host }.getOrNull()
+                if (!ServerProviders.isPrivateHost(host)) {
+                    add("http:// only works for servers in your own network - use https://.")
+                }
             }
         }
     }

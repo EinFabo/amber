@@ -313,7 +313,11 @@ private fun AmethystRoot(
                         SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                         SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
                         SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, loadApps = { launcherApps(context) })
-                        SettingsPage.BUBBLE -> BubbleScreen(settings, ::updateSettings)
+                        SettingsPage.BUBBLE -> BubbleScreen(
+                            settings, ::updateSettings,
+                            loadApps = { launcherApps(context) },
+                            appName = { pkg -> appLabel(context, pkg) },
+                        )
                         SettingsPage.STATS -> StatsScreen(
                             settings = settings,
                             stats = stats,

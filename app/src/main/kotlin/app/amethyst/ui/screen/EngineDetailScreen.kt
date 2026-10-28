@@ -1,5 +1,13 @@
 package app.amethyst.ui.screen
 
+import android.os.Build
+import android.speech.SpeechRecognizer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
+import app.amethyst.core.engine.ServerProviders
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,7 +78,7 @@ import app.amethyst.ui.SectionCard
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
-import app.amethyst.ui.theme.badgeExplanation
+import app.amethyst.ui.theme.placeExplanation
 import kotlinx.coroutines.launch
 
 @Composable
@@ -117,9 +125,17 @@ fun EngineDetailScreen(
         cleanupModel = cleanupModel,
     )
 
+    var confirmRemove by remember { mutableStateOf(false) }
+    var removed by remember { mutableStateOf(false) }
+
     fun persist() {
         config.apiKeyAlias?.let { alias -> onSaveKey(alias, apiKey) }
         onSave(edited())
+    }
+
+    fun persistIfChanged() {
+        if (removed) return
+        if (edited() != config || apiKey != storedKey.orEmpty()) persist()
     }
 
     Column(
@@ -133,7 +149,7 @@ fun EngineDetailScreen(
 
         SectionCard(title = config.displayName) {
             TrustBadge(config.trustLevelForDisplay())
-            Hint(config.trustLevelForDisplay().badgeExplanation())
+            Hint(config.trustLevelForDisplay().placeExplanation())
             if (preset?.note?.isNotBlank() == true) Hint(preset.note)
 
             if (problems.isEmpty()) {
@@ -154,6 +170,18 @@ fun EngineDetailScreen(
                     "Uses the system recognizer. Which languages are available offline is up to " +
                         "the system settings.",
                 )
+                val context = LocalContext.current
+                val onDevice = remember {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+                }
+                if (!onDevice) {
+                    Hint(
+                        "This phone has no on-device recognizer: the system one may send your voice to " +
+                            "its servers, and such dictations are marked as cloud. Parakeet or Whisper stay on the phone.",
+                        AmberPalette.Primary,
+                    )
+                }
                 LanguageField(language) { language = it }
             }
 
@@ -184,33 +212,38 @@ fun EngineDetailScreen(
             }
 
             EngineKind.OPENAI_COMPATIBLE -> {
+                // One backend for every server; the provider only decides what is offered.
+                val provider = ServerProviders.forUrl(baseUrl)
                 SectionCard(
                     title = "Connection",
-                    subtitle = "Anything that understands POST /v1/audio/transcriptions.",
+                    subtitle = if (provider.fixedAddress) "${provider.name} · ${baseUrl.trim()}"
+                    else "Anything with /v1/audio/transcriptions - Speaches, LocalAI, whisper.cpp's server.",
                 ) {
-                    OutlinedTextField(
-                        value = baseUrl,
-                        onValueChange = { baseUrl = it },
-                        label = { Text("Base URL") },
-                        placeholder = { Text("https://host/v1") },
-                        singleLine = true,
-                        shape = AmberShapes.Inner,
-                        colors = fieldColors(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Hint("With or without /v1, both work.")
-    
-                    OutlinedTextField(
-                        value = modelId,
-                        onValueChange = { modelId = it },
-                        label = { Text("Model") },
-                        singleLine = true,
-                        shape = AmberShapes.Inner,
-                        colors = fieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-    
+                    if (!provider.fixedAddress) {
+                        OutlinedTextField(
+                            value = baseUrl,
+                            onValueChange = { baseUrl = it },
+                            label = { Text("Address") },
+                            placeholder = { Text("http://192.168.1.20:8000/v1") },
+                            singleLine = true,
+                            shape = AmberShapes.Inner,
+                            colors = fieldColors(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Hint("With or without /v1. http:// only for servers in your own network.")
+                        OutlinedTextField(
+                            value = modelId,
+                            onValueChange = { modelId = it },
+                            label = { Text("Speech model") },
+                            placeholder = { Text("Systran/faster-whisper-large-v3") },
+                            singleLine = true,
+                            shape = AmberShapes.Inner,
+                            colors = fieldColors(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
                     if (config.apiKeyAlias != null) {
                         OutlinedTextField(
                             value = apiKey,
@@ -226,16 +259,14 @@ fun EngineDetailScreen(
                         )
                         Hint("Stored encrypted on this phone only.")
                     }
-    
-                    LanguageField(language) { language = it }
                 }
-                if (TinfoilVerifier.supports(baseUrl)) {
+                if (provider.known) {
                     SectionCard(
                         title = "Speech model",
-                        subtitle = "Which of Tinfoil's models turns your voice into text. Try them out.",
+                        subtitle = "Which of ${provider.name}'s models turns your voice into text.",
                     ) {
                         ModelPicker(
-                            choices = EnginePresets.TINFOIL_SPEECH_MODELS,
+                            choices = provider.speechModels,
                             selected = modelId.trim(),
                             noneLabel = null,
                             onSelect = { id ->
@@ -243,15 +274,26 @@ fun EngineDetailScreen(
                                 onSave(edited())
                             },
                         )
-                        Hint("Live text while you speak (voxtral-mini-4b-realtime) needs a streaming engine; it is next on the list.")
                     }
-                    SectionCard(
-                        title = "Cleanup",
-                        subtitle = "A chat model tidies each dictation before it is typed: punctuation, " +
-                            "filler words, mis-hearings. Same verified enclave, a moment longer.",
-                    ) {
+                }
+                SectionCard(
+                    title = "Language",
+                    subtitle = "Automatic works for most. One fixed language helps with short dictations.",
+                ) {
+                    ServerLanguagePicker(language.substringBefore('-').lowercase()) { picked ->
+                        language = picked
+                        onSave(edited())
+                    }
+                }
+                SectionCard(
+                    title = "Cleanup",
+                    subtitle = "A chat model tidies each dictation before it is typed: punctuation, filler " +
+                        "words, mis-hearings - and the writing style per app. " +
+                        if (provider == ServerProviders.TINFOIL) "Same verified enclave, a moment longer." else "Same server, a moment longer.",
+                ) {
+                    if (provider.known) {
                         ModelPicker(
-                            choices = EnginePresets.TINFOIL_CLEANUP_MODELS,
+                            choices = provider.cleanupModels,
                             selected = cleanupModel,
                             noneLabel = "Off",
                             onSelect = { id ->
@@ -259,18 +301,28 @@ fun EngineDetailScreen(
                                 onSave(edited())
                             },
                         )
-                        Hint("If the cleanup fails or changes too much, the dictation goes in as recognized.")
+                    } else {
+                        OutlinedTextField(
+                            value = cleanupModel.orEmpty(),
+                            onValueChange = { cleanupModel = it.ifBlank { null } },
+                            label = { Text("Chat model (empty: off)") },
+                            placeholder = { Text("llama3.2") },
+                            singleLine = true,
+                            shape = AmberShapes.Inner,
+                            colors = fieldColors(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Hint("Any model your server offers at /v1/chat/completions.")
                     }
-                    EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
+                    Hint("If the cleanup fails or changes too much, the dictation goes in as recognized.")
                 }
+                if (provider == ServerProviders.TINFOIL) EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
             }
 
             EngineKind.LOCAL_SHERPA -> ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
 
-            EngineKind.ELEVENLABS_REALTIME -> SectionCard(
-                title = "Not available yet",
-            ) {
-                Hint("Streaming through ElevenLabs Scribe v2 Realtime comes in stage 4.")
+            EngineKind.ELEVENLABS_REALTIME -> SectionCard(title = "Not supported") {
+                Hint("ElevenLabs Realtime was never finished. Remove this engine.")
             }
         }
 
@@ -292,6 +344,10 @@ fun EngineDetailScreen(
                 )
             }
 
+            if (config.kind == EngineKind.OPENAI_COMPATIBLE) {
+                val price = ServerProviders.forUrl(baseUrl).speechModel(modelId.trim())?.usdPerRequest ?: 0.0
+                if (price > 0) Hint("A test is billed like a dictation (\$${"%.2f".format(java.util.Locale.US, price)}).")
+            }
             AnimatedVisibility(visible = testing, enter = fadeIn(), exit = fadeOut()) {
                 ProgressLine(fraction = null)
             }
@@ -304,8 +360,35 @@ fun EngineDetailScreen(
         }
 
         if (config.id != EnginePresets.ANDROID_ON_DEVICE.id) {
-            GhostButton("Remove engine", onDelete, color = AmberPalette.Error)
+            GhostButton("Remove engine", { confirmRemove = true }, color = AmberPalette.Error)
         }
+    }
+
+    // Typed into a field and went back without "Save": keep it anyway.
+    val latestPersist by rememberUpdatedState(::persistIfChanged)
+    DisposableEffect(config.id) {
+        onDispose { latestPersist() }
+    }
+
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            containerColor = AmberPalette.Surface,
+            shape = AmberShapes.Card,
+            title = { Text("Remove ${config.displayName}?", color = AmberPalette.Text) },
+            text = { Hint("Its settings and stored key are deleted. Downloaded models stay until you delete them.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRemove = false
+                    removed = true
+                    config.apiKeyAlias?.let { alias -> onSaveKey(alias, "") }
+                    onDelete()
+                }) { Text("Remove", color = AmberPalette.Error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRemove = false }) { Text("Cancel", color = AmberPalette.Muted) }
+            },
+        )
     }
 }
 
@@ -565,6 +648,21 @@ private fun WhisperLanguagePicker(value: String, onChange: (String) -> Unit) {
         }
     }
     if (picked.isEmpty()) Hint("None picked: Whisper guesses among all languages.")
+}
+
+/** Automatic or one language, for servers: the API takes a single ISO code or none. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ServerLanguagePicker(value: String, onChange: (String) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ChoiceChip("Automatic", null, on = value.isBlank()) { onChange("") }
+        WHISPER_LANGUAGES.forEach { (code, name) ->
+            ChoiceChip(name, null, on = value == code) { onChange(code) }
+        }
+    }
 }
 
 @Composable

@@ -21,6 +21,8 @@ import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.text.Transcript
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.screen.AppStylesScreen
+import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.EnginesScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsScreen
@@ -152,6 +154,28 @@ class StoreShots {
             settings = settings.withEngine(settings.engines.first { it.id == EnginePresets.TINFOIL.id }.copy(cleanupModel = "deepseek-v4-1-flash"))
                 .copy(activeEngineId = EnginePresets.TINFOIL.id),
             onUpdateSettings = {}, loadApps = { emptyList() },
+        )
+    }
+
+    @Test
+    fun bubbleSettings() = shoot("7-bubble", "Bubble") {
+        BubbleScreen(
+            settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
+            onUpdateSettings = {}, loadApps = { emptyList() }, appName = { APP_NAMES[it] ?: it },
+        )
+    }
+
+    @Test
+    fun groqEngine() = shoot("8-groq", "Engine") {
+        EngineDetailScreen(
+            config = EngineConfig.fromPreset(EnginePresets.GROQ).copy(cleanupModel = "openai/gpt-oss-20b"),
+            active = true, storedKey = "gsk_example", whisperModels = emptyMap(),
+            onSaveKey = { _, _ -> }, onSave = {}, onActivate = {}, onDelete = {},
+            onTest = { ConnectionTester.Result.Ok("") }, onDownloadModel = {}, onImportModel = {},
+            onCancelModel = {}, onDeleteModel = {}, enclaveLog = emptyList(),
+            onVerifyEnclave = { app.amethyst.core.privacy.AttestationResult(false, "") },
+            parakeetState = app.amethyst.engine.ParakeetState.Missing,
+            onDownloadParakeet = {}, onCancelParakeet = {}, onDeleteParakeet = {},
         )
     }
 

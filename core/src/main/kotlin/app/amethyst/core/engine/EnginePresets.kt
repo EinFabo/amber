@@ -117,10 +117,13 @@ object EnginePresets {
         val note: String,
         val recommended: Boolean = false,
         val noThinking: Map<String, Boolean> = emptyMap(),
-        /** Price in US dollars: per million tokens in and out, or per request. */
+        /** Price in US dollars: per million tokens in and out, per request, or per audio minute. */
         val usdPerMIn: Double = 0.0,
         val usdPerMOut: Double = 0.0,
         val usdPerRequest: Double = 0.0,
+        val usdPerMinute: Double = 0.0,
+        /** Top-level request fields a chat model needs, e.g. Groq's reasoning_effort. */
+        val extraParams: Map<String, String> = emptyMap(),
     )
 
     /*
@@ -157,15 +160,14 @@ object EnginePresets {
         ModelChoice("kimi-k3", "Kimi K3", "overkill here · ~\$0.0023", usdPerMIn = 4.0, usdPerMOut = 20.0),
     )
 
+    /** No address or model filled in: a made-up one only looked configured and never worked. */
     val SELF_HOSTED = EnginePreset(
         id = "self-hosted",
         displayName = "Own server",
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD,
-        baseUrl = "http://192.168.1.10:8000/v1",
-        modelId = "Systran/faster-whisper-large-v3",
-        note = "Speaches, faster-whisper-server or whisper.cpp with " +
-            "--inference-path /v1/audio/transcriptions.",
+        note = "Speaches, faster-whisper-server, LocalAI or whisper.cpp's server - anything " +
+            "with /v1/audio/transcriptions. http:// works for addresses in your own network.",
     )
 
     val GROQ = EnginePreset(
@@ -176,7 +178,7 @@ object EnginePresets {
         baseUrl = "https://api.groq.com/openai/v1",
         modelId = "whisper-large-v3-turbo",
         needsApiKey = true,
-        note = "Very cheap and fast, but without a privacy guarantee.",
+        note = "Very fast and cheap (about \$0.04 per hour of audio), no privacy guarantee.",
     )
 
     val OPENAI = EnginePreset(
@@ -187,8 +189,10 @@ object EnginePresets {
         baseUrl = "https://api.openai.com/v1",
         modelId = "gpt-4o-mini-transcribe",
         needsApiKey = true,
+        note = "Accurate, about \$0.003 per minute of audio, no privacy guarantee.",
     )
 
+    /** Never implemented; no longer offered, and dropped from stored settings (schema 6). */
     val ELEVENLABS = EnginePreset(
         id = "elevenlabs-realtime",
         displayName = "ElevenLabs Scribe v2 Realtime",
@@ -209,7 +213,6 @@ object EnginePresets {
         SELF_HOSTED,
         GROQ,
         OPENAI,
-        ELEVENLABS,
     )
 
     fun byId(id: String): EnginePreset? = all.firstOrNull { it.id == id }

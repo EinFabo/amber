@@ -117,7 +117,7 @@ fun StatsScreen(
                 ValueRow("Words in all", formatCount(stats.totalWords))
                 ValueRow("Dictations", formatCount(stats.totalDictations))
                 stats.firstDay?.let { ValueRow("Counting since", LocalDate.ofEpochDay(it).toString()) }
-                if (stats.costUsd > 0) ValueRow("Tinfoil, estimated", formatUsd(stats.costUsd))
+                if (stats.costUsd > 0) ValueRow("Server costs, estimated", formatUsd(stats.costUsd))
             }
         }
 

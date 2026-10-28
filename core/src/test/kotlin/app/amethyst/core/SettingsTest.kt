@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
@@ -195,5 +196,42 @@ class CaptureTimeoutTest {
             schemaVersion = 4,
         )
         assertTrue(SettingsCodec.decode(SettingsCodec.encode(old)).engines.single().requireEnclave)
+    }
+
+    @Test
+    fun `stored elevenlabs engines are dropped, and the active one falls back`() {
+        val old = AmethystSettings(
+            engines = listOf(EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE), EngineConfig.fromPreset(EnginePresets.ELEVENLABS)),
+            activeEngineId = EnginePresets.ELEVENLABS.id,
+            schemaVersion = 5,
+        )
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        assertEquals(listOf(EnginePresets.ANDROID_ON_DEVICE.id), migrated.engines.map { it.id })
+        assertEquals(EnginePresets.ANDROID_ON_DEVICE.id, migrated.activeEngineId)
+        assertTrue(EnginePresets.all.none { it.id == EnginePresets.ELEVENLABS.id }, "no longer offered")
+    }
+
+    @Test
+    fun `plain http only inside the own network`() {
+        val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(modelId = "whisper")
+        for (url in listOf("http://192.168.1.20:8000/v1", "http://10.0.0.5/v1", "http://nas.local:9000", "http://localhost:8080")) {
+            assertTrue(EngineConfigValidator.isReady(own.copy(baseUrl = url), hasApiKey = false), url)
+        }
+        for (url in listOf("http://example.com/v1", "http://8.8.8.8/v1")) {
+            assertFalse(EngineConfigValidator.isReady(own.copy(baseUrl = url), hasApiKey = false), url)
+        }
+        assertTrue(EngineConfigValidator.isReady(own.copy(baseUrl = "https://example.com/v1"), hasApiKey = false))
+    }
+
+    @Test
+    fun `server providers are recognised by host`() {
+        assertEquals(ServerProviders.TINFOIL, ServerProviders.forUrl(EnginePresets.TINFOIL_BASE_URL))
+        assertEquals(ServerProviders.GROQ, ServerProviders.forUrl(EnginePresets.GROQ.baseUrl))
+        assertEquals(ServerProviders.OPENAI, ServerProviders.forUrl(EnginePresets.OPENAI.baseUrl))
+        assertEquals(ServerProviders.CUSTOM, ServerProviders.forUrl("http://192.168.1.20:8000/v1"))
+        // Every preset's default model is one its provider offers.
+        for (preset in listOf(EnginePresets.TINFOIL, EnginePresets.GROQ, EnginePresets.OPENAI)) {
+            assertNotNull(ServerProviders.forUrl(preset.baseUrl).speechModel(preset.modelId), preset.id)
+        }
     }
 }
