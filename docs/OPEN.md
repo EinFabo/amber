@@ -104,10 +104,8 @@ marked open:
 
 ## Screenshots and icons (2026-10-28)
 
-- [x] 0.12.0: screenshots rendered with Robolectric (StoreShots), PNG launcher icons next to
-      the adaptive one, for stores and installers that cannot read the vector icon.
-- [ ] If the icon still does not show: give the application a PNG-only icon and the
-      launcher activity the adaptive one.
+- [x] 0.12.0: five screenshots rendered with Robolectric (StoreShots), PNG launcher icons next
+      to the adaptive one, for stores and installers that cannot read the vector icon.
 
 ## Per-app style, under Advanced settings (Fabi, 2026-10-28)
 
