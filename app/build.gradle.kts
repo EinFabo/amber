@@ -16,8 +16,8 @@ android {
         applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.6.2"
+        versionCode = 13
+        versionName = "0.7.1"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -75,8 +75,30 @@ kotlin {
     }
 }
 
+/**
+ * Tinfoil's attestation verifier, bound from tinfoil-go by tools/build-tinfoil-aar.sh. Not
+ * checked in (a binary of several MB, reproducible from a pinned commit), so a fresh checkout
+ * has to build it once before the app compiles.
+ */
+val tinfoilAar = file("libs/tinfoil-mobile.aar")
+
+// Checked when the app is built, not when Gradle configures - :core's tests need no AAR.
+tasks.named("preBuild") {
+    // A plain File, so the check holds no reference to the build script (configuration cache).
+    val aar = tinfoilAar
+    doFirst {
+        if (!aar.exists()) {
+            throw GradleException(
+                "app/libs/tinfoil-mobile.aar fehlt. Einmal bauen mit: tools/build-tinfoil-aar.sh " +
+                    "(braucht Go und das Android NDK).",
+            )
+        }
+    }
+}
+
 dependencies {
     implementation(project(":core"))
+    implementation(files(tinfoilAar))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

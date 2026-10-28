@@ -27,6 +27,9 @@ internal class RunTrace(val route: String) {
 
     /** How the whisper thread was scheduled during this run; see NativeWhisperRuntime. */
     var whisperScheduling: String? = null
+
+    /** The enclave that answered, when the engine names one (Tinfoil). */
+    var servedBy: String? = null
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
@@ -48,22 +51,23 @@ internal class RunTrace(val route: String) {
     fun insertingEnds() { insertingTo = now() }
 
     fun summary(): String = buildList {
-        add("Weg $route")
-        if (recordingFrom > 0) add("Start ${ms(recordingFrom - startedAt)}")
-        if (recordingTo > 0) add("Aufnahme ${ms(recordingTo - recordingFrom)}")
+        add("route $route")
+        if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
+        if (recordingTo > 0) add("recording ${ms(recordingTo - recordingFrom)}")
         if (transcribingTo > 0) {
             val warm = when (modelWarm) {
-                true -> ", Modell war geladen"
-                false -> ", Modell musste laden"
+                true -> ", model was loaded"
+                false -> ", model had to load"
                 null -> ""
             }
-            add("Erkennung ${ms(transcribingTo - transcribingFrom)}$warm")
+            add("recognition ${ms(transcribingTo - transcribingFrom)}$warm")
         }
-        if (waitedForFocus > 0) add("Warten auf Fokus ${ms(waitedForFocus)}")
-        if (insertingTo > 0) add("Einfügen ${ms(insertingTo - insertingFrom)}")
+        if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
+        if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
+        servedBy?.let { add("enclave $it") }
         // The whisper thread's own group says more than the caller's, when there is one.
-        whisperScheduling?.let(::add) ?: cpuGroup?.let { add("CPU-Gruppe $it") }
-        importance?.let { add("Priorität $it") }
+        whisperScheduling?.let(::add) ?: cpuGroup?.let { add("CPU group $it") }
+        importance?.let { add("importance $it") }
     }.joinToString(" · ")
 
     private fun now() = SystemClock.elapsedRealtime()

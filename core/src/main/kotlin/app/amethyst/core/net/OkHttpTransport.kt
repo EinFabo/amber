@@ -2,11 +2,14 @@ package app.amethyst.core.net
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.CertificatePinner
+import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 /**
@@ -24,7 +27,22 @@ class OkHttpTransport(
         .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build(),
-) : HttpTransport {
+) : PinnableTransport {
+
+    /**
+     * OkHttp pins by the base64 SHA-256 of the SubjectPublicKeyInfo - the same hash Tinfoil's
+     * attestation endorses, only hex-encoded there. The copy gets its own connection pool, so
+     * no connection opened without the pin can ever be reused for a pinned request.
+     */
+    override fun pinnedTo(host: String, spkiSha256Hex: String): HttpTransport {
+        val pin = "sha256/" + Base64.getEncoder().encodeToString(hexToBytes(spkiSha256Hex))
+        return OkHttpTransport(
+            client.newBuilder()
+                .connectionPool(ConnectionPool())
+                .certificatePinner(CertificatePinner.Builder().add(host, pin).build())
+                .build(),
+        )
+    }
 
     override suspend fun execute(request: HttpRequest): HttpResponse = withContext(Dispatchers.IO) {
         val body = when (val b = request.body) {
@@ -59,6 +77,16 @@ class OkHttpTransport(
                 body = response.body?.bytes() ?: ByteArray(0),
                 headers = response.headers.toMultimap().mapValues { it.value.joinToString(", ") },
             )
+        }
+    }
+
+    private companion object {
+        fun hexToBytes(hex: String): ByteArray {
+            val clean = hex.trim().lowercase()
+            require(clean.length == 64 && clean.all { it in '0'..'9' || it in 'a'..'f' }) {
+                "expected a SHA-256 as 64 hex characters, got \"$hex\""
+            }
+            return ByteArray(32) { i -> clean.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
         }
     }
 }

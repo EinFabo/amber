@@ -50,7 +50,7 @@ class TextInserter(
         val outcome = engine.insert(target, text, options, allowClipboard)
 
         lastTrace = "$trace → ${outcome.strategy.name}" +
-            if (outcome.insertedIntoField) "" else " (nicht im Feld)"
+            if (outcome.insertedIntoField) "" else " (not in the field)"
         Log.i(TAG, "insertion: $lastTrace")
 
         // Only nag when the text really did not make it into the field. A successful paste
@@ -79,7 +79,7 @@ class TextInserter(
 
         val focused = runCatching { service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
         if (focused?.isEditable == true) {
-            return NodeTarget(service, focused, fallbackPackage) to "Fokus: ${focused.describe()}"
+            return NodeTarget(service, focused, fallbackPackage) to "focus: ${focused.describe()}"
         }
 
         // Before searching the tree: the connection needs no IPC per node, and it points at
@@ -87,16 +87,16 @@ class TextInserter(
         // a cross-process call.
         val connection = InputConnectionTarget.from(service)
         if (connection != null) {
-            return connection to "Eingabeverbindung (${connection.packageName})"
+            return connection to "input connection (${connection.packageName})"
         }
 
         val searched = findFocusedEditable()
         if (searched != null) {
             return NodeTarget(service, searched, fallbackPackage) to
-                "gesucht: ${searched.describe()} (findFocus: ${focused?.describe() ?: "nichts"})"
+                "searched: ${searched.describe()} (findFocus: ${focused?.describe() ?: "nothing"})"
         }
 
-        return null to "kein Textfeld gefunden (findFocus: ${focused?.describe() ?: "nichts"})"
+        return null to "no text field found (findFocus: ${focused?.describe() ?: "nothing"})"
     }
 
     /** Breadth-first through every window, the active one first, bounded so it stays cheap. */
@@ -120,7 +120,7 @@ class TextInserter(
 
     private fun AccessibilityNodeInfo.describe(): String =
         "${className?.toString()?.substringAfterLast('.') ?: "?"} in ${packageName ?: "?"}" +
-            if (isEditable) "" else " (nicht editierbar)"
+            if (isEditable) "" else " (not editable)"
 
     /**
      * The previous clipboard content is deliberately not restored: since Android 10 an app

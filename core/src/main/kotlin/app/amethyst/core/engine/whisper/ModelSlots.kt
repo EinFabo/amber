@@ -91,7 +91,7 @@ class ModelSlots(
                 id,
                 result.fold(
                     onSuccess = { (info, size) -> SlotState.Ready(info, size) },
-                    onFailure = { error -> SlotState.Failed(error.message ?: "Unbekannter Fehler") },
+                    onFailure = { error -> SlotState.Failed(error.message ?: "Unknown error") },
                 ),
             )
             synchronized(jobs) { if (jobs[id] === job) jobs.remove(id) }

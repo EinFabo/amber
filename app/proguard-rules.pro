@@ -9,3 +9,7 @@
 # whisper_jni.cpp looks these up by name.
 -keep class app.amethyst.core.engine.whisper.WhisperRuntimeException { <init>(java.lang.String); }
 -keepclasseswithmembernames class app.amethyst.engine.WhisperNative { native <methods>; }
+
+# gomobile: the Go side calls back into these by name through JNI (tinfoil-mobile.aar).
+-keep class go.** { *; }
+-keep class sh.tinfoil.** { *; }

@@ -131,7 +131,7 @@ class KeyboardTracker(
     }
 
     private fun record(decision: KeyboardPolicy.Decision) {
-        val line = "${decision.why} → ${decision.top ?: "unten"}"
+        val line = "${decision.why} → ${decision.top ?: "down"}"
         if (line == lastLogged) return
         lastLogged = line
         val since = SystemClock.elapsedRealtime() - focusedAt

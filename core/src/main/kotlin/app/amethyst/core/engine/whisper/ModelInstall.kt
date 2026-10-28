@@ -59,14 +59,14 @@ object ModelInstall {
                 if (!partial.renameTo(target)) {
                     target.delete()
                     if (!partial.renameTo(target)) {
-                        return Result.failure(IllegalStateException("Modell konnte nicht gespeichert werden."))
+                        return Result.failure(IllegalStateException("The model could not be saved."))
                     }
                 }
             }
         } catch (e: InterruptedException) {
             Result.failure(e)
         } catch (e: java.io.IOException) {
-            Result.failure(IllegalStateException("Übertragung abgebrochen: ${e.message}", e))
+            Result.failure(IllegalStateException("Transfer interrupted: ${e.message}", e))
         } finally {
             partial.delete()
         }
@@ -74,7 +74,7 @@ object ModelInstall {
 
     /** Reads the header of an installed model, or explains why it is unusable. */
     fun inspect(file: File): Result<WhisperModelInfo> {
-        if (!file.isFile) return Result.failure(IllegalStateException("Kein Modell installiert."))
+        if (!file.isFile) return Result.failure(IllegalStateException("No model installed."))
         val header = ByteArray(WhisperModelFile.HEADER_BYTES)
         val read = file.inputStream().use { it.readNBytesCompat(header) }
         return WhisperModelFile.inspect(header.copyOf(read))
@@ -89,14 +89,14 @@ object ModelInstall {
             if (copied.bytes != expected.sizeBytes) {
                 return Result.failure(
                     IllegalStateException(
-                        "Download unvollständig: ${copied.bytes} von ${expected.sizeBytes} Bytes.",
+                        "Download incomplete: ${copied.bytes} of ${expected.sizeBytes} bytes.",
                     ),
                 )
             }
             if (!copied.sha256.equals(expected.sha256, ignoreCase = true)) {
                 return Result.failure(
                     IllegalStateException(
-                        "Die Prüfsumme stimmt nicht - die Datei ist beschädigt oder wurde verändert.",
+                        "The checksum does not match - the file is damaged or was altered.",
                     ),
                 )
             }

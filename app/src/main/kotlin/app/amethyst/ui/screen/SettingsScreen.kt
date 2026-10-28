@@ -75,7 +75,7 @@ fun SettingsScreen(
     ) {
         SectionCard(
             title = "Engines",
-            subtitle = "Die aktive Engine entscheidet, wohin deine Stimme geht.",
+            subtitle = "The active engine decides where your voice goes.",
         ) {
             settings.engines.forEach { engine ->
                 EngineRow(
@@ -86,26 +86,26 @@ fun SettingsScreen(
                     onOpen = { onOpenEngine(engine.id) },
                 )
             }
-            GhostButton("Engine hinzufügen", { showPresets = true })
+            GhostButton("Add engine", { showPresets = true })
         }
 
         SectionCard(
-            title = "Aufnahme",
-            subtitle = "Wann eine Aufnahme endet und wie roh der Text bleibt.",
+            title = "Recording",
+            subtitle = "When a recording ends and how raw the text stays.",
         ) {
             ToggleRow(
-                label = "Automatisch bei Stille beenden",
-                description = "Nach ${settings.capture.silenceTimeoutMs} ms Stille wird " +
-                    "transkribiert. Aus: die Aufnahme läuft bis zum nächsten Tippen.",
+                label = "Stop automatically on silence",
+                description = "After ${settings.capture.silenceTimeoutMs} ms of silence the recording is " +
+                    "transcribed. Off: it runs until the next tap.",
                 checked = settings.capture.autoStopOnSilence,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = value)) }
                 },
             )
             ToggleRow(
-                label = "Füllwörter entfernen",
-                description = "Streicht \"ähm\", \"äh\" und Verwandte. " +
-                    "Rein regelbasiert, ohne LLM, also ohne Halluzinationsrisiko.",
+                label = "Remove filler words",
+                description = "Drops \"ähm\", \"äh\", \"um\" and the like. " +
+                    "Purely rule-based, no LLM, so no risk of hallucination.",
                 checked = settings.capture.stripFillers,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(stripFillers = value)) }
@@ -114,37 +114,37 @@ fun SettingsScreen(
         }
 
         SectionCard(
-            title = "Einfügen",
-            subtitle = "Wie der Text an der Cursorstelle ankommt.",
+            title = "Inserting",
+            subtitle = "How the text arrives at the cursor.",
         ) {
             ToggleRow(
-                label = "Leerzeichen setzen",
-                description = "Trennt automatisch vom vorherigen Wort.",
+                label = "Add spaces",
+                description = "Separates from the previous word automatically.",
                 checked = settings.insertion.autoSpace,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoSpace = value)) }
                 },
             )
             ToggleRow(
-                label = "Satzanfang großschreiben",
-                description = "Nur am Feldanfang und nach . ! ?",
+                label = "Capitalize sentence starts",
+                description = "Only at the start of the field and after . ! ?",
                 checked = settings.insertion.autoCapitalize,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoCapitalize = value)) }
                 },
             )
             ToggleRow(
-                label = "Zwischenablage als Notlösung",
-                description = "Aus: Text wird nur direkt ins Feld getippt, die Zwischenablage " +
-                    "bleibt unberührt. An: Klappt das nicht, wird eingefügt oder kopiert.",
+                label = "Clipboard as a fallback",
+                description = "Off: text is only typed straight into the field, the clipboard " +
+                    "stays untouched. On: if that fails, it is pasted or copied.",
                 checked = settings.insertion.allowClipboard,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
                 },
             )
             ToggleRow(
-                label = "Satzzeichen ankleben",
-                description = "Macht aus \"Hallo , Welt\" ein \"Hallo, Welt\".",
+                label = "Attach punctuation",
+                description = "Turns \"Hello , world\" into \"Hello, world\".",
                 checked = settings.insertion.gluePunctuation,
                 onChange = { value ->
                     onUpdateSettings {
@@ -154,11 +154,11 @@ fun SettingsScreen(
             )
         }
 
-        SectionCard(title = "Blase") {
+        SectionCard(title = "Bubble") {
             ToggleRow(
-                label = "Blase anzeigen",
-                description = "Aus versteckt die Blase, ohne die Bedienungshilfe " +
-                    "abzuschalten - Diktieren im Testfeld funktioniert weiter.",
+                label = "Show bubble",
+                description = "Off hides the bubble without turning off the accessibility " +
+                    "service - dictating in the test field keeps working.",
                 checked = settings.bubble.enabled,
                 onChange = { value ->
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) }
@@ -171,9 +171,9 @@ fun SettingsScreen(
                 },
             )
             ToggleRow(
-                label = "Nur bei Textfeld zeigen",
-                description = "Die Blase erscheint, sobald du in ein Eingabefeld tippst, " +
-                    "und verschwindet danach wieder.",
+                label = "Only with a text field",
+                description = "The bubble appears as soon as you tap into an input field, " +
+                    "and disappears again afterwards.",
                 checked = settings.bubble.onlyWithTextField,
                 onChange = { value ->
                     onUpdateSettings {
@@ -182,8 +182,8 @@ fun SettingsScreen(
                 },
             )
             ToggleRow(
-                label = "Vibrieren",
-                description = "Kurzes Feedback beim Start, Erfolg und Fehler.",
+                label = "Vibrate",
+                description = "Short feedback on start, success and failure.",
                 checked = settings.bubble.haptics,
                 onChange = { value ->
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
@@ -239,11 +239,11 @@ private fun EngineRow(
             Hint(
                 // Name the first missing thing rather than a generic "not configured":
                 // the user should not have to open the detail screen to find out.
-                text = problems.firstOrNull() ?: config.modelId ?: "Systemmodell",
+                text = problems.firstOrNull() ?: config.modelId ?: "System model",
                 color = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
             )
         }
-        GhostButton("Öffnen", onOpen)
+        GhostButton("Open", onOpen)
     }
 }
 
@@ -263,7 +263,7 @@ private fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Größe",
+                text = "Size",
                 style = MaterialTheme.typography.bodyLarge,
                 color = AmberPalette.Text,
             )
@@ -346,7 +346,7 @@ private fun PresetDialog(
         onDismissRequest = onDismiss,
         containerColor = AmberPalette.Surface,
         shape = AmberShapes.Card,
-        title = { Text("Engine hinzufügen", color = AmberPalette.Text) },
+        title = { Text("Add engine", color = AmberPalette.Text) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -379,7 +379,7 @@ private fun PresetDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen", color = AmberPalette.Primary)
+                Text("Cancel", color = AmberPalette.Primary)
             }
         },
     )

@@ -6,6 +6,7 @@ import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.MultipartPart
+import app.amethyst.core.net.PinnableTransport
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
@@ -13,6 +14,8 @@ import app.amethyst.core.text.Transcript
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.net.URI
+import javax.net.ssl.SSLPeerUnverifiedException
 
 /**
  * One driver for every service that implements POST /v1/audio/transcriptions.
@@ -20,6 +23,12 @@ import kotlinx.serialization.json.jsonPrimitive
  * That single endpoint covers a self-hosted Speaches or whisper.cpp box, a Tinfoil enclave,
  * Groq, Fireworks and OpenAI itself. Only base URL, model id and key differ, and all three
  * are user-editable - so adding a provider is a settings entry, not a code change.
+ *
+ * With an [AttestationVerifier] the engine is strict: the audio is sent only over a connection
+ * bound to the TLS key a fresh attestation endorsed, and only that earns ENCLAVE_VERIFIED. If
+ * the enclave cannot be verified, nothing is sent - someone who picked an enclave engine did
+ * so to keep their voice off ordinary servers, and quietly downgrading to plain HTTPS would
+ * break exactly that.
  */
 class OpenAiCompatibleEngine(
     override val id: String,
@@ -36,8 +45,8 @@ class OpenAiCompatibleEngine(
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : SttEngine {
 
-    @Volatile
-    private var cachedAttestation: AttestationResult? = null
+    /** Where a request goes and what it earns: plain, or bound to an attested key. */
+    private class Channel(val transport: HttpTransport, val trust: TrustLevel)
 
     override suspend fun transcribe(
         audio: PcmAudio,
@@ -49,7 +58,7 @@ class OpenAiCompatibleEngine(
         if (capabilities.needsApiKey && apiKey.isNullOrBlank()) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "Für \"$displayName\" ist kein API-Schlüssel hinterlegt.",
+                    userMessage = "No API key is stored for \"$displayName\".",
                     technical = "missing api key for engine $id",
                 ),
             )
@@ -78,12 +87,30 @@ class OpenAiCompatibleEngine(
             body = HttpBody.Multipart(parts),
         )
 
+        var channel = openChannel(forceFresh = false).getOrElse { return Result.failure(it) }
         val response = try {
-            transport.execute(request)
+            try {
+                channel.transport.execute(request)
+            } catch (e: SSLPeerUnverifiedException) {
+                // The server's key is not the attested one. Enclaves rotate their keys, so
+                // verify afresh once; if the new proof does not match either, give up.
+                if (attestationVerifier == null) throw e
+                channel = openChannel(forceFresh = true).getOrElse { return Result.failure(it) }
+                channel.transport.execute(request)
+            }
+        } catch (e: SSLPeerUnverifiedException) {
+            return Result.failure(
+                SttFailure(
+                    userMessage = "The server of \"$displayName\" does not hold the verified " +
+                        "enclave key. The recording was not sent.",
+                    technical = "pin mismatch: ${e.message}",
+                    cause = e,
+                ),
+            )
         } catch (e: Exception) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "Keine Verbindung zu \"$displayName\".",
+                    userMessage = "No connection to \"$displayName\".",
                     technical = e.toString(),
                     cause = e,
                 ),
@@ -97,7 +124,7 @@ class OpenAiCompatibleEngine(
         } catch (e: Exception) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "Antwort von \"$displayName\" war unverständlich.",
+                    userMessage = "The answer from \"$displayName\" could not be read.",
                     technical = "unparseable body: ${response.bodyAsText().take(200)}",
                     statusCode = response.code,
                     cause = e,
@@ -108,7 +135,7 @@ class OpenAiCompatibleEngine(
         if (parsed.text.isBlank()) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "Es wurde nichts erkannt.",
+                    userMessage = SttFailure.NOTHING_RECOGNIZED,
                     technical = "engine returned empty text",
                     statusCode = response.code,
                 ),
@@ -119,54 +146,76 @@ class OpenAiCompatibleEngine(
             Transcript(
                 text = parsed.text,
                 engineId = id,
-                trustLevel = resolveTrustLevel(),
+                trustLevel = channel.trust,
                 latencyMs = clock() - startedAt,
                 detectedLanguage = parsed.language,
+                servedBy = response.header(ENCLAVE_HEADER),
             ),
         )
     }
 
+    /** Verifies ahead of the first dictation, so it does not pay for the attestation fetch. */
     override suspend fun warmUp(): Result<Unit> {
-        if (attestationVerifier != null) verifyAttestation()
+        attestationVerifier?.let { runCatching { it.verify(baseUrl) } }
         return Result.success(Unit)
     }
 
-    /** The verified attestation, or null if this engine has no verifier configured. */
-    suspend fun attestation(): AttestationResult? =
-        if (attestationVerifier == null) null else verifyAttestation()
+    /** The current attestation, or null if this engine has no verifier configured. */
+    suspend fun attestation(): AttestationResult? = attestationVerifier?.let { verify(it, forceFresh = false) }
 
-    private suspend fun verifyAttestation(): AttestationResult {
-        cachedAttestation?.let { return it }
-        val verifier = attestationVerifier ?: return AttestationResult(false, "kein Prüfer konfiguriert")
-        val result = try {
-            verifier.verify(baseUrl)
-        } catch (e: Exception) {
-            AttestationResult(false, "Prüfung fehlgeschlagen: ${e.message}")
+    private suspend fun openChannel(forceFresh: Boolean): Result<Channel> {
+        val verifier = attestationVerifier
+            ?: return Result.success(Channel(transport, capabilities.trustLevel))
+
+        val result = verify(verifier, forceFresh)
+        val proof = result.proof
+        if (!result.verified || proof == null) {
+            return Result.failure(
+                SttFailure(
+                    userMessage = "The enclave of \"$displayName\" could not be verified. " +
+                        "The recording was not sent.",
+                    technical = "attestation: ${result.detail}",
+                ),
+            )
         }
-        cachedAttestation = result
-        return result
+        val host = runCatching { URI(endpointUrl(baseUrl)).host }.getOrNull()
+        if (!proof.host.equals(host, ignoreCase = true)) {
+            return Result.failure(
+                SttFailure(
+                    userMessage = "The verified enclave does not belong to the configured address.",
+                    technical = "attested ${proof.host}, endpoint $host",
+                ),
+            )
+        }
+        val pinnable = transport as? PinnableTransport
+            ?: return Result.failure(
+                SttFailure(
+                    userMessage = "This connection cannot be bound to the enclave.",
+                    technical = "transport ${transport::class.simpleName} cannot pin",
+                ),
+            )
+        return Result.success(Channel(pinnable.pinnedTo(proof.host, proof.tlsKeySha256Hex), TrustLevel.ENCLAVE_VERIFIED))
     }
 
-    /**
-     * Never upgrades a label optimistically: without a passing attestation this stays CLOUD,
-     * even for an endpoint that advertises an enclave.
-     */
-    private fun resolveTrustLevel(): TrustLevel = when {
-        attestationVerifier == null -> capabilities.trustLevel
-        cachedAttestation?.verified == true -> TrustLevel.ENCLAVE_VERIFIED
-        else -> TrustLevel.CLOUD
-    }
+    private suspend fun verify(verifier: AttestationVerifier, forceFresh: Boolean): AttestationResult =
+        try {
+            verifier.verify(baseUrl, forceFresh)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AttestationResult(false, "Verification failed: ${e.message}")
+        }
 
     private fun failureFor(response: HttpResponse): SttFailure {
         val snippet = response.bodyAsText().take(300)
         val message = when (response.code) {
-            401, 403 -> "API-Schlüssel wurde abgelehnt."
-            404 -> "Endpunkt nicht gefunden - Base-URL prüfen."
-            413 -> "Aufnahme war zu lang für diesen Dienst."
-            422 -> "Dienst hat das Audioformat abgelehnt."
-            429 -> "Rate-Limit erreicht, kurz warten."
-            in 500..599 -> "Dienst antwortet nicht (${response.code})."
-            else -> "Fehler ${response.code} von \"$displayName\"."
+            401, 403 -> "The API key was rejected."
+            404 -> "Endpoint not found - check the base URL."
+            413 -> "The recording was too long for this service."
+            422 -> "The service rejected the audio format."
+            429 -> "Rate limit reached, wait a moment."
+            in 500..599 -> "The service is not responding (${response.code})."
+            else -> "Error ${response.code} from \"$displayName\"."
         }
         return SttFailure(message, "HTTP ${response.code}: $snippet", response.code)
     }
@@ -184,6 +233,9 @@ class OpenAiCompatibleEngine(
     }
 
     companion object {
+        /** Tinfoil's router names the model enclave that served a request in this header. */
+        const val ENCLAVE_HEADER = "Tinfoil-Enclave"
+
         private val json = Json { ignoreUnknownKeys = true }
 
         /**

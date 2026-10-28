@@ -41,11 +41,11 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
     var testText by rememberSaveable { mutableStateOf("") }
 
     SectionCard(
-        title = "Testfeld",
-        subtitle = "Hier landet das Testdiktat, genau wie später in anderen Apps.",
+        title = "Test field",
+        subtitle = "The test dictation lands here, just like it will in other apps.",
         modifier = modifier,
         trailing = if (testText.isNotEmpty()) {
-            { GhostButton("Leeren", { testText = "" }) }
+            { GhostButton("Clear", { testText = "" }) }
         } else {
             null
         },
@@ -53,7 +53,7 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
         OutlinedTextField(
             value = testText,
             onValueChange = { testText = it },
-            placeholder = { Text("Tippe auf die Kugel und sprich …", color = AmberPalette.Muted) },
+            placeholder = { Text("Tap the circle and speak …", color = AmberPalette.Muted) },
             minLines = 3,
             shape = AmberShapes.Inner,
             textStyle = MaterialTheme.typography.bodyLarge,
@@ -90,8 +90,8 @@ fun DiagnosticsCard(
     modifier: Modifier = Modifier,
 ) {
     SectionCard(
-        title = "Diagnose",
-        subtitle = if (records.isEmpty()) "Noch nichts diktiert." else "Die letzten ${minOf(records.size, MAX_SHOWN)} Diktate.",
+        title = "Diagnostics",
+        subtitle = if (records.isEmpty()) "Nothing dictated yet." else "The last ${minOf(records.size, MAX_SHOWN)} dictations.",
         collapsible = true,
         initiallyExpanded = false,
         modifier = modifier,
@@ -99,13 +99,13 @@ fun DiagnosticsCard(
         if (keyboardLog.isNotEmpty()) {
             // What the bubble saw of the keyboard, newest first: the evidence when it misbehaves.
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Tastatur", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
+                Text("Keyboard", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
                 keyboardLog.forEach { Hint(it) }
             }
         }
 
         if (records.isEmpty()) {
-            Hint("Nach dem ersten Diktat stehen hier Engine, Dauer und Einfüge-Methode.")
+            Hint("After the first dictation, engine, duration and insertion method show up here.")
             return@SectionCard
         }
 
@@ -133,7 +133,7 @@ fun DiagnosticsCard(
             }
         }
 
-        GhostButton("Diagnose leeren", onClear)
+        GhostButton("Clear diagnostics", onClear)
     }
 }
 

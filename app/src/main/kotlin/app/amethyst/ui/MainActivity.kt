@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun installLanguage(languageTag: String?) {
         if (AndroidOnDeviceEngine.requestLanguageDownload(this, languageTag)) {
-            Toast.makeText(this, "Download gestartet. Android meldet sich gleich.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Download started. Android will report back shortly.", Toast.LENGTH_LONG).show()
             return
         }
         val opened = runCatching {
@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
         if (!opened) Setup.openAppSettings(this)
         Toast.makeText(
             this,
-            "Unter Spracherkennung → Offline-Spracherkennung die Sprache herunterladen.",
+            "Download the language under Speech recognition → Offline speech recognition.",
             Toast.LENGTH_LONG,
         ).show()
     }
@@ -190,6 +190,7 @@ private fun AmethystRoot(
     val dictation by graph.dictation.state.collectAsStateWithLifecycle()
     val records by graph.dictationLog.records.collectAsStateWithLifecycle()
     val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+    val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
     val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -216,7 +217,7 @@ private fun AmethystRoot(
             TopBar(
                 title = when (screen) {
                     Screen.Home -> "Amber"
-                    Screen.Settings -> "Einstellungen"
+                    Screen.Settings -> "Settings"
                     is Screen.EngineDetail -> "Engine"
                 },
                 showBack = screen != Screen.Home,
@@ -317,6 +318,8 @@ private fun AmethystRoot(
                                 onImportModel = { uri -> graph.whisperModels.import(uri) },
                                 onCancelModel = { id -> graph.whisperModels.cancel(id) },
                                 onDeleteModel = { id -> graph.whisperModels.delete(id) },
+                                enclaveLog = tinfoilLog,
+                                onVerifyEnclave = { url -> graph.tinfoilVerifier.verify(url, forceFresh = true) },
                             )
                         }
                     }
@@ -341,14 +344,14 @@ private fun TopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (showBack) IconAction(onClick = onBack, contentDescription = "Zurück", glyph = BackGlyph)
+        if (showBack) IconAction(onClick = onBack, contentDescription = "Back", glyph = BackGlyph)
         Text(
             title,
             style = MaterialTheme.typography.headlineMedium,
             color = AmberPalette.Text,
             modifier = Modifier.weight(1f),
         )
-        if (showSettings) IconAction(onClick = onSettings, contentDescription = "Einstellungen", glyph = GearGlyph)
+        if (showSettings) IconAction(onClick = onSettings, contentDescription = "Settings", glyph = GearGlyph)
     }
 }
 

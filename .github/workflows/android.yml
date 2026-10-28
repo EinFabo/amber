@@ -28,6 +28,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Tinfoil's attestation verifier is bound from tinfoil-go with gomobile; its go.mod
+      # names the Go version.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+
+      - name: Build Tinfoil verifier AAR
+        run: tools/build-tinfoil-aar.sh
+
       # :core is pure JVM and holds the engine, splicing and VAD logic, so this is the
       # step that actually proves behaviour. It also runs locally without an Android SDK.
       # Catches typo-level breakage in :app (imports, R.* ids, manifest classes) even when
@@ -54,7 +64,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: amethyst-debug-apk
+          name: amber-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 

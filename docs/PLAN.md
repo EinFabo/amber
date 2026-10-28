@@ -1,6 +1,6 @@
-> **Historisch.** Der Plan, wie die allererste APK aus einem Container aufs Handy kam (damals noch
-> als „Amethyst“). Gebaut wird inzwischen lokal, siehe README → *Bauen*; was offen ist, steht in
-> [`OFFEN.md`](OFFEN.md).
+> **Historical.** The plan for how the very first APK got from a container onto the phone
+> (back then still "Amethyst"). Builds now happen locally, see README → *Building*; open items
+> are in [`OPEN.md`](OPEN.md).
 
 # Amethyst — wie die App zum Testen aufs Handy kommt
 

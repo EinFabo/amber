@@ -28,7 +28,7 @@ class ModelSlotsTest {
     @Test
     fun `a finished download marks the slot ready`() = runTest {
         val slots = slots()
-        slots.run("a", "Lädt") { report, _ ->
+        slots.run("a", "Downloading") { report, _ ->
             report(50, 100)
             Result.success(info to 100L)
         }
@@ -38,14 +38,14 @@ class ModelSlotsTest {
 
     /**
      * The 0.3.0 softlock: a blocking download cannot be interrupted, so after cancel() the
-     * job finished as "not active" and never wrote a state - the row stayed on "Lädt" and
+     * job finished as "not active" and never wrote a state - the row stayed on "Downloading" and
      * refused a new start.
      */
     @Test
     fun `cancelling frees the slot at once and a late result does not bring it back`() = runTest {
         val slots = slots()
         val release = CompletableDeferred<Unit>()
-        slots.run("a", "Lädt") { report, isCancelled ->
+        slots.run("a", "Downloading") { report, isCancelled ->
             report(10, 100)
             release.await()
             // The blocking copy notices the cancel only at its next chunk.
@@ -61,7 +61,7 @@ class ModelSlotsTest {
         advanceUntilIdle()
         assertEquals(SlotState.Missing, slots.state("a"))
 
-        slots.run("a", "Lädt") { _, _ -> Result.success(info to 100L) }
+        slots.run("a", "Downloading") { _, _ -> Result.success(info to 100L) }
         advanceUntilIdle()
         assertEquals(SlotState.Ready(info, 100L), slots.state("a"), "a new start must be possible")
     }
@@ -80,11 +80,11 @@ class ModelSlotsTest {
     @Test
     fun `a failure is shown and can be retried`() = runTest {
         val slots = slots()
-        slots.run("b", "Lädt") { _, _ -> Result.failure(IllegalStateException("Server antwortet mit 503.")) }
+        slots.run("b", "Downloading") { _, _ -> Result.failure(IllegalStateException("The server answered 503.")) }
         advanceUntilIdle()
-        assertEquals(SlotState.Failed("Server antwortet mit 503."), slots.state("b"))
+        assertEquals(SlotState.Failed("The server answered 503."), slots.state("b"))
 
-        slots.run("b", "Lädt") { _, _ -> Result.success(info to 1L) }
+        slots.run("b", "Downloading") { _, _ -> Result.success(info to 1L) }
         advanceUntilIdle()
         assertIs<SlotState.Ready>(slots.state("b"))
     }
@@ -92,7 +92,7 @@ class ModelSlotsTest {
     @Test
     fun `a thrown exception ends in a failed state, never in busy`() = runTest {
         val slots = slots()
-        slots.run("a", "Lädt") { _, _ -> throw java.io.IOException("unexpected end of stream") }
+        slots.run("a", "Downloading") { _, _ -> throw java.io.IOException("unexpected end of stream") }
         advanceUntilIdle()
         assertIs<SlotState.Failed>(slots.state("a"))
     }

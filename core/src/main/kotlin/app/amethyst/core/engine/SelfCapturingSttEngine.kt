@@ -24,7 +24,7 @@ interface SelfCapturingSttEngine : SttEngine {
     override suspend fun transcribe(audio: PcmAudio, options: TranscribeOptions): Result<Transcript> =
         Result.failure(
             SttFailure(
-                userMessage = "\"$displayName\" nimmt selbst auf und kann keine Aufnahme entgegennehmen.",
+                userMessage = "\"$displayName\" records by itself and cannot take a recording.",
                 technical = "$id is self-capturing; call listen() instead of transcribe()",
             ),
         )

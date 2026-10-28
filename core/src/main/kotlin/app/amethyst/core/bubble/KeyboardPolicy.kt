@@ -71,9 +71,9 @@ class KeyboardPolicy(
         }
         // Moving at once is the point: the bubble and the keyboard should travel together.
         return if (focused) {
-            decide(predicted(screenHeight), RECHECK_MS, "Feld fokussiert, Tastatur erwartet")
+            decide(predicted(screenHeight), RECHECK_MS, "field focused, keyboard expected")
         } else {
-            decide(current, RECHECK_MS, "Fokus weg, warte auf Tastatur")
+            decide(current, RECHECK_MS, "focus gone, waiting for keyboard")
         }
     }
 
@@ -89,26 +89,26 @@ class KeyboardPolicy(
             phoneReportsKeyboard = true
             val sane = reading.bottom > reading.top && reading.top >= 0
             when {
-                !sane -> decide(current, RECHECK_MS, "unsinnige Tastaturgrenzen")
+                !sane -> decide(current, RECHECK_MS, "implausible keyboard bounds")
 
                 reading.bottom > screenHeight + TOLERANCE_PX -> {
                     // Sliding in or out. Hold position and look again shortly - but only for
                     // as long as an animation can take.
                     val since = movingSince ?: now.also { movingSince = it }
                     val recheck = if (now - since < MAX_MOVING_MS) RECHECK_MS else null
-                    decide(current ?: if (focused) predicted(screenHeight) else null, recheck, "Tastatur in Bewegung (unten ${reading.bottom})")
+                    decide(current ?: if (focused) predicted(screenHeight) else null, recheck, "keyboard moving (bottom ${reading.bottom})")
                 }
 
                 reading.bottom - reading.top > screenHeight * TALL_FRAME -> {
                     seenThisFocus = true
-                    decide(predicted(screenHeight), null, "Tastaturrahmen fast bildschirmhoch")
+                    decide(predicted(screenHeight), null, "keyboard frame nearly screen-high")
                 }
 
                 else -> {
                     seenThisFocus = true
                     lastSettledTop = reading.top
                     settledAtHeight = screenHeight
-                    decide(reading.top, null, "Tastatur steht bei ${reading.top}")
+                    decide(reading.top, null, "keyboard settled at ${reading.top}")
                 }
             }
         }
@@ -116,27 +116,27 @@ class KeyboardPolicy(
         Reading.Unmeasurable -> {
             phoneReportsKeyboard = true
             seenThisFocus = true
-            decide(predicted(screenHeight), null, "Tastatur da, Höhe unbekannt")
+            decide(predicted(screenHeight), null, "keyboard up, height unknown")
         }
 
         Reading.Absent -> when {
-            !focused -> decide(null, null, "keine Tastatur")
+            !focused -> decide(null, null, "no keyboard")
             // It was up for this field and is not reported now. Android drops the keyboard
             // window from the list for a moment now and then (seen on a device: up at +66 ms,
             // missing at +156 ms, field still focused) - only a gap that lasts is a close.
             seenThisFocus -> {
                 val since = missingSince ?: now.also { missingSince = it }
                 if (now - since < CLOSE_CONFIRM_MS) {
-                    decide(current, RECHECK_MS, "Tastatur kurz nicht gemeldet")
+                    decide(current, RECHECK_MS, "keyboard briefly unreported")
                 } else {
-                    decide(null, null, "Tastatur geschlossen")
+                    decide(null, null, "keyboard closed")
                 }
             }
-            now - focusedAt < ARRIVAL_WINDOW_MS -> decide(predicted(screenHeight), RECHECK_MS, "Tastatur noch unterwegs")
+            now - focusedAt < ARRIVAL_WINDOW_MS -> decide(predicted(screenHeight), RECHECK_MS, "keyboard still on its way")
             // This phone never shows its keyboard window; trust the focus alone.
-            !phoneReportsKeyboard -> decide(predicted(screenHeight), null, "Tastaturfenster nicht gemeldet, geschätzt")
+            !phoneReportsKeyboard -> decide(predicted(screenHeight), null, "keyboard window never reported, estimated")
             // Long enough that a keyboard would have arrived: there is none for this field.
-            else -> decide(null, null, "Feld ohne Tastatur")
+            else -> decide(null, null, "field without keyboard")
         }
     }
 

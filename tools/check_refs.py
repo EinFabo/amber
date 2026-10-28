@@ -87,7 +87,7 @@ for m in re.finditer(r'android:(?:resource|drawable|icon|theme)="@(\w+)/(\w+)"',
         errors.append(f"AndroidManifest.xml: missing @{kind}/{name}")
 
 if errors:
-    print(f"{len(errors)} PROBLEM(E):")
+    print(f"{len(errors)} PROBLEM(S):")
     for e in errors: print("  -", e)
     sys.exit(1)
-print(f"OK: {len(kt)} Kotlin-Dateien, alle internen Imports, Ressourcen-IDs und Manifest-Klassen aufgelöst.")
+print(f"OK: {len(kt)} Kotlin files; all internal imports, resource ids and manifest classes resolve.")

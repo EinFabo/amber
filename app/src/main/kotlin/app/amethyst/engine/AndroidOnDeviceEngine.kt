@@ -74,8 +74,8 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return@withContext Result.failure(
                 SttFailure(
-                    userMessage = "Dieses Gerät hat keinen System-Erkenner. " +
-                        "Wähle eine andere Engine in den Einstellungen.",
+                    userMessage = "This device has no system recognizer. " +
+                        "Pick another engine in the settings.",
                     technical = "SpeechRecognizer.isRecognitionAvailable == false",
                 ),
             )
@@ -119,7 +119,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                     if (text.isNullOrBlank()) {
                         settle(
                             Result.failure(
-                                SttFailure("Es wurde nichts erkannt.", "empty RESULTS_RECOGNITION"),
+                                SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty RESULTS_RECOGNITION"),
                             ),
                         )
                     } else {
@@ -219,23 +219,23 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED
         ) {
             return SttFailure(
-                userMessage = "Diese Sprache ist offline nicht installiert.",
+                userMessage = "This language is not installed for offline use.",
                 technical = "SpeechRecognizer error $error",
                 remedy = SttFailure.Remedy.INSTALL_LANGUAGE,
             )
         }
         val message = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "Mikrofon konnte nicht gelesen werden."
+            SpeechRecognizer.ERROR_AUDIO -> "The microphone could not be read."
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                "Mikrofon-Berechtigung fehlt."
+                "Microphone permission is missing."
             SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                "Der System-Erkenner wollte online gehen und kam nicht durch."
-            SpeechRecognizer.ERROR_NO_MATCH -> "Es wurde nichts erkannt."
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Keine Sprache gehört."
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Der Erkenner ist beschäftigt."
+                "The system recognizer tried to go online and could not get through."
+            SpeechRecognizer.ERROR_NO_MATCH -> SttFailure.NOTHING_RECOGNIZED
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech heard."
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "The recognizer is busy."
             SpeechRecognizer.ERROR_SERVER, SpeechRecognizer.ERROR_SERVER_DISCONNECTED ->
-                "Der System-Erkenner ist abgestürzt."
-            else -> "Erkennung fehlgeschlagen."
+                "The system recognizer crashed."
+            else -> "Recognition failed."
         }
         return SttFailure(message, "SpeechRecognizer error $error")
     }

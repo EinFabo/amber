@@ -9,6 +9,8 @@ import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.MultipartPart
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
+import app.amethyst.core.privacy.EnclaveProof
+import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.privacy.TrustLevel
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -19,20 +21,24 @@ import kotlin.test.assertTrue
 
 class OpenAiCompatibleEngineTest {
 
+    /** The engine() helper wants a FakeHttpTransport; the pinnable fake is passed separately. */
+    private fun FakePinnableTransport.asFake() = FakeHttpTransport { error("unpinned request") }
+
     private val audio = PcmAudio(ShortArray(16_000) { (it % 500).toShort() })
 
     private fun engine(
         transport: FakeHttpTransport,
-        baseUrl: String = "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1",
+        baseUrl: String = "https://inference.tinfoil.sh/v1",
         apiKey: String? = "secret",
         verifier: AttestationVerifier? = null,
         capabilities: EngineCapabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = true),
+        pinnable: FakePinnableTransport? = null,
     ) = OpenAiCompatibleEngine(
         id = "tinfoil-whisper",
         displayName = "Tinfoil (Enclave)",
         baseUrl = baseUrl,
         modelId = "whisper-large-v3-turbo",
-        transport = transport,
+        transport = pinnable ?: transport,
         apiKeyProvider = { apiKey },
         capabilities = capabilities,
         attestationVerifier = verifier,
@@ -74,7 +80,7 @@ class OpenAiCompatibleEngineTest {
         val request = transport.requests.single()
         assertEquals("POST", request.method)
         assertEquals(
-            "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1/audio/transcriptions",
+            "https://inference.tinfoil.sh/v1/audio/transcriptions",
             request.url,
         )
         assertEquals("Bearer secret", request.headers["Authorization"])
@@ -96,7 +102,7 @@ class OpenAiCompatibleEngineTest {
         val result = engine(transport, apiKey = null).transcribe(audio)
 
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertContains(failure.userMessage, "API-Schlüssel")
+        assertContains(failure.userMessage, "API key")
         assertTrue(transport.requests.isEmpty(), "must not call the API without a key")
     }
 
@@ -106,10 +112,10 @@ class OpenAiCompatibleEngineTest {
             .transcribe(audio)
         val failure = assertIs<SttFailure>(unauthorized.exceptionOrNull())
         assertEquals(401, failure.statusCode)
-        assertContains(failure.userMessage, "abgelehnt")
+        assertContains(failure.userMessage, "rejected")
 
         val notFound = engine(FakeHttpTransport.json("nope", 404)).transcribe(audio)
-        assertContains(assertIs<SttFailure>(notFound.exceptionOrNull()).userMessage, "Base-URL")
+        assertContains(assertIs<SttFailure>(notFound.exceptionOrNull()).userMessage, "base URL")
     }
 
     @Test
@@ -117,46 +123,106 @@ class OpenAiCompatibleEngineTest {
         val result = engine(FakeHttpTransport.failing(java.io.IOException("unreachable")))
             .transcribe(audio)
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertContains(failure.userMessage, "Keine Verbindung")
+        assertContains(failure.userMessage, "No connection")
     }
 
     @Test
     fun `rejects an empty or malformed response`() = runTest {
         val empty = engine(FakeHttpTransport.json("""{"text":"   "}""")).transcribe(audio)
-        assertContains(assertIs<SttFailure>(empty.exceptionOrNull()).userMessage, "nichts erkannt")
+        assertTrue(assertIs<SttFailure>(empty.exceptionOrNull()).nothingRecognized)
 
         val garbage = engine(FakeHttpTransport.json("<html>502</html>")).transcribe(audio)
-        assertContains(assertIs<SttFailure>(garbage.exceptionOrNull()).userMessage, "unverständlich")
+        assertContains(assertIs<SttFailure>(garbage.exceptionOrNull()).userMessage, "could not be read")
+    }
+
+    private fun proof(key: String, host: String = "inference.tinfoil.sh") = EnclaveProof(
+        host = host,
+        repo = "tinfoilsh/confidential-model-router",
+        codeTag = "v1.0.0",
+        codeDigest = "abc",
+        measurementType = "https://tinfoil.sh/predicate/tdx-guest/v2",
+        registers = listOf("00"),
+        tlsKeySha256Hex = key,
+        hpkePublicKey = null,
+        verifiedAtMillis = 0,
+        freshUntilMillis = Long.MAX_VALUE,
+    )
+
+    /** Hands out [keys] in turn: the first verification sees the first key, and so on. */
+    private class ScriptedVerifier(private val keys: List<String?>, private val host: String = "inference.tinfoil.sh") : AttestationVerifier {
+        val calls = mutableListOf<Boolean>()
+        override suspend fun verify(baseUrl: String, forceFresh: Boolean): AttestationResult {
+            calls.add(forceFresh)
+            val key = keys[minOf(calls.size - 1, keys.lastIndex)]
+                ?: return AttestationResult(false, "quote: signature invalid")
+            return AttestationResult(true, "ok", OpenAiCompatibleEngineTest().proof(key, host))
+        }
+    }
+
+    private val keyA = "a".repeat(64)
+    private val keyB = "b".repeat(64)
+
+    @Test
+    fun `sends over a connection bound to the attested key and says so`() = runTest {
+        val transport = FakePinnableTransport(serverKey = keyA) {
+            HttpResponse(200, """{"text":"geheim"}""".encodeToByteArray(), mapOf("tinfoil-enclave" to "whisper-inf3.tinfoil.sh"))
+        }
+        val transcript = engine(transport.asFake(), verifier = ScriptedVerifier(listOf(keyA)), pinnable = transport)
+            .transcribe(audio).getOrThrow()
+
+        assertEquals(TrustLevel.ENCLAVE_VERIFIED, transcript.trustLevel)
+        assertEquals("whisper-inf3.tinfoil.sh", transcript.servedBy)
+        assertEquals(keyA, transport.pinnedRequests.single().first)
+        assertTrue(transport.requests.isEmpty(), "nothing may go out unpinned")
     }
 
     @Test
-    fun `claims enclave trust only after the attestation passed`() = runTest {
-        val passing = object : AttestationVerifier {
-            override suspend fun verify(baseUrl: String) = AttestationResult(true, "digest ok")
-        }
-        val engine = engine(FakeHttpTransport.json("""{"text":"geheim"}"""), verifier = passing)
-
-        // Before warm-up nothing has been verified, so the label must stay CLOUD.
-        assertEquals(TrustLevel.CLOUD, engine.transcribe(audio).getOrThrow().trustLevel)
-
-        engine.warmUp()
-        assertEquals(TrustLevel.ENCLAVE_VERIFIED, engine.transcribe(audio).getOrThrow().trustLevel)
-    }
-
-    @Test
-    fun `stays on cloud trust when the attestation fails or throws`() = runTest {
-        val failing = object : AttestationVerifier {
-            override suspend fun verify(baseUrl: String) = AttestationResult(false, "digest mismatch")
-        }
+    fun `sends nothing when the enclave cannot be verified`() = runTest {
+        val failing = ScriptedVerifier(listOf(null))
         val throwing = object : AttestationVerifier {
-            override suspend fun verify(baseUrl: String): AttestationResult = error("no attestation doc")
+            override suspend fun verify(baseUrl: String, forceFresh: Boolean): AttestationResult = error("no attestation doc")
         }
-
         for (verifier in listOf(failing, throwing)) {
-            val engine = engine(FakeHttpTransport.json("""{"text":"x"}"""), verifier = verifier)
-            engine.warmUp()
-            assertEquals(TrustLevel.CLOUD, engine.transcribe(audio).getOrThrow().trustLevel)
-            assertEquals(false, engine.attestation()?.verified)
+            val transport = FakePinnableTransport(serverKey = keyA) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
+            val result = engine(transport.asFake(), verifier = verifier, pinnable = transport).transcribe(audio)
+
+            assertContains(assertIs<SttFailure>(result.exceptionOrNull()).userMessage, "not sent")
+            assertTrue(transport.requests.isEmpty() && transport.pinnedRequests.isEmpty())
         }
+    }
+
+    @Test
+    fun `a rotated enclave key is verified afresh once and then used`() = runTest {
+        // The cached proof still names key A, but the enclave now presents key B.
+        val transport = FakePinnableTransport(serverKey = keyB) { HttpResponse(200, """{"text":"neu"}""".encodeToByteArray()) }
+        val verifier = ScriptedVerifier(listOf(keyA, keyB))
+
+        val transcript = engine(transport.asFake(), verifier = verifier, pinnable = transport).transcribe(audio).getOrThrow()
+
+        assertEquals("neu", transcript.text)
+        assertEquals(listOf(false, true), verifier.calls, "second verification must bypass the cache")
+        assertEquals(keyB, transport.pinnedRequests.single().first)
+    }
+
+    @Test
+    fun `a server that never presents the attested key gets nothing`() = runTest {
+        val transport = FakePinnableTransport(serverKey = "c".repeat(64)) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
+        val result = engine(transport.asFake(), verifier = ScriptedVerifier(listOf(keyA, keyB)), pinnable = transport).transcribe(audio)
+
+        assertContains(assertIs<SttFailure>(result.exceptionOrNull()).userMessage, "not sent")
+        assertTrue(transport.pinnedRequests.isEmpty())
+    }
+
+    @Test
+    fun `a proof for another host does not authorize this endpoint`() = runTest {
+        val transport = FakePinnableTransport(serverKey = keyA) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
+        val result = engine(
+            transport.asFake(),
+            verifier = ScriptedVerifier(listOf(keyA), host = "other.tinfoil.sh"),
+            pinnable = transport,
+        ).transcribe(audio)
+
+        assertIs<SttFailure>(result.exceptionOrNull())
+        assertTrue(transport.pinnedRequests.isEmpty())
     }
 }

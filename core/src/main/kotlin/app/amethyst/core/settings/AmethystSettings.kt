@@ -146,8 +146,11 @@ data class AmethystSettings(
     }
 
     companion object {
-        /** 2: Whisper takes a list of languages; see [SettingsCodec.migrate]. */
-        const val SCHEMA_VERSION = 2
+        /**
+         * 2: Whisper takes a list of languages. 3: Tinfoil moved behind one router.
+         * See [SettingsCodec.migrate].
+         */
+        const val SCHEMA_VERSION = 3
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -187,10 +190,13 @@ object SettingsCodec {
         if (settings.schemaVersion >= AmethystSettings.SCHEMA_VERSION) return settings
         return settings.copy(
             engines = settings.engines.map { engine ->
-                if (engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE") {
-                    engine.copy(languageTag = AmethystSettings.WHISPER_DEFAULT_LANGUAGES)
-                } else {
-                    engine
+                when {
+                    engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
+                        engine.copy(languageTag = AmethystSettings.WHISPER_DEFAULT_LANGUAGES)
+                    // Version 3: Tinfoil's per-model hosts (*.inf.tinfoil.sh) no longer resolve.
+                    engine.baseUrl?.contains(".inf.tinfoil.sh") == true ->
+                        engine.copy(baseUrl = EnginePresets.TINFOIL_BASE_URL)
+                    else -> engine
                 }
             },
             schemaVersion = AmethystSettings.SCHEMA_VERSION,

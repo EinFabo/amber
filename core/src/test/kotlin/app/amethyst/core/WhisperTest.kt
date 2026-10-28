@@ -68,7 +68,7 @@ class WhisperTest {
     fun `a file that is not ggml is rejected with a reason`() {
         val zip = "PK\u0003\u0004".toByteArray() + ByteArray(60)
         val error = WhisperModelFile.inspect(zip).exceptionOrNull()
-        assertTrue(error?.message.orEmpty().contains("kein whisper.cpp-Modell"))
+        assertTrue(error?.message.orEmpty().contains("not a whisper.cpp model"))
     }
 
     @Test
@@ -213,14 +213,14 @@ class WhisperTest {
         val result = engine(FakeRuntime(answer = " Untertitel der Amara.org-Community"))
             .transcribe(speech(2))
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertEquals("Es wurde nichts erkannt.", failure.userMessage)
+        assertEquals(SttFailure.NOTHING_RECOGNIZED, failure.userMessage)
     }
 
     @Test
     fun `a native failure becomes a user message instead of a crash`() = runTest {
         val result = engine(FakeRuntime(fail = true)).transcribe(speech(2))
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertTrue(failure.userMessage.contains("lokale Modell"))
+        assertTrue(failure.userMessage.contains("local model"))
         assertTrue(failure.technical.contains("-7"))
     }
 
@@ -290,7 +290,7 @@ class WhisperTest {
 
         val result = ModelInstall.install(ByteArrayInputStream(tampered), target, specFor(bytes))
 
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("Prüfsumme"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("checksum"))
         assertEquals(3, target.length(), "the existing file must not be replaced")
         assertFalse(File(target.parentFile, "whisper.bin.part").exists())
     }
@@ -303,7 +303,7 @@ class WhisperTest {
             File(tempDir(), "whisper.bin"),
             specFor(bytes),
         )
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("unvollständig"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("incomplete"))
     }
 
     @Test
@@ -330,7 +330,7 @@ class WhisperTest {
             }
         }
         val result = ModelInstall.install(dropping, File(tempDir(), "whisper.bin"), null)
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("abgebrochen"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("interrupted"))
     }
 
     // --- catalog -------------------------------------------------------------------------

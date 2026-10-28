@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,7 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
@@ -45,9 +51,12 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.whisper.WhisperModelSpec
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.privacy.AttestationResult
+import app.amethyst.core.privacy.EnclaveProof
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
+import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.ProgressLine
@@ -75,6 +84,10 @@ fun EngineDetailScreen(
     onImportModel: (Uri) -> Unit,
     onCancelModel: (String) -> Unit,
     onDeleteModel: (String) -> Unit,
+    /** Newest first: what the Tinfoil verifier did lately. */
+    enclaveLog: List<String>,
+    /** Verifies the enclave behind a base URL afresh, bypassing the cache. */
+    onVerifyEnclave: suspend (String) -> AttestationResult,
     modifier: Modifier = Modifier,
 ) {
     var baseUrl by remember(config.id) { mutableStateOf(config.baseUrl.orEmpty()) }
@@ -114,22 +127,22 @@ fun EngineDetailScreen(
             if (preset?.note?.isNotBlank() == true) Hint(preset.note)
 
             if (problems.isEmpty()) {
-                Hint("Einstellungen vollständig.", AmberPalette.TrustOnDevice)
+                Hint("Settings complete.", AmberPalette.TrustOnDevice)
             } else {
                 // Listed while typing, so the user is never left guessing which field the
                 // engine is still waiting for.
                 problems.forEach { problem -> Hint(problem, AmberPalette.Error) }
             }
-            if (!active) PrimaryButton("Als aktive Engine verwenden", onActivate)
+            if (!active) PrimaryButton("Use as active engine", onActivate)
         }
 
         when (config.kind) {
             EngineKind.ANDROID_ON_DEVICE -> SectionCard(
-                title = "Konfiguration",
+                title = "Configuration",
             ) {
                 Hint(
-                    "Nutzt den Erkenner des Systems. Welche Sprachen offline verfügbar sind, " +
-                        "entscheiden die Systemeinstellungen.",
+                    "Uses the system recognizer. Which languages are available offline is up to " +
+                        "the system settings.",
                 )
                 LanguageField(language) { language = it }
             }
@@ -147,11 +160,11 @@ fun EngineDetailScreen(
                     onCancel = onCancelModel,
                     onDelete = onDeleteModel,
                 )
-                SectionCard(title = "Sprachen") {
+                SectionCard(title = "Languages") {
                     Hint(
-                        "Die Sprachen, in denen du diktierst. Bei mehreren erkennt Whisper pro " +
-                            "Diktat, welche gesprochen wurde. Eine einzelne wird erzwungen: " +
-                            "Was in einer anderen Sprache kommt, wird dann übersetzt.",
+                        "The languages you dictate in. With several, Whisper detects per dictation " +
+                            "which one was spoken. A single one is forced: " +
+                            "anything said in another language is then translated.",
                     )
                     WhisperLanguagePicker(language) { picked ->
                         language = picked
@@ -160,68 +173,73 @@ fun EngineDetailScreen(
                 }
             }
 
-            EngineKind.OPENAI_COMPATIBLE -> SectionCard(
-                title = "Verbindung",
-                subtitle = "Alles, was POST /v1/audio/transcriptions versteht.",
-            ) {
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    label = { Text("Base-URL") },
-                    placeholder = { Text("https://host/v1") },
-                    singleLine = true,
-                    shape = AmberShapes.Inner,
-                    colors = fieldColors(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Hint("Mit oder ohne /v1, beides geht.")
-
-                OutlinedTextField(
-                    value = modelId,
-                    onValueChange = { modelId = it },
-                    label = { Text("Modell") },
-                    singleLine = true,
-                    shape = AmberShapes.Inner,
-                    colors = fieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                if (config.apiKeyAlias != null) {
+            EngineKind.OPENAI_COMPATIBLE -> {
+                SectionCard(
+                    title = "Connection",
+                    subtitle = "Anything that understands POST /v1/audio/transcriptions.",
+                ) {
                     OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = { apiKey = it },
-                        label = { Text("API-Schlüssel") },
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        label = { Text("Base URL") },
+                        placeholder = { Text("https://host/v1") },
                         singleLine = true,
                         shape = AmberShapes.Inner,
                         colors = fieldColors(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Hint("Wird verschlüsselt gespeichert, nie in den Einstellungs-Export geschrieben.")
+                    Hint("With or without /v1, both work.")
+    
+                    OutlinedTextField(
+                        value = modelId,
+                        onValueChange = { modelId = it },
+                        label = { Text("Model") },
+                        singleLine = true,
+                        shape = AmberShapes.Inner,
+                        colors = fieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+    
+                    if (config.apiKeyAlias != null) {
+                        OutlinedTextField(
+                            value = apiKey,
+                            onValueChange = { apiKey = it },
+                            label = { Text("API key") },
+                            singleLine = true,
+                            shape = AmberShapes.Inner,
+                            colors = fieldColors(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Hint("Stored encrypted, never written to a settings export.")
+                    }
+    
+                    LanguageField(language) { language = it }
                 }
-
-                LanguageField(language) { language = it }
+                if (TinfoilVerifier.supports(baseUrl)) {
+                    EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
+                }
             }
 
             EngineKind.LOCAL_SHERPA -> SectionCard(
-                title = "Noch nicht verfügbar",
+                title = "Not available yet",
             ) {
-                Hint("Parakeet und Moonshine über sherpa-onnx kommen in einer späteren Stufe.")
+                Hint("Parakeet and Moonshine through sherpa-onnx come in a later stage.")
             }
 
             EngineKind.ELEVENLABS_REALTIME -> SectionCard(
-                title = "Noch nicht verfügbar",
+                title = "Not available yet",
             ) {
-                Hint("Streaming über ElevenLabs Scribe v2 Realtime kommt in Stufe 4.")
+                Hint("Streaming through ElevenLabs Scribe v2 Realtime comes in stage 4.")
             }
         }
 
-        SectionCard(title = "Prüfen") {
+        SectionCard(title = "Check") {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryButton("Speichern", { persist() })
+                PrimaryButton("Save", { persist() })
                 GhostButton(
-                    text = if (local) "Modell testen" else "Verbindung testen",
+                    text = if (local) "Test model" else "Test connection",
                     enabled = !testing,
                     onClick = {
                         persist()
@@ -247,7 +265,7 @@ fun EngineDetailScreen(
         }
 
         if (config.id != EnginePresets.ANDROID_ON_DEVICE.id) {
-            GhostButton("Engine entfernen", onDelete, color = AmberPalette.Error)
+            GhostButton("Remove engine", onDelete, color = AmberPalette.Error)
         }
     }
 }
@@ -272,8 +290,8 @@ private fun WhisperModelsCard(
     }
 
     SectionCard(
-        title = "Modelle",
-        subtitle = "Größer heißt genauer, aber langsamer. Laden, dann „Verwenden“.",
+        title = "Models",
+        subtitle = "Bigger means more accurate but slower. Download, then \"Use\".",
         modifier = modifier,
     ) {
         WhisperModels.all.forEach { spec ->
@@ -294,10 +312,10 @@ private fun WhisperModelsCard(
         val imported = states[WhisperModels.IMPORTED_ID] ?: SlotState.Missing
         if (imported !is SlotState.Missing) {
             ModelRow(
-                title = "Eigene Datei",
+                title = "Own file",
                 tier = "",
                 sizeLabel = (imported as? SlotState.Ready)?.let { "${it.sizeBytes / 1_000_000} MB" } ?: "",
-                note = "Ein whisper.cpp-Modell, das du selbst gewählt hast. Läuft mit vollem Kontext.",
+                note = "A whisper.cpp model you picked yourself. Runs with the full context.",
                 state = imported,
                 selected = selectedId == WhisperModels.IMPORTED_ID,
                 onSelect = { onSelect(WhisperModels.IMPORTED_ID) },
@@ -307,8 +325,8 @@ private fun WhisperModelsCard(
             )
         }
 
-        GhostButton("Eigene Datei wählen", { picker.launch(arrayOf("*/*")) })
-        Hint("Schon von FUTO geladen? Die .bin-Datei wählen, sie wird erkannt und geprüft.")
+        GhostButton("Pick own file", { picker.launch(arrayOf("*/*")) })
+        Hint("Already downloaded from FUTO? Pick the .bin file, it is recognized and checked.")
     }
 }
 
@@ -365,12 +383,12 @@ private fun ModelRow(
         ) { current ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (current) {
-                    SlotState.Missing -> GhostButton("Laden", onDownload)
+                    SlotState.Missing -> GhostButton("Download", onDownload)
 
                     is SlotState.Busy -> {
                         Hint(current.label + " … " + progressText(current), AmberPalette.Text)
                         ProgressLine(current.fraction)
-                        GhostButton("Abbrechen", onCancel)
+                        GhostButton("Cancel", onCancel)
                     }
 
                     is SlotState.Ready -> Row(
@@ -378,28 +396,28 @@ private fun ModelRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         if (selected) {
-                            Hint("Wird verwendet", AmberPalette.Primary)
+                            Hint("In use", AmberPalette.Primary)
                         } else {
-                            PrimaryButton("Verwenden", onSelect)
+                            PrimaryButton("Use", onSelect)
                         }
                         Spacer(Modifier.weight(1f))
-                        GhostButton("Löschen", onDelete, color = AmberPalette.Error)
+                        GhostButton("Delete", onDelete, color = AmberPalette.Error)
                     }
 
                     is SlotState.Failed -> {
                         Hint(current.message, AmberPalette.Error)
-                        GhostButton("Erneut versuchen", onDownload)
+                        GhostButton("Try again", onDownload)
                     }
                 }
                 if (current is SlotState.Ready && !current.info.multilingual) {
-                    Hint("Dieses Modell versteht nur Englisch.", AmberPalette.Error)
+                    Hint("This model only understands English.", AmberPalette.Error)
                 }
             }
         }
     }
 }
 
-/** Where a model sits among the others ("schnell", "genauer"), as plain grey words. */
+/** Where a model sits among the others ("fast", "more accurate"), as plain grey words. */
 @Composable
 private fun TierPill(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
@@ -408,19 +426,19 @@ private fun TierPill(text: String) {
 private fun progressText(busy: SlotState.Busy): String {
     val mb = busy.received / 1_000_000
     val total = busy.total
-    return if (total != null && total > 0) "$mb von ${total / 1_000_000} MB" else "$mb MB"
+    return if (total != null && total > 0) "$mb of ${total / 1_000_000} MB" else "$mb MB"
 }
 
 /** The languages offered as chips; anything else can still be typed into the old field. */
 private val WHISPER_LANGUAGES = listOf(
-    "de" to "Deutsch",
-    "en" to "Englisch",
-    "fr" to "Französisch",
-    "es" to "Spanisch",
-    "it" to "Italienisch",
-    "nl" to "Niederländisch",
-    "pl" to "Polnisch",
-    "tr" to "Türkisch",
+    "de" to "German",
+    "en" to "English",
+    "fr" to "French",
+    "es" to "Spanish",
+    "it" to "Italian",
+    "nl" to "Dutch",
+    "pl" to "Polish",
+    "tr" to "Turkish",
 )
 
 /** Toggles languages in a "de,en" list. None picked means Whisper detects any language. */
@@ -446,7 +464,7 @@ private fun WhisperLanguagePicker(value: String, onChange: (String) -> Unit) {
             )
         }
     }
-    if (picked.isEmpty()) Hint("Keine gewählt: Whisper rät unter allen Sprachen.")
+    if (picked.isEmpty()) Hint("None picked: Whisper guesses among all languages.")
 }
 
 @Composable
@@ -454,8 +472,8 @@ private fun LanguageField(value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text("Sprache (BCP-47)") },
-        placeholder = { Text("de-DE, leer = automatisch") },
+        label = { Text("Language (BCP-47)") },
+        placeholder = { Text("de-DE, empty = automatic") },
         singleLine = true,
         shape = AmberShapes.Inner,
         colors = fieldColors(),
@@ -470,4 +488,93 @@ private fun LanguageField(value: String, onChange: (String) -> Unit) {
 internal fun EngineConfig.trustLevelForDisplay(): TrustLevel = when (kind) {
     EngineKind.ANDROID_ON_DEVICE, EngineKind.LOCAL_SHERPA, EngineKind.WHISPER_CPP -> TrustLevel.ON_DEVICE
     EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME -> TrustLevel.CLOUD
+}
+
+/**
+ * The debug view of Tinfoil's attestation: verify on demand, see exactly what was proven, and
+ * the verifier's recent history. When a Tinfoil dictation fails, this is where the reason is.
+ */
+@Composable
+private fun EnclaveSection(
+    baseUrl: String,
+    log: List<String>,
+    onVerify: suspend (String) -> AttestationResult,
+) {
+    var checking by remember { mutableStateOf(false) }
+    var result by remember(baseUrl) { mutableStateOf<AttestationResult?>(null) }
+    val scope = rememberCoroutineScope()
+
+    SectionCard(
+        title = "Enclave verification",
+        subtitle = "Recordings only go to a verified enclave, over a connection bound to " +
+            "its verified key. Otherwise nothing is sent.",
+    ) {
+        PrimaryButton(
+            text = if (checking) "Verifying …" else "Verify now",
+            enabled = !checking,
+            onClick = {
+                checking = true
+                scope.launch {
+                    result = onVerify(baseUrl)
+                    checking = false
+                }
+            },
+        )
+        if (checking) ProgressLine(fraction = null)
+
+        when (val current = result) {
+            null -> Unit
+            else -> {
+                val proof = current.proof
+                if (current.verified && proof != null) ProofDetails(proof) else Hint(current.detail, AmberPalette.Error)
+            }
+        }
+
+        if (log.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("History", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
+                log.forEach { Hint(it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProofDetails(proof: EnclaveProof) {
+    val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
+    // Selectable, so a fingerprint can be copied and compared with Tinfoil's own tools.
+    SelectionContainer {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            ProofRow("Status", "Verified", AmberPalette.TrustOnDevice)
+            ProofRow("Host", proof.host)
+            ProofRow("Release", "${proof.repo}@${proof.codeTag ?: "?"}")
+            ProofRow("Platform", proof.platform)
+            ProofRow("Code digest", proof.codeDigest, mono = true)
+            proof.registers.forEachIndexed { index, register ->
+                ProofRow(if (index == 0) "Measurements" else "", register.ifEmpty { "–" }, mono = true)
+            }
+            ProofRow("TLS key", proof.tlsKeySha256Hex, mono = true)
+            proof.hpkePublicKey?.let { ProofRow("HPKE key", it, mono = true) }
+            ProofRow("Verified at", time.format(Instant.ofEpochMilli(proof.verifiedAtMillis)))
+            ProofRow("Valid until", time.format(Instant.ofEpochMilli(proof.freshUntilMillis)))
+        }
+    }
+}
+
+@Composable
+private fun ProofRow(label: String, value: String, color: Color = AmberPalette.Text, mono: Boolean = false) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = AmberPalette.Muted,
+            modifier = Modifier.width(96.dp),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall.let { if (mono) it.copy(fontFamily = FontFamily.Monospace) else it },
+            color = color,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }

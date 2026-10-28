@@ -127,30 +127,30 @@ fun HomeScreen(
 
         val reliable = setup.micServiceRunning && setup.notificationsGranted && setup.batteryUnrestricted
         SectionCard(
-            title = "Zuverlässigkeit",
-            subtitle = if (reliable) "Alles eingerichtet." else "Optional. Verhindert, dass Android das Mikrofon abdreht.",
+            title = "Reliability",
+            subtitle = if (reliable) "All set." else "Optional. Keeps Android from cutting off the microphone.",
             collapsible = true,
             initiallyExpanded = !reliable,
         ) {
             StatusRow(
-                label = "Mikrofon-Dienst",
-                description = "Hält das Mikrofon bereit, während du in anderen Apps bist.",
+                label = "Microphone service",
+                description = "Keeps the microphone ready while you are in other apps.",
                 done = setup.micServiceRunning,
-                actionLabel = "Starten",
+                actionLabel = "Start",
                 onAction = actions.startMicService,
             )
             StatusRow(
-                label = "Benachrichtigungen",
-                description = "Nur für die stille „Amber ist bereit“-Meldung.",
+                label = "Notifications",
+                description = "Only for the silent \"Amber is ready\" notice.",
                 done = setup.notificationsGranted,
-                actionLabel = "Erlauben",
+                actionLabel = "Allow",
                 onAction = actions.requestNotifications,
             )
             StatusRow(
-                label = "Akku unbeschränkt",
-                description = "Sonst beenden manche Hersteller den Dienst im Hintergrund.",
+                label = "Unrestricted battery",
+                description = "Otherwise some manufacturers kill the service in the background.",
                 done = setup.batteryUnrestricted,
-                actionLabel = "Öffnen",
+                actionLabel = "Open",
                 onAction = actions.openBattery,
             )
         }
@@ -177,13 +177,13 @@ private fun EngineChip(settings: AmethystSettings, onOpenSettings: () -> Unit, m
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = active?.displayName ?: "Keine Engine ausgewählt",
+                text = active?.displayName ?: "No engine selected",
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (active == null) AmberPalette.Error else AmberPalette.Text,
             )
             if (active != null) TrustBadge(active.trustLevelForDisplay())
         }
-        Text("Ändern", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
+        Text("Change", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
     }
 }
 
@@ -208,14 +208,14 @@ private fun StatusLine(
         ) {
             when (current) {
                 DictationState.Idle -> Hint(
-                    if (ready) "Antippen und sprechen. Der Text landet im Testfeld."
-                    else "Erst die Einrichtung unten abschließen.",
+                    if (ready) "Tap and speak. The text lands in the test field."
+                    else "Finish the setup below first.",
                 )
 
-                DictationState.Starting -> Hint("Mikrofon öffnet …", AmberPalette.Text)
+                DictationState.Starting -> Hint("Opening microphone …", AmberPalette.Text)
 
                 is DictationState.Listening -> {
-                    Hint("Hört zu. Antippen zum Beenden.", AmberPalette.Text)
+                    Hint("Listening. Tap to stop.", AmberPalette.Text)
                     current.partial?.takeIf { it.isNotBlank() }?.let { partial ->
                         Text(
                             partial,
@@ -226,7 +226,7 @@ private fun StatusLine(
                     }
                 }
 
-                DictationState.Transcribing -> Hint("Schreibt …", AmberPalette.Text)
+                DictationState.Transcribing -> Hint("Writing …", AmberPalette.Text)
 
                 is DictationState.Done -> {
                     Row(
@@ -247,11 +247,11 @@ private fun StatusLine(
                     )
                     when (current.remedy) {
                         SttFailure.Remedy.INSTALL_LANGUAGE -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PrimaryButton("Sprachpaket laden", onInstallLanguage)
-                            GhostButton("Whisper lokal nutzen", onUseLocalWhisper)
+                            PrimaryButton("Get language pack", onInstallLanguage)
+                            GhostButton("Use local Whisper", onUseLocalWhisper)
                         }
 
-                        SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton("Modell laden", onOpenActiveEngine)
+                        SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton("Download model", onOpenActiveEngine)
 
                         null -> Unit
                     }
@@ -264,22 +264,22 @@ private fun StatusLine(
 @Composable
 private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifier) {
     SectionCard(
-        title = "Einrichtung",
-        subtitle = "Zwei Schritte, dann funktioniert die Blase in jeder App.",
+        title = "Setup",
+        subtitle = "Two steps, then the bubble works in every app.",
         modifier = modifier,
     ) {
         StatusRow(
-            label = "Mikrofon",
-            description = "Amber nimmt nur auf, während du diktierst.",
+            label = "Microphone",
+            description = "Amber only records while you dictate.",
             done = setup.microphoneGranted,
-            actionLabel = "Erlauben",
+            actionLabel = "Allow",
             onAction = actions.requestMicrophone,
         )
         StatusRow(
-            label = "Bedienungshilfe",
-            description = "Zeigt die Blase an und tippt den Text ins aktive Feld.",
+            label = "Accessibility service",
+            description = "Shows the bubble and types the text into the active field.",
             done = setup.accessibilityEnabled,
-            actionLabel = "Öffnen",
+            actionLabel = "Open",
             onAction = actions.openAccessibility,
         )
         if (!setup.accessibilityEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -304,32 +304,32 @@ private fun RestrictedSettingsHint(onOpenAppInfo: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "Ausgegraut oder „Eingeschränkte Einstellung“?",
+            "Greyed out or \"Restricted setting\"?",
             style = MaterialTheme.typography.bodyLarge,
             color = AmberPalette.Text,
         )
         AnimatedVisibility(visible = open, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Hint(
-                    "Android sperrt die Bedienungshilfe für Apps, die nicht aus einem Store " +
-                        "kommen. So hebst du die Sperre einmalig auf:",
+                    "Android locks accessibility for apps that do not come from a store. " +
+                        "This lifts the lock once:",
                     AmberPalette.Text,
                 )
-                Hint("1. Unten auf „App-Info öffnen“ tippen.")
-                Hint("2. Oben rechts ⋮ → „Eingeschränkte Einstellungen zulassen“, dann bestätigen.")
-                Hint("3. Zurück und die Bedienungshilfe einschalten.")
-                Hint("Der Menüpunkt erscheint erst, nachdem du einmal versucht hast, sie einzuschalten.")
+                Hint("1. Tap \"Open app info\" below.")
+                Hint("2. Top right ⋮ → \"Allow restricted settings\", then confirm.")
+                Hint("3. Go back and turn on the accessibility service.")
+                Hint("The menu item only appears after you have tried to turn it on once.")
                 Spacer(Modifier.height(2.dp))
-                GhostButton("App-Info öffnen", onOpenAppInfo)
+                GhostButton("Open app info", onOpenAppInfo)
             }
         }
-        if (!open) Hint("Antippen für die Lösung.")
+        if (!open) Hint("Tap for the fix.")
     }
 }
 
 private fun app.amethyst.core.insert.InsertionStrategy.label(): String = when (this) {
-    app.amethyst.core.insert.InsertionStrategy.COMMIT_TEXT -> "direkt getippt"
-    app.amethyst.core.insert.InsertionStrategy.SET_TEXT -> "ins Feld geschrieben"
-    app.amethyst.core.insert.InsertionStrategy.PASTE -> "eingefügt"
-    app.amethyst.core.insert.InsertionStrategy.CLIPBOARD_ONLY -> "in der Zwischenablage"
+    app.amethyst.core.insert.InsertionStrategy.COMMIT_TEXT -> "typed directly"
+    app.amethyst.core.insert.InsertionStrategy.SET_TEXT -> "written into the field"
+    app.amethyst.core.insert.InsertionStrategy.PASTE -> "pasted"
+    app.amethyst.core.insert.InsertionStrategy.CLIPBOARD_ONLY -> "on the clipboard"
 }

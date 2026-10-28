@@ -49,7 +49,7 @@ data class TranscribeOptions(
 
 /**
  * Why a dictation failed, in terms the UI can show without leaking stack traces.
- * [userMessage] is user-facing German; [technical] goes to the log.
+ * [userMessage] is user-facing; [technical] goes to the log.
  */
 class SttFailure(
     val userMessage: String,
@@ -60,11 +60,18 @@ class SttFailure(
     val remedy: Remedy? = null,
 ) : Exception("$userMessage ($technical)", cause) {
 
+    /** The audio reached the engine and it found no speech - a working round trip. */
+    val nothingRecognized: Boolean get() = userMessage == NOTHING_RECOGNIZED
+
     enum class Remedy {
         /** The system recognizer lacks the offline pack for the dictation language. */
         INSTALL_LANGUAGE,
 
         /** A local engine is selected but its model is not on the device yet. */
         DOWNLOAD_MODEL,
+    }
+
+    companion object {
+        const val NOTHING_RECOGNIZED = "Nothing was recognized."
     }
 }

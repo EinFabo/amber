@@ -34,66 +34,72 @@ data class EnginePreset(
     val baseUrl: String? = null,
     val modelId: String? = null,
     val needsApiKey: Boolean = false,
-    /** Shown under the preset in settings. German, user-facing. */
+    /** Shown under the preset in settings. User-facing. */
     val note: String = "",
 )
 
 object EnginePresets {
 
+    /** Tinfoil's confidential model router; see [TINFOIL]. */
+    const val TINFOIL_BASE_URL = "https://inference.tinfoil.sh/v1"
+
     val ANDROID_ON_DEVICE = EnginePreset(
         id = "android-on-device",
-        displayName = "Android (auf dem Gerät)",
+        displayName = "Android (on device)",
         kind = EngineKind.ANDROID_ON_DEVICE,
         trustLevel = TrustLevel.ON_DEVICE,
-        note = "Nutzt den Erkenner des Systems. Kein Download, kein Schlüssel - " +
-            "Qualität hängt vom Hersteller ab.",
+        note = "Uses the system recognizer. No download, no key - " +
+            "quality depends on the manufacturer.",
     )
 
     val LOCAL_WHISPER = EnginePreset(
         id = "local-whisper",
-        displayName = "Whisper lokal (FUTO)",
+        displayName = "Whisper local (FUTO)",
         kind = EngineKind.WHISPER_CPP,
         trustLevel = TrustLevel.ON_DEVICE,
         modelId = "futo-multilingual-74",
-        note = "Komplett offline über whisper.cpp, ohne Google-Sprachpaket. " +
-            "Braucht einmal 82 MB Modell-Download.",
+        note = "Fully offline through whisper.cpp, no Google language pack. " +
+            "Needs a one-time 82 MB model download.",
     )
 
     val LOCAL_PARAKEET = EnginePreset(
         id = "local-parakeet",
-        displayName = "Parakeet TDT (lokal)",
+        displayName = "Parakeet TDT (local)",
         kind = EngineKind.LOCAL_SHERPA,
         trustLevel = TrustLevel.ON_DEVICE,
         modelId = "parakeet-tdt-0.6b-v3-int8",
-        note = "Genauester Offline-Kandidat, 25 europäische Sprachen, kein CJK. " +
-            "Braucht ein starkes Gerät.",
+        note = "Most accurate offline candidate, 25 European languages, no CJK. " +
+            "Needs a strong device.",
     )
 
     /**
-     * Tinfoil runs whisper-large-v3-turbo inside an attested enclave, served by vLLM, so the
-     * ordinary OpenAI audio endpoint applies. The host follows their subdomain-per-model
-     * scheme; confirm the exact domain in your Tinfoil dashboard before first use.
+     * Tinfoil runs its models inside attested enclaves behind one confidential router,
+     * inference.tinfoil.sh, which speaks the ordinary OpenAI audio endpoint. The router picks
+     * the model enclave by the `model` field: whisper-large-v3-turbo here, or the larger
+     * voxtral-small-24b. (Until 2026 each model had its own subdomain, *.inf.tinfoil.sh; those
+     * hosts no longer resolve.)
      */
     val TINFOIL = EnginePreset(
         id = "tinfoil-whisper",
         displayName = "Tinfoil (Enclave)",
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD, // upgraded to ENCLAVE_VERIFIED once attestation passes
-        baseUrl = "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1",
+        baseUrl = TINFOIL_BASE_URL,
         modelId = "whisper-large-v3-turbo",
         needsApiKey = true,
-        note = "Vertrauliches Rechnen in einer Enclave. Zeigt " +
-            "\"Enclave geprüft\" erst, wenn die Attestierung bestätigt ist.",
+        note = "Confidential computing in an enclave. Shows " +
+            "\"Enclave verified\" only once the attestation is confirmed. The model can also be " +
+            "voxtral-small-24b (more accurate, slower).",
     )
 
     val SELF_HOSTED = EnginePreset(
         id = "self-hosted",
-        displayName = "Eigener Server",
+        displayName = "Own server",
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD,
         baseUrl = "http://192.168.1.10:8000/v1",
         modelId = "Systran/faster-whisper-large-v3",
-        note = "Speaches, faster-whisper-server oder whisper.cpp mit " +
+        note = "Speaches, faster-whisper-server or whisper.cpp with " +
             "--inference-path /v1/audio/transcriptions.",
     )
 
@@ -105,7 +111,7 @@ object EnginePresets {
         baseUrl = "https://api.groq.com/openai/v1",
         modelId = "whisper-large-v3-turbo",
         needsApiKey = true,
-        note = "Sehr günstig und schnell, dafür ohne Datenschutz-Garantie.",
+        note = "Very cheap and fast, but without a privacy guarantee.",
     )
 
     val OPENAI = EnginePreset(
@@ -126,8 +132,8 @@ object EnginePresets {
         baseUrl = "wss://api.elevenlabs.io/v1/speech-to-text/realtime",
         modelId = "scribe_v2_realtime",
         needsApiKey = true,
-        note = "Text erscheint beim Sprechen. Sehr schnelle Endergebnisse, " +
-            "aber merkbare Zeit bis zum ersten Wort.",
+        note = "Text appears while you speak. Very fast final results, " +
+            "but a noticeable wait for the first word.",
     )
 
     val all: List<EnginePreset> = listOf(

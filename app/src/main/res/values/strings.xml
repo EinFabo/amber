@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Amber</string>
-    <string name="accessibility_label">Amber Diktat</string>
-    <string name="accessibility_summary">Blase zum Diktieren und Einfügen in jede App</string>
-    <string name="accessibility_description">Amber braucht diesen Dienst für zwei Dinge: die Diktat-Blase über anderen Apps anzuzeigen und den erkannten Text in das gerade aktive Textfeld zu schreiben. Es wird nichts mitgelesen, gespeichert oder verschickt, was nicht aus einem Diktat stammt.</string>
+    <string name="accessibility_label">Amber Dictation</string>
+    <string name="accessibility_summary">Bubble for dictating and inserting text in any app</string>
+    <string name="accessibility_description">Amber needs this service for two things: showing the dictation bubble over other apps, and typing the recognized text into the active text field. Nothing is read, stored or sent that did not come from a dictation.</string>
 
-    <string name="notification_channel_name">Amber bereit</string>
-    <string name="notification_channel_description">Hält das Mikrofon für die Diktat-Blase verfügbar</string>
-    <string name="notification_ready_title">Amber ist bereit</string>
-    <string name="notification_ready_text">Tippe die Blase an, um zu diktieren</string>
+    <string name="notification_channel_name">Amber ready</string>
+    <string name="notification_channel_description">Keeps the microphone available for the dictation bubble</string>
+    <string name="notification_ready_title">Amber is ready</string>
+    <string name="notification_ready_text">Tap the bubble to dictate</string>
 
-    <string name="clipboard_fallback">Text in der Zwischenablage – bitte einfügen</string>
+    <string name="clipboard_fallback">Text is on the clipboard - please paste it</string>
 </resources>

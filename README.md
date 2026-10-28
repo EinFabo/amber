@@ -1,166 +1,178 @@
 # Amber
 
-Sprach-Diktat für Android, das in **jede** App schreibt — lokal-first, mit austauschbaren
-Spracherkennungs-Engines und einem sichtbaren Vertrauens-Level pro Diktat.
+Voice dictation for Android that writes into **any** app - local-first, with swappable speech
+recognition engines and a visible trust level on every dictation.
 
-Im Geist von Wispr Flow, aber mit einer anderen Grundhaltung: nicht eine Blackbox in der
-Cloud, sondern du entscheidest pro Diktat, wohin deine Stimme geht — und die App sagt es dir.
+In the spirit of Wispr Flow, but with a different stance: not a black box in the cloud - you
+decide per dictation where your voice goes, and the app tells you.
 
-## Wie es funktioniert
+## How it works
 
-Eine **Blase** erscheint, sobald du in ein Textfeld tippst, und verschwindet danach wieder.
-Antippen, sprechen, fertig: der Text wird an der Cursorstelle direkt ins Feld getippt. Kein
-Tastaturwechsel, keine Zwischenablage.
+A **bubble** appears as soon as you tap into a text field and disappears afterwards. Tap, speak,
+done: the text is typed straight into the field at the cursor. No keyboard switch, no
+clipboard.
 
-Die Blase ist ein `TYPE_ACCESSIBILITY_OVERLAY` des Bedienungshilfe-Dienstes — deshalb
-braucht Amber **kein** „Über anderen Apps anzeigen" und **kein** `SYSTEM_ALERT_WINDOW`.
+The bubble is a `TYPE_ACCESSIBILITY_OVERLAY` of the accessibility service - which is why Amber
+needs **no** "display over other apps" and **no** `SYSTEM_ALERT_WINDOW`.
 
-Bedienung:
+Controls:
 
-- **Tippen** startet ein Diktat, nochmal tippen beendet und schickt es ab.
-- **Halten** diktiert, solange der Finger liegt; beim Loslassen wird abgeschickt.
-- **Ziehen** verschiebt die Blase jederzeit, auch mitten im Diktat. Sie bleibt, wo du sie
-  loslässt, und weicht einer offenen Tastatur nach oben aus.
+- **Tap** starts a dictation; tap again to stop and send it.
+- **Hold** dictates while your finger stays down; lifting it sends.
+- **Drag** moves the bubble at any time, even mid-dictation. It stays where you drop it and
+  steps above an open keyboard.
 
-Aussehen: eine flache Amber-Scheibe mit einem dunklen Zeichen — Mikrofon, drei Pegelbalken
-beim Zuhören, ein kleiner Bogen beim Schreiben, ein Haken beim Einfügen.
+Look: a flat amber disc with one dark glyph - a microphone, three level bars while listening,
+a small arc while writing, a tick when the text is in.
 
 ## Engines
 
-| Engine | Vertrauen | Status |
+| Engine | Trust | Status |
 |---|---|---|
-| Android (auf dem Gerät) | `ON_DEVICE` | ✅ Stufe 1 |
-| Jeder OpenAI-kompatible Endpunkt — Tinfoil-Enclave, eigener Server (Speaches, whisper.cpp), Groq, Fireworks, OpenAI | `CLOUD` | ✅ Stufe 2 |
-| Whisper lokal über whisper.cpp mit FUTO-Modell (Multilingual-74, 82 MB) | `ON_DEVICE` | ✅ 0.2 |
-| Lokale Modelle: Parakeet TDT, Moonshine (sherpa-onnx) | `ON_DEVICE` | ⏳ später |
-| ElevenLabs Scribe v2 Realtime (Streaming) | `CLOUD` | ⏳ Stufe 4 |
-| Tinfoil mit geprüfter Enclave-Attestierung | `ENCLAVE_VERIFIED` | ⏳ Stufe 4 |
+| Android (on device) | `ON_DEVICE` | ✅ stage 1 |
+| Any OpenAI-compatible endpoint - own server (Speaches, whisper.cpp), Groq, Fireworks, OpenAI | `CLOUD` | ✅ stage 2 |
+| Tinfoil via `inference.tinfoil.sh`, attestation verified, connection bound to the verified key | `ENCLAVE_VERIFIED` | ✅ 0.7 |
+| Whisper locally through whisper.cpp with the FUTO models (Multilingual-74, 82 MB, and more) | `ON_DEVICE` | ✅ 0.2 |
+| Local models: Parakeet TDT, Moonshine (sherpa-onnx) | `ON_DEVICE` | ⏳ later |
+| ElevenLabs Scribe v2 Realtime (streaming) | `CLOUD` | ⏳ stage 4 |
 
-**Whisper und Sprachen.** Whisper bekommt eine Liste von Sprachen (Standard: Deutsch und
-Englisch) und erkennt pro Diktat, welche davon gesprochen wurde. Eine einzelne fest
-eingestellte Sprache zwingt Whisper dazu, alles andere in diese Sprache zu *übersetzen* —
-englisch Gesprochenes kam dann deutsch heraus. Mehrere Sprachen innerhalb eines einzigen
-Diktats kann Whisper nicht; es wählt die vorherrschende.
+**Whisper and languages.** Whisper gets a list of languages (default: German and English) and
+detects per dictation which of them was spoken. A single fixed language forces Whisper to
+*translate* everything else into it - English speech used to come out German. Several
+languages inside one dictation are beyond Whisper; it picks the dominant one.
 
-Ein Treiber bedient alle OpenAI-kompatiblen Dienste: Base-URL, Modellname und Schlüssel sind
-Einstellungen, kein Code. Einen Anbieter hinzuzufügen heißt, drei Felder auszufüllen.
+One driver serves every OpenAI-compatible service: base URL, model name and key are settings,
+not code. Adding a provider means filling in three fields.
 
-**Amber behauptet nie mehr Vertrauen, als es belegen kann.** Ein Tinfoil-Endpunkt wird als
-`CLOUD` angezeigt, bis die Attestierung tatsächlich geprüft wurde — erst dann erscheint
-`ENCLAVE_VERIFIED`. Ein stiller Fallback auf eine andere Engine findet nie statt: wenn die
-gewählte Engine nicht kann, gibt es eine Fehlermeldung, keine Umleitung deiner Stimme.
+**Amber never claims more trust than it can prove.** An enclave engine only shows
+`ENCLAVE_VERIFIED` once its attestation has actually been verified. There is never a silent
+fallback to another engine: if the chosen engine cannot do it, you get an error message, not a
+detour for your voice.
 
-## Aufbau
+### Tinfoil: what "Enclave verified" means
+
+Tinfoil runs its models in confidential VMs (Intel TDX, AMD SEV-SNP) behind a router that is
+itself an attested enclave. Before sending, Amber verifies the router with Tinfoil's own
+verifier (`tinfoil-go/mobile`, bound with gomobile as `app/libs/tinfoil-mobile.aar`): the
+hardware quote up to the chip vendor's root, the signed release of
+`tinfoilsh/confidential-model-router` in the Sigstore transparency log, matching
+measurements, a fresh attestation. The recording then only travels over a connection bound to
+exactly the TLS key from the attestation (certificate pinning). If verification fails,
+**nothing** is sent - no silent fallback to plain HTTPS. The engine screen shows under
+"Enclave verification" exactly what was proven.
+
+## Layout
 
 ```
-core/   reines Kotlin/JVM — Engine-Schicht, Text-Splicing, Einfüge-Kette, VAD,
-        Mikrofon-Routing, Settings-Schema, Diagnose-Log   → 111 Tests
-app/    Android — Blase, Bedienungshilfe-Adapter, Aufnahme, Compose-UI
+core/   pure Kotlin/JVM - engine layer, text splicing, insertion chain, VAD, microphone
+        routing, keyboard policy, settings schema, diagnostics log   → 173 tests
+app/    Android - bubble, accessibility adapter, capture, whisper.cpp JNI, Compose UI
 ```
 
-Die Trennung ist nicht Kosmetik, sondern die Grundregel des Projekts: **alles, was schiefgehen
-kann, gehört nach `core`.** Dort läuft es ohne Android SDK und ohne Gerät, also ist es
-testbar. In `app` bleibt nur, was zwingend eine Plattform-API braucht — das Finden des
-fokussierten Knotens, `AudioRecord`, das Overlay-Fenster.
+The split is not cosmetic but the project's ground rule: **everything that can go wrong
+belongs in `core`.** There it runs without an Android SDK or a device, so it is testable.
+`app` keeps only what strictly needs a platform API - finding the focused node, `AudioRecord`,
+the overlay window.
 
-Zwei echte Fehler sind dadurch vor dem ersten Build aufgefallen: der Cursor wurde gesetzt,
-bevor geprüft war, ob das Schreiben überhaupt angekommen ist, und ein leeres Textfeld
-(`text == null`) galt als unlesbar — Diktieren in ein leeres Feld hätte nie funktioniert.
+Two real bugs surfaced that way before the first build: the cursor was set before checking
+whether the write had landed at all, and an empty text field (`text == null`) counted as
+unreadable - dictating into an empty field would never have worked.
 
-### Einfügen in fremde Apps
+### Inserting into other apps
 
-`ACTION_SET_TEXT` liefert das beste Ergebnis, wird aber von WebViews, Spielen und einigen
-Cross-Platform-Toolkits ignoriert — teilweise, während es Erfolg meldet. Darum:
+`ACTION_SET_TEXT` gives the best result but is ignored by WebViews, games and some
+cross-platform toolkits - sometimes while reporting success. Hence:
 
-1. **COMMIT_TEXT** — ab Android 13 tippt der Dienst über seine eigene Eingabeverbindung,
-   wie eine Tastatur. An der Cursorstelle, mit Undo, auch in WebViews.
-2. **SET_TEXT** — Feld lesen, an der Cursorposition spleißen, zurückschreiben, **nachlesen**.
-3. **PASTE** — Zwischenablage + `ACTION_PASTE`, ebenfalls mit Kontrolle.
-4. **CLIPBOARD_ONLY** — kopieren und Bescheid geben.
+1. **COMMIT_TEXT** - from Android 13 the service types through its own input connection, like
+   a keyboard. At the cursor, with undo, in WebViews too.
+2. **SET_TEXT** - read the field, splice at the cursor, write back, **read again**.
+3. **PASTE** - clipboard + `ACTION_PASTE`, also verified.
+4. **CLIPBOARD_ONLY** - copy and tell you.
 
-Schritte 3 und 4 laufen nur mit der Einstellung „Zwischenablage als Notlösung“ (Standard:
-aus). Sonst bleibt die Zwischenablage unberührt, und ein Diktat, das kein Feld annimmt, steht
-mit Wortlaut in der Diagnose.
+Steps 3 and 4 only run with the "Clipboard as a fallback" setting (default: off). Otherwise
+the clipboard stays untouched, and a dictation no field accepts is kept word for word in the
+diagnostics.
 
-Was in welcher App funktioniert hat, wird gemerkt. Du siehst einen Stolperer pro App, nie
-einen wiederkehrenden.
+What worked in which app is remembered. You see one stumble per app, never a recurring one.
 
-### Whisper über die Blase so schnell wie in der App
+### Whisper through the bubble as fast as in the app
 
-Android behandelt eine Tastatur-App beim Rechnen wie die App im Vordergrund
-(`BIND_SCHEDULE_LIKE_TOP_APP`), einen Bedienungshilfe-Dienst aber nicht. Über die Blase lief
-Whisper deshalb auf kleinen Kernen mit niedrigem Takt, und die Erkennung dauerte ein
-Vielfaches. Drei Gegenmaßnahmen:
+Android schedules a keyboard app like the foreground app while it computes
+(`BIND_SCHEDULE_LIKE_TOP_APP`), but not an accessibility service. Through the bubble Whisper
+therefore ran on small cores at low clock, and recognition took several times longer. Three
+countermeasures:
 
-1. **Feste Rechen-Threads.** whisper.cpp legt sonst für jeden Rechenschritt neue Threads an,
-   mehrere hundert pro Diktat. Ein neuer Thread hat keine Lastgeschichte und landet auf einem
-   kleinen Kern. `app/src/main/cpp/patch-whisper.cmake` gibt whisper.cpp einen dauerhaften
-   Thread-Pool, der zwischen Diktaten schläft.
-2. **Hohe Thread-Priorität** für den Whisper-Thread; der Pool erbt sie.
-3. **Performance-Hint-Session (ADPF, Android 12+)** über alle Rechen-Threads, solange eine
-   Erkennung läuft: Android hebt den Takt und bevorzugt große Kerne.
+1. **Persistent compute threads.** whisper.cpp otherwise creates new threads for every compute
+   step, several hundred per dictation. A new thread has no load history and lands on a small
+   core. `app/src/main/cpp/patch-whisper.cmake` gives whisper.cpp a persistent thread pool that
+   sleeps between dictations.
+2. **High thread priority** for the Whisper thread; the pool inherits it.
+3. **Performance hint session (ADPF, Android 12+)** across all compute threads while a
+   recognition runs: Android raises clocks and prefers big cores.
 
-Die Diagnose zeigt pro Diktat CPU-Gruppe, Priorität, Pool-Größe und ob der Boost lief.
+The diagnostics show per dictation the CPU group, priority, pool size and whether the boost
+ran.
 
-### Mikrofon im Hintergrund
+### Microphone in the background
 
-Android 14/15 verbieten, aus dem Hintergrund einen Mikrofon-Foreground-Service zu starten —
-die Blase wird aber getippt, während eine andere App vorne ist. Amber geht zwei Wege:
+Android 14/15 forbid starting a microphone foreground service from the background - yet the
+bubble is tapped while another app is in front. Amber takes two routes:
 
-1. `MicForegroundService` (Typ `microphone`) wird **im Vordergrund** gestartet, beim
-   Onboarding, und bleibt am Leben. Ein späterer Tipp ist damit kein Hintergrund-Start.
-2. Weigert ein Hersteller-ROM sich trotzdem, übernimmt `MicProxyActivity` — ein
-   1×1-Pixel-transparentes Fenster, das per Definition im Vordergrund ist.
+1. `MicForegroundService` (type `microphone`) is started **in the foreground**, during
+   onboarding, and stays alive. A later tap is then not a background start.
+2. If a vendor ROM refuses anyway, `MicProxyActivity` steps in - a 1×1-pixel transparent
+   window that is in the foreground by definition.
 
-Weg 2 greift automatisch, wenn Weg 1 scheitert.
+Route 2 kicks in automatically when route 1 fails.
 
-## Bauen
+## Building
 
 ```bash
-./gradlew :core:test          # läuft überall, ohne Android SDK
-python3 -I tools/check_refs.py  # Imports, R.*-IDs, Manifest-Klassen
-./gradlew :app:assembleDebug  # braucht ein Android SDK
+./gradlew :core:test            # runs anywhere, no Android SDK
+python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
+tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
+./gradlew :app:assembleDebug    # needs an Android SDK
 
-tools/setup-android-sdk.sh    # SDK holen und bauen, falls keins da ist
+tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none
 ```
 
-`settings.gradle.kts` bindet `:app` nur ein, wenn ein SDK gefunden wird (`ANDROID_HOME`,
-`ANDROID_SDK_ROOT` oder `sdk.dir` in `local.properties`), oder mit `-Pamethyst.withApp=true`.
-Ohne SDK bleibt `:core` voll baubar statt den ganzen Build zu sprengen.
+`settings.gradle.kts` only includes `:app` when an SDK is found (`ANDROID_HOME`,
+`ANDROID_SDK_ROOT` or `sdk.dir` in `local.properties`), or with `-Pamethyst.withApp=true`.
+Without an SDK `:core` stays fully buildable instead of breaking the whole build.
 
-Jeder Push baut in GitHub Actions eine Debug-APK und legt sie als Artifact `amethyst-debug-apk`
-ab.
+Every push builds a debug APK in GitHub Actions and stores it as the `amber-debug-apk`
+artifact.
 
-## Auf dem Gerät prüfen
+## Checking on a device
 
 ```bash
 adb install -r app-debug.apk
-adb logcat -s Amber:V     # Zustände, gewählte Einfüge-Strategie, Latenzen
+adb logcat -s Amber:V     # states, chosen insertion strategy, latencies, keyboard, Tinfoil
 ```
 
-Die Reihenfolge ist absichtlich so — sie grenzt Fehler ein, statt sie zu vermischen:
+The order is deliberate - it isolates failures instead of mixing them:
 
-1. App öffnen, Mikrofon erlauben.
-2. **Testdiktat** im Testfeld der App. Hier ist Amber im Vordergrund, wo Mikrofonzugriff
-   nie verweigert wird, und das Ziel ist ein gewöhnliches Eingabefeld. Klappt das, stehen
-   Mikrofon, Engine, Normalisierung und Einfügen.
-3. Bedienungshilfe aktivieren → Blase erscheint, lässt sich ziehen und rastet am Rand ein.
-4. Blase in WhatsApp, Chrome und Gmail. Die **Diagnose-Karte** zeigt pro Diktat Engine,
-   Latenz, benutzte Einfüge-Methode und Ziel-App.
-5. Eigene Engine eintragen → **„Verbindung testen"** zeigt Latenz, ohne dass du sprechen musst.
-6. Gerät neu starten, ohne die App zu öffnen, Blase antippen → die Proxy-Activity muss
-   einspringen. Hier treiben Hersteller-ROMs am ehesten quer.
+1. Open the app, allow the microphone.
+2. **Test dictation** in the app's test field. Amber is in the foreground here, where
+   microphone access is never refused, and the target is an ordinary input field. If this
+   works, microphone, engine, normalization and insertion are fine.
+3. Turn on the accessibility service → the bubble appears and can be dragged.
+4. Bubble in WhatsApp, Chrome and Gmail. The **diagnostics** show per dictation the engine,
+   latency, insertion method and target app.
+5. Add your own engine → **"Test connection"** shows the latency without you having to speak.
+6. Reboot without opening the app, tap the bubble → the proxy activity has to step in. This
+   is where vendor ROMs are most likely to get in the way.
 
-Wenn Schritt 2 geht und Schritt 4 nicht, liegt es am Einfügen, nicht an der Erkennung.
-Geht Schritt 2 schon nicht, ist es Mikrofon oder Engine — und die Diagnose-Karte sagt, welches.
+If step 2 works and step 4 does not, the problem is insertion, not recognition. If step 2
+already fails, it is the microphone or the engine - and the diagnostics say which.
 
-## Wenn etwas im Weg ist
+## When something is in the way
 
-Die Blase lässt sich in den Einstellungen abschalten, ohne die Bedienungshilfe anzufassen —
-das Testfeld funktioniert dann weiter. Ein Diktat hat außerdem eine harte Obergrenze, damit
-ein hängender Erkenner oder ein stiller Server die Blase nicht endlos drehen lässt.
+The bubble can be switched off in the settings without touching the accessibility service -
+the test field keeps working. A dictation also has a hard upper limit, so a hanging
+recognizer or a silent server cannot keep the bubble spinning forever.
 
-## Noch nicht drin
+## Not in yet
 
-LLM-Cleanup · Command Mode auf markiertem Text · Wörterbuch und Snippets · verschlüsselter
-Verlauf · App-Profile. Bewusst später: erst muss die Basis auf echter Hardware stehen.
+LLM cleanup · command mode on selected text · dictionary and snippets · encrypted history ·
+app profiles. Open items and their state: [`docs/OPEN.md`](docs/OPEN.md).

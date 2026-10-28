@@ -123,7 +123,7 @@ class HttpIntegrationTest {
             engine().transcribe(speechLikeAudio()).exceptionOrNull(),
         )
         assertEquals(401, failure.statusCode)
-        assertContains(failure.userMessage, "abgelehnt")
+        assertContains(failure.userMessage, "rejected")
         assertContains(failure.technical, "invalid api key")
     }
 
@@ -143,7 +143,7 @@ class HttpIntegrationTest {
         val failure = assertIs<SttFailure>(
             unreachable.transcribe(speechLikeAudio()).exceptionOrNull(),
         )
-        assertContains(failure.userMessage, "Keine Verbindung")
+        assertContains(failure.userMessage, "No connection")
     }
 
     private fun indexOfBytes(haystack: ByteArray, needle: ByteArray): Int {

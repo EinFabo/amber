@@ -12,19 +12,19 @@ import app.amethyst.core.settings.EngineConfig
  */
 object EngineConfigValidator {
 
-    /** Empty means ready to use. Each entry is a user-facing German sentence. */
+    /** Empty means ready to use. Each entry is a user-facing sentence. */
     fun validate(config: EngineConfig, hasApiKey: Boolean): List<String> = buildList {
         when (config.kind) {
             EngineKind.ANDROID_ON_DEVICE -> Unit
 
             EngineKind.LOCAL_SHERPA, EngineKind.WHISPER_CPP -> {
-                if (config.modelId.isNullOrBlank()) add("Es ist kein Modell ausgewählt.")
+                if (config.modelId.isNullOrBlank()) add("No model is selected.")
             }
 
             EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME -> {
                 addAll(validateUrl(config))
-                if (config.modelId.isNullOrBlank()) add("Der Modellname fehlt.")
-                if (config.apiKeyAlias != null && !hasApiKey) add("Der API-Schlüssel fehlt.")
+                if (config.modelId.isNullOrBlank()) add("The model name is missing.")
+                if (config.apiKeyAlias != null && !hasApiKey) add("The API key is missing.")
             }
         }
 
@@ -35,7 +35,7 @@ object EngineConfigValidator {
             listOfNotNull(config.languageTag)
         }
         tags?.filterNot(::isPlausibleLanguageTag)?.forEach { tag ->
-            add("\"$tag\" ist kein gültiges Sprachkürzel (z.B. de-DE oder de).")
+            add("\"$tag\" is not a valid language code (e.g. de-DE or de).")
         }
     }
 
@@ -44,7 +44,7 @@ object EngineConfigValidator {
 
     private fun validateUrl(config: EngineConfig): List<String> {
         val url = config.baseUrl?.trim()
-        if (url.isNullOrBlank()) return listOf("Die Base-URL fehlt.")
+        if (url.isNullOrBlank()) return listOf("The base URL is missing.")
 
         val expectedSchemes = if (config.kind == EngineKind.ELEVENLABS_REALTIME) {
             // Streaming runs over a WebSocket, so ws:// and wss:// are the right schemes
@@ -56,15 +56,15 @@ object EngineConfigValidator {
 
         return buildList {
             if (expectedSchemes.none { url.startsWith(it, ignoreCase = true) }) {
-                add("Die Base-URL muss mit ${expectedSchemes.joinToString(" oder ")} beginnen.")
+                add("The base URL must start with ${expectedSchemes.joinToString(" or ")}.")
                 return@buildList
             }
             val afterScheme = url.substringAfter("//")
             if (afterScheme.isBlank() || afterScheme.startsWith("/")) {
-                add("In der Base-URL fehlt der Host.")
+                add("The base URL has no host.")
             }
             if (url.any { it.isWhitespace() }) {
-                add("Die Base-URL enthält ein Leerzeichen.")
+                add("The base URL contains a space.")
             }
         }
     }

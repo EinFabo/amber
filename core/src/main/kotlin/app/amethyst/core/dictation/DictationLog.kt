@@ -103,13 +103,13 @@ data class DictationRecord(
 ) {
     val failed: Boolean get() = error != null
 
-    /** One line for the diagnostics card. German, user-facing. */
+    /** One line for the diagnostics card. User-facing. */
     fun summary(): String = when {
-        error != null -> "Fehler: $error"
-        !inserted -> "Erkannt, aber nicht eingefügt (${strategy?.name ?: "keine Methode"})" +
+        error != null -> "Error: $error"
+        !inserted -> "Recognized but not inserted (${strategy?.name ?: "no method"})" +
             (note?.let { " – $it" } ?: "")
         else -> buildString {
-            append(engineId ?: "unbekannte Engine")
+            append(engineId ?: "unknown engine")
             latencyMs?.let { append(" · $it ms") }
             strategy?.let { append(" · ${it.name}") }
             targetPackage?.let { append(" · $it") }

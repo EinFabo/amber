@@ -45,7 +45,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         )
         if (minBufferSize <= 0) {
             return@withContext Outcome.Failed(
-                "Das Mikrofon unterstützt 16 kHz nicht.",
+                "The microphone does not support 16 kHz.",
                 "getMinBufferSize returned $minBufferSize",
             )
         }
@@ -59,13 +59,13 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 maxOf(minBufferSize, frameSamples * 2 * 8),
             )
         } catch (e: Exception) {
-            return@withContext Outcome.Failed("Mikrofon konnte nicht geöffnet werden.", e.toString())
+            return@withContext Outcome.Failed("The microphone could not be opened.", e.toString())
         }
 
         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
             recorder.release()
             return@withContext Outcome.Failed(
-                "Mikrofon ist belegt oder nicht freigegeben.",
+                "The microphone is busy or not permitted.",
                 "AudioRecord state ${recorder.state}",
             )
         }
@@ -78,7 +78,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             recorder.startRecording()
             if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                 return@withContext Outcome.Failed(
-                    "Aufnahme wurde vom System verweigert.",
+                    "The system refused the recording.",
                     "recordingState ${recorder.recordingState} - likely a background mic block",
                 )
             }
@@ -88,7 +88,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 if (read <= 0) {
                     if (read == AudioRecord.ERROR_INVALID_OPERATION || read == AudioRecord.ERROR_DEAD_OBJECT) {
                         return@withContext Outcome.Failed(
-                            "Mikrofon wurde unterbrochen.",
+                            "The microphone was interrupted.",
                             "AudioRecord.read returned $read",
                         )
                     }

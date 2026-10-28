@@ -13,9 +13,9 @@ data class WhisperModelSpec(
     val url: String,
     val sizeBytes: Long,
     val sha256: String,
-    /** German, user-facing. */
+    /** User-facing. */
     val note: String,
-    /** One or two words placing it among the others, e.g. "schnell" or "am stärksten". */
+    /** One or two words placing it among the others, e.g. "fast" or "most accurate". */
     val tier: String = "",
     /**
      * Fine-tuned (ACFT) to work with an encoder context cut to the length of the audio. Only
@@ -33,8 +33,8 @@ object WhisperModels {
         url = "https://keyboard.futo.org/voice-input-multilingual-39.bin",
         sizeBytes = 43_537_450L,
         sha256 = "07aa4d514144deacf5ffec5cacb36c93dee272fda9e64ac33a801f8cd5cbd953",
-        note = "Whisper tiny. Am schnellsten und kleinsten, Deutsch aber nur mäßig.",
-        tier = "am schnellsten",
+        note = "Whisper tiny. Fastest and smallest, but only fair at German.",
+        tier = "fastest",
         shortContext = true,
     )
 
@@ -45,8 +45,8 @@ object WhisperModels {
         url = "https://keyboard.futo.org/voice-input-multilingual-74.bin",
         sizeBytes = 81_768_602L,
         sha256 = "e44f352c9aa2c3609dece20c733c4ad4a75c28cd9ab07d005383df55fa96efc4",
-        note = "Whisper base, für kurze Diktate nachtrainiert. Von FUTO für Deutsch empfohlen.",
-        tier = "schnell",
+        note = "Whisper base, fine-tuned for short dictations. FUTO's pick for German.",
+        tier = "fast",
         shortContext = true,
     )
 
@@ -57,8 +57,8 @@ object WhisperModels {
         url = "https://keyboard.futo.org/voice-input-multilingual-244.bin",
         sizeBytes = 264_464_624L,
         sha256 = "15ef255465a6dc582ecf1ec651a4618c7ee2c18c05570bbe46493d248d465ac4",
-        note = "Whisper small, nachtrainiert. Merklich genauer, auf aktuellen Handys noch flott.",
-        tier = "genauer",
+        note = "Whisper small, fine-tuned. Noticeably more accurate, still quick on current phones.",
+        tier = "more accurate",
         shortContext = true,
     )
 
@@ -73,9 +73,9 @@ object WhisperModels {
         url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         sizeBytes = 574_041_195L,
         sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-        note = "Das große OpenAI-Modell in schlank. Deutlich genauer, braucht aber ~1 GB " +
-            "Arbeitsspeicher und mehrere Sekunden pro Diktat.",
-        tier = "am stärksten",
+        note = "The large OpenAI model, slimmed down. Much more accurate, but needs ~1 GB " +
+            "of memory and several seconds per dictation.",
+        tier = "most accurate",
         shortContext = false,
     )
 
@@ -118,7 +118,7 @@ data class WhisperModelInfo(
             768 -> "small"
             1024 -> "medium"
             1280 -> "large"
-            else -> "unbekannt"
+            else -> "unknown"
         }
 
     private companion object {
@@ -135,19 +135,19 @@ object WhisperModelFile {
     private const val GGML_MAGIC = 0x67676d6c
 
     /**
-     * Reads the header of a whisper.cpp model file. A failure names the problem in German,
+     * Reads the header of a whisper.cpp model file. A failure names the problem in plain words,
      * because the most likely cause is the user picking the wrong file - an APK, a zip, a
      * model for a different runtime - and native code would only crash on it.
      */
     fun inspect(header: ByteArray): Result<WhisperModelInfo> {
         if (header.size < HEADER_BYTES) {
-            return failure("Die Datei ist zu klein für ein Whisper-Modell.")
+            return failure("The file is too small to be a Whisper model.")
         }
         val buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
         if (buffer.getInt(0) != GGML_MAGIC) {
             return failure(
-                "Das ist kein whisper.cpp-Modell. Erwartet wird eine .bin-Datei " +
-                    "im ggml-Format, z.B. von FUTO.",
+                "This is not a whisper.cpp model. Expected a .bin file " +
+                    "in ggml format, e.g. from FUTO.",
             )
         }
         // Layout after the magic: n_vocab, n_audio_ctx, n_audio_state, n_audio_head,
@@ -166,7 +166,7 @@ object WhisperModelFile {
             textLayers in 1..64 &&
             (mels == 80 || mels == 128)
         if (!plausible) {
-            return failure("Die Datei hat einen ggml-Kopf, sieht aber nicht nach Whisper aus.")
+            return failure("The file has a ggml header but does not look like Whisper.")
         }
 
         return Result.success(

@@ -27,6 +27,7 @@ class EngineFactory(
     private val secrets: SecretStore,
     private val whisperModels: WhisperModelStore,
     private val whisperRuntime: NativeWhisperRuntime,
+    private val tinfoil: TinfoilVerifier,
 ) {
 
     fun create(config: EngineConfig): Result<SttEngine> = when (config.kind) {
@@ -38,8 +39,8 @@ class EngineFactory(
             val modelId = config.modelId?.trim()
             when {
                 problems.isNotEmpty() -> incomplete(config, problems)
-                baseUrl.isNullOrBlank() -> incomplete(config, listOf("Die Base-URL fehlt."))
-                modelId.isNullOrBlank() -> incomplete(config, listOf("Der Modellname fehlt."))
+                baseUrl.isNullOrBlank() -> incomplete(config, listOf("The base URL is missing."))
+                modelId.isNullOrBlank() -> incomplete(config, listOf("The model name is missing."))
                 else -> Result.success(
                     OpenAiCompatibleEngine(
                         id = config.id,
@@ -54,9 +55,10 @@ class EngineFactory(
                             // self-hosted endpoint is never nagged for a key.
                             needsApiKey = config.apiKeyAlias != null,
                         ),
-                        // Stage 4 passes a real verifier here; until then the engine keeps
-                        // reporting CLOUD even for an enclave endpoint.
-                        attestationVerifier = null,
+                        // A host Amber can verify gets the verifier, and the engine then
+                        // sends only over a connection bound to the attested key. Any other
+                        // host stays plain CLOUD.
+                        attestationVerifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
                     ),
                 )
             }
@@ -79,7 +81,7 @@ class EngineFactory(
             } else {
                 Result.failure(
                     SttFailure(
-                        userMessage = "Das gewählte Whisper-Modell ist noch nicht geladen.",
+                        userMessage = "The selected Whisper model is not downloaded yet.",
                         technical = "WHISPER_CPP model $modelId is not usable",
                         remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
                     ),
@@ -89,15 +91,15 @@ class EngineFactory(
 
         EngineKind.LOCAL_SHERPA -> Result.failure(
             SttFailure(
-                userMessage = "Parakeet und Moonshine kommen in einer späteren Stufe. " +
-                    "Nutze bis dahin \"Whisper lokal\" oder einen eigenen Server.",
+                userMessage = "Parakeet and Moonshine come in a later stage. " +
+                    "Until then use \"Whisper local\" or your own server.",
                 technical = "LOCAL_SHERPA not implemented",
             ),
         )
 
         EngineKind.ELEVENLABS_REALTIME -> Result.failure(
             SttFailure(
-                userMessage = "Streaming über ElevenLabs kommt in Stufe 4.",
+                userMessage = "Streaming through ElevenLabs comes in stage 4.",
                 technical = "ELEVENLABS_REALTIME not implemented in stage 1",
             ),
         )
@@ -106,7 +108,7 @@ class EngineFactory(
     private fun incomplete(config: EngineConfig, problems: List<String>): Result<SttEngine> =
         Result.failure(
             SttFailure(
-                userMessage = "\"${config.displayName}\" ist noch nicht einsatzbereit. " +
+                userMessage = "\"${config.displayName}\" is not ready yet. " +
                     problems.joinToString(" "),
                 technical = "incomplete config for ${config.id}: $problems",
             ),

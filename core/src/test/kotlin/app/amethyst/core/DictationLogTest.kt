@@ -90,7 +90,7 @@ class DictationLogTest {
 
         val record = log.last!!
         assertTrue(!record.failed, "a clipboard fallback is not an engine failure")
-        assertContains(record.summary(), "nicht eingefügt")
+        assertContains(record.summary(), "not inserted")
     }
 
     @Test

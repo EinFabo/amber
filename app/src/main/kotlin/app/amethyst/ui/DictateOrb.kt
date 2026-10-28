@@ -78,7 +78,7 @@ fun DictateOrb(
                 indication = null,
                 onClick = onClick,
             )
-            .semantics { contentDescription = if (listening) "Diktat stoppen" else "Testdiktat starten" },
+            .semantics { contentDescription = if (listening) "Stop dictation" else "Start test dictation" },
     ) {
         val radius = this.size.minDimension / 2
         val girdle = radius * 0.66f

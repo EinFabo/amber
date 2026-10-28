@@ -69,13 +69,13 @@ class WhisperModelStore(
     /** Imported files that matched no catalog entry are treated as stock Whisper. */
     fun shortContextFor(id: String): Boolean = WhisperModels.byId(id)?.shortContext ?: false
 
-    fun download(spec: WhisperModelSpec) = slots.run(spec.id, "Lädt herunter") { report, isCancelled ->
+    fun download(spec: WhisperModelSpec) = slots.run(spec.id, "Downloading") { report, isCancelled ->
         val free = directory.apply { mkdirs() }.usableSpace
         if (free < spec.sizeBytes + SPACE_MARGIN_BYTES) {
             return@run Result.failure(
                 IllegalStateException(
-                    "Zu wenig Speicher: ${spec.sizeBytes / 1_000_000} MB nötig, " +
-                        "${free / 1_000_000} MB frei.",
+                    "Not enough storage: ${spec.sizeBytes / 1_000_000} MB needed, " +
+                        "${free / 1_000_000} MB free.",
                 ),
             )
         }
@@ -84,15 +84,15 @@ class WhisperModelStore(
         try {
             call.execute().use { response ->
                 if (!response.isSuccessful) {
-                    return@run Result.failure(IllegalStateException("Server antwortet mit ${response.code}."))
+                    return@run Result.failure(IllegalStateException("The server answered ${response.code}."))
                 }
                 val body = response.body
-                    ?: return@run Result.failure(IllegalStateException("Leere Antwort vom Server."))
+                    ?: return@run Result.failure(IllegalStateException("Empty answer from the server."))
                 install(body.byteStream(), spec.id, spec, spec.sizeBytes, report, isCancelled)
             }
         } catch (e: IOException) {
             if (isCancelled()) Result.failure(InterruptedException("cancelled"))
-            else Result.failure(IllegalStateException("Keine Verbindung: ${e.message}", e))
+            else Result.failure(IllegalStateException("No connection: ${e.message}", e))
         } finally {
             calls.remove(spec.id)
         }
@@ -111,9 +111,9 @@ class WhisperModelStore(
         val known = WhisperModels.matchingSize(size)
         val id = known?.id ?: WhisperModels.IMPORTED_ID
 
-        slots.run(id, "Kopiert") { report, isCancelled ->
+        slots.run(id, "Copying") { report, isCancelled ->
             val input = context.contentResolver.openInputStream(uri)
-                ?: return@run Result.failure(IllegalStateException("Datei lässt sich nicht öffnen."))
+                ?: return@run Result.failure(IllegalStateException("The file cannot be opened."))
             input.use { install(it, id, known, size, report, isCancelled) }
         }
     }

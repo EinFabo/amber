@@ -57,16 +57,16 @@ fun TrustLevel.badgeColor(): Color = when (this) {
 }
 
 fun TrustLevel.badgeLabel(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "Auf dem Gerät"
-    TrustLevel.ENCLAVE_VERIFIED -> "Enclave geprüft"
+    TrustLevel.ON_DEVICE -> "On device"
+    TrustLevel.ENCLAVE_VERIFIED -> "Enclave verified"
     TrustLevel.CLOUD -> "Cloud"
 }
 
 fun TrustLevel.badgeExplanation(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "Die Aufnahme hat das Gerät nicht verlassen."
+    TrustLevel.ON_DEVICE -> "The recording never left the device."
     TrustLevel.ENCLAVE_VERIFIED ->
-        "Die Aufnahme ging in eine Enclave, deren Attestierung geprüft wurde."
-    TrustLevel.CLOUD -> "Die Aufnahme ging an einen Server. Nur TLS, keine weitere Garantie."
+        "The recording went to an enclave whose attestation was verified."
+    TrustLevel.CLOUD -> "The recording went to a server. TLS only, no further guarantee."
 }
 
 private val AmberColorScheme = darkColorScheme(

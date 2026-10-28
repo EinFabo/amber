@@ -11,4 +11,6 @@ data class Transcript(
     /** False for interim results of a streaming engine; only final results get inserted. */
     val isFinal: Boolean = true,
     val detectedLanguage: String? = null,
+    /** The enclave that answered, as named by the service (Tinfoil: the Tinfoil-Enclave header). */
+    val servedBy: String? = null,
 )

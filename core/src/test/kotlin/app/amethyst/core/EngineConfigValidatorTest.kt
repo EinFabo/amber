@@ -73,9 +73,9 @@ class EngineConfigValidatorTest {
             hasApiKey = false,
         )
         assertEquals(3, missing.size, "expected url, model and key: $missing")
-        assertTrue(missing.any { it.contains("Base-URL") })
-        assertTrue(missing.any { it.contains("Modellname") })
-        assertTrue(missing.any { it.contains("API-Schlüssel") })
+        assertTrue(missing.any { it.contains("base URL") })
+        assertTrue(missing.any { it.contains("model name") })
+        assertTrue(missing.any { it.contains("API key") })
     }
 
     @Test
@@ -84,7 +84,7 @@ class EngineConfigValidatorTest {
             openAiCompatible(baseUrl = "https:///v1"),
             hasApiKey = true,
         )
-        assertTrue(missing.any { it.contains("Host") }, "got $missing")
+        assertTrue(missing.any { it.contains("host") }, "got $missing")
     }
 
     @Test
@@ -93,7 +93,7 @@ class EngineConfigValidatorTest {
             openAiCompatible(baseUrl = "https://api.groq.com /v1"),
             hasApiKey = true,
         )
-        assertTrue(missing.any { it.contains("Leerzeichen") }, "got $missing")
+        assertTrue(missing.any { it.contains("space") }, "got $missing")
     }
 
     @Test
@@ -120,7 +120,7 @@ class EngineConfigValidatorTest {
         val withoutModel = config.copy(modelId = null)
         assertContains(
             EngineConfigValidator.validate(withoutModel, hasApiKey = false).single(),
-            "Modell",
+            "model",
         )
     }
 
@@ -145,7 +145,7 @@ class EngineConfigValidatorTest {
 
         val broken = whisper.copy(languageTag = "de,english!")
         assertEquals(
-            listOf("\"english!\" ist kein gültiges Sprachkürzel (z.B. de-DE oder de)."),
+            listOf("\"english!\" is not a valid language code (e.g. de-DE or de)."),
             EngineConfigValidator.validate(broken, hasApiKey = false),
         )
     }

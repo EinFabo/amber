@@ -29,7 +29,7 @@ class SettingsTest {
     fun `presets that need a key get an alias, never the key itself`() {
         val config = EngineConfig.fromPreset(EnginePresets.TINFOIL)
         assertEquals("key.tinfoil-whisper", config.apiKeyAlias)
-        assertEquals("https://whisper-large-v3-turbo.inf.tinfoil.sh/v1", config.baseUrl)
+        assertEquals("https://inference.tinfoil.sh/v1", config.baseUrl)
         assertEquals("whisper-large-v3-turbo", config.modelId)
     }
 
@@ -141,5 +141,19 @@ class CaptureTimeoutTest {
         val old = AmethystSettings(engines = listOf(whisper), schemaVersion = 1)
 
         assertEquals("fr", SettingsCodec.decode(SettingsCodec.encode(old)).engines.single().languageTag)
+    }
+
+    @Test
+    fun `a tinfoil engine on the retired per-model host moves to the router`() {
+        val old = AmethystSettings(
+            engines = listOf(
+                EngineConfig.fromPreset(EnginePresets.TINFOIL)
+                    .copy(baseUrl = "https://whisper-large-v3-turbo.inf.tinfoil.sh/v1"),
+            ),
+            schemaVersion = 2,
+        )
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old)).engines.single()
+        assertEquals("https://inference.tinfoil.sh/v1", migrated.baseUrl)
+        assertEquals("whisper-large-v3-turbo", migrated.modelId)
     }
 }

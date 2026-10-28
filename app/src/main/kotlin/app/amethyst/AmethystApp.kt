@@ -14,6 +14,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.NativeWhisperRuntime
+import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
 import app.amethyst.core.net.OkHttpTransport
 import kotlinx.coroutines.CoroutineScope
@@ -84,9 +85,15 @@ class Graph(app: Application) {
 
     val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) }
 
+    /** What the Tinfoil verifier did lately, newest first, for the engine screen's debug section. */
+    val tinfoilLog = MutableStateFlow<List<String>>(emptyList())
+
+    /** One per process, so its cache of proofs spans dictations. */
+    val tinfoilVerifier: TinfoilVerifier by lazy { TinfoilVerifier(tinfoilLog) }
+
     // Lazy too, so that merely building the graph does not force the secret store open.
     val engineFactory: EngineFactory by lazy {
-        EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime)
+        EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime, tinfoilVerifier)
     }
 
     /** What the keyboard tracker decided lately, newest first, for the diagnostics card. */

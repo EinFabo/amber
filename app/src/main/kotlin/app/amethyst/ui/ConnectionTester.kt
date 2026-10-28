@@ -2,6 +2,7 @@ package app.amethyst.ui
 
 import app.amethyst.Graph
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -31,7 +32,7 @@ class ConnectionTester(private val graph: Graph) {
         }
 
         if (engine is SelfCapturingSttEngine) {
-            return Result.Ok("Läuft auf dem Gerät - kein Verbindungstest nötig.")
+            return Result.Ok("Runs on the device - no connection test needed.")
         }
 
         return try {
@@ -40,20 +41,26 @@ class ConnectionTester(private val graph: Graph) {
                 TranscribeOptions(languageTag = config.languageTag),
             )
             val local = engine.capabilities.trustLevel == TrustLevel.ON_DEVICE
+            // For an enclave engine the round trip only counts if it went over the attested key;
+            // say which way it went, so a test can never pass silently as plain CLOUD.
+            val enclave = (engine as? OpenAiCompatibleEngine)?.attestation()?.let { attestation ->
+                if (attestation.verified) " Enclave verified: ${attestation.detail}." else ""
+            }.orEmpty()
             outcome.fold(
                 onSuccess = { transcript ->
-                    Result.Ok("Antwort nach ${transcript.latencyMs} ms: \"${transcript.text.take(40)}\"")
+                    val served = transcript.servedBy?.let { " (via $it)" }.orEmpty()
+                    Result.Ok("Answer after ${transcript.latencyMs} ms$served: \"${transcript.text.take(40)}\".$enclave")
                 },
                 onFailure = { error ->
                     val failure = error as? SttFailure
-                    if (failure != null && failure.userMessage.contains("nichts erkannt")) {
+                    if (failure != null && failure.nothingRecognized) {
                         Result.Ok(
                             if (local) {
-                                "Modell läuft. Der Testclip enthält keine Sprache, deshalb kam " +
-                                    "kein Text, aber gerechnet hat es."
+                                "The model runs. The test clip contains no speech, so no text came " +
+                                    "back, but it did compute."
                             } else {
-                                "Verbindung steht. Der Testclip enthält keine Sprache, " +
-                                    "deshalb kam kein Text zurück."
+                                "The connection works. The test clip contains no speech, " +
+                                    "so no text came back.$enclave"
                             },
                         )
                     } else {

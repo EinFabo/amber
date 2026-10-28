@@ -131,11 +131,11 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
         val tid = inferenceTid
         if (tid != 0) {
             runCatching { File("/proc/self/task/$tid/cpuset").readText().trim() }
-                .getOrNull()?.takeIf { it.isNotEmpty() }?.let { add("CPU-Gruppe $it") }
+                .getOrNull()?.takeIf { it.isNotEmpty() }?.let { add("CPU group $it") }
         }
-        priorityApplied?.let { add("Prio $it") }
-        add("Pool ${WhisperNative.workerTids().size + 1}")
-        add(if (booster.lastRunBoosted) "Boost an" else "Boost aus")
+        priorityApplied?.let { add("prio $it") }
+        add("pool ${WhisperNative.workerTids().size + 1}")
+        add(if (booster.lastRunBoosted) "boost on" else "boost off")
     }.joinToString(", ")
 
     /** Not under [lock]: it has to reach a transcription that is holding it. */

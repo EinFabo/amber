@@ -10,6 +10,15 @@ interface HttpTransport {
     suspend fun execute(request: HttpRequest): HttpResponse
 }
 
+/**
+ * A transport that can hand out a copy bound to one server key. Requests through the copy
+ * fail - before any request byte is written - unless the TLS server presents exactly the key
+ * whose SubjectPublicKeyInfo hashes to [spkiSha256Hex].
+ */
+interface PinnableTransport : HttpTransport {
+    fun pinnedTo(host: String, spkiSha256Hex: String): HttpTransport
+}
+
 data class HttpRequest(
     val method: String,
     val url: String,
@@ -44,4 +53,8 @@ class HttpResponse(
     val isSuccessful: Boolean get() = code in 200..299
 
     fun bodyAsText(): String = body.decodeToString()
+
+    /** Header lookup ignoring case; OkHttp reports names in lowercase. */
+    fun header(name: String): String? =
+        headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
 }

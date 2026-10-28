@@ -80,7 +80,7 @@ class WhisperCppEngine(
         }.mapCatching { raw ->
             val text = WhisperOutput.clean(raw)
             if (text.isBlank()) {
-                throw SttFailure("Es wurde nichts erkannt.", "whisper returned no speech: \"$raw\"")
+                throw SttFailure(SttFailure.NOTHING_RECOGNIZED, "whisper returned no speech: \"$raw\"")
             }
             Transcript(
                 text = text,
@@ -121,8 +121,8 @@ class WhisperCppEngine(
     } catch (e: WhisperRuntimeException) {
         Result.failure(
             SttFailure(
-                userMessage = "Das lokale Modell konnte nicht rechnen. " +
-                    "Lade es in den Einstellungen neu herunter.",
+                userMessage = "The local model failed to run. " +
+                    "Download it again in the settings.",
                 technical = "whisper $step: ${e.message}",
                 cause = e,
             ),
@@ -130,7 +130,7 @@ class WhisperCppEngine(
     } catch (e: OutOfMemoryError) {
         Result.failure(
             SttFailure(
-                userMessage = "Zu wenig Arbeitsspeicher für das lokale Modell.",
+                userMessage = "Not enough memory for the local model.",
                 technical = "whisper $step: out of memory",
             ),
         )

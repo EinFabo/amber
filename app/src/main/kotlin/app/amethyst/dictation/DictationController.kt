@@ -104,7 +104,7 @@ class DictationController(
 
         when (route) {
             MicrophoneRoute.NEEDS_PERMISSION -> {
-                fail("Mikrofon-Berechtigung fehlt. Bitte in Amber erteilen.")
+                fail("Microphone permission is missing. Please grant it in Amber.")
                 return
             }
 
@@ -149,8 +149,8 @@ class DictationController(
             delay(PROXY_HANDOVER_TIMEOUT_MS)
             if (!isRunning && _state.value is DictationState.Starting) {
                 fail(
-                    "Mikrofon konnte nicht geöffnet werden. Öffne Amber einmal, " +
-                        "danach funktioniert die Blase direkt.",
+                    "The microphone could not be opened. Open Amber once, " +
+                        "then the bubble works directly.",
                 )
             }
         }
@@ -175,7 +175,7 @@ class DictationController(
         val settings = graph.settings.value
         val engineConfig = settings.activeEngine
         if (engineConfig == null) {
-            fail("Keine Engine ausgewählt. Bitte in den Einstellungen eine wählen.")
+            fail("No engine selected. Please pick one in the settings.")
             return
         }
 
@@ -204,7 +204,7 @@ class DictationController(
             }
 
             if (finished == null) {
-                fail("Zeitüberschreitung - das Diktat wurde abgebrochen.", engineConfig.id)
+                fail("Timed out - the dictation was cancelled.", engineConfig.id)
             }
         } catch (e: CancellationException) {
             // cancel() already set the state, and a cancelled parent scope is not a dictation
@@ -212,7 +212,7 @@ class DictationController(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
-            fail("Unerwarteter Fehler: ${e.message ?: e::class.simpleName}")
+            fail("Unexpected error: ${e.message ?: e::class.simpleName}")
         } finally {
             selfCapturing = null
             stopRequested.set(false)
@@ -270,7 +270,7 @@ class DictationController(
             is AudioCapture.Outcome.Discarded -> {
                 _state.value = DictationState.Idle
                 if (outcome.reason == DiscardReason.TOO_SHORT) {
-                    fail("Zu kurz - bitte etwas länger sprechen.")
+                    fail("Too short - please speak a little longer.")
                 }
                 return null
             }
@@ -313,13 +313,13 @@ class DictationController(
             settings.capture.toNormalizeOptions(),
         )
         if (cleaned.isBlank()) {
-            fail("Es wurde nichts erkannt.", engineId)
+            fail(SttFailure.NOTHING_RECOGNIZED, engineId)
             return
         }
 
         val inserter = graph.accessibilityService?.textInserter
         if (inserter == null) {
-            fail("Bedienungshilfe ist nicht aktiv - Text konnte nicht eingefügt werden.", engineId)
+            fail("The accessibility service is off - the text could not be inserted.", engineId)
             return
         }
 
@@ -344,13 +344,14 @@ class DictationController(
             // Neither the field nor the clipboard took it. Quote the words in the message so
             // they survive in the diagnostics card instead of being lost.
             fail(
-                "Kein Textfeld hat den Text angenommen: \u201E$cleaned\u201C " +
+                "No text field accepted the text: \u201C$cleaned\u201D " +
                     "[${inserter.lastTrace}]",
                 engineId,
             )
             return
         }
 
+        trace?.servedBy = transcript.servedBy
         val finalTranscript = transcript.copy(text = cleaned)
         graph.dictationLog.recordSuccess(
             transcript = finalTranscript,
@@ -423,7 +424,7 @@ class DictationController(
 
     private fun userMessageOf(error: Throwable): String = when (error) {
         is SttFailure -> error.userMessage
-        else -> error.message ?: "Unbekannter Fehler"
+        else -> error.message ?: "Unknown error"
     }
 
     private fun hasMicrophonePermission(): Boolean =
