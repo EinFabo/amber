@@ -12,6 +12,8 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
+import app.amethyst.core.bubble.BubblePlacement
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
 import kotlin.math.abs
@@ -32,6 +34,8 @@ class BubbleController(
     private val onHoldEnd: () -> Unit,
     /** The bubble was dragged to a new resting place, as fractions of the free screen area. */
     private val onMoved: (horizontalBias: Float, verticalBias: Float) -> Unit,
+    /** The bubble was dropped on the hide target while this app was in front. */
+    private val onHideIn: (packageName: String) -> Unit,
 ) {
 
     /**
@@ -71,7 +75,17 @@ class BubbleController(
 
     /** Top edge of the keyboard on screen, or null while none is shown. */
     private var keyboardTop: Int? = null
+
+    /** A keyboard that floats instead of docking: kept clear of, never pushed above. */
+    private var floatingKeyboard: Box? = null
+
+    /** The field being typed in, so the bubble does not sit on it. */
+    private var field: Box? = null
     private var moveAnimator: ValueAnimator? = null
+
+    /** The drop zone shown while dragging; added only for a drag that may hide the bubble. */
+    private val hideTarget = HideTarget(service)
+    private var hideTargetParams: WindowManager.LayoutParams? = null
 
     /** A finger is on the bubble; it owns the position until it lifts. */
     private var touching = false
@@ -182,6 +196,7 @@ class BubbleController(
     }
 
     fun detach() {
+        removeHideTarget()
         view.removeCallbacks(hideLater)
         view.removeCallbacks(sparkAfterAppear)
         moveAnimator?.cancel()
@@ -225,10 +240,22 @@ class BubbleController(
      * Keeps the bubble above the keyboard. An accessibility overlay is not resized by the IME
      * the way an app window is, so without this the bubble would sit on top of the keys.
      */
-    fun setKeyboardTop(top: Int?) {
-        if (top == keyboardTop) return
+    fun setKeyboard(top: Int?, floating: Box?) {
+        if (top == keyboardTop && floating == floatingKeyboard) return
         keyboardTop = top
-        Log.i(TAG, "keyboard top ${top ?: "none"}")
+        floatingKeyboard = floating
+        Log.i(TAG, "keyboard top ${top ?: "none"}${floating?.let { ", floating $it" } ?: ""}")
+        reposition()
+    }
+
+    /** Where the focused field is on screen, or null without one. */
+    fun setField(bounds: Box?) {
+        if (bounds == field) return
+        field = bounds
+        reposition()
+    }
+
+    private fun reposition() {
         if (touching) return
         val layoutParams = params ?: return
         moveTo(layoutParams, targetY())
@@ -236,8 +263,16 @@ class BubbleController(
 
     private fun targetY(): Int {
         val size = params?.height ?: dp(settings.sizeDp)
-        val top = keyboardTop ?: return baseY
-        return minOf(baseY, top - size - dp(KEYBOARD_GAP_DP)).coerceAtLeast(0)
+        val x = params?.x ?: horizontalPosition(settings.horizontalBias, size)
+        return BubblePlacement.y(
+            restY = baseY,
+            x = x,
+            size = size,
+            screenHeight = screenSize().second,
+            gap = dp(KEYBOARD_GAP_DP),
+            keyboardTop = keyboardTop,
+            avoid = listOfNotNull(floatingKeyboard, field),
+        )
     }
 
     private fun moveTo(layoutParams: WindowManager.LayoutParams, y: Int) {
@@ -359,6 +394,10 @@ class BubbleController(
         private var dragging = false
         private var holding = false
 
+        /** This drag may end on the hide target: idle, and an app other than Amber in front. */
+        private var mayHide = false
+        private var overTarget = false
+
         private val holdStarted = Runnable {
             if (dragging) return@Runnable
             holding = onHoldStart()
@@ -389,12 +428,22 @@ class BubbleController(
                         dragging = true
                         // Before the hold fired this is a plain move; after, the hold goes on.
                         if (!holding) v.removeCallbacks(holdStarted)
+                        mayHide = !holding && !dictating && currentApp.let { it != null && it != service.packageName }
+                        if (mayHide) showHideTarget()
                     }
                     if (dragging) {
                         val (width, height) = screenSize()
                         layoutParams.x = (startX + dx).roundToInt().coerceIn(0, width - layoutParams.width)
                         layoutParams.y = (startY + dy).roundToInt().coerceIn(0, height - layoutParams.height)
                         update()
+                        if (mayHide) {
+                            val over = isOverHideTarget(layoutParams)
+                            if (over != overTarget) {
+                                overTarget = over
+                                hideTarget.active = over
+                                if (over) haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+                            }
+                        }
                     }
                     return true
                 }
@@ -407,8 +456,23 @@ class BubbleController(
                         haptic(HapticFeedbackConstants.CONTEXT_CLICK)
                         onHoldEnd()
                     }
-                    // A keyboard that came or went while the finger was down was not followed.
-                    if (dragging) dropped(layoutParams) else moveTo(layoutParams, targetY())
+                    val hideIn = currentApp.takeIf { mayHide && overTarget && event.actionMasked == MotionEvent.ACTION_UP }
+                    removeHideTarget()
+                    if (hideIn != null) {
+                        // Back to where it was: the place the user chose stays for other apps.
+                        haptic(confirmConstant())
+                        layoutParams.x = startX
+                        layoutParams.y = startY
+                        update()
+                        onHideIn(hideIn)
+                    } else if (dragging) {
+                        dropped(layoutParams)
+                    } else {
+                        // A keyboard that came or went while the finger was down was not followed.
+                        moveTo(layoutParams, targetY())
+                    }
+                    mayHide = false
+                    overTarget = false
                     if (tapped) {
                         haptic(HapticFeedbackConstants.CONTEXT_CLICK)
                         onTap()
@@ -422,6 +486,57 @@ class BubbleController(
             }
             return false
         }
+    }
+
+    private fun hideTargetFrame(): Triple<Int, Int, Int> {
+        val (width, height) = screenSize()
+        val size = dp(HIDE_TARGET_DP)
+        return Triple((width - size) / 2, height - size - dp(HIDE_TARGET_LIFT_DP), size)
+    }
+
+    private fun showHideTarget() {
+        val windows = windowManager ?: return
+        if (hideTargetParams != null) return
+        val (x, y, size) = hideTargetFrame()
+        val target = WindowManager.LayoutParams(
+            size,
+            size,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            screenCoordinates()
+            this.x = x
+            this.y = y
+        }
+        hideTarget.active = false
+        hideTarget.alpha = 0f
+        runCatching { windows.addView(hideTarget, target) }
+            .onSuccess {
+                hideTargetParams = target
+                hideTarget.animate().alpha(1f).setDuration(150).start()
+            }
+            .onFailure { Log.w(TAG, "could not show the hide target", it) }
+    }
+
+    private fun removeHideTarget() {
+        if (hideTargetParams == null) return
+        hideTargetParams = null
+        hideTarget.animate().cancel()
+        runCatching { windowManager?.removeView(hideTarget) }
+    }
+
+    /** The bubble's centre within the target's reach - generous, a drop is quick and rough. */
+    private fun isOverHideTarget(layoutParams: WindowManager.LayoutParams): Boolean {
+        val (x, y, size) = hideTargetFrame()
+        val dx = (layoutParams.x + layoutParams.width / 2f) - (x + size / 2f)
+        val dy = (layoutParams.y + layoutParams.height / 2f) - (y + size / 2f)
+        val reach = size * 0.5f + layoutParams.width * 0.5f
+        return dx * dx + dy * dy < reach * reach
     }
 
     /**
@@ -500,6 +615,10 @@ class BubbleController(
         const val HIDE_DELAY_MS = 400L
         const val APPEAR_SPARK_DELAY_MS = 100L
         const val KEYBOARD_GAP_DP = 12
+        const val HIDE_TARGET_DP = 64
+
+        /** Above the gesture bar and clear of the bottom edge, where thumbs end a drag. */
+        const val HIDE_TARGET_LIFT_DP = 72
         /** Close to the keyboard's own slide, so both arrive together. */
         const val MOVE_MS = 250L
         val KEYBOARD_EASING = PathInterpolator(0.2f, 0f, 0f, 1f)

@@ -43,13 +43,20 @@ class KeyboardPolicy(
 
         /** A keyboard window is there but where its keys start could not be found. */
         data object Unmeasurable : Reading
+
+        /**
+         * A keyboard that does not reach the bottom edge: Gboard's floating mode, Samsung's
+         * floating or one-handed keyboard. Nothing is docked, so nothing pushes the bubble up;
+         * it only keeps clear of [box].
+         */
+        data class Floating(val box: Box) : Reading
     }
 
     /**
      * [top] is where the bubble has to stay above, or null for "no keyboard". [recheckInMs]
      * asks for another reading after that delay while something is still settling.
      */
-    data class Decision(val top: Int?, val recheckInMs: Long?, val why: String)
+    data class Decision(val top: Int?, val recheckInMs: Long?, val why: String, val floating: Box? = null)
 
     private var focused = false
     private var focusedAt = 0L
@@ -150,6 +157,14 @@ class KeyboardPolicy(
             }
         }
 
+        is Reading.Floating -> {
+            phoneReportsKeyboard = true
+            seenThisFocus = true
+            resting = false
+            leaving = false
+            decide(null, null, "keyboard floating at ${reading.box.top}..${reading.box.bottom}").copy(floating = reading.box)
+        }
+
         Reading.Unmeasurable -> {
             phoneReportsKeyboard = true
             seenThisFocus = true
@@ -210,5 +225,14 @@ class KeyboardPolicy(
 
         /** Rounding in window bounds; a settled keyboard ends at the screen edge. */
         const val TOLERANCE_PX = 4
+
+        /**
+         * A keyboard ending above this share of the screen floats. A docked one ends at the
+         * bottom edge, or at most a navigation bar (about 5 %) above it.
+         */
+        const val FLOATING_BOTTOM = 0.9f
+
+        /** Whether a keyboard window ending at [bottom] is docked at the screen's lower edge. */
+        fun floats(bottom: Int, screenHeight: Int): Boolean = bottom < screenHeight * FLOATING_BOTTOM
     }
 }

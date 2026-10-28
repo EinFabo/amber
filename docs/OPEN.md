@@ -43,20 +43,21 @@ Measured on the device (Pixel 9a, Android 17, Gboard; USB, screen recording + lo
 - [ ] Confirm both on the device (screen recording); Fabi saw the bubble wobble while typing -
       not reproduced in Settings search (bubble steady over 7 key taps); ask where.
 
-Candidates, best first:
-- [ ] **Smoother motion**: animate `translationY` inside a briefly taller window instead of
-      one `updateViewLayout` per frame (each is a round trip to the window manager).
-- [ ] **Floating keyboards** (Gboard floating, Samsung floating/one-handed): the window frame
-      is nearly screen-high and the policy then predicts a docked keyboard, so the bubble moves
-      up for nothing. From Android 13 `AccessibilityWindowInfo.getRegionInScreen` gives the
-      touchable region - the keys themselves; if it does not reach the bottom edge, the
-      keyboard floats and the bubble only has to avoid that rectangle.
-- [ ] **Never cover the field being typed in**: the focused node's bounds (one `findFocus` per
-      focus) - if the bubble's resting place overlaps them, step above or below. Cursor rects
-      are available too (`EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY`, API 26) for a later
-      "sit at the end of the line" mode; risky (send buttons), so not as a default.
-- [ ] **Drag to hide**: dragging the bubble onto a target at the bottom offers "Hide in
-      <app>" (adds to Hidden in) - Wispr Flow snoozes its bubble the same way.
+Candidates, done in 0.15.0 unless marked open:
+- [x] **Floating keyboards** (Gboard floating, Samsung floating/one-handed): a keyboard window
+      ending above 90 % of the screen floats - nothing is pushed up, the bubble only keeps
+      clear of its rectangle (`Reading.Floating`, `BubblePlacement`).
+- [x] **Never cover the field being typed in**: the focused field's bounds (looked up on focus
+      and 150 ms after each keyboard change); the bubble moves to the nearest free place above
+      or below it. Fields taller than 45 % of the free height (full-screen editors) are left
+      alone. Cursor rects (`EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY`) stay unused: sitting at
+      the end of the line would land on send buttons.
+- [x] **Drag to hide**: while the bubble is dragged (idle, another app in front) a target
+      appears at the bottom; dropped there, the app goes on "Hidden in", the bubble returns
+      to its place for other apps, and a toast says where to undo it.
+- Not done: **smoother motion** with `translationY`. Measured on the Pixel 9a the bubble moves
+  at a steady 16-18 ms per frame with per-frame `updateViewLayout`, no dropped frames.
+- [ ] Confirm on the device: floating Gboard, a chat input under the bubble, drag to hide.
 - [ ] Below Android 13 only focus events say a field is there; apps that never send one
       (some WebViews, custom inputs) get no bubble. TYPE_VIEW_TEXT_SELECTION_CHANGED would
       catch them at the cost of more events - only if a device shows the gap.

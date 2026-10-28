@@ -1,9 +1,12 @@
 package app.amethyst.core
 
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.KeyboardPolicy
 import app.amethyst.core.bubble.KeyboardPolicy.Reading
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -107,6 +110,25 @@ class KeyboardPolicyTest {
         policy.onFocusChanged(true, now = 0, screenHeight = screen)
         // The prediction is up, the first reading is far below it - that is an arrival.
         assertEquals(1440, policy.onReading(Reading.Window(2169, 3127), now = 100, screenHeight = screen).top)
+    }
+
+    @Test
+    fun `a floating keyboard pushes nothing up and is only kept clear of`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        val panel = Box(400, 1300, 1060, 1750)
+        val decision = policy.onReading(Reading.Floating(panel), now = 300, screenHeight = screen)
+        assertNull(decision.top)
+        assertNull(decision.recheckInMs)
+        assertEquals(panel, decision.floating)
+        // Not remembered as the keyboard's height: the next docked keyboard is predicted as usual.
+        assertNull(policy.settled)
+    }
+
+    @Test
+    fun `a keyboard ending well above the bottom edge floats, one above a navigation bar does not`() {
+        assertTrue(KeyboardPolicy.floats(bottom = 1750, screenHeight = screen))
+        assertFalse(KeyboardPolicy.floats(bottom = screen - 126, screenHeight = screen))
+        assertFalse(KeyboardPolicy.floats(bottom = screen, screenHeight = screen))
     }
 
     @Test

@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.KeyboardPolicy
 import app.amethyst.core.bubble.KeyboardPolicy.Reading
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ class KeyboardTracker(
     private val service: AccessibilityService,
     /** The last few decisions, newest first, with their time since the field took focus. */
     private val log: MutableStateFlow<List<String>>,
-    private val onTop: (Int?) -> Unit,
+    /** The docked keyboard's top edge (null: none) and a floating keyboard's bounds. */
+    private val onKeyboard: (top: Int?, floating: Box?) -> Unit,
 ) {
 
     /** Where the keyboard settled, so the first field after a restart needs no estimate. */
@@ -70,7 +72,7 @@ class KeyboardTracker(
     }
 
     private fun apply(decision: KeyboardPolicy.Decision) {
-        onTop(decision.top)
+        onKeyboard(decision.top, decision.floating)
         record(decision)
         policy.settled?.takeIf { it != kept }?.let { settled ->
             kept = settled
@@ -95,6 +97,9 @@ class KeyboardTracker(
         val frame = Rect().also(keyboard::getBoundsInScreen)
         if (frame.isEmpty) return@runCatching Reading.Absent
         if (frame.height() <= screenHeight() * KeyboardPolicy.TALL_FRAME) {
+            if (frame.top >= 0 && KeyboardPolicy.floats(frame.bottom, screenHeight())) {
+                return@runCatching Reading.Floating(Box(frame.left, frame.top, frame.right, frame.bottom))
+            }
             return@runCatching Reading.Window(frame.top, frame.bottom)
         }
         // A frame over most of the screen: find where the keys are actually drawn.

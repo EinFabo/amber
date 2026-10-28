@@ -3,6 +3,10 @@ package app.amethyst.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.content.Intent
+import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -14,6 +18,7 @@ import androidx.annotation.RequiresApi
 import app.amethyst.Graph
 import app.amethyst.AmethystApp
 import app.amethyst.bubble.BubbleController
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.TextFieldKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,9 +95,22 @@ class AmethystAccessibilityService : AccessibilityService() {
                     }
                 }
             },
+            onHideIn = { pkg ->
+                graph.appScope.launch {
+                    graph.settingsStore.update {
+                        it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + pkg).distinct()))
+                    }
+                }
+                val name = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager) }.getOrNull() ?: pkg
+                Toast.makeText(this, "Bubble hidden in $name. Show it again in Amber → Settings → Bubble.", Toast.LENGTH_LONG).show()
+            },
         )
 
-        keyboard = KeyboardTracker(this, graph.keyboardLog) { top -> bubble?.setKeyboardTop(top) }
+        keyboard = KeyboardTracker(this, graph.keyboardLog) { top, floating ->
+            bubble?.setKeyboard(top, floating)
+            // Apps move their fields when the keyboard comes or goes; look once they have.
+            fieldCheck.schedule(FIELD_SETTLE_MS)
+        }
 
         graph.accessibilityService = this
 
@@ -188,6 +206,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         if (dictatable && !editableFieldFocused) graph.textFieldFocused()
         editableFieldFocused = dictatable
         bubble?.setTextFieldFocused(dictatable)
+        fieldCheck.schedule(0)
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
         // on the next window event - this is what lets the bubble move with the keyboard.
         keyboard?.focusChanged(kind != TextFieldKind.NONE)
@@ -210,6 +229,28 @@ class AmethystAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Looks up the focused field's bounds, at most once per burst of focus and keyboard changes. */
+    private inner class FieldCheck : Runnable {
+        private val handler = Handler(Looper.getMainLooper())
+
+        fun schedule(delayMs: Long) {
+            handler.removeCallbacks(this)
+            handler.postDelayed(this, delayMs)
+        }
+
+        fun stop() = handler.removeCallbacks(this)
+
+        override fun run() {
+            if (!bubbleShown) return
+            val bounds = if (!editableFieldFocused) null else runCatching {
+                findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.let { node -> Rect().also(node::getBoundsInScreen) }
+            }.getOrNull()?.takeUnless { it.isEmpty }
+            bubble?.setField(bounds?.let { Box(it.left, it.top, it.right, it.bottom) })
+        }
+    }
+
+    private val fieldCheck = FieldCheck()
+
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -223,6 +264,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     }
 
     private fun teardown() {
+        fieldCheck.stop()
         keyboard?.stop()
         keyboard = null
         bubble?.detach()
@@ -239,5 +281,8 @@ class AmethystAccessibilityService : AccessibilityService() {
     private companion object {
         const val TAG = "Amber"
         const val SYSTEM_UI = "com.android.systemui"
+
+        /** Long enough for an app to relayout after the keyboard settled. */
+        const val FIELD_SETTLE_MS = 150L
     }
 }
