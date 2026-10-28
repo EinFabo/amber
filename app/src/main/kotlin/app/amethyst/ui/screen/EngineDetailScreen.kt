@@ -93,6 +93,7 @@ fun EngineDetailScreen(
     var baseUrl by remember(config.id) { mutableStateOf(config.baseUrl.orEmpty()) }
     var modelId by remember(config.id) { mutableStateOf(config.modelId.orEmpty()) }
     var language by remember(config.id) { mutableStateOf(config.languageTag.orEmpty()) }
+    var cleanupModel by remember(config.id) { mutableStateOf(config.cleanupModel) }
     var apiKey by remember(config.id) { mutableStateOf(storedKey.orEmpty()) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
@@ -105,6 +106,7 @@ fun EngineDetailScreen(
         baseUrl = baseUrl.trim().takeIf { it.isNotBlank() },
         modelId = modelId.trim().takeIf { it.isNotBlank() },
         languageTag = language.trim().takeIf { it.isNotBlank() },
+        cleanupModel = cleanupModel,
     )
 
     fun persist() {
@@ -218,6 +220,37 @@ fun EngineDetailScreen(
                     LanguageField(language) { language = it }
                 }
                 if (TinfoilVerifier.supports(baseUrl)) {
+                    SectionCard(
+                        title = "Speech model",
+                        subtitle = "Which of Tinfoil's models turns your voice into text. Try them out.",
+                    ) {
+                        ModelPicker(
+                            choices = EnginePresets.TINFOIL_SPEECH_MODELS,
+                            selected = modelId.trim(),
+                            noneLabel = null,
+                            onSelect = { id ->
+                                modelId = id ?: modelId
+                                onSave(edited())
+                            },
+                        )
+                        Hint("Live text while you speak (voxtral-mini-4b-realtime) needs a streaming engine; it is next on the list.")
+                    }
+                    SectionCard(
+                        title = "Cleanup",
+                        subtitle = "A chat model tidies each dictation before it is typed: punctuation, " +
+                            "filler words, mis-hearings. Same verified enclave, a moment longer.",
+                    ) {
+                        ModelPicker(
+                            choices = EnginePresets.TINFOIL_CLEANUP_MODELS,
+                            selected = cleanupModel,
+                            noneLabel = "Off",
+                            onSelect = { id ->
+                                cleanupModel = id
+                                onSave(edited())
+                            },
+                        )
+                        Hint("If the cleanup fails or changes too much, the dictation goes in as recognized.")
+                    }
                     EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
                 }
             }
@@ -427,6 +460,53 @@ private fun progressText(busy: SlotState.Busy): String {
     val mb = busy.received / 1_000_000
     val total = busy.total
     return if (total != null && total > 0) "$mb of ${total / 1_000_000} MB" else "$mb MB"
+}
+
+/**
+ * Models as chips with a short note each; [noneLabel] adds a choice for "none" (null). The
+ * selected one is filled amber.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ModelPicker(
+    choices: List<EnginePresets.ModelChoice>,
+    selected: String?,
+    noneLabel: String?,
+    onSelect: (String?) -> Unit,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (noneLabel != null) Chip(noneLabel, null, on = selected == null) { onSelect(null) }
+        choices.forEach { choice ->
+            Chip(choice.label, choice.note, on = choice.id == selected) { onSelect(choice.id) }
+        }
+    }
+}
+
+@Composable
+private fun Chip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .clip(AmberShapes.Inner)
+            .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (on) AmberPalette.Background else AmberPalette.Text,
+        )
+        if (note != null) {
+            Text(
+                note,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (on) AmberPalette.Background.copy(alpha = 0.7f) else AmberPalette.Muted,
+            )
+        }
+    }
 }
 
 /** The languages offered as chips; anything else can still be typed into the old field. */

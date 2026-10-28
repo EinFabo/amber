@@ -16,8 +16,8 @@ android {
         applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 15
-        versionName = "0.9.0"
+        versionCode = 16
+        versionName = "0.9.1"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the

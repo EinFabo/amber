@@ -92,6 +92,25 @@ object EnginePresets {
             "voxtral-small-24b (more accurate, slower).",
     )
 
+    /** A model offered in the settings: the id the service expects, and a few plain words. */
+    data class ModelChoice(val id: String, val label: String, val note: String)
+
+    /** Tinfoil's speech models behind the router (POST /v1/audio/transcriptions). */
+    val TINFOIL_SPEECH_MODELS = listOf(
+        ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "fastest, smallest"),
+        ModelChoice("voxtral-small-24b", "Voxtral Small 24B", "24 B parameters, most accurate"),
+    )
+
+    /** Tinfoil's chat models, for cleaning up transcripts. The first is the suggested one. */
+    val TINFOIL_CLEANUP_MODELS = listOf(
+        ModelChoice("deepseek-v4-1-flash", "DeepSeek V4.1 Flash", "clever and fast"),
+        ModelChoice("gpt-oss-120b", "gpt-oss 120B", "careful"),
+        ModelChoice("llama3-3-70b", "Llama 3.3 70B", "plain and steady"),
+        ModelChoice("gemma4-31b", "Gemma 4 31B", "light"),
+        ModelChoice("glm-5-3", "GLM 5.3", "large"),
+        ModelChoice("kimi-k3", "Kimi K3", "large"),
+    )
+
     val SELF_HOSTED = EnginePreset(
         id = "self-hosted",
         displayName = "Own server",

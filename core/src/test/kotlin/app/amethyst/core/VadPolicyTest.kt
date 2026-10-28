@@ -101,4 +101,47 @@ class VadPolicyTest {
         assertTrue(!vad.speechDetected)
         assertEquals(0.0, vad.noiseFloor)
     }
+
+    @Test
+    fun `speaking from the very first frame does not raise the threshold to the voice`() {
+        // Push to talk: the user already speaks when recording starts. The floor comes from the
+        // quietest calibration frame (a gap between syllables), not from the speech around it.
+        val vad = VadPolicy(config)
+        listOf(3_000.0, 3_200.0, 80.0, 2_900.0, 3_100.0).forEach { vad.onFrame(it) }
+        assertEquals(240.0, vad.speechThreshold)
+        assertTrue(vad.speechDetected, "the words said during calibration count")
+    }
+
+    @Test
+    fun `a short word said entirely during calibration survives a manual stop`() {
+        val vad = VadPolicy(config.copy(minManualSpeechMs = 60))
+        // "Ja": three loud frames inside calibration, then the user lets go.
+        listOf(2_500.0, 2_600.0, 2_400.0, 60.0, 50.0).forEach { vad.onFrame(it) }
+        vad.feed(3, 50.0)
+        val decision = vad.onManualStop()
+        assertIs<VadDecision.Stop>(decision)
+        assertEquals(StopReason.MANUAL, decision.reason)
+    }
+
+    @Test
+    fun `a measured floor never exceeds the ceiling`() {
+        val vad = VadPolicy(config)
+        repeat(5) { vad.onFrame(5_000.0) }
+        assertEquals(config.maxNoiseFloor * config.speechFactor, vad.speechThreshold)
+    }
+
+    @Test
+    fun `a manual stop accepts less speech than a silence stop`() {
+        val manual = VadPolicy(config.copy(minSpeechMs = 300, minManualSpeechMs = 100))
+        manual.feed(5, 50.0)
+        manual.feed(6, 4_000.0) // 120 ms of speech
+        assertIs<VadDecision.Stop>(manual.onManualStop())
+
+        val silence = VadPolicy(config.copy(minSpeechMs = 300, minManualSpeechMs = 100))
+        silence.feed(5, 50.0)
+        silence.feed(6, 4_000.0)
+        val decision = silence.feed(20, 10.0)
+        assertIs<VadDecision.Discard>(decision)
+        assertEquals(DiscardReason.TOO_SHORT, decision.reason)
+    }
 }

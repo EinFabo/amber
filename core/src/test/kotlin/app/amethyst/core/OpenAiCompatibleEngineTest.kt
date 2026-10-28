@@ -107,6 +107,21 @@ class OpenAiCompatibleEngineTest {
     }
 
     @Test
+    fun `a model that refuses the prompt gets the audio again without it`() = runTest {
+        val transport = FakeHttpTransport { request ->
+            val hasPrompt = assertIs<HttpBody.Multipart>(request.body).parts.any { it.name == "prompt" }
+            if (hasPrompt) HttpResponse(400, "prompt not supported".encodeToByteArray())
+            else HttpResponse(200, """{"text":"weiter"}""".encodeToByteArray())
+        }
+        val transcript = engine(transport)
+            .transcribe(audio, TranscribeOptions(precedingText = "Das ist"))
+            .getOrThrow()
+
+        assertEquals("weiter", transcript.text)
+        assertEquals(2, transport.requests.size)
+    }
+
+    @Test
     fun `refuses to send audio when no key is configured`() = runTest {
         val transport = FakeHttpTransport.json("""{"text":"never"}""")
         val result = engine(transport, apiKey = null).transcribe(audio)

@@ -6,7 +6,7 @@ import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.MultipartPart
-import app.amethyst.core.net.PinnableTransport
+import app.amethyst.core.net.SecureChannel
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
@@ -14,8 +14,6 @@ import app.amethyst.core.text.Transcript
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.net.URI
-import javax.net.ssl.SSLPeerUnverifiedException
 
 /**
  * One driver for every service that implements POST /v1/audio/transcriptions.
@@ -45,8 +43,7 @@ class OpenAiCompatibleEngine(
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : SttEngine {
 
-    /** Where a request goes and what it earns: plain, or bound to an attested key. */
-    private class Channel(val transport: HttpTransport, val trust: TrustLevel)
+    private val channel = SecureChannel(baseUrl, displayName, transport, attestationVerifier, capabilities.trustLevel)
 
     override suspend fun transcribe(
         audio: PcmAudio,
@@ -64,61 +61,40 @@ class OpenAiCompatibleEngine(
             )
         }
 
-        val parts = buildList {
-            add(MultipartPart.FilePart("file", "dictation.wav", "audio/wav", audio.toWav()))
-            add(MultipartPart.Field("model", modelId))
-            add(MultipartPart.Field("response_format", "json"))
-            // Whisper-family endpoints want a bare ISO-639-1 code, not a full BCP-47 tag.
-            options.languageTag?.takeIf { it.isNotBlank() }?.let {
-                add(MultipartPart.Field("language", it.substringBefore('-')))
-            }
-            // The preceding chunk's text continues the sentence; names and jargon bias spelling.
-            listOfNotNull(options.vocabularyHint, options.precedingText)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .takeIf { it.isNotEmpty() }
-                ?.let { add(MultipartPart.Field("prompt", it)) }
-        }
+        val prompt = listOfNotNull(options.vocabularyHint, options.precedingText)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .takeIf { it.isNotEmpty() }
 
-        val request = HttpRequest(
+        fun request(withPrompt: Boolean) = HttpRequest(
             method = "POST",
             url = endpointUrl(baseUrl),
             headers = buildMap {
                 if (!apiKey.isNullOrBlank()) put("Authorization", "Bearer $apiKey")
                 put("Accept", "application/json")
             },
-            body = HttpBody.Multipart(parts),
+            body = HttpBody.Multipart(
+                buildList {
+                    add(MultipartPart.FilePart("file", "dictation.wav", "audio/wav", audio.toWav()))
+                    add(MultipartPart.Field("model", modelId))
+                    add(MultipartPart.Field("response_format", "json"))
+                    // Whisper-family endpoints want a bare ISO-639-1 code, not a full BCP-47 tag.
+                    options.languageTag?.takeIf { it.isNotBlank() }?.let {
+                        add(MultipartPart.Field("language", it.substringBefore('-')))
+                    }
+                    // The preceding chunk's text continues the sentence; names and jargon bias
+                    // spelling.
+                    if (withPrompt && prompt != null) add(MultipartPart.Field("prompt", prompt))
+                },
+            ),
         )
 
-        var channel = openChannel(forceFresh = false).getOrElse { return Result.failure(it) }
-        val response = try {
-            try {
-                channel.transport.execute(request)
-            } catch (e: SSLPeerUnverifiedException) {
-                // The server's key is not the attested one. Enclaves rotate their keys, so
-                // verify afresh once; if the new proof does not match either, give up.
-                if (attestationVerifier == null) throw e
-                channel = openChannel(forceFresh = true).getOrElse { return Result.failure(it) }
-                channel.transport.execute(request)
-            }
-        } catch (e: SSLPeerUnverifiedException) {
-            return Result.failure(
-                SttFailure(
-                    userMessage = "The server of \"$displayName\" does not hold the verified " +
-                        "enclave key. The recording was not sent.",
-                    technical = "pin mismatch: ${e.message}",
-                    cause = e,
-                ),
-            )
-        } catch (e: Exception) {
-            return Result.failure(
-                SttFailure(
-                    userMessage = "No connection to \"$displayName\".",
-                    technical = e.toString(),
-                    cause = e,
-                ),
-            )
+        var sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
+        // Not every model takes a prompt (Voxtral may refuse one); the text matters more.
+        if (prompt != null && sent.response.code in PROMPT_REJECTED) {
+            sent = channel.send(request(withPrompt = false)).getOrElse { return Result.failure(it) }
         }
+        val response = sent.response
 
         if (!response.isSuccessful) return Result.failure(failureFor(response))
 
@@ -149,7 +125,7 @@ class OpenAiCompatibleEngine(
             Transcript(
                 text = parsed.text,
                 engineId = id,
-                trustLevel = channel.trust,
+                trustLevel = sent.trust,
                 latencyMs = clock() - startedAt,
                 detectedLanguage = parsed.language,
                 servedBy = response.header(ENCLAVE_HEADER),
@@ -159,55 +135,12 @@ class OpenAiCompatibleEngine(
 
     /** Verifies ahead of the first dictation, so it does not pay for the attestation fetch. */
     override suspend fun warmUp(): Result<Unit> {
-        attestationVerifier?.let { runCatching { it.verify(baseUrl) } }
+        channel.warmUp()
         return Result.success(Unit)
     }
 
     /** The current attestation, or null if this engine has no verifier configured. */
-    suspend fun attestation(): AttestationResult? = attestationVerifier?.let { verify(it, forceFresh = false) }
-
-    private suspend fun openChannel(forceFresh: Boolean): Result<Channel> {
-        val verifier = attestationVerifier
-            ?: return Result.success(Channel(transport, capabilities.trustLevel))
-
-        val result = verify(verifier, forceFresh)
-        val proof = result.proof
-        if (!result.verified || proof == null) {
-            return Result.failure(
-                SttFailure(
-                    userMessage = "The enclave of \"$displayName\" could not be verified. " +
-                        "The recording was not sent.",
-                    technical = "attestation: ${result.detail}",
-                ),
-            )
-        }
-        val host = runCatching { URI(endpointUrl(baseUrl)).host }.getOrNull()
-        if (!proof.host.equals(host, ignoreCase = true)) {
-            return Result.failure(
-                SttFailure(
-                    userMessage = "The verified enclave does not belong to the configured address.",
-                    technical = "attested ${proof.host}, endpoint $host",
-                ),
-            )
-        }
-        val pinnable = transport as? PinnableTransport
-            ?: return Result.failure(
-                SttFailure(
-                    userMessage = "This connection cannot be bound to the enclave.",
-                    technical = "transport ${transport::class.simpleName} cannot pin",
-                ),
-            )
-        return Result.success(Channel(pinnable.pinnedTo(proof.host, proof.tlsKeySha256Hex), TrustLevel.ENCLAVE_VERIFIED))
-    }
-
-    private suspend fun verify(verifier: AttestationVerifier, forceFresh: Boolean): AttestationResult =
-        try {
-            verifier.verify(baseUrl, forceFresh)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            AttestationResult(false, "Verification failed: ${e.message}")
-        }
+    suspend fun attestation(): AttestationResult? = channel.attestation()
 
     private fun failureFor(response: HttpResponse): SttFailure {
         val snippet = response.bodyAsText().take(300)
@@ -238,6 +171,9 @@ class OpenAiCompatibleEngine(
     companion object {
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"
+
+        /** Answers that may mean "this model takes no prompt" - worth one retry without it. */
+        private val PROMPT_REJECTED = setOf(400, 422)
 
         private val json = Json { ignoreUnknownKeys = true }
 

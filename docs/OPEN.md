@@ -1,12 +1,16 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.9.0. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.9.1. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
 - [ ] **Set up wireless debugging**, so the keyboard measurements can be read live with
       `adb logcat -s Amber:V`. Pairing needs: pairing IP:port + 6-digit code, and the
       connection IP:port.
+- [x] **Short dictations lost** (0.9.1): with push to talk the user already speaks while the
+      VAD calibrates, so the noise floor became the voice and a short "yes" never crossed the
+      threshold - discarded without a word. Floor is now the quietest calibration frame (capped),
+      calibration-time speech counts, a manual stop accepts 120 ms, and discards are reported.
 - [x] **Random drops** (0.6.2): Android briefly stopped reporting the keyboard window (device:
       "settled at 1242" after 66 ms, "closed" after 156 ms with the field still focused). Only
       250 ms without a report now count as "closed".
@@ -16,6 +20,18 @@ As of 2026-10-28, after 0.9.0. Urgent things at the top, later stages at the bot
     animation are its real, moving position).
   - Smoother motion: don't move the overlay window per frame with `updateViewLayout`; animate
     the bubble with `translationY` inside a briefly enlarged window instead.
+
+## Tinfoil models (0.9.1)
+
+- [x] **Try every Tinfoil model** (Fabi, 2026-10-28): the Tinfoil engine screen picks the speech
+      model (whisper-large-v3-turbo, voxtral-small-24b) and an optional cleanup model
+      (deepseek-v4-1-flash suggested; gpt-oss-120b, llama3-3-70b, gemma4-31b, glm-5-3, kimi-k3).
+      Cleanup runs over the same verified, pinned channel (SecureChannel), treats the dictation
+      as data, and falls back to the raw text on error, timeout (12 s) or an implausible reply.
+- [ ] **Live streaming with voxtral-mini-4b-realtime**: a streaming engine over
+      `wss://inference.tinfoil.sh/v1/realtime` (PCM16 16 kHz, push-to-talk), pinned like the rest.
+- [ ] **Confirm on the device**: voxtral-small-24b accepts our requests (a prompt is dropped and
+      retried without if refused); cleanup quality and added latency per model.
 
 ## Next: recognize while speaking
 

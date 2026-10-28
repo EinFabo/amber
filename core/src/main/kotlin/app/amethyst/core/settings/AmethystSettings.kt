@@ -21,6 +21,11 @@ data class EngineConfig(
     /** Alias under which the key lives in EncryptedSharedPreferences - never the key itself. */
     val apiKeyAlias: String? = null,
     val enabled: Boolean = true,
+    /**
+     * Chat model that tidies each transcript before it is typed (punctuation, fillers,
+     * mis-hearings), on the same service and connection as the recognition; null for none.
+     */
+    val cleanupModel: String? = null,
 ) {
     companion object {
         fun fromPreset(preset: EnginePreset, languageTag: String? = null) = EngineConfig(

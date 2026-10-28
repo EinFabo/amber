@@ -23,6 +23,7 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
@@ -202,7 +203,7 @@ class DictationController(
                     else -> recordThenTranscribe(engine, options, source)
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
-                deliver(transcript, settings, engineConfig.id)
+                deliver(cleanUp(transcript, engineConfig), settings, engineConfig.id)
             }
 
             if (finished == null) {
@@ -286,10 +287,14 @@ class DictationController(
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
-                _state.value = DictationState.Idle
-                if (outcome.reason == DiscardReason.TOO_SHORT) {
-                    fail("Too short - please speak a little longer.")
-                }
+                // Never silent: a dictation that ends with no tick and no text and no word why
+                // looks exactly like a bug. Both cases get a message and a diagnostics line.
+                fail(
+                    when (outcome.reason) {
+                        DiscardReason.TOO_SHORT -> "Too short - please speak a little longer."
+                        DiscardReason.NO_SPEECH -> "Nothing heard - try again a little closer to the phone."
+                    },
+                )
                 return null
             }
 
@@ -323,6 +328,35 @@ class DictationController(
                 }
             }
         }
+    }
+
+    /**
+     * Runs the engine's chosen cleanup model over the transcript, if any. Never fails the
+     * dictation: on an error, a timeout or an implausible answer the transcript is kept as
+     * recognized, and the diagnostics say why. The bubble stays on "working" meanwhile.
+     */
+    private suspend fun cleanUp(transcript: Transcript, config: EngineConfig): Transcript {
+        val cleanup = graph.engineFactory.cleanupFor(config) ?: return transcript
+        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text) }
+        if (result == null) {
+            trace?.cleanup = "cleanup timed out (${cleanup.model})"
+            return transcript
+        }
+        return result.fold(
+            onSuccess = { cleaned ->
+                trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model})"
+                transcript.copy(
+                    text = cleaned.text,
+                    // The text is only as trustworthy as the weaker of the two trips it made.
+                    trustLevel = listOf(transcript.trustLevel, cleaned.trust).maxBy { it.strictness },
+                )
+            },
+            onFailure = { error ->
+                trace?.cleanup = "cleanup skipped: ${userMessageOf(error)}"
+                Log.w(TAG, "cleanup failed", error)
+                transcript
+            },
+        )
     }
 
     private suspend fun deliver(
@@ -456,6 +490,9 @@ class DictationController(
     private companion object {
         const val TAG = "Amber"
         const val DONE_DISPLAY_MS = 1_200L
+
+        /** Past this the dictation goes in as recognized rather than keep the user waiting. */
+        const val CLEANUP_TIMEOUT_MS = 12_000L
         const val PROXY_HANDOVER_TIMEOUT_MS = 3_000L
         const val FAILED_DISPLAY_MS = 3_500L
         const val PROXY_EXIT_TIMEOUT_MS = 1_500L

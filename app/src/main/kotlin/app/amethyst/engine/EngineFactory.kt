@@ -10,8 +10,10 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
+import app.amethyst.core.net.SecureChannel
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.text.ChatCleanup
 import app.amethyst.data.SecretStore
 
 /**
@@ -106,6 +108,24 @@ class EngineFactory(
                 technical = "ELEVENLABS_REALTIME not implemented in stage 1",
             ),
         )
+    }
+
+    /**
+     * The cleanup for [config], or null when none is chosen. It talks to the same service as
+     * the recognition, over the same kind of channel - verified and pinned for Tinfoil.
+     */
+    fun cleanupFor(config: EngineConfig): ChatCleanup? {
+        val model = config.cleanupModel?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (config.kind != EngineKind.OPENAI_COMPATIBLE) return null
+        val baseUrl = config.baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val channel = SecureChannel(
+            baseUrl = baseUrl,
+            displayName = config.displayName,
+            transport = transport,
+            verifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
+            plainTrust = TrustLevel.CLOUD,
+        )
+        return ChatCleanup(baseUrl, model, channel, apiKeyProvider = { secrets.get(config.apiKeyAlias) })
     }
 
     private fun incomplete(config: EngineConfig, problems: List<String>): Result<SttEngine> =

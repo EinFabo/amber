@@ -31,6 +31,9 @@ internal class RunTrace(val route: String) {
     /** How many parts the recording was recognized in; 0 means in one piece. */
     var chunks = 0
 
+    /** What the cleanup model did, when one is chosen. */
+    var cleanup: String? = null
+
     /** The enclave that answered, when the engine names one (Tinfoil). */
     var servedBy: String? = null
     private var cpuGroup: String? = null
@@ -69,6 +72,7 @@ internal class RunTrace(val route: String) {
         }
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
+        cleanup?.let(::add)
         servedBy?.let { add("enclave $it") }
         // The whisper thread's own group says more than the caller's, when there is one.
         whisperScheduling?.let(::add) ?: cpuGroup?.let { add("CPU group $it") }
