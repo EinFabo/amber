@@ -1,6 +1,6 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.9.1. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.10.0. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
@@ -32,6 +32,27 @@ As of 2026-10-28, after 0.9.1. Urgent things at the top, later stages at the bot
       `wss://inference.tinfoil.sh/v1/realtime` (PCM16 16 kHz, push-to-talk), pinned like the rest.
 - [ ] **Confirm on the device**: voxtral-small-24b accepts our requests (a prompt is dropped and
       retried without if refused); cleanup quality and added latency per model.
+
+## Speed, cost and the progress ring (0.9.2 - 0.10.0)
+
+- [x] **Progress ring and burning flame** (0.9.2): while the text is written the flame flickers
+      and the rim fills against an estimate learned per engine and model on this phone
+      (RecognitionEstimate); success closes the ring and bursts.
+- [x] **Cloud engines are not chunked** (0.9.2): servers are fast enough that cutting saves
+      next to nothing, and Tinfoil bills Whisper per request ($0.01), so every chunk would cost.
+- [x] **Parakeet TDT 0.6B v3 built in** (0.10.0). Measured on Fabi's phone, Whisper
+      large-v3-turbo took 109 s for 30 s of speech - unusable locally. Parakeet reads the whole
+      recording at once (no 30 s window), 25 European languages, German FLEURS WER 5.0
+      (large-v3: 4.3). sherpa-onnx 1.13.8 AAR pinned and checksummed
+      (tools/fetch-sherpa-aar.sh), four model files pinned by revision/size/hash (670 MB),
+      resumable download, own thread at display priority, released after 3 idle minutes.
+- [ ] **Parakeet on the device**: download, a short and a 30 s dictation, compare "recognition"
+      time and accuracy with FUTO-244 and Tinfoil; note memory if the phone struggles (~700 MB).
+- [x] **Tinfoil recommendations** (0.10.0, prices from api.tinfoil.sh/api/config/models):
+      Voxtral Small 24B is the new default speech model (~$0.0001 per dictation vs Whisper's
+      $0.01 per request); cleanup recommends DeepSeek V4.1 Flash with reasoning switched off
+      (~$0.00025), Gemma 4 31B as the cheapest; replies are capped with max_tokens.
+- [ ] Idea: Voxtral's /v1/audio/translations - dictate in German, get English text.
 
 ## Next: recognize while speaking
 
