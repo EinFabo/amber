@@ -22,8 +22,11 @@ Controls:
 - **Drag** moves the bubble at any time, even mid-dictation. It stays where you drop it and
   steps above an open keyboard.
 
-Look: a flat amber disc with one dark glyph - a microphone, three level bars while listening,
-a small arc while writing, a tick when the text is in.
+Look: fire, kept minimal. A flat amber disc with one dark glyph - a flame at rest, three level
+bars while listening, with a few sparks rising off the disc as loud as you speak ("Ember").
+While the text is being written a spark runs around the rim; when it is in, a tick and one
+short burst of sparks ("Fuse"). Failure turns the disc red and puts the sparks out. Nothing
+moves at rest. The sparks fly in a second overlay window that takes no touches.
 
 ## Engines
 

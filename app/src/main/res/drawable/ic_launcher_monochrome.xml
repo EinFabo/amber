@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon version, one colour. Ember: the amber disc with Amber's flame cut into it and two sparks rising, one cooling to
+     ember red. Even-odd fill, so the flame is a real hole and reads on any background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M51,40 a19,19 0 1,0 0,38 a19,19 0 1,0 0,-38 Z M51,51.02 C51.75,54.32 55.18,58.21 55.18,62.8 A4.18,4.18 0 0,1 46.82,62.8 C46.82,58.21 50.25,54.32 51,51.02 Z M51,58.05 C51.38,59.7 53.09,61.65 53.09,63.94 A2.09,2.09 0 0,1 48.91,63.94 C48.91,61.65 50.62,59.7 51,58.05 Z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round"
+        android:pathData="M64,35 L64,41.5" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M72,27 L72,31.5" />
+</vector>

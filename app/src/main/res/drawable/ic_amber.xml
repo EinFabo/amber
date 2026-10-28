@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status bar icon: a plain disc. The system tints it, so only the shape matters. -->
+<!-- Status bar icon: the Ember disc with the flame cut out and two sparks. The system tints it,
+     so only the shape matters. The flame keeps its inner tongue - without it, it reads as a drop. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,5 +8,16 @@
     android:viewportHeight="24">
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M12,4a8,8 0,1 0,0 16a8,8 0,1 0,0 -16z" />
+        android:fillType="evenOdd"
+        android:pathData="M10.5,7.5 a7,7 0 1,0 0,14 a7,7 0 1,0 0,-14 Z M10.5,11.56 C10.78,12.78 12.04,14.21 12.04,15.9 A1.54,1.54 0 0,1 8.96,15.9 C8.96,14.21 10.22,12.78 10.5,11.56 Z M10.5,14.15 C10.64,14.76 11.27,15.47 11.27,16.32 A0.77,0.77 0 0,1 9.73,16.32 C9.73,15.47 10.36,14.76 10.5,14.15 Z" />
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M17.5,6.5 L17.5,8.8" />
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M20.5,2.8 L20.5,4.4" />
 </vector>

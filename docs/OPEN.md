@@ -1,6 +1,6 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.8.0. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.9.0. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
@@ -60,8 +60,11 @@ As of 2026-10-28, after 0.8.0. Urgent things at the top, later stages at the bot
       (`kotlinx-coroutines-core-jvm` 1.8.0) and runs again.
 - [x] **`docs/PLAN.md`** marked as historical.
 - [x] **English everywhere** (0.7.1): app texts, docs, tool output; rule in `CLAUDE.md`.
-- [ ] **Design lab** (2026-10-28): four "fire and sparks" directions - Ember, Flame, Fuse, Heat -
-      with live state previews, icons and feasibility notes. Pick a direction, then implement it.
+- [x] **Fire design** (0.9.0): from the design lab Fabi picked Ember for rest, listening,
+      failure and appear/hide, and Fuse for transcribing and done; the mic glyph became a flame.
+      Bubble, home orb, launcher (incl. Android 13 themed) and notification icons.
+- [ ] **Fire design on the device**: spark height and density, the fuse lap speed, the flame
+      glyph at 44-96 dp; check that taps right above the bubble reach the app (spark window).
 - [ ] Optional: change package/application id from `app.amethyst` to Amber (means a reinstall).
 
 ## Later stages

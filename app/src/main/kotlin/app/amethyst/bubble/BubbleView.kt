@@ -1,8 +1,8 @@
 package app.amethyst.bubble
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PathMeasure
@@ -13,6 +13,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -24,8 +25,12 @@ enum class BubbleVisual { IDLE, LISTENING, TRANSCRIBING, DONE, FAILED }
  *
  * Deliberately a plain View rather than Compose: an accessibility overlay window has no
  * lifecycle, saved-state or view-model owner, and wiring those up for one circle would be
- * more code than drawing it. A flat amber disc with one dark glyph - no glow, no gradients.
- * While listening, a single ring around it follows the voice.
+ * more code than drawing it.
+ *
+ * Fire, kept minimal ([Fire]): a flat amber disc with one dark glyph - a flame at rest, level
+ * bars while listening. Working is a spark running around the rim with a glowing tail (Fuse),
+ * success a tick and one short burst of sparks. The rising sparks while listening are drawn by
+ * [SparkView] in a window of their own, because they leave this one. Nothing moves at rest.
  */
 class BubbleView(context: Context) : View(context) {
 
@@ -52,14 +57,13 @@ class BubbleView(context: Context) : View(context) {
     private var level = 0f
 
     private val disc = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val fuse = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        color = COLOR_INK
+        color = Fire.AMBER
     }
+    private val spark = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Fire.SPARK }
     private val glyph = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_INK
+        color = Fire.INK
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
@@ -67,6 +71,14 @@ class BubbleView(context: Context) : View(context) {
     private val path = Path()
     private val partial = Path()
     private val measure = PathMeasure()
+    private val flameOps = object : Fire.FlameOps {
+        override fun moveTo(x: Float, y: Float) = path.moveTo(x, y)
+        override fun cubicTo(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) =
+            path.cubicTo(x1, y1, x2, y2, x3, y3)
+        override fun arcTo(left: Float, top: Float, right: Float, bottom: Float, startDeg: Float, sweepDeg: Float) =
+            path.arcTo(left, top, right, bottom, startDeg, sweepDeg, false)
+        override fun close() = path.close()
+    }
 
     private var cx = 0f
     private var cy = 0f
@@ -76,77 +88,106 @@ class BubbleView(context: Context) : View(context) {
         super.onSizeChanged(w, h, oldw, oldh)
         cx = w / 2f
         cy = h / 2f
-        // Room around the disc for the voice ring.
-        discRadius = min(w, h) / 2f * 0.78f
-        ring.strokeWidth = discRadius * 0.07f
-        arc.strokeWidth = discRadius * 0.08f
+        // Room around the disc for the fuse and the burst.
+        discRadius = min(w, h) / 2f * Fire.DISC
+        fuse.strokeWidth = min(w, h) * 0.034f
     }
 
     override fun onDraw(canvas: Canvas) {
         val elapsed = (SystemClock.elapsedRealtime() - stateEnteredAt).toFloat()
         val target = if (visual == BubbleVisual.LISTENING) amplitude else 0f
         level += (target - level) * if (target > level) ATTACK else RELEASE
-        val outer = min(width, height) / 2f
-        val tint = if (visual == BubbleVisual.FAILED) COLOR_ERROR else COLOR_AMBER
-
-        if (visual == BubbleVisual.LISTENING) {
-            val radius = discRadius + (outer - discRadius - ring.strokeWidth) * (0.25f + level * 0.75f)
-            ring.color = withAlpha(tint, (90 + level * 165).toInt())
-            canvas.drawCircle(cx, cy, radius, ring)
-        }
-
+        val still = !ValueAnimator.areAnimatorsEnabled()
         val r = discRadius
-        disc.color = tint
+
+        disc.color = if (visual == BubbleVisual.FAILED) Fire.ERROR else Fire.AMBER
         canvas.drawCircle(cx, cy, r, disc)
+
+        when (visual) {
+            BubbleVisual.TRANSCRIBING -> drawFuse(canvas, r, elapsed, still)
+            BubbleVisual.DONE -> if (!still) drawBurst(canvas, r, elapsed)
+            else -> Unit
+        }
 
         // New content fades in over the first fifth of a second of a state.
         glyph.alpha = (255 * (elapsed / ENTER_MS).coerceIn(0f, 1f)).toInt()
-
         when (visual) {
-            BubbleVisual.IDLE -> drawMic(canvas, r)
-            BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed)
-            BubbleVisual.TRANSCRIBING -> drawSpinner(canvas, r, elapsed)
-            BubbleVisual.DONE -> drawCheck(canvas, r, ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
+            BubbleVisual.IDLE -> drawFlame(canvas, r)
+            BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
+            // Working is shown by the fuse alone.
+            BubbleVisual.TRANSCRIBING -> Unit
+            BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
 
         if (needsFrames(elapsed)) postInvalidateOnAnimation()
     }
 
+    /** A spark running clockwise around the rim, its tail fading behind it in four steps. */
+    private fun drawFuse(canvas: Canvas, r: Float, elapsed: Float, still: Boolean) {
+        val fr = r * Fire.FUSE_RADIUS
+        bounds.set(cx - fr, cy - fr, cx + fr, cy + fr)
+        val alpha = (elapsed / ENTER_MS).coerceIn(0f, 1f)
+        if (still) {
+            fuse.alpha = (255 * alpha * 0.45f).toInt()
+            canvas.drawCircle(cx, cy, fr, fuse)
+            return
+        }
+        fuse.strokeCap = Paint.Cap.BUTT
+        val head = -90f + (elapsed / Fire.FUSE_LAP_MS) * 360f
+        val segment = Math.toDegrees(Fire.FUSE_SEGMENT.toDouble()).toFloat()
+        Fire.FUSE_TAIL.forEachIndexed { i, segmentAlpha ->
+            fuse.alpha = (255 * alpha * segmentAlpha).toInt()
+            canvas.drawArc(bounds, head - segment * (i + 1), segment, false, fuse)
+        }
+        val rad = Math.toRadians(head.toDouble())
+        spark.alpha = (255 * alpha).toInt()
+        canvas.drawCircle(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr, fuse.strokeWidth * 1.1f, spark)
+    }
+
+    /** One burst of eight short sparks off the rim when the text is in. */
+    private fun drawBurst(canvas: Canvas, r: Float, elapsed: Float) {
+        if (elapsed >= Fire.BURST_MS) return
+        val u = elapsed / Fire.BURST_MS
+        spark.style = Paint.Style.STROKE
+        spark.strokeCap = Paint.Cap.ROUND
+        spark.strokeWidth = fuse.strokeWidth * 0.9f
+        spark.alpha = (255 * (1 - u)).toInt()
+        val d1 = r * (1.06f + 0.3f * Fire.easeOut(u))
+        val d2 = d1 + r * 0.2f * (1 - u)
+        for (i in 0 until 8) {
+            val a = i * PI / 4 + PI / 8
+            val dx = cos(a).toFloat()
+            val dy = sin(a).toFloat()
+            canvas.drawLine(cx + dx * d1, cy + dy * d1, cx + dx * d2, cy + dy * d2, spark)
+        }
+        spark.style = Paint.Style.FILL
+    }
+
+    /** The resting glyph: a flame, its inner tongue cut back out in amber. */
+    private fun drawFlame(canvas: Canvas, r: Float) {
+        glyph.style = Paint.Style.FILL
+        path.reset()
+        Fire.flame(cx, cy, r, inner = false, ops = flameOps)
+        canvas.drawPath(path, glyph)
+        path.reset()
+        Fire.flame(cx, cy, r, inner = true, ops = flameOps)
+        disc.alpha = glyph.alpha
+        canvas.drawPath(path, disc)
+        disc.alpha = 255
+    }
+
     /** Three level bars, the middle one tallest, each wobbling at its own pace. */
-    private fun drawBars(canvas: Canvas, r: Float, elapsed: Float) {
+    private fun drawBars(canvas: Canvas, r: Float, elapsed: Float, still: Boolean) {
         glyph.style = Paint.Style.STROKE
         glyph.strokeWidth = r * 0.14f
         val spacing = r * 0.28f
         for (i in 0 until 3) {
-            val wobble = 0.6f + 0.4f * sin(elapsed / 1000f * BAR_SPEED[i] * 2 * PI.toFloat() + i)
+            val wobble = if (still) 0.85f else 0.6f + 0.4f * sin(elapsed / 1000f * BAR_SPEED[i] * 2 * PI.toFloat() + i)
             val height = r * (0.16f + BAR_PROFILE[i] * (0.2f + level * 0.6f) * wobble)
             val x = cx + (i - 1) * spacing
             canvas.drawLine(x, cy - height / 2, x, cy + height / 2, glyph)
         }
-    }
-
-    /** A short dark arc turning inside the disc. */
-    private fun drawSpinner(canvas: Canvas, r: Float, elapsed: Float) {
-        arc.alpha = glyph.alpha
-        val ar = r * 0.42f
-        bounds.set(cx - ar, cy - ar, cx + ar, cy + ar)
-        canvas.drawArc(bounds, (elapsed * 0.4f) % 360f, 100f, false, arc)
-    }
-
-    private fun drawMic(canvas: Canvas, r: Float) {
-        glyph.style = Paint.Style.STROKE
-        glyph.strokeWidth = r * 0.09f
-        val w = r * 0.28f
-        val top = cy - r * 0.42f
-        val capsuleHeight = r * 0.48f
-        bounds.set(cx - w / 2, top, cx + w / 2, top + capsuleHeight)
-        canvas.drawRoundRect(bounds, w / 2, w / 2, glyph)
-        val cr = r * 0.26f
-        val cyc = top + capsuleHeight * 0.5f
-        bounds.set(cx - cr, cyc - cr, cx + cr, cyc + cr)
-        canvas.drawArc(bounds, 0f, 180f, false, glyph)
-        canvas.drawLine(cx, cyc + cr, cx, cyc + cr + r * 0.14f, glyph)
     }
 
     /** The tick draws itself from left to right as [progress] goes 0..1. */
@@ -173,8 +214,8 @@ class BubbleView(context: Context) : View(context) {
 
     private fun needsFrames(elapsed: Float): Boolean = when (visual) {
         BubbleVisual.LISTENING, BubbleVisual.TRANSCRIBING -> true
-        // Keep drawing until the fade-in, the tick and the level decay have settled; a resting
-        // bubble then costs nothing.
+        // Keep drawing until the fade-in, the tick, the burst and the level decay have settled;
+        // a resting bubble then costs nothing.
         else -> elapsed < SETTLE_MS || level > 0.01f
     }
 
@@ -218,15 +259,7 @@ class BubbleView(context: Context) : View(context) {
             .start()
     }
 
-    private fun withAlpha(color: Int, alpha: Int): Int =
-        Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))
-
     private companion object {
-        // Same colours as AmberPalette in the app.
-        val COLOR_AMBER = Color.parseColor("#FFB020")
-        val COLOR_ERROR = Color.parseColor("#E5786D")
-        val COLOR_INK = Color.parseColor("#0A0A0A")
-
         const val ATTACK = 0.35f
         const val RELEASE = 0.08f
         const val ENTER_MS = 200f

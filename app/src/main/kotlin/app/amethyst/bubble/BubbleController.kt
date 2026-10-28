@@ -46,6 +46,15 @@ class BubbleController(
     private val view = BubbleView(service)
     private var params: WindowManager.LayoutParams? = null
     private var attached = false
+
+    /**
+     * Ember's sparks rise above the bubble, out of its window. They get a second overlay window
+     * that follows the bubble and takes no touches, so the air above the bubble never swallows
+     * a tap meant for the app underneath.
+     */
+    private val sparkView = SparkView(service)
+    private var sparkParams: WindowManager.LayoutParams? = null
+    private val sparkAfterAppear = Runnable { sparkView.spark() }
     private var settings = BubbleSettings()
     private var hapticsEnabled = true
 
@@ -108,7 +117,49 @@ class BubbleController(
             Log.i(TAG, "bubble attached as accessibility overlay")
         } catch (e: Exception) {
             Log.e(TAG, "could not attach bubble overlay", e)
+            return
         }
+        attachSparks(windows, layoutParams)
+    }
+
+    /** Added after the bubble, so it lies on top - drawn over it, never touched. */
+    private fun attachSparks(windows: WindowManager, bubble: WindowManager.LayoutParams) {
+        val sparks = WindowManager.LayoutParams(
+            bubble.width,
+            bubble.height,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            screenCoordinates()
+        }
+        followBubble(sparks, bubble)
+        try {
+            windows.addView(sparkView, sparks)
+            sparkParams = sparks
+        } catch (e: Exception) {
+            // The bubble works without its sparks.
+            Log.w(TAG, "could not attach the spark overlay", e)
+        }
+    }
+
+    /** Same column as the bubble, reaching [Fire.SPARK_HEADROOM] bubble sizes above it. */
+    private fun followBubble(sparks: WindowManager.LayoutParams, bubble: WindowManager.LayoutParams): Boolean {
+        val headroom = (bubble.width * Fire.SPARK_HEADROOM).roundToInt()
+        val x = bubble.x
+        val y = bubble.y - headroom
+        val width = bubble.width
+        val height = bubble.height + headroom
+        if (sparks.x == x && sparks.y == y && sparks.width == width && sparks.height == height) return false
+        sparks.x = x
+        sparks.y = y
+        sparks.width = width
+        sparks.height = height
+        return true
     }
 
     /**
@@ -128,12 +179,18 @@ class BubbleController(
 
     fun detach() {
         view.removeCallbacks(hideLater)
+        view.removeCallbacks(sparkAfterAppear)
         moveAnimator?.cancel()
         if (!attached) return
         runCatching { windowManager?.removeView(view) }
             .onFailure { Log.w(TAG, "bubble already gone", it) }
+        if (sparkParams != null) {
+            runCatching { windowManager?.removeView(sparkView) }
+                .onFailure { Log.w(TAG, "spark overlay already gone", it) }
+        }
         attached = false
         params = null
+        sparkParams = null
     }
 
     /**
@@ -217,6 +274,9 @@ class BubbleController(
                 layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
                 update()
                 view.appear()
+                // Ember arrives alight: one spark once the bubble is mostly in.
+                view.removeCallbacks(sparkAfterAppear)
+                view.postDelayed(sparkAfterAppear, APPEAR_SPARK_DELAY_MS)
             }
         } else if (shown) {
             // Never pull the bubble out from under a finger.
@@ -225,6 +285,8 @@ class BubbleController(
                 return
             }
             shown = false
+            view.removeCallbacks(sparkAfterAppear)
+            sparkView.extinguish()
             view.vanish {
                 // A focus may have arrived during the animation.
                 if (!shown) {
@@ -247,7 +309,12 @@ class BubbleController(
             is DictationState.Done -> BubbleVisual.DONE
             is DictationState.Failed -> BubbleVisual.FAILED
         }
-        if (state is DictationState.Listening) view.amplitude = state.amplitude
+        if (state is DictationState.Listening) {
+            view.amplitude = state.amplitude
+            sparkView.amplitude = state.amplitude
+        }
+        sparkView.listening = state is DictationState.Listening
+        if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
             is DictationState.Done -> haptic(confirmConstant())
             is DictationState.Failed -> haptic(rejectConstant())
@@ -378,6 +445,11 @@ class BubbleController(
         val layoutParams = params ?: return
         runCatching { windowManager?.updateViewLayout(view, layoutParams) }
             .onFailure { Log.w(TAG, "could not update bubble layout", it) }
+        val sparks = sparkParams ?: return
+        if (followBubble(sparks, layoutParams)) {
+            runCatching { windowManager?.updateViewLayout(sparkView, sparks) }
+                .onFailure { Log.w(TAG, "could not move the spark overlay", it) }
+        }
     }
 
     // CONFIRM and REJECT only exist from API 30; below that fall back to what is available.
@@ -406,6 +478,7 @@ class BubbleController(
     private companion object {
         const val TAG = "Amber"
         const val HIDE_DELAY_MS = 400L
+        const val APPEAR_SPARK_DELAY_MS = 100L
         const val KEYBOARD_GAP_DP = 12
         /** Close to the keyboard's own slide, so both arrive together. */
         const val MOVE_MS = 250L
