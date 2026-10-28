@@ -57,6 +57,17 @@ As of 2026-10-28, after 0.10.0. Urgent things at the top, later stages at the bo
   overhead and repeated prompt cost a little more, the 5 s wait on a 39 s dictation is fine).
   Measured: Tinfoil Voxtral, 39.2 s recording, 5.1 s recognition, ~$0.0002.
 
+## Per-app style, under Advanced settings (Fabi, 2026-10-28)
+
+- [ ] **Different apps, different wording**: the same dictation reads differently depending on
+      where it lands - casual in WhatsApp, more formal in Gmail, plain in notes, etc. The
+      insertion already knows the target app (foreground package), and the cleanup step
+      (ChatCleanup) is where the style would be applied.
+- [ ] **All of it adjustable** in an "Advanced settings" section: per app the style (or a free
+      instruction), and the existing knobs that are not in the UI yet - e.g. silence timeout,
+      chunk length, cleanup on/off and model per app. Defaults stay simple; nothing extra shows
+      unless Advanced is opened.
+
 ## Better local models - for every phone
 
 No vendor-specific paths (an NPU/QNN build would only help Snapdragon phones).
