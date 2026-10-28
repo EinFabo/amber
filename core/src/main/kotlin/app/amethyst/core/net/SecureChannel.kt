@@ -100,9 +100,14 @@ class SecureChannel(
         if (!result.verified || proof == null) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "The enclave of \"$displayName\" could not be verified. " +
-                        "The $what was not sent.",
+                    userMessage = if (result.unreachable) {
+                        "No connection to \"$displayName\"."
+                    } else {
+                        "The enclave of \"$displayName\" could not be verified. The $what was not sent."
+                    },
                     technical = "attestation: ${result.detail}",
+                    // Offline is offline, enclave or not: a model on the phone may take over.
+                    cause = if (result.unreachable) java.io.IOException(result.detail) else null,
                 ),
             )
         }
@@ -131,6 +136,6 @@ class SecureChannel(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            AttestationResult(false, "Verification failed: ${e.message}")
+            AttestationResult(false, "Verification failed: ${e.message}", unreachable = e is java.io.IOException)
         }
 }

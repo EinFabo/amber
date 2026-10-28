@@ -4,6 +4,7 @@ import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.text.NormalizeOptions
 import app.amethyst.core.text.SpliceOptions
 import kotlinx.serialization.Serializable
@@ -97,14 +98,18 @@ data class CaptureSettings(
     fun toNormalizeOptions(): NormalizeOptions = NormalizeOptions(stripFillers = stripFillers)
 
     /**
-     * The watchdog always has to outlast the recording itself, or a long dictation would be
-     * killed just as it was about to be transcribed.
+     * The watchdog always has to outlast the longest recording, the server's own time limit
+     * for it, and then the phone recognizing it instead - or a dictation the local fallback
+     * could still save is killed just before it gets the chance.
      */
-    fun effectiveTotalTimeoutMs(): Long =
-        maxOf(totalTimeoutMs.toLong(), maxDurationMs.toLong() + TRANSCRIPTION_HEADROOM_MS)
+    fun effectiveTotalTimeoutMs(): Long {
+        val longest = maxDurationMs.toLong()
+        return maxOf(totalTimeoutMs.toLong(), longest + OpenAiCompatibleEngine.requestTimeoutMs(longest) + AFTER_SERVER_MS)
+    }
 
     private companion object {
-        const val TRANSCRIPTION_HEADROOM_MS = 60_000L
+        /** A cold local model loading and recognizing the recording, then the cleanup. */
+        const val AFTER_SERVER_MS = 90_000L
     }
 }
 

@@ -58,6 +58,12 @@ class StatsLedger(private val file: File, private val zone: () -> ZoneId = ZoneI
 
     fun dayOf(atMillis: Long): Long = Instant.ofEpochMilli(atMillis).atZone(zone()).toLocalDate().toEpochDay()
 
+    /** How long until [dayOf] changes, so a screen left open can wait for it in one go. */
+    fun millisUntilNextDay(atMillis: Long): Long {
+        val next = java.time.LocalDate.ofEpochDay(dayOf(atMillis) + 1).atStartOfDay(zone()).toInstant().toEpochMilli()
+        return (next - atMillis).coerceAtLeast(1)
+    }
+
     private companion object {
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
     }

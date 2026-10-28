@@ -4,6 +4,7 @@ import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
 import app.amethyst.core.settings.EngineConfig
@@ -104,22 +105,23 @@ class CaptureTimeoutTest {
         // A two minute recording cap with a one minute watchdog would kill the dictation
         // just as it was about to be transcribed.
         val settings = CaptureSettings(maxDurationMs = 120_000, totalTimeoutMs = 60_000)
-        assertEquals(180_000L, settings.effectiveTotalTimeoutMs())
+        assertTrue(settings.effectiveTotalTimeoutMs() > 120_000L)
     }
 
     @Test
     fun `a generous watchdog is kept as configured`() {
-        val settings = CaptureSettings(maxDurationMs = 30_000, totalTimeoutMs = 300_000)
+        val settings = CaptureSettings(maxDurationMs = 10_000, totalTimeoutMs = 300_000)
         assertEquals(300_000L, settings.effectiveTotalTimeoutMs())
     }
 
     @Test
-    fun `defaults leave room for a slow server`() {
-        val settings = CaptureSettings()
-        assertTrue(
-            settings.effectiveTotalTimeoutMs() >= settings.maxDurationMs + 60_000L,
-            "got ${settings.effectiveTotalTimeoutMs()}",
-        )
+    fun `a server that times out still leaves the phone time to take over`() {
+        // Recording, the server's whole time limit, then a cold local model: a minute of it.
+        for (max in listOf(30_000, 60_000, 120_000)) {
+            val settings = CaptureSettings(maxDurationMs = max)
+            val serverGivesUp = max + OpenAiCompatibleEngine.requestTimeoutMs(max.toLong())
+            assertTrue(settings.effectiveTotalTimeoutMs() >= serverGivesUp + 60_000L, "max $max: ${settings.effectiveTotalTimeoutMs()}")
+        }
     }
 
     @Test
@@ -241,6 +243,35 @@ class CaptureTimeoutTest {
             assertFalse(ServerProviders.isPrivateHost(host), host)
         }
         for (host in listOf("nas", "raspberrypi", "box.ts.net", "fd12:3456::1", "fe80::1", "::1", "100.101.1.2", "server.home")) {
+            assertTrue(ServerProviders.isPrivateHost(host), host)
+        }
+    }
+
+    @Test
+    fun `the own server keeps its address field even when it names a known host`() {
+        val groq = EngineConfig.fromPreset(EnginePresets.GROQ)
+        assertTrue(ServerProviders.addressFixed(groq))
+        val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = groq.baseUrl)
+        assertFalse(ServerProviders.addressFixed(own))
+        // Its models and prices still are the host's, as in the factory and the statistics.
+        assertEquals(ServerProviders.GROQ, ServerProviders.forUrl(own.baseUrl))
+    }
+
+    @Test
+    fun `an enclave host is verified on any scheme but only meets the requirement over https`() {
+        assertEquals("tinfoilsh/confidential-model-router", EnginePresets.enclaveRepoFor("http://Inference.Tinfoil.sh/v1"))
+        assertFalse(EnginePresets.isEnclaveHost("http://inference.tinfoil.sh/v1"))
+        assertTrue(EnginePresets.isEnclaveHost(" https://inference.tinfoil.sh/v1"))
+        assertNull(EnginePresets.enclaveRepoFor("https://api.groq.com/openai/v1"))
+    }
+
+    @Test
+    fun `ipv6 addresses are judged by their groups, not their spelling`() {
+        // fd::1 is 00fd::1 and fe8::1 is 0fe8::1: both on the internet.
+        for (host in listOf("fd::1", "fe8::1", "2001:db8::1", "::ffff:8.8.8.8", "1:2:3:4:5:6:7:8:9", "fd00:::1", "fd00::g")) {
+            assertFalse(ServerProviders.isPrivateHost(host), host)
+        }
+        for (host in listOf("[fd00::5]", "FE80::1%wlan0", "0:0:0:0:0:0:0:1", "::ffff:192.168.1.10", "fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")) {
             assertTrue(ServerProviders.isPrivateHost(host), host)
         }
     }

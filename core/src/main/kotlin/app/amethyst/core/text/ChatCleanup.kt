@@ -88,8 +88,10 @@ class ChatCleanup(
             ?: return Result.failure(SttFailure("Cleanup answer could not be read.", "unparseable reply, ${response.body.size} bytes"))
         // A reply cut off at max_tokens has lost the end of the dictation; an empty one (all
         // tokens spent on reasoning) would otherwise be typed as nothing - or as "null".
-        // Only "length" means cut off: servers name a normal end "stop", "eos_token", "eos"...
-        if (reply.finishReason == "length") {
+        // Servers name a normal end in several ways; anything else (length, content_filter,
+        // abort, error...) may have lost text, and losing the dictation is worse than not
+        // cleaning it.
+        if (reply.finishReason !in NORMAL_ENDS) {
             return Result.failure(SttFailure("Cleanup was cut off; kept the original.", "finish_reason=${reply.finishReason}"))
         }
         val cleaned = unwrap(reply.content ?: "")
@@ -154,6 +156,9 @@ class ChatCleanup(
 
         /** A cleanup is worth a short wait, never a long one; the original text is ready. */
         const val TIMEOUT_MS = 12_000L
+
+        /** OpenAI, llama.cpp/vLLM/TGI and Anthropic-style proxies; null when a server omits it. */
+        private val NORMAL_ENDS = setOf(null, "stop", "eos", "eos_token", "end_turn", "stop_sequence")
 
         private class Reply(val content: String?, val finishReason: String?)
 

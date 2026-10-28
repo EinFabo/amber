@@ -22,6 +22,11 @@ data class AttestationResult(
     val detail: String,
     /** What was proven; present exactly when [verified]. */
     val proof: EnclaveProof? = null,
+    /**
+     * The attestation could not be fetched at all (no connection, server down) - unlike a
+     * proof that was fetched and failed, this is no reason to distrust the enclave.
+     */
+    val unreachable: Boolean = false,
 )
 
 /**

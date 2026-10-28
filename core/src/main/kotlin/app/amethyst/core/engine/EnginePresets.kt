@@ -47,16 +47,28 @@ object EnginePresets {
 
     /**
      * Hosts whose enclave Amber can verify, and the repository whose signed release the
-     * enclave must run. The one list both the verifier and the settings go by.
+     * enclave must run. The one list both the verifier and the settings go by. The router is
+     * the trust anchor: it verifies each model enclave itself before forwarding (the trusted
+     * model repos are compiled into its measured code).
      */
     val ENCLAVE_REPOS = mapOf("inference.tinfoil.sh" to "tinfoilsh/confidential-model-router")
 
     val ENCLAVE_HOSTS: Set<String> get() = ENCLAVE_REPOS.keys
 
-    fun isEnclaveHost(baseUrl: String?): Boolean {
-        val uri = runCatching { java.net.URI(baseUrl.orEmpty().trim()) }.getOrNull() ?: return false
-        return uri.scheme == "https" && uri.host?.lowercase() in ENCLAVE_HOSTS
-    }
+    /** The lowercase host of an address as typed, or null when it has none. */
+    fun hostOf(baseUrl: String?): String? =
+        runCatching { java.net.URI(baseUrl.orEmpty().trim()).host?.lowercase() }.getOrNull()
+
+    /**
+     * The repository an address's enclave must have been built from, or null when Amber cannot
+     * verify it. Whatever the scheme: a verifiable host gets verified, and the secure channel
+     * itself refuses anything but https to it.
+     */
+    fun enclaveRepoFor(baseUrl: String?): String? = hostOf(baseUrl)?.let { ENCLAVE_REPOS[it] }
+
+    /** An address that meets "enclave required": https to a host Amber can verify. */
+    fun isEnclaveHost(baseUrl: String?): Boolean =
+        enclaveRepoFor(baseUrl) != null && baseUrl.orEmpty().trim().startsWith("https://", ignoreCase = true)
 
     val ANDROID_ON_DEVICE = EnginePreset(
         id = "android-on-device",

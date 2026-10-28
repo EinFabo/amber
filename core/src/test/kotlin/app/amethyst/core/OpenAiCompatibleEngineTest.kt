@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
+import app.amethyst.core.engine.LocalFallback
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -14,8 +15,11 @@ import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.privacy.TrustLevel
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -214,6 +218,33 @@ class OpenAiCompatibleEngineTest {
             assertContains(assertIs<SttFailure>(result.exceptionOrNull()).userMessage, "not sent")
             assertTrue(transport.requests.isEmpty() && transport.pinnedRequests.isEmpty())
         }
+    }
+
+    @Test
+    fun `an enclave that cannot be reached at all counts as offline, so the phone may take over`() = runTest {
+        val offline = object : AttestationVerifier {
+            override suspend fun verify(baseUrl: String, forceFresh: Boolean) =
+                AttestationResult(false, "Attestation unavailable: Unable to resolve host", unreachable = true)
+        }
+        val throwing = object : AttestationVerifier {
+            override suspend fun verify(baseUrl: String, forceFresh: Boolean): AttestationResult =
+                throw java.net.UnknownHostException("inference.tinfoil.sh")
+        }
+        for (verifier in listOf(offline, throwing)) {
+            val transport = FakePinnableTransport(serverKey = keyA) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
+            val failure = assertIs<SttFailure>(
+                engine(transport.asFake(), verifier = verifier, pinnable = transport).transcribe(audio).exceptionOrNull(),
+            )
+            assertTrue(failure.serviceUnavailable)
+            assertNotNull(LocalFallback.recoverable(failure, TrustLevel.ENCLAVE_VERIFIED, enabled = true))
+            assertTrue(transport.requests.isEmpty() && transport.pinnedRequests.isEmpty())
+        }
+
+        // A proof that was fetched and failed is no connection problem: nothing takes over.
+        val rejected = assertIs<SttFailure>(
+            engine(FakeHttpTransport { error("unpinned") }, verifier = ScriptedVerifier(listOf(null))).transcribe(audio).exceptionOrNull(),
+        )
+        assertNull(LocalFallback.recoverable(rejected, TrustLevel.ENCLAVE_VERIFIED, enabled = true))
     }
 
     @Test

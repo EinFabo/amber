@@ -125,6 +125,28 @@ marked open:
       halve them). Supply-chain pin gaps (tinfoil-go tarball hash, AAR hashes at build time,
       Gradle wrapper checksum, CI actions by SHA).
 
+## Second code review (2026-10-28, of 6c3dac3) - fixed in 0.13.2
+
+- [x] Tinfoil offline: an attestation that cannot be fetched (no connection, 5xx) now counts
+      as "no connection", so the local fallback takes the recording; a proof that was fetched
+      and failed still stops everything.
+- [x] Deleting Parakeet during a load or a chunked dictation could abort the process in
+      native code: the runtime checks the files before loading, and the delete waits for the
+      model's lock (off the main thread, before any download started afterwards).
+- [x] Whisper delete: renamed at once, freed off the main thread, and only the deleted model
+      is unloaded - not one a dictation is using.
+- [x] Cleanup: only known normal ends (stop, eos, eos_token, end_turn, stop_sequence) are
+      accepted; content_filter, abort and the like keep the original.
+- [x] The watchdog outlasts the server's own time limit plus a local fallback, so a long
+      dictation is not cancelled just before the phone could take it.
+- [x] A dictation that was not inserted is no longer shown in a toast over another app; the
+      words stay in Amber's diagnostics.
+- [x] "Today" changes at midnight and with every new dictation, instead of a minute poll.
+- [x] IPv6: private ranges judged by the parsed first group; IPv4-mapped and written-out
+      loopback addresses count as local.
+- [x] One rule for the provider (by host) and for the address field (the own server always
+      keeps it), in :core and tested; one host parser and one enclave list.
+
 ## Layout and statistics lab (2026-10-28)
 
 - [x] From the layout lab Fabi chose **Hearth**. Built in 0.12.0:

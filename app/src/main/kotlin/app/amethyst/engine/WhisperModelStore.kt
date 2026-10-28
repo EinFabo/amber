@@ -52,6 +52,8 @@ class WhisperModelStore(
 
     init {
         migrateSingleSlot()
+        // Left over when the app died between renaming a deleted model and freeing it.
+        directory.listFiles { file -> file.name.endsWith(DELETING) }?.forEach { it.delete() }
         slots = ModelSlots(
             scope = scope,
             dispatcher = Dispatchers.IO,
@@ -127,13 +129,16 @@ class WhisperModelStore(
     }
 
     fun delete(id: String) {
+        val file = fileFor(id)
+        // Renamed at once (a running transcription has the model in memory already, and a
+        // download started right after is never wiped by a late delete); the bytes are freed
+        // off the main thread, and the memory only if this model is the one loaded.
+        val doomed = File(directory, "$id$DELETING")
+        file.renameTo(doomed)
         cancel(id)
-        // The file goes at once - a running transcription has the model in memory already,
-        // and a download started right after is never wiped by a late delete. Freeing the
-        // memory waits on the model's own thread for that transcription to end.
-        fileFor(id).delete()
         slots.set(id, SlotState.Missing)
-        scope.launch(runtime.dispatcher) { runtime.release() }
+        scope.launch(Dispatchers.IO) { doomed.delete() }
+        scope.launch(runtime.dispatcher) { if (runtime.isLoaded(file.path)) runtime.release() }
     }
 
     private fun install(
@@ -177,5 +182,6 @@ class WhisperModelStore(
     private companion object {
         const val TAG = "Amber"
         const val SPACE_MARGIN_BYTES = 64L * 1024 * 1024
+        const val DELETING = ".deleting"
     }
 }

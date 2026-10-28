@@ -11,8 +11,9 @@ import app.amethyst.core.settings.EngineConfig
  */
 object LocalFallback {
 
-    fun applies(error: Throwable?, engineTrust: TrustLevel, enabled: Boolean): Boolean =
-        enabled && engineTrust != TrustLevel.ON_DEVICE && error is SttFailure && error.serviceUnavailable
+    /** The failure a local model may recover from, or null when it should stand. */
+    fun recoverable(error: Throwable?, engineTrust: TrustLevel, enabled: Boolean): SttFailure? =
+        (error as? SttFailure)?.takeIf { enabled && engineTrust != TrustLevel.ON_DEVICE && it.serviceUnavailable }
 
     /** The engines to try, best first: Parakeet (fast, accurate), then Whisper. */
     fun candidates(engines: List<EngineConfig>): List<EngineConfig> = engines

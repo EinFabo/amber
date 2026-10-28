@@ -22,7 +22,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import sh.tinfoil.mobile.Mobile
 import java.io.IOException
-import java.net.URI
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -35,7 +34,7 @@ import java.util.concurrent.TimeUnit
  * it gets back into an [EnclaveProof].
  *
  * The Go side checks the hardware quote (Intel TDX or AMD SEV-SNP) up to the vendor's root,
- * the Sigstore-signed release of [TRUSTED_REPOS] in the transparency log, that the two
+ * the Sigstore-signed release of [EnginePresets.ENCLAVE_REPOS] in the transparency log, that the two
  * measurements match, and that the document is fresh. What comes out - above all the TLS key
  * fingerprint - is what the engine pins its connection to.
  *
@@ -70,8 +69,8 @@ class TinfoilVerifier(
     private val verifier by lazy { Mobile.newVerifier("") }
 
     override suspend fun verify(baseUrl: String, forceFresh: Boolean): AttestationResult = mutex.withLock {
-        val host = hostOf(baseUrl) ?: return@withLock failed("Not a valid address: $baseUrl")
-        val repo = TRUSTED_REPOS[host]
+        val host = EnginePresets.hostOf(baseUrl) ?: return@withLock failed("Not a valid address: $baseUrl")
+        val repo = EnginePresets.ENCLAVE_REPOS[host]
             ?: return@withLock failed("For $host it is not known which repository the enclave must come from.")
 
         proofs[host]?.takeIf { !forceFresh && it.isFresh(clock()) }?.let { cached ->
@@ -100,12 +99,22 @@ class TinfoilVerifier(
             failed("The verifier library is missing from this build (${e::class.simpleName}).")
         } catch (e: Exception) {
             proofs.remove(host)
-            failed(describe(e))
+            failed(describe(e), unreachable = e is Unreachable)
         }
     }
 
+    /** The attestation could not be fetched - as opposed to fetched and found wanting. */
+    private class Unreachable(message: String, cause: Throwable? = null) : IOException(message, cause)
+
     private fun fetch(url: String): ByteArray {
-        http.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
+        val call = http.newCall(Request.Builder().url(url).get().build())
+        val answer = try {
+            call.execute()
+        } catch (e: IOException) {
+            throw Unreachable(e.message ?: e.toString(), e)
+        }
+        answer.use { response ->
+            if (response.code in 500..599) throw Unreachable("attestation fetch: HTTP ${response.code}")
             if (!response.isSuccessful) throw IOException("attestation fetch: HTTP ${response.code}")
             if (!response.request.url.isHttps) throw IOException("attestation fetch was redirected to plain HTTP")
             val source = response.body?.source() ?: throw IOException("attestation fetch: empty response")
@@ -155,9 +164,9 @@ class TinfoilVerifier(
         return "$where: $message"
     }
 
-    private fun failed(detail: String): AttestationResult {
+    private fun failed(detail: String, unreachable: Boolean = false): AttestationResult {
         note("Rejected: $detail")
-        return AttestationResult(false, detail)
+        return AttestationResult(false, detail, unreachable = unreachable)
     }
 
     private fun summary(proof: EnclaveProof): String =
@@ -179,18 +188,6 @@ class TinfoilVerifier(
 
         private val CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
         private val DATE = DateTimeFormatter.ofPattern("MMM d, HH:mm", java.util.Locale.ENGLISH).withZone(ZoneId.systemDefault())
-
-        /**
-         * The hosts Amber can verify, each with the repository its enclave must have been built
-         * from. The router is the trust anchor: it verifies each model enclave itself before
-         * forwarding (the trusted model repos are compiled into its measured code).
-         */
-        val TRUSTED_REPOS = EnginePresets.ENCLAVE_REPOS
-
-        fun hostOf(url: String?): String? =
-            runCatching { URI(url.orEmpty().trim()).host?.lowercase() }.getOrNull()
-
-        fun supports(baseUrl: String?): Boolean = hostOf(baseUrl) in TRUSTED_REPOS
 
         fun shortHex(hex: String): String = if (hex.length > 16) "${hex.take(8)}…${hex.takeLast(8)}" else hex
     }

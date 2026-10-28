@@ -2,6 +2,7 @@ package app.amethyst.engine
 
 import android.os.Process
 import android.util.Log
+import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.sherpa.TransducerRuntime
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
@@ -40,6 +41,9 @@ class SherpaRuntime : TransducerRuntime {
         synchronized(lock) {
             if (recognizer != null && loadedDir == modelDir) return
             releaseLocked()
+            // sherpa-onnx reads a missing file as an empty buffer and onnxruntime then aborts
+            // the whole process from native code; a Kotlin exception ends just the dictation.
+            if (!ParakeetModel.isComplete(File(modelDir))) throw IllegalStateException("model files missing: $modelDir")
             val started = System.currentTimeMillis()
             val config = OfflineRecognizerConfig(
                 // The NeMo model carries its own feature settings; sherpa-onnx reads them from
@@ -83,6 +87,15 @@ class SherpaRuntime : TransducerRuntime {
     /** Frees the ~700 MB the recognizer holds. The next dictation loads it again. */
     fun release() {
         synchronized(lock) { releaseLocked() }
+    }
+
+    /**
+     * Unloads and runs [block] while no load or transcription can start - for deleting the
+     * files, which a load in progress would otherwise read half-gone. Waits for one that runs.
+     */
+    fun <T> whileUnloaded(block: () -> T): T = synchronized(lock) {
+        releaseLocked()
+        block()
     }
 
     private fun releaseLocked() {

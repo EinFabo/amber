@@ -26,7 +26,6 @@ import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
-import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.LocalFallback
 import app.amethyst.core.engine.EnginePresets
@@ -371,12 +370,12 @@ class DictationController(
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
                 // No signal, a timeout, a server down: the recording is still here, so a local
                 // model can take it instead of the dictation being lost.
-                val error = result.exceptionOrNull()
-                val recovered = if (LocalFallback.applies(error, engine.capabilities.trustLevel, graph.settings.value.capture.localFallback)) {
-                    recognizeLocally(outcome.audio, error as SttFailure)?.let { Result.success(it) } ?: result
-                } else {
-                    result
-                }
+                val recoverable = LocalFallback.recoverable(
+                    result.exceptionOrNull(),
+                    engine.capabilities.trustLevel,
+                    graph.settings.value.capture.localFallback,
+                )
+                val recovered = recoverable?.let { recognizeLocally(outcome.audio, it) }?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error))
                     null
@@ -387,8 +386,8 @@ class DictationController(
 
     /**
      * The first local model that is ready - Parakeet, then Whisper - for a recording the
-     * server could not take. Null when switched off or none is downloaded; the original
-     * error then stands.
+     * server could not take. Null when none is downloaded or none recognized it; the
+     * original error then stands.
      */
     private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure): Transcript? {
         for (config in LocalFallback.candidates(graph.settings.value.engines)) {
@@ -485,12 +484,15 @@ class DictationController(
             // Only when the user allows the clipboard at all; otherwise the text stays in the
             // diagnostics, and the clipboard untouched as promised.
             val copied = settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
-            fail(
-                if (copied) "You switched apps meanwhile - the text is on the clipboard instead."
-                else "You switched apps meanwhile - not inserted: \u201C$cleaned\u201D",
-                engineId,
-                logAs = "focus moved to another app",
-            )
+            if (copied) {
+                fail("You switched apps meanwhile - the text is on the clipboard instead.", engineId)
+            } else {
+                fail(
+                    "You switched apps meanwhile - not inserted: \u201C$cleaned\u201D",
+                    engineId,
+                    brief = "You switched apps meanwhile - not inserted. The text is in Amber's diagnostics.",
+                )
+            }
             return
         }
 
@@ -516,7 +518,7 @@ class DictationController(
                 "No text field accepted the text: \u201C$cleaned\u201D " +
                     "[${inserter.lastTrace}]",
                 engineId,
-                logAs = "no text field accepted the text [${inserter.lastTrace}]",
+                brief = "No text field accepted the text. It is in Amber's diagnostics.",
             )
             return
         }
@@ -604,17 +606,18 @@ class DictationController(
         message: String,
         engineId: String? = null,
         remedy: SttFailure.Remedy? = null,
-        // What goes to logcat when the message quotes the dictated text.
-        logAs: String = message,
+        // For the toast and logcat when the message quotes the dictated text: the toast is
+        // drawn over whatever app is open, and the words stay private to Amber's own screen.
+        brief: String = message,
     ) {
-        Log.w(TAG, "dictation failed: $logAs")
+        Log.w(TAG, "dictation failed: $brief")
         graph.dictationLog.recordFailure(message, engineId, trace?.summary())
         _state.value = DictationState.Failed(message, remedy)
 
         // While dictating into another app the bubble is the only visible surface, and a red
         // ring does not say why. A toast does, without making the user switch back.
         mainHandler.post {
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            Toast.makeText(context, brief, Toast.LENGTH_LONG).show()
         }
 
         scope.launch {

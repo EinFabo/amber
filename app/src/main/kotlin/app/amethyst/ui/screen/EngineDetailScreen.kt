@@ -213,17 +213,16 @@ fun EngineDetailScreen(
 
             EngineKind.OPENAI_COMPATIBLE -> {
                 // One backend for every server; the provider only decides what is offered. Taken
-                // from the saved address, not the one being typed - otherwise typing a known host
-                // into an own server's field would make that field vanish mid-word.
-                val provider = remember(config.id, config.baseUrl) {
-                    if (config.id == EnginePresets.SELF_HOSTED.id) ServerProviders.CUSTOM else ServerProviders.forUrl(config.baseUrl)
-                }
+                // from the saved address, not the one being typed, so the choices do not change
+                // mid-word - the same provider the factory and the statistics go by.
+                val provider = remember(config.baseUrl) { ServerProviders.forUrl(config.baseUrl) }
+                val fixedAddress = remember(config.id, config.baseUrl) { ServerProviders.addressFixed(config) }
                 SectionCard(
                     title = "Connection",
-                    subtitle = if (provider.fixedAddress) "${provider.name} · ${baseUrl.trim()}"
+                    subtitle = if (fixedAddress) "${provider.name} · ${baseUrl.trim()}"
                     else "Anything with /v1/audio/transcriptions - Speaches, LocalAI, whisper.cpp's server.",
                 ) {
-                    if (!provider.fixedAddress) {
+                    if (!fixedAddress) {
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { baseUrl = it },

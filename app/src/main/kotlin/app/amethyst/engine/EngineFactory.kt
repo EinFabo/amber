@@ -71,7 +71,7 @@ class EngineFactory(
                         // A host Amber can verify gets the verifier, and the engine then
                         // sends only over a connection bound to the attested key. Any other
                         // host stays plain CLOUD.
-                        attestationVerifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
+                        attestationVerifier = tinfoil.takeIf { EnginePresets.enclaveRepoFor(baseUrl) != null },
                     ),
                 )
             }
@@ -145,7 +145,7 @@ class EngineFactory(
             baseUrl = baseUrl,
             displayName = config.displayName,
             transport = transport,
-            verifier = tinfoil.takeIf { TinfoilVerifier.supports(baseUrl) },
+            verifier = tinfoil.takeIf { EnginePresets.enclaveRepoFor(baseUrl) != null },
             plainTrust = TrustLevel.CLOUD,
         )
         // The same backend for every server: only the model's own switches differ.

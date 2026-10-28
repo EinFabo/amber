@@ -106,11 +106,13 @@ class ChatCleanupTest {
     }
 
     @Test
-    fun `a reply cut off at the token limit is rejected`() = runTest {
-        val transport = FakeHttpTransport.json(
-            """{"choices":[{"message":{"content":"Das Meeting ist morgen um zehn und wir"},"finish_reason":"length"}]}""",
-        )
-        assertTrue(cleanup(transport).clean("das meeting ist morgen um zehn und wir nehmen raum drei").isFailure)
+    fun `a reply cut off at the token limit, a filter or an abort is rejected`() = runTest {
+        for (reason in listOf("length", "content_filter", "model_length", "abort", "max_tokens")) {
+            val transport = FakeHttpTransport.json(
+                """{"choices":[{"message":{"content":"Das Meeting ist morgen um zehn und wir"},"finish_reason":"$reason"}]}""",
+            )
+            assertTrue(cleanup(transport).clean("das meeting ist morgen um zehn und wir nehmen raum drei").isFailure, reason)
+        }
     }
 
     @Test

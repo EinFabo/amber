@@ -70,8 +70,7 @@ class OpenAiCompatibleEngine(
         fun request(withPrompt: Boolean) = HttpRequest(
             method = "POST",
             url = endpointUrl(baseUrl),
-            // Upload plus recognition: a minute of headroom on top of the audio's own length.
-            timeoutMs = 60_000 + audio.durationMs,
+            timeoutMs = requestTimeoutMs(audio.durationMs),
             headers = buildMap {
                 if (!apiKey.isNullOrBlank()) put("Authorization", "Bearer $apiKey")
                 put("Accept", "application/json")
@@ -173,6 +172,9 @@ class OpenAiCompatibleEngine(
     }
 
     companion object {
+        /** Upload plus recognition: a minute of headroom on top of the audio's own length. */
+        fun requestTimeoutMs(audioMs: Long): Long = 60_000 + audioMs
+
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"
 

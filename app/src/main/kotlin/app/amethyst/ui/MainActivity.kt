@@ -227,11 +227,13 @@ private fun AmethystRoot(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Follows the clock, so an app left open overnight starts the new day at zero.
-    val today by produceState(graph.stats.dayOf(System.currentTimeMillis())) {
+    // Follows the clock, so an app left open overnight starts the new day at zero: once at
+    // midnight, and with every new dictation (which may be the first of a new day).
+    val today by produceState(graph.stats.dayOf(System.currentTimeMillis()), statList) {
         while (true) {
-            delay(DAY_CHECK_MS)
-            value = graph.stats.dayOf(System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            value = graph.stats.dayOf(now)
+            delay(graph.stats.millisUntilNextDay(now))
         }
     }
     val stats = remember(statList, settings.stats.typingWpm, today) {
@@ -442,7 +444,6 @@ internal fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
-private const val DAY_CHECK_MS = 60_000L
 
 /** Apps with a launcher icon, for picking one to give a writing style; Amber itself left out. */
 private suspend fun launcherApps(context: Context): List<InstalledApp> = withContext(Dispatchers.IO) {

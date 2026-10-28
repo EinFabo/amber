@@ -8,9 +8,9 @@ import app.amethyst.core.settings.EngineConfig
 import java.io.IOException
 import java.net.SocketTimeoutException
 import kotlin.test.Test
+import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class LocalFallbackTest {
 
@@ -18,17 +18,17 @@ class LocalFallbackTest {
 
     @Test
     fun `no connection, a timeout or a server down sends the recording to the phone`() {
-        assertTrue(LocalFallback.applies(offline, TrustLevel.CLOUD, enabled = true))
-        assertTrue(LocalFallback.applies(SttFailure("x", "t", cause = SocketTimeoutException()), TrustLevel.ENCLAVE_VERIFIED, true))
-        assertTrue(LocalFallback.applies(SttFailure("down", "HTTP 503", statusCode = 503), TrustLevel.CLOUD, true))
+        assertNotNull(LocalFallback.recoverable(offline, TrustLevel.CLOUD, enabled = true))
+        assertNotNull(LocalFallback.recoverable(SttFailure("x", "t", cause = SocketTimeoutException()), TrustLevel.ENCLAVE_VERIFIED, true))
+        assertNotNull(LocalFallback.recoverable(SttFailure("down", "HTTP 503", statusCode = 503), TrustLevel.CLOUD, true))
     }
 
     @Test
     fun `a refused key, a switched-off setting or a local engine do not`() {
-        assertFalse(LocalFallback.applies(SttFailure("key", "HTTP 401", statusCode = 401), TrustLevel.CLOUD, true))
-        assertFalse(LocalFallback.applies(offline, TrustLevel.CLOUD, enabled = false))
-        assertFalse(LocalFallback.applies(offline, TrustLevel.ON_DEVICE, true))
-        assertFalse(LocalFallback.applies(SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty"), TrustLevel.CLOUD, true))
+        assertNull(LocalFallback.recoverable(SttFailure("key", "HTTP 401", statusCode = 401), TrustLevel.CLOUD, true))
+        assertNull(LocalFallback.recoverable(offline, TrustLevel.CLOUD, enabled = false))
+        assertNull(LocalFallback.recoverable(offline, TrustLevel.ON_DEVICE, true))
+        assertNull(LocalFallback.recoverable(SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty"), TrustLevel.CLOUD, true))
     }
 
     @Test

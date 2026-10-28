@@ -31,6 +31,8 @@ class StatsStore(context: Context, private val scope: CoroutineScope) {
 
     fun dayOf(atMillis: Long): Long = ledger.dayOf(atMillis)
 
+    fun millisUntilNextDay(atMillis: Long): Long = ledger.millisUntilNextDay(atMillis)
+
     fun record(stat: DictationStat) {
         scope.launch(io) {
             ledger.record(stat)

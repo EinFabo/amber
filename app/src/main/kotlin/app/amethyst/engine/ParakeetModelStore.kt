@@ -9,6 +9,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -43,6 +45,9 @@ class ParakeetModelStore(
 
     private var job: Job? = null
 
+    /** Downloads and deletions take turns, so a delete never wipes a download started after it. */
+    private val files = Mutex()
+
     @Volatile
     private var call: Call? = null
 
@@ -57,30 +62,32 @@ class ParakeetModelStore(
 
     fun download() {
         if (job?.isActive == true) return
-        job = scope.launch(Dispatchers.IO) {
-            val free = dir.apply { mkdirs() }.usableSpace
-            val missing = ParakeetModel.FILES.filter { File(dir, it.name).length() != it.sizeBytes }
-            val needed = missing.sumOf { it.sizeBytes }
-            if (free < needed + SPACE_MARGIN_BYTES) {
-                _state.value = ParakeetState.Failed("Not enough storage: ${needed / 1_000_000} MB needed, ${free / 1_000_000} MB free.")
-                return@launch
-            }
-            var done = ParakeetModel.TOTAL_BYTES - needed
-            for (file in missing) {
-                _state.value = ParakeetState.Busy(done, ParakeetModel.TOTAL_BYTES)
-                val result = fetch(file) { received ->
-                    _state.value = ParakeetState.Busy(done + received, ParakeetModel.TOTAL_BYTES)
-                }
-                if (result.isFailure) {
-                    val error = result.exceptionOrNull()
-                    _state.value = if (error is InterruptedException) currentState() else ParakeetState.Failed(error?.message ?: "Download failed.")
-                    return@launch
-                }
-                done += file.sizeBytes
-            }
-            Log.i(TAG, "parakeet model installed")
-            _state.value = currentState()
+        job = scope.launch(Dispatchers.IO) { files.withLock { install() } }
+    }
+
+    private fun install() {
+        val free = dir.apply { mkdirs() }.usableSpace
+        val missing = ParakeetModel.FILES.filter { File(dir, it.name).length() != it.sizeBytes }
+        val needed = missing.sumOf { it.sizeBytes }
+        if (free < needed + SPACE_MARGIN_BYTES) {
+            _state.value = ParakeetState.Failed("Not enough storage: ${needed / 1_000_000} MB needed, ${free / 1_000_000} MB free.")
+            return
         }
+        var done = ParakeetModel.TOTAL_BYTES - needed
+        for (file in missing) {
+            _state.value = ParakeetState.Busy(done, ParakeetModel.TOTAL_BYTES)
+            val result = fetch(file) { received ->
+                _state.value = ParakeetState.Busy(done + received, ParakeetModel.TOTAL_BYTES)
+            }
+            if (result.isFailure) {
+                val error = result.exceptionOrNull()
+                _state.value = if (error is InterruptedException) currentState() else ParakeetState.Failed(error?.message ?: "Download failed.")
+                return
+            }
+            done += file.sizeBytes
+        }
+        Log.i(TAG, "parakeet model installed")
+        _state.value = currentState()
     }
 
     fun cancel() {
@@ -90,14 +97,19 @@ class ParakeetModelStore(
     }
 
     /**
-     * The files go at once (a running transcription keeps what it loaded, and a new download
-     * is never wiped by a late delete); freeing the memory waits on the model's own thread.
+     * Off the main thread (670 MB take a moment to free), after a load or transcription that
+     * runs has ended, and before a download started afterwards begins.
      */
     fun delete() {
         cancel()
-        dir.deleteRecursively()
         _state.value = ParakeetState.Missing
-        scope.launch(runtime.dispatcher) { runtime.release() }
+        scope.launch(Dispatchers.IO) {
+            files.withLock {
+                runtime.whileUnloaded { dir.deleteRecursively() }
+                // A cancelled download that only just ended may have shown its files again.
+                _state.value = ParakeetState.Missing
+            }
+        }
     }
 
     private fun fetch(file: ParakeetModel.FileSpec, onProgress: (Long) -> Unit): Result<Unit> {

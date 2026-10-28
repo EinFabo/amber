@@ -35,6 +35,8 @@ class StatsTest {
         val ledger = StatsLedger(Files.createTempFile("s", ".jsonl").toFile()) { ZoneOffset.ofHours(2) }
         // 23:30 UTC is already the next day at UTC+2.
         assertEquals(1, ledger.dayOf(23L * 3_600_000 + 30 * 60_000))
+        // 01:30 local: the next day starts in 22.5 hours, not the next UTC midnight.
+        assertEquals(22L * 3_600_000 + 30 * 60_000, ledger.millisUntilNextDay(23L * 3_600_000 + 30 * 60_000))
     }
 
     @Test
