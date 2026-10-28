@@ -158,7 +158,8 @@ class StoreShots {
     /**
      * The launcher icon as PNGs, for app/src/main/res/mipmap-*dpi: Android uses the adaptive
      * vector icon, but stores and installers read a bitmap from the APK. Drawn from the same
-     * two layers, cropped to the 72 of 108 dp an adaptive icon shows.
+     * two layers, cropped to the 72 of 108 dp an adaptive icon shows, and cut round like the
+     * bubble.
      */
     @Test
     fun launcherIcons() {
@@ -170,10 +171,8 @@ class StoreShots {
             for (round in listOf(false, true)) {
                 val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
-                if (round) {
-                    val clip = android.graphics.Path().apply { addCircle(size / 2f, size / 2f, size / 2f, android.graphics.Path.Direction.CW) }
-                    canvas.clipPath(clip)
-                }
+                val clip = android.graphics.Path().apply { addCircle(size / 2f, size / 2f, size / 2f, android.graphics.Path.Direction.CW) }
+                canvas.clipPath(clip)
                 val inset = size * 18 / 72
                 listOf(background, foreground).forEach { layer ->
                     layer.setBounds(-inset, -inset, size + inset, size + inset)

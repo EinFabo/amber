@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -16,8 +17,8 @@ android {
         applicationId = "app.amethyst"
         minSdk = 28
         targetSdk = 35
-        versionCode = 20
-        versionName = "0.12.0"
+        versionCode = 21
+        versionName = "0.12.1"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -33,14 +34,37 @@ android {
         }
     }
 
+    /**
+     * The release key lives outside the repository: keystore.properties next to the root
+     * build (gitignored) names the keystore file, its alias and both passwords. Without it a
+     * release build still compiles and shrinks, just unsigned.
+     */
+    val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { file ->
+        Properties().apply { file.inputStream().use(::load) }
+    }
+    signingConfigs {
+        if (releaseKey != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseKey.getProperty("storeFile"))
+                storePassword = releaseKey.getProperty("storePassword")
+                keyAlias = releaseKey.getProperty("keyAlias")
+                keyPassword = releaseKey.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = false
+            // Not debuggable, compiled ahead of time, shrunk by R8: faster, smaller, and no
+            // way to attach a debugger to a process holding microphone and accessibility.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
