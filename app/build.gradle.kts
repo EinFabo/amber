@@ -37,9 +37,9 @@ android {
     }
 
     /**
-     * The release key lives outside the repository: keystore.properties next to the root
-     * build (gitignored) names the keystore file, its alias and both passwords. Without it a
-     * release build still compiles and shrinks, just unsigned.
+     * Release builds come out unsigned and are signed with the release key by
+     * tools/sign-release.sh. A local keystore.properties (gitignored: keystore file, alias,
+     * both passwords) still signs here, should one ever be wanted.
      */
     val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { file ->
         Properties().apply { file.inputStream().use(::load) }

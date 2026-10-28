@@ -156,6 +156,7 @@ tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned a
                                 # into app/build/store-shots - screenshots, layout check
 
 tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none
+tools/sign-release.sh           # release APK, signed with the release key
 ```
 
 `settings.gradle.kts` only includes `:app` when an SDK is found (`ANDROID_HOME`,

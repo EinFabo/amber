@@ -74,10 +74,8 @@ marked open:
 - [x] onTrimMemory releases models on the main thread while a transcription holds the lock
       (bubble freeze/ANR), and on UI_HIDDEN too. Release on the model's thread, only on real
       memory pressure.
-- [ ] Debug build: debuggable, debug key, no AOT/R8 - a security risk and slower. 0.12.1: the
-      release build type is ready (R8 + resource shrinking, builds clean) and signs with the key
-      named in a gitignored keystore.properties - waiting for Fabi's key. Release build
-      with own key (also on the housekeeping list).
+- [x] Release build (0.12.1): not debuggable, R8 + resource shrinking (21 instead of 34 MB),
+      signed with the release key by tools/sign-release.sh, package app.amber.
 - [x] Android recognizer fallback (no on-device recognizer, API < 33) is labelled ON_DEVICE but
       may go online; label it honestly.
 - [x] Text goes into whatever field has focus at the end; if the user switched apps meanwhile,
