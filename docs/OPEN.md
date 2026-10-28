@@ -21,6 +21,39 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
   - Smoother motion: don't move the overlay window per frame with `updateViewLayout`; animate
     the bubble with `translationY` inside a briefly enlarged window instead.
 
+## Research: bubble position and field detection (2026-10-29)
+
+Done in 0.14.0:
+- [x] **No bubble in password, PIN, number, phone and date fields** (`TextFieldKind` in :core,
+      from EditorInfo.inputType on Android 13+, from the node's inputType/isPassword below).
+      The keyboard is still tracked there, so a bubble shown everywhere still steps aside.
+- [x] **App picker**: icons, the apps you dictate in first (from the statistics), search by
+      name or package ignoring accents, several apps at once for "Hidden in".
+
+Findings and candidates, best first:
+- [ ] **Follow the keyboard while it slides.** A reading with the window partly below the
+      screen is the keyboard's real position mid-animation; today the policy holds still and
+      jumps at the end. Move to `reading.top` instead (still capped by MAX_MOVING_MS).
+- [ ] **Smoother motion**: animate `translationY` inside a briefly taller window instead of
+      one `updateViewLayout` per frame (each is a round trip to the window manager).
+- [ ] **Floating keyboards** (Gboard floating, Samsung floating/one-handed): the window frame
+      is nearly screen-high and the policy then predicts a docked keyboard, so the bubble moves
+      up for nothing. From Android 13 `AccessibilityWindowInfo.getRegionInScreen` gives the
+      touchable region - the keys themselves; if it does not reach the bottom edge, the
+      keyboard floats and the bubble only has to avoid that rectangle.
+- [ ] **Never cover the field being typed in**: the focused node's bounds (one `findFocus` per
+      focus) - if the bubble's resting place overlaps them, step above or below. Cursor rects
+      are available too (`EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY`, API 26) for a later
+      "sit at the end of the line" mode; risky (send buttons), so not as a default.
+- [ ] **Drag to hide**: dragging the bubble onto a target at the bottom offers "Hide in
+      <app>" (adds to Hidden in) - Wispr Flow snoozes its bubble the same way.
+- [ ] Below Android 13 only focus events say a field is there; apps that never send one
+      (some WebViews, custom inputs) get no bubble. TYPE_VIEW_TEXT_SELECTION_CHANGED would
+      catch them at the cost of more events - only if a device shows the gap.
+- Not possible: IME insets for the overlay. The bubble's window lies above the keyboard, and
+  insets come from windows below; reading the window list stays the way. (Unverified - one
+  log line in `onApplyWindowInsets` on a device would settle it.)
+
 ## Tinfoil models (0.9.1)
 
 - [x] **Try every Tinfoil model** (Fabi, 2026-10-28): the Tinfoil engine screen picks the speech

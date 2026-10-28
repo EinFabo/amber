@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.insert.InsertionStrategy
@@ -20,6 +22,7 @@ import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.text.Transcript
 import app.amethyst.dictation.DictationState
+import app.amethyst.ui.screen.AppPickerDialog
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.EngineDetailScreen
@@ -153,7 +156,7 @@ class StoreShots {
         AppStylesScreen(
             settings = settings.withEngine(settings.engines.first { it.id == EnginePresets.TINFOIL.id }.copy(cleanupModel = "deepseek-v4-1-flash"))
                 .copy(activeEngineId = EnginePresets.TINFOIL.id),
-            onUpdateSettings = {}, loadApps = { emptyList() },
+            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(),
         )
     }
 
@@ -161,7 +164,7 @@ class StoreShots {
     fun bubbleSettings() = shoot("7-bubble", "Bubble") {
         BubbleScreen(
             settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
-            onUpdateSettings = {}, loadApps = { emptyList() }, appName = { APP_NAMES[it] ?: it },
+            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(),
         )
     }
 
@@ -209,6 +212,33 @@ class StoreShots {
         assertTrue(File(dir, "store-ic_launcher.png").length() > 0)
     }
 
+    /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */
+    @Test
+    fun appPicker() {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        activity.setContent {
+            AmberTheme {
+                AppPickerDialog(
+                    title = "Hide the bubble in",
+                    existing = emptySet(),
+                    apps = FakeApps,
+                    usage = mapOf("com.whatsapp" to 31, "com.google.android.gm" to 4),
+                    multiple = true,
+                    confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
+                    onDismiss = {},
+                    onPick = {},
+                )
+            }
+        }
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
+        val view = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(Canvas(bitmap))
+        val file = File(out, "x-app-picker.png")
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        assertTrue(file.length() > 0)
+    }
+
     private fun shoot(name: String, title: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
@@ -237,5 +267,22 @@ class StoreShots {
             "org.telegram.messenger" to "Telegram",
             "com.google.android.keep" to "Keep",
         )
+
+        /** Plain coloured discs in place of the real launcher icons, which are not ours to show. */
+        private val ICON_COLORS = listOf(0xFF3DBE5A, 0xFFE0533F, 0xFF3A9AD9, 0xFFF2BE2C)
+
+        object FakeApps : AppSource {
+            override suspend fun all() = APP_NAMES.map { (pkg, label) -> InstalledApp(pkg, label) }
+            override fun label(packageName: String) = APP_NAMES[packageName] ?: packageName
+            override fun cachedIcon(packageName: String): ImageBitmap {
+                val color = ICON_COLORS[APP_NAMES.keys.indexOf(packageName).coerceAtLeast(0) % ICON_COLORS.size]
+                val bitmap = Bitmap.createBitmap(ICON_PX, ICON_PX, Bitmap.Config.ARGB_8888)
+                Canvas(bitmap).drawCircle(ICON_PX / 2f, ICON_PX / 2f, ICON_PX / 2f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color.toInt() })
+                return bitmap.asImageBitmap()
+            }
+            override suspend fun icon(packageName: String, sizePx: Int) = cachedIcon(packageName)
+        }
+
+        private const val ICON_PX = 108
     }
 }

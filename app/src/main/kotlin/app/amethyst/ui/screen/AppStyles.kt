@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -28,20 +30,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
+import app.amethyst.ui.AppIcon
+import app.amethyst.ui.AppSource
 import app.amethyst.ui.ChoiceChip
+import app.amethyst.ui.InstalledApp
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import kotlin.math.roundToInt
-
-/** An app that can get a profile: what the launcher shows. */
-data class InstalledApp(val packageName: String, val label: String)
 
 /** Silence before stopping and the longest dictation; part of the Recording page. */
 @Composable
@@ -101,7 +104,8 @@ fun ChunkingSettings(
 fun AppStylesScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
-    loadApps: suspend () -> List<InstalledApp>,
+    apps: AppSource,
+    usage: Map<String, Int>,
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<AppProfile?>(null) }
@@ -119,7 +123,7 @@ fun AppStylesScreen(
                 if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
             )
             settings.profiles.forEach { profile ->
-                ProfileRow(profile) { editing = profile }
+                ProfileRow(profile, apps) { editing = profile }
             }
             GhostButton("Add app", { picking = true })
         }
@@ -142,12 +146,14 @@ fun AppStylesScreen(
 
     if (picking) {
         AppPickerDialog(
+            title = "Style for which app?",
             existing = settings.profiles.map { it.packageName }.toSet(),
-            loadApps = loadApps,
+            apps = apps,
+            usage = usage,
             onDismiss = { picking = false },
-            onPick = { app ->
+            onPick = { chosen ->
                 picking = false
-                editing = AppProfile(app.packageName, app.label)
+                chosen.firstOrNull()?.let { app -> editing = AppProfile(app.packageName, app.label) }
             },
         )
     }
@@ -204,14 +210,16 @@ private fun WritingStyle.note(): String = when (this) {
 }
 
 @Composable
-private fun ProfileRow(profile: AppProfile, onClick: () -> Unit) {
+private fun ProfileRow(profile: AppProfile, apps: AppSource, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        AppIcon(profile.packageName, apps)
         Column(Modifier.weight(1f)) {
             Text(profile.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
             val extra = listOfNotNull(
@@ -284,55 +292,134 @@ private fun ProfileDialog(
     )
 }
 
+/**
+ * Picks apps from those with a launcher icon. The ones the user dictates in come first; the
+ * search matches names and packages. With [multiple], rows tick and one button takes them all.
+ */
 @Composable
 internal fun AppPickerDialog(
+    title: String,
     existing: Set<String>,
-    loadApps: suspend () -> List<InstalledApp>,
+    apps: AppSource,
+    usage: Map<String, Int>,
     onDismiss: () -> Unit,
-    onPick: (InstalledApp) -> Unit,
+    onPick: (List<InstalledApp>) -> Unit,
+    multiple: Boolean = false,
+    confirmLabel: (Int) -> String = { "Add" },
 ) {
-    var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
+    var all by remember { mutableStateOf<List<InstalledApp>?>(null) }
     var query by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) { apps = loadApps().filterNot { it.packageName in existing } }
+    var picked by remember { mutableStateOf(emptyList<InstalledApp>()) }
+    LaunchedEffect(apps) { all = apps.all().filterNot { it.packageName in existing } }
+
+    fun choose(app: InstalledApp) {
+        if (!multiple) {
+            onPick(listOf(app))
+        } else {
+            picked = if (app in picked) picked - app else picked + app
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = AmberPalette.Surface,
         shape = AmberShapes.Card,
-        title = { Text("Add app", color = AmberPalette.Text) },
+        title = { Text(title, color = AmberPalette.Text) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search") },
+                    placeholder = { Text("Search apps") },
                     singleLine = true,
                     shape = AmberShapes.Inner,
                     colors = fieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                val shown = apps?.filter { it.label.contains(query, ignoreCase = true) }
-                if (shown == null) {
+                val loaded = all
+                if (loaded == null) {
                     Hint("Loading apps …")
-                } else {
-                    LazyColumn(Modifier.heightIn(max = 360.dp)) {
-                        items(shown, key = { it.packageName }) { app ->
-                            Text(
-                                app.label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = AmberPalette.Text,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onPick(app) }
-                                    .padding(vertical = 10.dp),
-                            )
+                    return@Column
+                }
+                val grouped = remember(loaded, usage) {
+                    AppChoice.group(loaded, { it.packageName }, { it.label }, usage)
+                }
+                val searching = query.isNotBlank()
+                val frequent = grouped.frequent.filter { AppChoice.matches(query, it.label, it.packageName) }
+                val rest = grouped.rest.filter { AppChoice.matches(query, it.label, it.packageName) }
+                if (frequent.isEmpty() && rest.isEmpty()) {
+                    Hint(if (searching) "No app matches \u201C${query.trim()}\u201D." else "Every app is added already.")
+                    return@Column
+                }
+                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    if (frequent.isNotEmpty()) {
+                        if (!searching) item(key = "h-frequent") { GroupLabel("Where you dictate") }
+                        items(frequent, key = { "f-" + it.packageName }) { app ->
+                            AppPickRow(app, apps, usage[app.packageName], multiple, app in picked) { choose(app) }
                         }
+                        if (!searching && rest.isNotEmpty()) item(key = "h-all") { GroupLabel("All apps") }
+                    }
+                    items(rest, key = { it.packageName }) { app ->
+                        AppPickRow(app, apps, null, multiple, app in picked) { choose(app) }
                     }
                 }
             }
         },
         confirmButton = {
+            if (multiple) {
+                TextButton(onClick = { onPick(picked) }, enabled = picked.isNotEmpty()) {
+                    Text(confirmLabel(picked.size), color = if (picked.isNotEmpty()) AmberPalette.Primary else AmberPalette.Muted)
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel", color = AmberPalette.Muted) }
         },
     )
+}
+
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = AmberPalette.Muted,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun AppPickRow(
+    app: InstalledApp,
+    apps: AppSource,
+    dictations: Int?,
+    multiple: Boolean,
+    checked: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AppIcon(app.packageName, apps)
+        Column(Modifier.weight(1f)) {
+            Text(app.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            dictations?.let { Hint(if (it == 1) "1 dictation" else "$it dictations") }
+        }
+        if (multiple) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = { onClick() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = AmberPalette.Primary,
+                    uncheckedColor = AmberPalette.Muted,
+                    checkmarkColor = AmberPalette.Background,
+                ),
+            )
+        }
+    }
 }

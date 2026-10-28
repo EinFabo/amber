@@ -46,6 +46,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.ui.AppIcon
+import app.amethyst.ui.AppSource
 import app.amethyst.ui.Hairline
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.SetupActions
@@ -298,8 +300,8 @@ fun InsertingScreen(
 fun BubbleScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
-    loadApps: suspend () -> List<InstalledApp>,
-    appName: (String) -> String,
+    apps: AppSource,
+    usage: Map<String, Int>,
     modifier: Modifier = Modifier,
 ) {
     var picking by remember { mutableStateOf(false) }
@@ -358,14 +360,19 @@ fun BubbleScreen(
         SectionCard(title = "Hidden in", subtitle = "Apps the bubble stays out of - games, or apps with their own voice input.") {
             if (bubble.hiddenIn.isEmpty()) Hint("Shown in every app.")
             bubble.hiddenIn.forEach { pkg ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(appName(pkg), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppIcon(pkg, apps)
+                    Text(apps.label(pkg), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
                     GhostButton("Show again", {
                         onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
                     })
                 }
             }
-            GhostButton("Add app", { picking = true })
+            GhostButton("Add apps", { picking = true })
         }
 
         SectionCard(title = "Position") {
@@ -385,12 +392,16 @@ fun BubbleScreen(
 
     if (picking) {
         AppPickerDialog(
+            title = "Hide the bubble in",
             existing = bubble.hiddenIn.toSet(),
-            loadApps = loadApps,
+            apps = apps,
+            usage = usage,
+            multiple = true,
+            confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
             onDismiss = { picking = false },
-            onPick = { app ->
+            onPick = { chosen ->
                 picking = false
-                onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn + app.packageName)) }
+                onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + chosen.map { app -> app.packageName }).distinct())) }
             },
         )
     }

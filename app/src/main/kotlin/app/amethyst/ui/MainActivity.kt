@@ -1,7 +1,6 @@
 package app.amethyst.ui
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -52,7 +51,6 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
-import app.amethyst.ui.screen.InstalledApp
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.SubPage
 import app.amethyst.ui.screen.StatsScreen
@@ -65,13 +63,13 @@ import app.amethyst.ui.screen.DiagnosticsCard
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.core.stats.StatsSummary
+import app.amethyst.core.apps.AppChoice
+import app.amethyst.ui.AndroidAppSource
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -239,6 +237,8 @@ private fun AmethystRoot(
     val stats = remember(statList, settings.stats.typingWpm, today) {
         StatsSummary.of(statList, today, settings.stats.typingWpm)
     }
+    val apps = remember(context) { AndroidAppSource(context) }
+    val appUsage = remember(statList) { AppChoice.usage(statList) }
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
@@ -321,18 +321,18 @@ private fun AmethystRoot(
                         )
                         SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                         SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
-                        SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, loadApps = { launcherApps(context) })
+                        SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, apps = apps, usage = appUsage)
                         SettingsPage.BUBBLE -> BubbleScreen(
                             settings, ::updateSettings,
-                            loadApps = { launcherApps(context) },
-                            appName = { pkg -> appLabel(context, pkg) },
+                            apps = apps,
+                            usage = appUsage,
                         )
                         SettingsPage.STATS -> StatsScreen(
                             settings = settings,
                             stats = stats,
                             today = today,
                             engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
-                            appName = { pkg -> appLabel(context, pkg) },
+                            appName = apps::label,
                             onUpdateSettings = ::updateSettings,
                             onClear = { graph.stats.clear() },
                         )
@@ -445,19 +445,3 @@ internal fun TopBar(
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
 
-/** Apps with a launcher icon, for picking one to give a writing style; Amber itself left out. */
-private suspend fun launcherApps(context: Context): List<InstalledApp> = withContext(Dispatchers.IO) {
-    val packages = context.packageManager
-    val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-    packages.queryIntentActivities(launcher, 0)
-        .map { InstalledApp(it.activityInfo.packageName, it.loadLabel(packages).toString()) }
-        .filter { it.packageName != context.packageName }
-        .distinctBy { it.packageName }
-        .sortedBy { it.label.lowercase() }
-}
-
-/** An app's name as the launcher shows it, or its package when it is gone. */
-private fun appLabel(context: Context, packageName: String): String = runCatching {
-    val packages = context.packageManager
-    packages.getApplicationInfo(packageName, 0).loadLabel(packages).toString()
-}.getOrDefault(packageName)

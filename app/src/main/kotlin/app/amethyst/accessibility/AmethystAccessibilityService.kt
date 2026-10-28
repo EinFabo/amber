@@ -14,6 +14,7 @@ import androidx.annotation.RequiresApi
 import app.amethyst.Graph
 import app.amethyst.AmethystApp
 import app.amethyst.bubble.BubbleController
+import app.amethyst.core.bubble.TextFieldKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +55,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     var foregroundPackage: String? = null
         private set
 
+    /** A field that takes dictation has focus - not a password, PIN or number field. */
     @Volatile
     var editableFieldFocused: Boolean = false
         private set
@@ -130,13 +132,13 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
                 // went away, so look at what has input focus now.
-                if (!tracksInputDirectly) updateTextFieldFocus(currentFocusIsEditable())
+                if (!tracksInputDirectly) updateTextFieldFocus(currentFocusKind())
             }
 
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> if (!tracksInputDirectly) {
-                val editable = event.source?.isEditable == true
-                if (editable) event.packageName?.toString()?.let { bubble?.setCurrentApp(it) }
-                updateTextFieldFocus(editable)
+                val kind = kindOf(event.source)
+                if (kind != TextFieldKind.NONE) event.packageName?.toString()?.let { bubble?.setCurrentApp(it) }
+                updateTextFieldFocus(kind)
             }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
@@ -165,42 +167,46 @@ class AmethystAccessibilityService : AccessibilityService() {
     fun focusedInputPackage(): String? =
         runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.packageName?.toString() }.getOrNull()
 
-    private fun currentFocusIsEditable(): Boolean =
-        runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isEditable == true }
-            .getOrDefault(false)
+    private fun currentFocusKind(): TextFieldKind =
+        runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)
+
+    private fun kindOf(node: AccessibilityNodeInfo?): TextFieldKind =
+        if (node?.isEditable != true) TextFieldKind.NONE else TextFieldKind.of(node.inputType, node.isPassword)
 
     /**
      * From Android 13 the service's input method hears when a field starts and stops taking
-     * text - the same signal that makes a keyboard slide in. That is a better answer to "is
-     * the bubble needed right now" than focus events, which some apps never send.
+     * text - the same signal that makes a keyboard slide in, with the field's input type.
+     * That is a better answer to "is the bubble needed right now" than focus events, which
+     * some apps never send.
      */
     @Volatile
-    private var inputActive = false
+    private var inputKind = TextFieldKind.NONE
 
-    private fun updateTextFieldFocus(editable: Boolean) {
-        val focused = editable || inputActive
-        if (focused && !editableFieldFocused) graph.textFieldFocused()
-        editableFieldFocused = focused
-        bubble?.setTextFieldFocused(focused)
-        // Right away, not on the next window event: this is what lets the bubble move together
-        // with the keyboard instead of after it.
-        keyboard?.focusChanged(focused)
+    private fun updateTextFieldFocus(focusedKind: TextFieldKind) {
+        val kind = if (inputKind != TextFieldKind.NONE) inputKind else focusedKind
+        val dictatable = kind.wantsDictation
+        if (dictatable && !editableFieldFocused) graph.textFieldFocused()
+        editableFieldFocused = dictatable
+        bubble?.setTextFieldFocused(dictatable)
+        // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
+        // on the next window event - this is what lets the bubble move with the keyboard.
+        keyboard?.focusChanged(kind != TextFieldKind.NONE)
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreateInputMethod(): InputMethod = object : InputMethod(this) {
         override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
             super.onStartInput(attribute, restarting)
-            inputActive = attribute.inputType != EditorInfo.TYPE_NULL
+            inputKind = TextFieldKind.of(attribute.inputType)
             // The field's own app: the surest answer to "where is the user typing".
-            if (inputActive) attribute.packageName?.let { bubble?.setCurrentApp(it) }
-            updateTextFieldFocus(false)
+            if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
+            updateTextFieldFocus(TextFieldKind.NONE)
         }
 
         override fun onFinishInput() {
             super.onFinishInput()
-            inputActive = false
-            updateTextFieldFocus(false)
+            inputKind = TextFieldKind.NONE
+            updateTextFieldFocus(TextFieldKind.NONE)
         }
     }
 
