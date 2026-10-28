@@ -53,6 +53,18 @@ As of 2026-10-28, after 0.10.0. Urgent things at the top, later stages at the bo
       $0.01 per request); cleanup recommends DeepSeek V4.1 Flash with reasoning switched off
       (~$0.00025), Gemma 4 31B as the cheapest; replies are capped with max_tokens.
 - [ ] Idea: Voxtral's /v1/audio/translations - dictate in German, get English text.
+- Decided 2026-10-28: cloud dictations stay unchunked, Voxtral included (the per-request
+  overhead and repeated prompt cost a little more, the 5 s wait on a 39 s dictation is fine).
+  Measured: Tinfoil Voxtral, 39.2 s recording, 5.1 s recognition, ~$0.0002.
+
+## Better local models - for every phone
+
+No vendor-specific paths (an NPU/QNN build would only help Snapdragon phones).
+- [ ] 1. Measure Parakeet on the CPU (download, a short and a 30 s dictation, diagnostics).
+- [ ] 2. Suggest the local model by memory: Parakeet (~700 MB while dictating) where the phone has
+      room, FUTO-244 (~270 MB) where it does not; read ActivityManager.MemoryInfo.totalMem.
+- [ ] 3. Own dictionary for names and terms: Whisper takes it as its prompt (vocabularyHint is
+      already plumbed); for Parakeet check sherpa-onnx hotwords with the NeMo transducer.
 
 ## Next: recognize while speaking
 
