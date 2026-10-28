@@ -139,6 +139,14 @@ class AmethystAccessibilityService : AccessibilityService() {
     private val tracksInputDirectly: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
+    /**
+     * The app that owns the field the text will go into: the focused input's package, which
+     * can be Amber itself (its test field), else the last app in front.
+     */
+    fun targetPackage(): String? =
+        runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.packageName?.toString() }.getOrNull()
+            ?: foregroundPackage
+
     private fun currentFocusIsEditable(): Boolean =
         runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isEditable == true }
             .getOrDefault(false)

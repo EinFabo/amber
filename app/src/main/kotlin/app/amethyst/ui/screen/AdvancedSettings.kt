@@ -1,0 +1,331 @@
+package app.amethyst.ui.screen
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppProfile
+import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.WritingStyle
+import app.amethyst.ui.ChoiceChip
+import app.amethyst.ui.GhostButton
+import app.amethyst.ui.Hint
+import app.amethyst.ui.SectionCard
+import app.amethyst.ui.theme.AmberPalette
+import app.amethyst.ui.theme.AmberShapes
+import kotlin.math.roundToInt
+
+/** An app that can get a profile: what the launcher shows. */
+data class InstalledApp(val packageName: String, val label: String)
+
+/**
+ * Everything the plain settings leave out: recording limits, recognizing while speaking, and a
+ * writing style per app. Collapsed by default, so the everyday settings stay short.
+ */
+@Composable
+fun AdvancedSection(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    loadApps: suspend () -> List<InstalledApp>,
+) {
+    var editing by remember { mutableStateOf<AppProfile?>(null) }
+    var picking by remember { mutableStateOf(false) }
+    val capture = settings.capture
+
+    SectionCard(
+        title = "Advanced",
+        subtitle = "Recording limits, recognizing while you speak, and a writing style per app.",
+        collapsible = true,
+        initiallyExpanded = false,
+    ) {
+        SubHeading("Recording")
+        StepSlider(
+            label = "Silence before stopping",
+            valueText = "${capture.silenceTimeoutMs} ms",
+            value = capture.silenceTimeoutMs,
+            range = 500..2_500,
+            step = 100,
+            enabled = capture.autoStopOnSilence,
+            onChange = { ms -> onUpdateSettings { it.copy(capture = it.capture.copy(silenceTimeoutMs = ms)) } },
+        )
+        StepSlider(
+            label = "Longest dictation",
+            valueText = "${capture.maxDurationMs / 1000} s",
+            value = capture.maxDurationMs / 1000,
+            range = 30..300,
+            step = 30,
+            onChange = { s -> onUpdateSettings { it.copy(capture = it.capture.copy(maxDurationMs = s * 1000)) } },
+        )
+
+        SubHeading("Recognize while speaking")
+        ToggleRow(
+            label = "Recognize in parts",
+            description = "Longer dictations are cut at pauses and recognized while you keep " +
+                "talking, so stopping only waits for the last part. Local engines only.",
+            checked = capture.chunking,
+            onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
+        )
+        StepSlider(
+            label = "Shortest part",
+            valueText = capture.chunkMinMs?.let { "${it / 1000} s" } ?: "engine default",
+            value = (capture.chunkMinMs ?: 0) / 1000,
+            range = 0..30,
+            step = 2,
+            enabled = capture.chunking,
+            onChange = { s ->
+                onUpdateSettings { it.copy(capture = it.capture.copy(chunkMinMs = if (s == 0) null else s * 1000)) }
+            },
+        )
+
+        SubHeading("Writing style per app")
+        Hint(
+            "Applied by the cleanup model (Tinfoil engine → Cleanup). Without one the text goes " +
+                "in as recognized. Apps without a profile get it tidied as spoken.",
+        )
+        settings.profiles.forEach { profile ->
+            ProfileRow(profile) { editing = profile }
+        }
+        GhostButton("Add app", { picking = true })
+    }
+
+    editing?.let { profile ->
+        ProfileDialog(
+            profile = profile,
+            onDismiss = { editing = null },
+            onSave = { updated ->
+                onUpdateSettings { it.copy(profiles = AppProfiles.upsert(it.profiles, updated)) }
+                editing = null
+            },
+            onDelete = {
+                onUpdateSettings { it.copy(profiles = it.profiles.filterNot { p -> p.packageName == profile.packageName }) }
+                editing = null
+            },
+        )
+    }
+
+    if (picking) {
+        AppPickerDialog(
+            existing = settings.profiles.map { it.packageName }.toSet(),
+            loadApps = loadApps,
+            onDismiss = { picking = false },
+            onPick = { app ->
+                picking = false
+                editing = AppProfile(app.packageName, app.label)
+            },
+        )
+    }
+}
+
+@Composable
+private fun SubHeading(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Muted, modifier = Modifier.padding(top = 4.dp))
+}
+
+/** A slider in steps that writes once the finger lifts, like the bubble size. */
+@Composable
+private fun StepSlider(
+    label: String,
+    valueText: String,
+    value: Int,
+    range: IntRange,
+    step: Int,
+    enabled: Boolean = true,
+    onChange: (Int) -> Unit,
+) {
+    var dragging by remember(value) { mutableStateOf(value.toFloat()) }
+    val shown = ((dragging / step).roundToInt() * step).coerceIn(range)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, color = if (enabled) AmberPalette.Text else AmberPalette.Muted, modifier = Modifier.weight(1f))
+            Hint(if (shown == value) valueText else "$shown")
+        }
+        Slider(
+            value = dragging,
+            onValueChange = { dragging = it },
+            onValueChangeFinished = { onChange(shown) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = (range.last - range.first) / step - 1,
+            enabled = enabled,
+            colors = SliderDefaults.colors(
+                thumbColor = AmberPalette.Primary,
+                activeTrackColor = AmberPalette.Primary,
+                inactiveTrackColor = AmberPalette.Outline,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+        )
+    }
+}
+
+private fun WritingStyle.label(): String = when (this) {
+    WritingStyle.AS_SPOKEN -> "As spoken"
+    WritingStyle.CASUAL -> "Casual"
+    WritingStyle.FORMAL -> "Formal"
+    WritingStyle.CONCISE -> "Concise"
+}
+
+private fun WritingStyle.note(): String = when (this) {
+    WritingStyle.AS_SPOKEN -> "only tidied"
+    WritingStyle.CASUAL -> "chat-like"
+    WritingStyle.FORMAL -> "for email"
+    WritingStyle.CONCISE -> "short notes"
+}
+
+@Composable
+private fun ProfileRow(profile: AppProfile, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(profile.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            val extra = listOfNotNull(
+                profile.instruction?.takeIf { it.isNotBlank() }?.let { "own instruction" },
+                when (profile.cleanup) {
+                    false -> "cleanup off"
+                    true -> "cleanup always"
+                    null -> null
+                },
+            )
+            Hint((listOf(profile.style.label()) + extra).joinToString(" · "))
+        }
+        Text("Edit", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProfileDialog(
+    profile: AppProfile,
+    onDismiss: () -> Unit,
+    onSave: (AppProfile) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var style by remember(profile) { mutableStateOf(profile.style) }
+    var instruction by remember(profile) { mutableStateOf(profile.instruction.orEmpty()) }
+    var cleanup by remember(profile) { mutableStateOf(profile.cleanup) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AmberPalette.Surface,
+        shape = AmberShapes.Card,
+        title = { Text(profile.label, color = AmberPalette.Text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Hint("Style")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WritingStyle.entries.forEach { option ->
+                        ChoiceChip(option.label(), option.note(), on = option == style) { style = option }
+                    }
+                }
+                OutlinedTextField(
+                    value = instruction,
+                    onValueChange = { instruction = it.take(300) },
+                    label = { Text("Own instruction (optional)") },
+                    placeholder = { Text("e.g. use \"du\", sign with Fabi") },
+                    shape = AmberShapes.Inner,
+                    colors = fieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Hint("Cleanup")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("Like the engine", null, on = cleanup == null) { cleanup = null }
+                    ChoiceChip("Always", null, on = cleanup == true) { cleanup = true }
+                    ChoiceChip("Never", "as recognized", on = cleanup == false) { cleanup = false }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(profile.copy(style = style, instruction = instruction.trim().ifEmpty { null }, cleanup = cleanup))
+            }) { Text("Save", color = AmberPalette.Primary) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDelete) { Text("Remove", color = AmberPalette.Error) }
+                TextButton(onClick = onDismiss) { Text("Cancel", color = AmberPalette.Muted) }
+            }
+        },
+    )
+}
+
+@Composable
+private fun AppPickerDialog(
+    existing: Set<String>,
+    loadApps: suspend () -> List<InstalledApp>,
+    onDismiss: () -> Unit,
+    onPick: (InstalledApp) -> Unit,
+) {
+    var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
+    var query by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) { apps = loadApps().filterNot { it.packageName in existing } }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AmberPalette.Surface,
+        shape = AmberShapes.Card,
+        title = { Text("Add app", color = AmberPalette.Text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search") },
+                    singleLine = true,
+                    shape = AmberShapes.Inner,
+                    colors = fieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val shown = apps?.filter { it.label.contains(query, ignoreCase = true) }
+                if (shown == null) {
+                    Hint("Loading apps …")
+                } else {
+                    LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                        items(shown, key = { it.packageName }) { app ->
+                            Text(
+                                app.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = AmberPalette.Text,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onPick(app) }
+                                    .padding(vertical = 10.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = AmberPalette.Muted) }
+        },
+    )
+}

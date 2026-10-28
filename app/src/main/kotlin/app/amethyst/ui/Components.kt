@@ -357,3 +357,28 @@ fun ProgressLine(fraction: Float?, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/** A choice among a few, with an optional note; the chosen one is filled amber. */
+@Composable
+fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .clip(AmberShapes.Inner)
+            .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (on) AmberPalette.Background else AmberPalette.Text,
+        )
+        if (note != null) {
+            Text(
+                note,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (on) AmberPalette.Background.copy(alpha = 0.7f) else AmberPalette.Muted,
+            )
+        }
+    }
+}

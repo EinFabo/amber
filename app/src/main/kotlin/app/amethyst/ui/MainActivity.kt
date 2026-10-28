@@ -1,6 +1,7 @@
 package app.amethyst.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -22,9 +23,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,25 +37,29 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import app.amethyst.Graph
 import app.amethyst.AmethystApp
+import app.amethyst.Graph
 import app.amethyst.capture.MicForegroundService
-import app.amethyst.core.engine.EnginePresets
-import app.amethyst.core.settings.EngineConfig
-import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.capture.TriggerSource
+import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.EngineConfig
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
+import app.amethyst.ui.screen.InstalledApp
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -194,6 +199,7 @@ private fun AmethystRoot(
     val parakeetState by graph.parakeetModels.state.collectAsStateWithLifecycle()
     val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
@@ -269,6 +275,7 @@ private fun AmethystRoot(
                         hasKeyFor = { alias -> graph.secretStore.has(alias) },
                         onUpdateSettings = ::updateSettings,
                         onOpenEngine = { engineId -> screen = Screen.EngineDetail(engineId) },
+                        loadApps = { launcherApps(context) },
                     )
 
                     is Screen.EngineDetail -> {
@@ -361,3 +368,14 @@ private fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
+
+/** Apps with a launcher icon, for picking one to give a writing style; Amber itself left out. */
+private suspend fun launcherApps(context: Context): List<InstalledApp> = withContext(Dispatchers.IO) {
+    val packages = context.packageManager
+    val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    packages.queryIntentActivities(launcher, 0)
+        .map { InstalledApp(it.activityInfo.packageName, it.loadLabel(packages).toString()) }
+        .filter { it.packageName != context.packageName }
+        .distinctBy { it.packageName }
+        .sortedBy { it.label.lowercase() }
+}

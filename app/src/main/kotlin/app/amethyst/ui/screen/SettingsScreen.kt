@@ -51,6 +51,7 @@ fun SettingsScreen(
     hasKeyFor: (String?) -> Boolean,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onOpenEngine: (String) -> Unit,
+    loadApps: suspend () -> List<InstalledApp>,
     modifier: Modifier = Modifier,
 ) {
     var showPresets by remember { mutableStateOf(false) }
@@ -190,6 +191,8 @@ fun SettingsScreen(
                 },
             )
         }
+
+        AdvancedSection(settings, onUpdateSettings, loadApps)
     }
 
     if (showPresets) {
@@ -302,7 +305,7 @@ private const val MIN_BUBBLE_DP = 44
 private const val MAX_BUBBLE_DP = 96
 
 @Composable
-private fun ToggleRow(
+internal fun ToggleRow(
     label: String,
     description: String,
     checked: Boolean,

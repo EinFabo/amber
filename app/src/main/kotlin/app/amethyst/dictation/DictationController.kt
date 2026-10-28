@@ -25,7 +25,9 @@ import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
@@ -273,7 +275,8 @@ class DictationController(
         // Finished parts of a longer dictation are recognized while the user is still speaking,
         // so stopping leaves only the last part to wait for.
         // A child of this dictation's job: cancelling the dictation stops the chunk work too.
-        val chunked = if (engine.capabilities.chunkable) {
+        val captureSettings = graph.settings.value.capture
+        val chunked = if (captureSettings.chunking && engine.capabilities.chunkable) {
             ChunkedTranscription(engine, options, CoroutineScope(currentCoroutineContext()))
         } else {
             null
@@ -284,7 +287,7 @@ class DictationController(
                 stopRequested = { stopRequested.get() },
                 onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
                 onChunk = chunked?.let { it::submit },
-                minChunkMs = engine.capabilities.minChunkMs,
+                minChunkMs = captureSettings.chunkMinMs ?: engine.capabilities.minChunkMs,
             )
         } catch (e: Throwable) {
             chunked?.cancel()
@@ -361,14 +364,25 @@ class DictationController(
      */
     private suspend fun cleanUp(transcript: Transcript, config: EngineConfig): Transcript {
         val cleanup = graph.engineFactory.cleanupFor(config) ?: return transcript
-        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text) }
+        // The style belongs to the app whose field gets the text; after the proxy activity
+        // that is only known once focus is back.
+        awaitFocusReturn()
+        val target = graph.accessibilityService?.targetPackage()
+        val profile = AppProfiles.forPackage(graph.settings.value.profiles, target)
+        if (profile?.cleanup == false) {
+            trace?.cleanup = "cleanup off for ${profile.label}"
+            return transcript
+        }
+        val style = profile?.style ?: WritingStyle.AS_SPOKEN
+        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text, style, profile?.instruction) }
         if (result == null) {
             trace?.cleanup = "cleanup timed out (${cleanup.model})"
             return transcript
         }
         return result.fold(
             onSuccess = { cleaned ->
-                trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model})"
+                val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
+                trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote)"
                 transcript.copy(
                     text = cleaned.text,
                     // The text is only as trustworthy as the weaker of the two trips it made.

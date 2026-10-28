@@ -61,6 +61,10 @@ data class CaptureSettings(
     val minSpeechMs: Int = 350,
     val maxDurationMs: Int = 120_000,
     val stripFillers: Boolean = true,
+    /** Recognize finished parts while still speaking, for engines that support it. */
+    val chunking: Boolean = true,
+    /** Shortest part worth cutting off; null keeps each engine's own (see EngineCapabilities). */
+    val chunkMinMs: Int? = null,
 ) {
     /**
      * [preRollMs] doubles as the calibration window: inside it the policy only learns the
@@ -140,6 +144,8 @@ data class AmethystSettings(
     val capture: CaptureSettings = CaptureSettings(),
     val bubble: BubbleSettings = BubbleSettings(),
     val insertion: InsertionSettings = InsertionSettings(),
+    /** Per-app writing style and cleanup, edited under Advanced settings. */
+    val profiles: List<AppProfile> = AppProfiles.DEFAULTS,
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -153,9 +159,10 @@ data class AmethystSettings(
     companion object {
         /**
          * 2: Whisper takes a list of languages. 3: Tinfoil moved behind one router.
+         * 4: per-app profiles - nothing to migrate, an absent field decodes to the defaults.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 3
+        const val SCHEMA_VERSION = 4
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"

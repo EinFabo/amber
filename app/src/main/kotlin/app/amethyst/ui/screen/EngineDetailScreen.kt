@@ -59,6 +59,7 @@ import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
+import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.ProgressLine
@@ -517,34 +518,10 @@ private fun ModelPicker(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (noneLabel != null) Chip(noneLabel, null, on = selected == null) { onSelect(null) }
+        if (noneLabel != null) ChoiceChip(noneLabel, null, on = selected == null) { onSelect(null) }
         choices.forEach { choice ->
             val note = if (choice.recommended) "Recommended · ${choice.note}" else choice.note
-            Chip(choice.label, note, on = choice.id == selected) { onSelect(choice.id) }
-        }
-    }
-}
-
-@Composable
-private fun Chip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .clip(AmberShapes.Inner)
-            .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (on) AmberPalette.Background else AmberPalette.Text,
-        )
-        if (note != null) {
-            Text(
-                note,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (on) AmberPalette.Background.copy(alpha = 0.7f) else AmberPalette.Muted,
-            )
+            ChoiceChip(choice.label, note, on = choice.id == selected) { onSelect(choice.id) }
         }
     }
 }

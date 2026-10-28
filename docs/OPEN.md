@@ -1,6 +1,6 @@
 # Amber - open items
 
-As of 2026-10-28, after 0.10.0. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.11.0. Urgent things at the top, later stages at the bottom.
 
 ## In progress: bubble and keyboard
 
@@ -59,11 +59,18 @@ As of 2026-10-28, after 0.10.0. Urgent things at the top, later stages at the bo
 
 ## Per-app style, under Advanced settings (Fabi, 2026-10-28)
 
-- [ ] **Different apps, different wording**: the same dictation reads differently depending on
+- [x] **Built** (0.11.0): AppProfile per package with a WritingStyle (as spoken, casual, formal,
+      concise), an own instruction and cleanup like-the-engine/always/never; defaults for
+      WhatsApp, Telegram, Signal (casual), Gmail, Outlook (formal), Keep (concise). The style
+      follows the app whose field gets the text. Advanced settings (collapsed): silence
+      timeout, longest dictation, recognize in parts on/off, shortest part, app styles.
+- [ ] **Confirm on the device**: a casual WhatsApp and a formal Gmail dictation with Tinfoil
+      cleanup on; an own instruction; "Never" really leaves the text as recognized.
+- [x] **Different apps, different wording**: the same dictation reads differently depending on
       where it lands - casual in WhatsApp, more formal in Gmail, plain in notes, etc. The
       insertion already knows the target app (foreground package), and the cleanup step
       (ChatCleanup) is where the style would be applied.
-- [ ] **All of it adjustable** in an "Advanced settings" section: per app the style (or a free
+- [x] **All of it adjustable** in an "Advanced settings" section: per app the style (or a free
       instruction), and the existing knobs that are not in the UI yet - e.g. silence timeout,
       chunk length, cleanup on/off and model per app. Defaults stay simple; nothing extra shows
       unless Advanced is opened.

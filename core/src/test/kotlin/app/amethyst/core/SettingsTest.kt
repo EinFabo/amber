@@ -6,6 +6,9 @@ import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppProfile
+import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.settings.SettingsCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -156,5 +159,21 @@ class CaptureTimeoutTest {
         val migrated = SettingsCodec.decode(SettingsCodec.encode(old)).engines.single()
         assertEquals("https://inference.tinfoil.sh/v1", migrated.baseUrl)
         assertEquals("whisper-large-v3-turbo", migrated.modelId)
+    }
+
+    @Test
+    fun `settings from before profiles get the default profiles`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":3}"""
+        val decoded = SettingsCodec.decode(old)
+        assertEquals(AppProfiles.DEFAULTS, decoded.profiles)
+        assertEquals(WritingStyle.CASUAL, AppProfiles.forPackage(decoded.profiles, "com.whatsapp")?.style)
+    }
+
+    @Test
+    fun `a profile is replaced in place, a new one appended`() {
+        val changed = AppProfiles.upsert(AppProfiles.DEFAULTS, AppProfile("com.whatsapp", "WhatsApp", WritingStyle.FORMAL))
+        assertEquals(AppProfiles.DEFAULTS.size, changed.size)
+        assertEquals(WritingStyle.FORMAL, AppProfiles.forPackage(changed, "com.whatsapp")?.style)
+        assertEquals(AppProfiles.DEFAULTS.size + 1, AppProfiles.upsert(changed, AppProfile("x.y", "X")).size)
     }
 }
