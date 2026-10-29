@@ -1,5 +1,14 @@
 pluginManagement {
     repositories {
+        // Evaluated before the rest of this file, so googleOnly() below is out of reach here.
+        exclusiveContent {
+            forRepository { google() }
+            filter {
+                includeGroupByRegex("androidx\\..*")
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroupByRegex("com\\.google\\.android\\..*")
+            }
+        }
         gradlePluginPortal()
         mavenCentral()
         google()
@@ -10,10 +19,27 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        googleOnly()
         // mavenCentral first: it is the only one reachable from restricted CI/dev sandboxes,
         // so pure-JVM modules keep resolving even when google() is unreachable.
         mavenCentral()
         google()
+    }
+}
+
+/**
+ * androidx and the Android Gradle plugin come from Google's repository and nowhere else. Asked
+ * first, Maven Central would serve whoever registered those names there - nobody today, but
+ * the build's safety should not hang on that.
+ */
+fun RepositoryHandler.googleOnly() {
+    exclusiveContent {
+        forRepository { google() }
+        filter {
+            includeGroupByRegex("androidx\\..*")
+            includeGroupByRegex("com\\.android(\\..*)?")
+            includeGroupByRegex("com\\.google\\.android\\..*")
+        }
     }
 }
 

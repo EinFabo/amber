@@ -6,7 +6,9 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <asm/hwcap.h>
 #include <dirent.h>
+#include <sys/auxv.h>
 
 #include <algorithm>
 #include <atomic>
@@ -43,6 +45,23 @@ void throw_runtime(JNIEnv *env, const std::string &message) {
         cls = env->FindClass("java/lang/IllegalStateException");
     }
     env->ThrowNew(cls, message.c_str());
+}
+
+// The library is built for armv8.2-a with dot-product and fp16 instructions (CMakeLists.txt);
+// an ARMv8.0 core (Cortex-A53 and the like) would die on the first of them with SIGILL - and
+// take the accessibility service with it. Asked of the kernel before any model is touched.
+bool cpu_supported() {
+    const unsigned long caps = getauxval(AT_HWCAP);
+    return (caps & HWCAP_ASIMDDP) != 0 && (caps & HWCAP_ASIMDHP) != 0;
+}
+
+// A Java string as std::string; false (with an exception pending) when the VM is out of memory.
+bool read_string(JNIEnv *env, jstring value, std::string &out) {
+    const char *chars = env->GetStringUTFChars(value, nullptr);
+    if (chars == nullptr) return false;
+    out.assign(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return true;
 }
 
 // whisper.cpp logs every layer it loads; keep warnings and errors only.
@@ -162,14 +181,28 @@ std::string detect_among(whisper_context *ctx, const std::vector<std::string> &a
 extern "C" JNIEXPORT jlong JNICALL
 Java_app_amethyst_engine_WhisperNative_load(JNIEnv *env, jobject /* this */, jstring jpath, jint threads) {
     whisper_log_set(quiet_log, nullptr);
+    if (!cpu_supported()) {
+        throw_runtime(env, "cpu unsupported: local Whisper needs the ARMv8.2 dot-product instructions");
+        return 0;
+    }
     // Before the context: whisper.cpp hands the pool to its CPU backend while loading.
     ensure_pool(threads);
 
-    const char *path = env->GetStringUTFChars(jpath, nullptr);
+    std::string path;
+    if (!read_string(env, jpath, path)) return 0;
     whisper_context_params params = whisper_context_default_params();
     params.use_gpu = false;
-    whisper_context *ctx = whisper_init_from_file_with_params(path, params);
-    env->ReleaseStringUTFChars(jpath, path);
+    whisper_context *ctx = nullptr;
+    // A C++ exception must not cross into the VM: it would abort the whole process.
+    try {
+        ctx = whisper_init_from_file_with_params(path.c_str(), params);
+    } catch (const std::exception &e) {
+        throw_runtime(env, std::string("model load failed: ") + e.what());
+        return 0;
+    } catch (...) {
+        throw_runtime(env, "model load failed");
+        return 0;
+    }
 
     if (ctx == nullptr) {
         throw_runtime(env, "whisper_init_from_file_with_params returned null");
@@ -194,6 +227,7 @@ Java_app_amethyst_engine_WhisperNative_lastLanguage(JNIEnv *env, jobject /* this
 extern "C" JNIEXPORT jintArray JNICALL
 Java_app_amethyst_engine_WhisperNative_workerTids(JNIEnv *env, jobject /* this */) {
     jintArray out = env->NewIntArray(static_cast<jsize>(g_pool_tids.size()));
+    if (out == nullptr) return nullptr;
     if (!g_pool_tids.empty()) {
         env->SetIntArrayRegion(out, 0, static_cast<jsize>(g_pool_tids.size()), g_pool_tids.data());
     }
@@ -226,29 +260,33 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
     g_abort.store(false, std::memory_order_relaxed);
 
     // "auto", a single code ("de"), or a list ("de,en") to detect between.
-    const char *language = env->GetStringUTFChars(jlanguage, nullptr);
-    const std::string requested(language);
-    env->ReleaseStringUTFChars(jlanguage, language);
+    std::string requested;
+    // Text recognized just before this audio, when it is one chunk of a longer dictation.
+    std::string prompt;
+    if (!read_string(env, jlanguage, requested) || !read_string(env, jprompt, prompt)) return nullptr;
 
     jsize count = env->GetArrayLength(jsamples);
     jfloat *samples = env->GetFloatArrayElements(jsamples, nullptr);
+    if (samples == nullptr) return nullptr;  // out of memory, exception pending
 
     std::string lang = requested;
-    if (requested != "auto") {
-        const std::vector<std::string> allowed = split_languages(requested);
-        if (allowed.empty()) {
-            lang = "auto";
-        } else if (allowed.size() == 1) {
-            lang = allowed.front();
-        } else {
-            lang = detect_among(ctx, allowed, samples, count, audio_ctx, threads);
+    try {
+        if (requested != "auto") {
+            const std::vector<std::string> allowed = split_languages(requested);
+            if (allowed.empty()) {
+                lang = "auto";
+            } else if (allowed.size() == 1) {
+                lang = allowed.front();
+            } else {
+                lang = detect_among(ctx, allowed, samples, count, audio_ctx, threads);
+            }
         }
+    } catch (...) {
+        env->ReleaseFloatArrayElements(jsamples, samples, JNI_ABORT);
+        pause_pool();
+        throw_runtime(env, "language detection failed");
+        return nullptr;
     }
-
-    // Text recognized just before this audio, when it is one chunk of a longer dictation.
-    const char *prompt_chars = env->GetStringUTFChars(jprompt, nullptr);
-    const std::string prompt(prompt_chars);
-    env->ReleaseStringUTFChars(jprompt, prompt_chars);
 
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads = threads;
@@ -268,7 +306,20 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
     params.abort_callback = abort_requested;
     params.abort_callback_user_data = nullptr;
 
-    const int rc = whisper_full(ctx, params, samples, count);
+    int rc;
+    try {
+        rc = whisper_full(ctx, params, samples, count);
+    } catch (const std::exception &e) {
+        env->ReleaseFloatArrayElements(jsamples, samples, JNI_ABORT);
+        pause_pool();
+        throw_runtime(env, std::string("whisper_full threw: ") + e.what());
+        return nullptr;
+    } catch (...) {
+        env->ReleaseFloatArrayElements(jsamples, samples, JNI_ABORT);
+        pause_pool();
+        throw_runtime(env, "whisper_full threw");
+        return nullptr;
+    }
     env->ReleaseFloatArrayElements(jsamples, samples, JNI_ABORT);
     // Between dictations the workers wait on a condition variable instead of polling.
     pause_pool();
@@ -292,6 +343,7 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
         text += whisper_full_get_segment_text(ctx, i);
     }
     jbyteArray out = env->NewByteArray(static_cast<jsize>(text.size()));
+    if (out == nullptr) return nullptr;  // out of memory, exception pending
     env->SetByteArrayRegion(out, 0, static_cast<jsize>(text.size()),
                             reinterpret_cast<const jbyte *>(text.data()));
     return out;

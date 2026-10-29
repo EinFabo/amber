@@ -7,6 +7,18 @@ local.properties
 # Release key: path, alias and passwords - never committed.
 keystore.properties
 app/libs/*.aar
+# gomobile writes a sources jar next to the AAR.
+app/libs/*.jar
+# Signing material and secrets in any form, and build outputs that carry a signature.
+*.p12
+*.pfx
+*.pem
+*.key
+.env*
+*.aab
+*.idsig
+app/release/
+CLAUDE.local.md
 .idea/
 .kotlin/
 .cxx/

@@ -17,6 +17,9 @@ import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.engine.ListenCallbacks
+import app.amethyst.core.insert.InputTarget
+import app.amethyst.core.insert.TargetCheck
+import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttEngine
@@ -92,7 +95,7 @@ class DictationController(
      * app: if the user switched meanwhile, it would land in another chat - maybe to someone
      * else. Kept across the proxy activity's re-entry, which itself has focus.
      */
-    private var startTarget: String? = null
+    private var startTarget: InputTarget? = null
 
     /** The local engine that took over this dictation from an unreachable server, if any. */
     private var fellBack: String? = null
@@ -114,7 +117,7 @@ class DictationController(
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
-            startTarget = graph.accessibilityService?.focusedInputPackage()
+            startTarget = graph.accessibilityService?.focusedTarget()
         }
 
         val route = MicrophoneRouter.route(
@@ -375,7 +378,9 @@ class DictationController(
                     engine.capabilities.trustLevel,
                     graph.settings.value.capture.localFallback,
                 )
-                val recovered = recoverable?.let { recognizeLocally(outcome.audio, it) }?.let { Result.success(it) } ?: result
+                val recovered = recoverable
+                    ?.let { recognizeLocally(outcome.audio, it, engine.capabilities.trustLevel) }
+                    ?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error))
                     null
@@ -389,7 +394,10 @@ class DictationController(
      * server could not take. Null when none is downloaded or none recognized it; the
      * original error then stands.
      */
-    private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure): Transcript? {
+    private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel): Transcript? {
+        // A read timeout or a 5xx came after the upload: the text is the phone's, the
+        // recording may be the server's - and the label says so.
+        val trust = LocalFallback.trustAfter(cause, serverTrust)
         for (config in LocalFallback.candidates(graph.settings.value.engines)) {
             val local = graph.engineFactory.create(config).getOrNull() ?: continue
             Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
@@ -401,11 +409,15 @@ class DictationController(
             }
             result.getOrNull()?.let { transcript ->
                 fellBack = config.displayName
-                trace?.fallback = "server unreachable, recognized by ${config.displayName}"
-                mainHandler.post {
-                    Toast.makeText(context, "No connection - recognized on the phone with ${config.displayName}.", Toast.LENGTH_SHORT).show()
+                trace?.fallback = "server unreachable, recognized by ${config.displayName}, label $trust"
+                val message = if (trust == TrustLevel.ON_DEVICE) {
+                    "No connection - recognized on the phone with ${config.displayName}."
+                } else {
+                    "The server did not answer - recognized on the phone with ${config.displayName}. " +
+                        "The recording may have reached the server."
                 }
-                return transcript
+                mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+                return transcript.copy(trustLevel = trust)
             }
         }
         return null
@@ -423,7 +435,7 @@ class DictationController(
         // The style belongs to the app whose field gets the text; after the proxy activity
         // that is only known once focus is back.
         awaitFocusReturn()
-        val target = startTarget ?: graph.accessibilityService?.targetPackage()
+        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
         val profile = AppProfiles.forPackage(graph.settings.value.profiles, target)
         if (profile?.cleanup == false) {
             trace?.cleanup = "cleanup off for ${profile.label}"
@@ -478,20 +490,26 @@ class DictationController(
 
         awaitFocusReturn()
 
-        val nowFocused = graph.accessibilityService?.focusedInputPackage()
-        val started = startTarget
-        if (started != null && nowFocused != null && nowFocused != started) {
-            Log.i(TAG, "focus moved from $started to $nowFocused during the dictation - not inserting")
-            // Only when the user allows the clipboard at all; otherwise the text stays in the
-            // diagnostics, and the clipboard untouched as promised.
-            val copied = settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
+        val now = graph.accessibilityService?.focusedTarget()
+        val verdict = TargetCheck.verdict(startTarget, now)
+        if (verdict != TargetCheck.Verdict.INSERT) {
+            Log.i(TAG, "not inserting: $verdict (start ${startTarget?.packageName}, now ${now?.packageName})")
+            val why = when (verdict) {
+                TargetCheck.Verdict.SECRET -> "The field now is a password field"
+                TargetCheck.Verdict.NO_FIELD -> "No text field has focus any more"
+                else -> "You switched to another app, chat or field meanwhile"
+            }
+            // Never into a password field, not even via the clipboard. Otherwise only when the
+            // user allows the clipboard at all; else the text stays in the diagnostics.
+            val copied = verdict != TargetCheck.Verdict.SECRET &&
+                settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
             if (copied) {
-                fail("You switched apps meanwhile - the text is on the clipboard instead.", engineId)
+                fail("$why - the text is on the clipboard instead.", engineId)
             } else {
                 fail(
-                    "You switched apps meanwhile - not inserted: \u201C$cleaned\u201D",
+                    "$why - not inserted: \u201C$cleaned\u201D",
                     engineId,
-                    brief = "You switched apps meanwhile - not inserted. The text is in Amber's diagnostics.",
+                    brief = "$why - not inserted. The text is in Amber's diagnostics.",
                 )
             }
             return
@@ -571,7 +589,7 @@ class DictationController(
                 words = countWords(transcript.text),
                 audioMs = audioMs,
                 waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
-                app = (startTarget ?: targetPackage)?.takeIf { it != context.packageName },
+                app = (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName },
                 cleanupModel = trace?.cleanupModel,
                 // Priced by the provider the engine talks to; an own server gives null.
                 costMicroUsd = config?.takeIf { it.kind == EngineKind.OPENAI_COMPATIBLE }?.let {

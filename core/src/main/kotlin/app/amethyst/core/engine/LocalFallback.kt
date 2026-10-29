@@ -15,6 +15,13 @@ object LocalFallback {
     fun recoverable(error: Throwable?, engineTrust: TrustLevel, enabled: Boolean): SttFailure? =
         (error as? SttFailure)?.takeIf { enabled && engineTrust != TrustLevel.ON_DEVICE && it.serviceUnavailable }
 
+    /**
+     * The trust a text recognized on the phone after [failure] really has: on device only when
+     * the recording provably never left; otherwise the server's, since it may well have it.
+     */
+    fun trustAfter(failure: SttFailure, serverTrust: TrustLevel): TrustLevel =
+        if (failure.recordingMayHaveLeft) serverTrust else TrustLevel.ON_DEVICE
+
     /** The engines to try, best first: Parakeet (fast, accurate), then Whisper. */
     fun candidates(engines: List<EngineConfig>): List<EngineConfig> = engines
         .filter { it.kind == EngineKind.LOCAL_SHERPA || it.kind == EngineKind.WHISPER_CPP }

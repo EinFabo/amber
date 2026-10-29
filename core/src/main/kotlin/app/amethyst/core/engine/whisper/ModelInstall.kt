@@ -14,12 +14,17 @@ object ModelInstall {
 
     data class Copied(val bytes: Long, val sha256: String)
 
-    /** Streams [input] to [output], hashing on the way. [onProgress] gets bytes so far. */
+    /**
+     * Streams [input] to [output], hashing on the way. [onProgress] gets bytes so far. Stops as
+     * soon as more than [maxBytes] arrive: a pinned download has an exact size, and a server
+     * sending more is not going to send the right file - it must not fill the phone first.
+     */
     fun copyWithDigest(
         input: InputStream,
         output: OutputStream,
         onProgress: (Long) -> Unit = {},
         isCancelled: () -> Boolean = { false },
+        maxBytes: Long = Long.MAX_VALUE,
     ): Copied {
         val digest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(BUFFER_SIZE)
@@ -28,9 +33,10 @@ object ModelInstall {
             if (isCancelled()) throw InterruptedException("model copy cancelled")
             val read = input.read(buffer)
             if (read < 0) break
+            total += read
+            if (total > maxBytes) throw java.io.IOException("more than the expected $maxBytes bytes")
             output.write(buffer, 0, read)
             digest.update(buffer, 0, read)
-            total += read
             onProgress(total)
         }
         output.flush()
@@ -53,7 +59,7 @@ object ModelInstall {
         val partial = File(target.parentFile, target.name + ".part")
         return try {
             val copied = partial.outputStream().use { out ->
-                copyWithDigest(input, out, onProgress, isCancelled)
+                copyWithDigest(input, out, onProgress, isCancelled, maxBytes = expected?.sizeBytes ?: Long.MAX_VALUE)
             }
             verify(partial, copied, expected).onSuccess {
                 if (!partial.renameTo(target)) {

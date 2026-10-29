@@ -39,9 +39,17 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(GGML_CPU_ARM_ARCH "armv8.2-a+fp16+dotprod" CACHE STRING "" FORCE)
 
+# ggml logs and asserts with __FILE__; without this the library carries the absolute paths of
+# the machine it was built on.
+add_compile_options(
+    -ffile-prefix-map=${CMAKE_BINARY_DIR}=build
+    -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.
+)
+
 FetchContent_MakeAvailable(whisper)
 
 add_library(amethyst_whisper SHARED whisper_jni.cpp)
 target_link_libraries(amethyst_whisper PRIVATE whisper log)
 target_compile_options(amethyst_whisper PRIVATE -O3 -fvisibility=hidden)
-target_link_options(amethyst_whisper PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)
+# 16 KB segment alignment: loads on devices with 16 KB memory pages as well as 4 KB ones.
+target_link_options(amethyst_whisper PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,-z,max-page-size=16384)

@@ -40,6 +40,7 @@ class AmethystApp : Application() {
     override fun onCreate() {
         super.onCreate()
         graph = Graph(this)
+        app.amethyst.engine.AndroidOnDeviceEngine.detectOnDeviceSpeech(this)
     }
 
     /**

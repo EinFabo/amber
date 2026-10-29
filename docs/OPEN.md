@@ -21,6 +21,66 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
   - Smoother motion: don't move the overlay window per frame with `updateViewLayout`; animate
     the bubble with `translationY` inside a briefly enlarged window instead.
 
+## Security review of 0.15.1 (external, 2026-10-29) - fixed in 0.16.1 unless open
+
+Read-only review of the public repo and the release APK: no secrets anywhere, the APK signed
+with the release key, the enclave path solid. Each finding was checked against the code first.
+- [x] M2 Tinfoil verifier source: tarball pinned by SHA-256 (independently re-hashed; same tree
+      as the Go sumdb entry), fresh `mktemp -d` per build instead of a reusable shared /tmp
+      path. `typecheck-android.sh`: all eight jars pinned by SHA-256, cache in ~/.cache.
+- [x] M3 Gradle 8.14.3 -> 8.14.6 (five High advisories) with `distributionSha256Sum`;
+      androidx/com.android/com.google.android only from Google's repository (exclusiveContent).
+- [x] M4 trust labels: a text recognized on the phone after a server failure keeps the
+      server's label unless the connection provably never opened (`recordingMayHaveLeft`); an
+      own server over http says "unencrypted"; the Android recognizer is "On device" only
+      where the phone has an on-device recognizer; CLOUD texts no longer promise TLS.
+- [x] M5 insertion target: app, window and (Android 13+) field id must match the start; no
+      field or an unidentifiable one means no insertion; a password field never gets text,
+      not even via the clipboard; the input-connection path refuses an editor without owner.
+- [x] M6 accessibility disclosure says exactly what is read, and the setup asks "I agree"
+      before opening the system settings.
+- [x] L1 API keys never in plain text: an unreadable encrypted store is recreated, else keys
+      stay in memory; an old plain file is moved in and deleted; `dataExtractionRules` exclude
+      everything from backup and device-to-device transfer.
+- [x] L2 password fields on Android 13+ also by the node's isPassword.
+- [x] L4 clipboard text marked sensitive. L5 no redirects for speech/cleanup requests. L6
+      responses capped at 8 MiB, downloads stop past their pinned size. L7 bidi, zero-width and
+      control characters stripped. L8 JNI: null checks, no C++ exception crosses into the VM.
+      L9 a CPU without dot-product instructions gets a message instead of SIGILL. L10 all native
+      libraries 16 KB aligned (whisper and the rebuilt Tinfoil AAR). L12 signing script parses
+      the properties instead of eval, checks exactly one signer and that the signed APK equals
+      the one sent. L13 CI actions pinned by SHA, read-only token. L14 no build paths in the
+      native library, no name in the UI placeholder. L15 .gitignore covers keys, .env, .aab,
+      the gomobile sources jar (untracked now). L18 no Recents thumbnail of Amber's screens.
+- [x] Unused compose ui-tooling removed; okhttp declared in :app. README: signer fingerprint
+      and how to check an APK (M1, first step).
+- [ ] M1 releases built by CI from the tag, provenance attestation, signed = unsigned +
+      signature shown (apksigcopier), APK SHA-256 in each release note; later reproducible
+      builds (IzzyOnDroid/F-Droid).
+- [ ] M3 dependency verification metadata (SHA-256, then PGP); Kotlin 2.1.20 -> 2.4.20
+      (CVE-2026-53914, build-cache deserialization), AGP and the Compose BOM.
+- [ ] M4b bind an http engine to the network it was set up on, or https with a pinned cert.
+- [ ] Replace androidx.security-crypto (deprecated) with an AndroidKeyStore AES-GCM key.
+- [ ] L3 `ACTION_SET_TEXT` rewrites the whole field (chips, races) - see plan item 4.
+- [ ] L8 one global abort flag: a cancel during model load is lost (needs a run token).
+- [ ] L11 parse user-imported models in an isolatedProcess.
+- [ ] L16 statistics retention; "Clear statistics" should clear the per-app strategy list;
+      `rememberStrategyPerApp` is never read. L17 package names in release logcat.
+- [ ] Release signing key: a leak of it, or of the ssh access to the signing host, lets anyone
+      sign as Amber.
+
+## Fabi's plan: terminal mode and everyday fixes (2026-10-29)
+
+The full task prompt, with causes, code pointers and acceptance criteria:
+[`docs/plans/2026-10-29-terminal-mode-and-everyday-fixes.md`](plans/2026-10-29-terminal-mode-and-everyday-fixes.md).
+- [ ] 1. Line breaks from a style are lost: `TranscriptNormalizer` collapses newlines (confirmed).
+- [ ] 2. Longer custom instructions (cut at 300 characters today).
+- [ ] 3. "Clipboard shortcut doesn't work properly" - ask Fabi what he means.
+- [ ] 4. Pasting is sometimes unreliable - ask Fabi which apps, then fix per app.
+- [ ] 5. Onboarding for normal people, with the model download built in.
+- [ ] 6. Style rules per WhatsApp contact.
+- [ ] 7. Terminal mode: speech becomes shell commands, never executed.
+
 ## Research: bubble position and field detection (2026-10-29)
 
 Done in 0.14.0:

@@ -90,6 +90,24 @@ class SttFailure(
     val serviceUnavailable: Boolean
         get() = (statusCode == null && cause is java.io.IOException) || statusCode in 500..599
 
+    /**
+     * Whether the recording may have reached the server before this failure. Only a failure to
+     * connect at all proves it did not: a read timeout or a 5xx came after the upload, so a
+     * text recognized on the phone afterwards must not claim the voice stayed there.
+     */
+    val recordingMayHaveLeft: Boolean
+        get() = statusCode != null || generateSequence(cause) { it.cause }.none { it.isConnectFailure() }
+
+    private fun Throwable.isConnectFailure(): Boolean =
+        this is NotSentException ||
+            this is java.net.UnknownHostException ||
+            this is java.net.ConnectException ||
+            this is java.net.NoRouteToHostException ||
+            this is javax.net.ssl.SSLHandshakeException ||
+            this is javax.net.ssl.SSLPeerUnverifiedException ||
+            // OkHttp's connect timeout: "failed to connect to ... after 10000ms".
+            (this is java.net.SocketTimeoutException && message.orEmpty().contains("connect", ignoreCase = true))
+
     enum class Remedy {
         /** The system recognizer lacks the offline pack for the dictation language. */
         INSTALL_LANGUAGE,
@@ -102,3 +120,6 @@ class SttFailure(
         const val NOTHING_RECOGNIZED = "Nothing was recognized."
     }
 }
+
+/** A failure that happened before a single byte of the request went out. */
+class NotSentException(message: String) : java.io.IOException(message)

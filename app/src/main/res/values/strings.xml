@@ -3,7 +3,7 @@
     <string name="app_name">Amber</string>
     <string name="accessibility_label">Amber Dictation</string>
     <string name="accessibility_summary">Bubble for dictating and inserting text in any app</string>
-    <string name="accessibility_description">Amber needs this service for two things: showing the dictation bubble over other apps, and typing the recognized text into the active text field. Nothing is read, stored or sent that did not come from a dictation.</string>
+    <string name="accessibility_description">Amber uses this service to show the dictation bubble and to type your dictation into the field you are writing in. For that it reads which app is in front and whether a text field has focus (to show or hide the bubble), where the keyboard is (to keep the bubble above it), and - only when inserting a dictation - the text already in that field, so the new words fit in at the cursor. None of this is stored or sent anywhere: only your recording, and with cleanup its text, goes to the engine you chose. Amber never taps, swipes or acts for you.</string>
 
     <string name="notification_channel_name">Amber ready</string>
     <string name="notification_channel_description">Keeps the microphone available for the dictation bubble</string>

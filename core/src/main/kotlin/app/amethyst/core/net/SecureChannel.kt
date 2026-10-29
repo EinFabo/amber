@@ -1,5 +1,6 @@
 package app.amethyst.core.net
 
+import app.amethyst.core.engine.NotSentException
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
@@ -107,7 +108,7 @@ class SecureChannel(
                     },
                     technical = "attestation: ${result.detail}",
                     // Offline is offline, enclave or not: a model on the phone may take over.
-                    cause = if (result.unreachable) java.io.IOException(result.detail) else null,
+                    cause = if (result.unreachable) NotSentException(result.detail) else null,
                 ),
             )
         }

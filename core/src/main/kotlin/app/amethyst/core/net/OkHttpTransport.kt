@@ -32,6 +32,10 @@ class OkHttpTransport(
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
+        // A 307/308 would replay the recording to wherever the server points, https to http
+        // included. Speech and cleanup endpoints do not redirect; a wrong address should fail.
+        .followRedirects(false)
+        .followSslRedirects(false)
         .build(),
 ) : PinnableTransport {
 
@@ -84,7 +88,7 @@ class OkHttpTransport(
                             response.use {
                                 HttpResponse(
                                     code = it.code,
-                                    body = it.body?.bytes() ?: ByteArray(0),
+                                    body = it.body?.let(::boundedBytes) ?: ByteArray(0),
                                     headers = it.headers.toMultimap().mapValues { h -> h.value.joinToString(", ") },
                                 )
                             }
@@ -94,6 +98,19 @@ class OkHttpTransport(
                 },
             )
         }
+    }
+
+    /**
+     * The body, refused beyond [MAX_RESPONSE_BYTES]: a transcript or a cleanup reply is a few
+     * kilobytes, and an endless answer from a broken or hostile server must not run the
+     * process - which also hosts the accessibility service - out of memory.
+     */
+    private fun boundedBytes(body: okhttp3.ResponseBody): ByteArray {
+        val source = body.source()
+        if (source.request(MAX_RESPONSE_BYTES + 1)) {
+            throw IOException("response larger than ${MAX_RESPONSE_BYTES shr 20} MiB")
+        }
+        return source.buffer.readByteArray()
     }
 
     private fun toOkRequest(request: HttpRequest): Request {
@@ -125,6 +142,9 @@ class OkHttpTransport(
     }
 
     private companion object {
+        /** Far beyond any transcript or cleanup reply; see [boundedBytes]. */
+        const val MAX_RESPONSE_BYTES = 8L shl 20
+
         fun hexToBytes(hex: String): ByteArray {
             val clean = hex.trim().lowercase()
             require(clean.length == 64 && clean.all { it in '0'..'9' || it in 'a'..'f' }) {

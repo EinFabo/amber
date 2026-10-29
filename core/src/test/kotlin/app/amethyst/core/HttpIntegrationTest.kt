@@ -16,6 +16,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -152,5 +153,35 @@ class HttpIntegrationTest {
             return i
         }
         return -1
+    }
+
+    @Test
+    fun `a redirect is not followed, so the recording is not replayed elsewhere`() = runTest {
+        var replayed = false
+        server.createContext("/elsewhere") { exchange: HttpExchange ->
+            replayed = true
+            exchange.sendResponseHeaders(200, -1)
+            exchange.close()
+        }
+        server.createContext("/moved/v1/audio/transcriptions") { exchange: HttpExchange ->
+            exchange.requestBody.readBytes()
+            exchange.responseHeaders.add("Location", "http://127.0.0.1:${server.address.port}/elsewhere")
+            exchange.sendResponseHeaders(307, -1)
+            exchange.close()
+        }
+        val moved = OpenAiCompatibleEngine(
+            id = "self-hosted", displayName = "Own server", baseUrl = "http://127.0.0.1:${server.address.port}/moved/v1",
+            modelId = "m", transport = OkHttpTransport(), apiKeyProvider = { null },
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+        )
+        assertTrue(moved.transcribe(speechLikeAudio(), TranscribeOptions()).isFailure)
+        assertFalse(replayed, "the body must not be sent on to the redirect target")
+    }
+
+    @Test
+    fun `an endless answer is cut off instead of filling the memory`() = runTest {
+        responseBody = "x".repeat(9 shl 20)
+        val result = engine().transcribe(speechLikeAudio(), TranscribeOptions())
+        assertTrue(result.isFailure)
     }
 }

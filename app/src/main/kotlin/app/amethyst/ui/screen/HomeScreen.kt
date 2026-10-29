@@ -1,5 +1,9 @@
 package app.amethyst.ui.screen
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import app.amethyst.R
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -329,6 +333,32 @@ private fun StatusLine(
 
 @Composable
 private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifier) {
+    // What the service reads, said before Android asks - and agreed to, not just scrolled past.
+    var disclosing by remember { mutableStateOf(false) }
+    if (disclosing) {
+        AlertDialog(
+            onDismissRequest = { disclosing = false },
+            containerColor = AmberPalette.Surface,
+            shape = AmberShapes.Card,
+            title = { Text("What the accessibility service does", color = AmberPalette.Text) },
+            text = {
+                Text(
+                    stringResource(R.string.accessibility_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AmberPalette.Text,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    disclosing = false
+                    actions.openAccessibility()
+                }) { Text("I agree - open settings", color = AmberPalette.Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = { disclosing = false }) { Text("Not now", color = AmberPalette.Muted) }
+            },
+        )
+    }
     SectionCard(
         title = "Setup",
         subtitle = "Two steps, then the bubble works in every app.",
@@ -346,7 +376,7 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
             description = "Shows the bubble and types the text into the active field.",
             done = setup.accessibilityEnabled,
             actionLabel = "Open",
-            onAction = actions.openAccessibility,
+            onAction = { disclosing = true },
         )
         if (!setup.accessibilityEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             RestrictedSettingsHint(onOpenAppInfo = actions.openAppInfo)

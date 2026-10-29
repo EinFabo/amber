@@ -265,7 +265,7 @@ private fun ProfileDialog(
                     value = instruction,
                     onValueChange = { instruction = it.take(300) },
                     label = { Text("Own instruction (optional)") },
-                    placeholder = { Text("e.g. use \"du\", sign with Fabi") },
+                    placeholder = { Text("e.g. use \"du\", sign with my first name") },
                     shape = AmberShapes.Inner,
                     colors = fieldColors(),
                     modifier = Modifier.fillMaxWidth(),

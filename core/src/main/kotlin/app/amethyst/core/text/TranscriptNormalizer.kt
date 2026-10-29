@@ -24,6 +24,17 @@ object TranscriptNormalizer {
     val ENGLISH_ONLY_FILLERS: Set<String> = setOf("um", "eh")
 
     private val WHITESPACE = Regex("\\s+")
+
+    /**
+     * Characters that change how text is shown without being text: C0/C1 controls (tab and
+     * line breaks are whitespace and handled below), bidi overrides and isolates that can make
+     * "txt.exe" read "exe.txt", zero-width spaces and the BOM. A server or a cleanup model could
+     * send them; they have no business in a dictation. Zero-width joiners stay (emoji, scripts).
+     */
+    private val INVISIBLE = Regex("[\\u0000-\\u0008\\u000B\\u000E-\\u001F\\u007F-\\u009F\\u061C\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]")
+
+    /** Unicode's own line and paragraph separators, which some fields render as breaks. */
+    private val UNICODE_BREAKS = Regex("[\\u2028\\u2029]")
     private val SPACE_BEFORE_PUNCTUATION = Regex("\\s+([,.;:!?])")
     private val REPEATED_PUNCTUATION = Regex("([,.;:!?])\\1+")
     private val TRIM_CHARS = charArrayOf(' ', '\t', ',', ';', ':')
@@ -33,7 +44,7 @@ object TranscriptNormalizer {
      * whether German comma rules apply, together with the words themselves.
      */
     fun normalize(raw: String, options: NormalizeOptions = NormalizeOptions(), language: String? = null): String {
-        var text = raw.trim()
+        var text = raw.replace(INVISIBLE, "").replace(UNICODE_BREAKS, " ").trim()
         if (text.isEmpty()) return ""
         val german = GermanCommas.isGerman(language, text.replace(WHITESPACE, " "))
 

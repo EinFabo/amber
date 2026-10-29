@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.whisper.WhisperModelSpec
 import app.amethyst.core.engine.whisper.WhisperModels
@@ -66,6 +67,7 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.ui.ChoiceChip
@@ -150,6 +152,14 @@ fun EngineDetailScreen(
         SectionCard(title = config.displayName) {
             TrustBadge(config.trustLevelForDisplay())
             Hint(config.trustLevelForDisplay().placeExplanation())
+            if (EngineTrust.unencrypted(edited())) {
+                Hint(
+                    "Unencrypted (http): anyone on the same network can read and change what is sent. " +
+                        "Only safe in your own network - on another Wi-Fi with the same addresses, " +
+                        "someone else may answer.",
+                    AmberPalette.Error,
+                )
+            }
             if (preset?.note?.isNotBlank() == true) Hint(preset.note)
 
             if (problems.isEmpty()) {
@@ -682,15 +692,9 @@ private fun LanguageField(value: String, onChange: (String) -> Unit) {
     )
 }
 
-/**
- * Where this engine sends the voice. An engine that requires its enclave sends nothing unless
- * the attestation passes, so it is shown as verified; any other server is plain cloud.
- */
-internal fun EngineConfig.trustLevelForDisplay(): TrustLevel = when (kind) {
-    EngineKind.ANDROID_ON_DEVICE, EngineKind.LOCAL_SHERPA, EngineKind.WHISPER_CPP -> TrustLevel.ON_DEVICE
-    EngineKind.OPENAI_COMPATIBLE, EngineKind.ELEVENLABS_REALTIME ->
-        if (requireEnclave && EnginePresets.isEnclaveHost(baseUrl)) TrustLevel.ENCLAVE_VERIFIED else TrustLevel.CLOUD
-}
+/** Where this engine sends the voice; see [EngineTrust.forDisplay]. */
+internal fun EngineConfig.trustLevelForDisplay(): TrustLevel =
+    EngineTrust.forDisplay(this, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
 
 /**
  * The debug view of Tinfoil's attestation: verify on demand, see exactly what was proven, and

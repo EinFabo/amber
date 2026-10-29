@@ -171,6 +171,24 @@ Without an SDK `:core` stays fully buildable instead of breaking the whole build
 Every push builds a debug APK in GitHub Actions and stores it as the `amber-debug-apk`
 artifact.
 
+## Verifying a release APK
+
+Release APKs are signed with one key. Its certificate's SHA-256 is:
+
+```
+93c826f0c11a444f1c051a82f5cb2b4ec3081e0b43047926afae8c35cdb1bbde
+```
+
+Check an APK before installing it, with `apksigner` from the Android build-tools:
+
+```bash
+apksigner verify --print-certs amber.apk | grep "certificate SHA-256"
+```
+
+It must print exactly this one signer. Android also refuses an update signed with any other
+key. A build from this source signed with your own key works the same, but installs as a
+separate app.
+
 ## Checking on a device
 
 ```bash

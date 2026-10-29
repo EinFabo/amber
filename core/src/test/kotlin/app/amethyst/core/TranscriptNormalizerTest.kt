@@ -65,4 +65,13 @@ class TranscriptNormalizerTest {
         assertEquals(raw, TranscriptNormalizer.normalize(raw, language = "en"))
         assertEquals(raw, TranscriptNormalizer.normalize(raw, NormalizeOptions(germanCommas = false), language = "de"))
     }
+
+    @Test
+    fun `invisible and direction-changing characters are removed`() {
+        // A right-to-left override would show "txt.exe" as "exe.txt"; zero-width spaces hide.
+        assertEquals("Datei txt.exe senden", TranscriptNormalizer.normalize("Datei \u202Etxt.exe\u202C sen\u200Bden"))
+        assertEquals("eins zwei", TranscriptNormalizer.normalize("eins\u2028zwei\u0007"))
+        // A joiner inside an emoji sequence is kept.
+        assertEquals("Familie \uD83D\uDC68\u200D\uD83D\uDC69", TranscriptNormalizer.normalize("Familie \uD83D\uDC68\u200D\uD83D\uDC69"))
+    }
 }

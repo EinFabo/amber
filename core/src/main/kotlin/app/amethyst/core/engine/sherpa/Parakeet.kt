@@ -64,7 +64,9 @@ object ParakeetModel {
         val target = File(dir, file.name)
         val partial = File(dir, file.name + ".part")
         return try {
-            val copied = partial.outputStream().use { ModelInstall.copyWithDigest(input, it, onProgress, isCancelled) }
+            val copied = partial.outputStream().use {
+                ModelInstall.copyWithDigest(input, it, onProgress, isCancelled, maxBytes = file.sizeBytes)
+            }
             when {
                 copied.bytes != file.sizeBytes -> Result.failure(
                     IllegalStateException("Download incomplete: ${copied.bytes} of ${file.sizeBytes} bytes."),

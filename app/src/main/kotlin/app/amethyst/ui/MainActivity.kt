@@ -88,6 +88,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Diagnostics and the test field show recent dictations: keep them out of the Recents
+        // thumbnail. Screenshots stay possible - they are how a problem gets reported.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
         // The glass background runs behind the status and navigation bars.
         enableEdgeToEdge()
         val graph = AmethystApp.graph(this)

@@ -11,14 +11,21 @@
 # gomobile and gobind come from tinfoil-go's own go.mod (tool dependencies), so the binding
 # generator is the version Tinfoil builds its framework with.
 #
-# Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar.
+# The archive is checked against its SHA-256 before anything is extracted, and every run
+# works in a fresh private directory: this library decides what the app may label "enclave
+# verified", so a swapped download or a directory planted in a shared /tmp must not reach it.
+# (Same tree as the Go module proxy's, sumdb h1:W32IF7d8YhW3E1G0k7md0rOAUxLec+h6S+pb4iQavdw=.)
+#
+# Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar, sha256sum.
 set -euo pipefail
 
 TINFOIL_GO_REF="fad77808b7ace9d848399c27179b4a2d6fd2c36c"
+TINFOIL_GO_SHA256="bc1871daeefc60ddbb53175ee67e54e070acd7db761d6d5b1a2a6b9331f93035"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/app/libs/tinfoil-mobile.aar"
-WORK="${TMPDIR:-/tmp}/amber-tinfoil-$TINFOIL_GO_REF"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 
 # Go is often installed outside PATH on this machine; look there before giving up.
 if ! command -v go >/dev/null && [ -x "$HOME/tools/go/bin/go" ]; then
@@ -33,12 +40,12 @@ fi
 export ANDROID_NDK_HOME
 [ -d "$ANDROID_NDK_HOME" ] || { echo "no Android NDK found under $ANDROID_HOME/ndk" >&2; exit 1; }
 
-if [ ! -f "$WORK/src/go.mod" ]; then
-  echo "==> fetching tinfoil-go@$TINFOIL_GO_REF"
-  mkdir -p "$WORK/src"
-  curl -fsSL "https://github.com/tinfoilsh/tinfoil-go/archive/$TINFOIL_GO_REF.tar.gz" \
-    | tar -xz -C "$WORK/src" --strip-components=1
-fi
+echo "==> fetching tinfoil-go@$TINFOIL_GO_REF"
+curl -fsSL -o "$WORK/src.tar.gz" "https://github.com/tinfoilsh/tinfoil-go/archive/$TINFOIL_GO_REF.tar.gz"
+echo "$TINFOIL_GO_SHA256  $WORK/src.tar.gz" | sha256sum -c --quiet - \
+  || { echo "tinfoil-go archive does not match its pinned SHA-256 - not building" >&2; exit 1; }
+mkdir -p "$WORK/src"
+tar -xzf "$WORK/src.tar.gz" -C "$WORK/src" --strip-components=1
 
 cd "$WORK/src"
 export GOBIN="$WORK/bin"
@@ -49,13 +56,14 @@ go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 echo "==> binding the mobile package for android/arm64 (NDK $(basename "$ANDROID_NDK_HOME"))"
 mkdir -p "$(dirname "$OUT")"
 # arm64 only, like the rest of Amber; -javapkg keeps the generated classes out of the
-# default package namespace; -s -w drops symbol tables the app never uses.
+# default package namespace; -s -w drops symbol tables the app never uses; 16 KB segment
+# alignment so the library also loads on devices with 16 KB memory pages.
 gomobile bind \
   -target=android/arm64 \
   -androidapi=28 \
   -javapkg=sh.tinfoil \
   -trimpath \
-  -ldflags="-s -w" \
+  -ldflags="-s -w -extldflags=-Wl,-z,max-page-size=16384" \
   -o "$OUT" \
   ./mobile
 

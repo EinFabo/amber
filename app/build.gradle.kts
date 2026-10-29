@@ -19,8 +19,8 @@ android {
         applicationId = "app.amber"
         minSdk = 28
         targetSdk = 35
-        versionCode = 29
-        versionName = "0.16.0"
+        versionCode = 30
+        versionName = "0.16.1"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -136,6 +136,8 @@ tasks.named("preBuild") {
 
 dependencies {
     implementation(project(":core"))
+    // Used directly (TinfoilVerifier, model downloads), not only through :core's api.
+    implementation(libs.okhttp)
     implementation(files(tinfoilAar))
     implementation(files(sherpaAar))
 
@@ -151,8 +153,6 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.material3)
-    implementation(libs.compose.ui.tooling.preview)
-    debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)

@@ -244,6 +244,18 @@ class WhisperTest {
     }
 
     @Test
+    fun `a processor without dot-product instructions is named, not blamed on the download`() = runTest {
+        val oldCpu = object : WhisperRuntime {
+            override fun ensureLoaded(modelPath: String) =
+                throw WhisperRuntimeException("${WhisperCppEngine.CPU_UNSUPPORTED}: local Whisper needs ARMv8.2")
+            override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int, prompt: String) = ""
+            override fun abort() = Unit
+        }
+        val failure = assertIs<SttFailure>(engine(oldCpu).transcribe(speech(2)).exceptionOrNull())
+        assertTrue(failure.userMessage.contains("processor"), failure.userMessage)
+    }
+
+    @Test
     fun `cancelling a dictation tells the native side to stop`() = runTest {
         val started = java.util.concurrent.CountDownLatch(1)
         val aborted = java.util.concurrent.CountDownLatch(1)
@@ -312,6 +324,22 @@ class WhisperTest {
         assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("checksum"))
         assertEquals(3, target.length(), "the existing file must not be replaced")
         assertFalse(File(target.parentFile, "whisper.bin.part").exists())
+    }
+
+    @Test
+    fun `a download longer than pinned stops before it fills the phone`() {
+        val bytes = modelBytes()
+        val target = File(tempDir(), "whisper.bin")
+        var written = 0L
+        // An endless stream: the copy must stop just past the pinned size.
+        val endless = object : java.io.InputStream() {
+            override fun read(): Int = 0
+            override fun read(b: ByteArray, off: Int, len: Int): Int = len
+        }
+        val result = ModelInstall.install(endless, target, specFor(bytes), { written = it })
+        assertTrue(result.isFailure)
+        assertTrue(written <= bytes.size.toLong() + 64 * 1024, "stopped at $written")
+        assertFalse(target.exists())
     }
 
     @Test

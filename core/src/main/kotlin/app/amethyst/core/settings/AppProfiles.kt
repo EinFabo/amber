@@ -28,7 +28,7 @@ data class AppProfile(
     /** Shown in the settings; resolved from the system when the user adds an app. */
     val label: String,
     val style: WritingStyle = WritingStyle.AS_SPOKEN,
-    /** A free instruction on top of the style, e.g. "always sign with Fabi". */
+    /** A free instruction on top of the style, e.g. "always sign with my first name". */
     val instruction: String? = null,
     /** Run the cleanup in this app: null follows the engine, false never, true whenever possible. */
     val cleanup: Boolean? = null,

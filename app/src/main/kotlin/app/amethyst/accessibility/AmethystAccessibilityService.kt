@@ -21,6 +21,7 @@ import app.amethyst.bubble.BubbleController
 import app.amethyst.ui.MainActivity
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.TextFieldKind
+import app.amethyst.core.insert.InputTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -190,6 +191,48 @@ class AmethystAccessibilityService : AccessibilityService() {
     fun focusedInputPackage(): String? =
         runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.packageName?.toString() }.getOrNull()
 
+    /**
+     * The field that has input focus, as precisely as Android tells: app, window, and from
+     * Android 13 the input method's field id. Not only editable nodes - a terminal view or a
+     * web field takes text through the input connection without saying it is editable.
+     */
+    fun focusedTarget(): InputTarget? = runCatching {
+        val editor = startedEditor()
+        val node = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (node != null) {
+            val pkg = node.packageName?.toString() ?: return@runCatching null
+            val sameEditor = editor?.takeIf { it.packageName == pkg }
+            val secret = TextFieldKind.of(node.inputType, node.isPassword) == TextFieldKind.SECRET ||
+                sameEditor?.let { TextFieldKind.of(it.inputType) == TextFieldKind.SECRET } == true
+            InputTarget(
+                packageName = pkg,
+                windowId = node.windowId,
+                fieldId = sameEditor?.fieldId,
+                kind = if (secret) TextFieldKind.SECRET else TextFieldKind.TEXT,
+            )
+        } else if (editor != null) {
+            InputTarget(
+                packageName = editor.packageName ?: return@runCatching null,
+                windowId = NO_WINDOW,
+                fieldId = editor.fieldId,
+                kind = TextFieldKind.of(editor.inputType).takeIf { it == TextFieldKind.SECRET } ?: TextFieldKind.TEXT,
+            )
+        } else {
+            null
+        }
+    }.getOrNull()
+
+    /** The EditorInfo of the field the service's input method is bound to (Android 13+). */
+    private fun startedEditor(): EditorInfo? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        val method = inputMethod ?: return null
+        return if (method.currentInputStarted) method.currentInputEditorInfo else null
+    }
+
+    /** Whether the focused node is a password field - Compose and View password fields can carry a plain text input type. */
+    private fun focusedIsPassword(): Boolean =
+        runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isPassword == true }.getOrDefault(false)
+
     private fun currentFocusKind(): TextFieldKind =
         runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)
 
@@ -221,7 +264,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     override fun onCreateInputMethod(): InputMethod = object : InputMethod(this) {
         override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
             super.onStartInput(attribute, restarting)
-            inputKind = TextFieldKind.of(attribute.inputType)
+            inputKind = TextFieldKind.of(attribute.inputType, isPassword = focusedIsPassword())
             // The field's own app: the surest answer to "where is the user typing".
             if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
             updateTextFieldFocus(TextFieldKind.NONE)
@@ -286,6 +329,9 @@ class AmethystAccessibilityService : AccessibilityService() {
     private companion object {
         const val TAG = "Amber"
         const val SYSTEM_UI = "com.android.systemui"
+
+        /** Window id of a target known only through the input connection. */
+        const val NO_WINDOW = -1
 
         /** Long enough for an app to relayout after the keyboard settled. */
         const val FIELD_SETTLE_MS = 150L

@@ -140,8 +140,11 @@ class WhisperCppEngine(
     } catch (e: WhisperRuntimeException) {
         Result.failure(
             SttFailure(
-                userMessage = "The local model failed to run. " +
-                    "Download it again in the settings.",
+                userMessage = if (e.message.orEmpty().startsWith(CPU_UNSUPPORTED)) {
+                    "This phone's processor is too old for local Whisper. Parakeet or a server engine still work."
+                } else {
+                    "The local model failed to run. Download it again in the settings."
+                },
                 technical = "whisper $step: ${e.message}",
                 cause = e,
             ),
@@ -155,8 +158,11 @@ class WhisperCppEngine(
         )
     }
 
-    private companion object {
-        const val SHORT_CONTEXT_MIN_CHUNK_MS = 4_000
-        const val FULL_CONTEXT_MIN_CHUNK_MS = 20_000
+    companion object {
+        /** How whisper_jni.cpp begins its message when the CPU lacks dot-product instructions. */
+        const val CPU_UNSUPPORTED = "cpu unsupported"
+
+        private const val SHORT_CONTEXT_MIN_CHUNK_MS = 4_000
+        private const val FULL_CONTEXT_MIN_CHUNK_MS = 20_000
     }
 }

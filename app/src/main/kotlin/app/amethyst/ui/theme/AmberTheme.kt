@@ -66,14 +66,14 @@ fun TrustLevel.badgeLabel(): String = when (this) {
 fun TrustLevel.placeExplanation(): String = when (this) {
     TrustLevel.ON_DEVICE -> "Your voice never leaves the phone."
     TrustLevel.ENCLAVE_VERIFIED -> "Sent only after the enclave's code is verified."
-    TrustLevel.CLOUD -> "Sent to a server over TLS, no further guarantee."
+    TrustLevel.CLOUD -> "Sent to a server, no further guarantee."
 }
 
 fun TrustLevel.badgeExplanation(): String = when (this) {
     TrustLevel.ON_DEVICE -> "The recording never left the device."
     TrustLevel.ENCLAVE_VERIFIED ->
         "The recording went to an enclave whose attestation was verified."
-    TrustLevel.CLOUD -> "The recording went to a server. TLS only, no further guarantee."
+    TrustLevel.CLOUD -> "The recording went to a server, no further guarantee."
 }
 
 private val AmberColorScheme = darkColorScheme(

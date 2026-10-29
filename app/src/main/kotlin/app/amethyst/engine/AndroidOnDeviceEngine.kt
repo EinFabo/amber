@@ -192,6 +192,19 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
     companion object {
 
         /**
+         * Whether this phone has a recognizer that keeps the voice on the device (Android 13+).
+         * Set once at start; the settings label the Android engine by it.
+         */
+        @Volatile
+        var onDeviceSpeech: Boolean = true
+            private set
+
+        fun detectOnDeviceSpeech(context: Context) {
+            onDeviceSpeech = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }.getOrDefault(false)
+        }
+
+        /**
          * Asks the system recognizer to fetch the offline pack for [languageTag]. Android shows
          * its own download prompt or notification; there is no result to wait for here.
          * Returns false where the API does not exist (below Android 13).

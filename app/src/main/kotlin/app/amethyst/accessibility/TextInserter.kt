@@ -130,7 +130,12 @@ class TextInserter(
     fun copyToClipboard(text: String): Boolean {
         val clipboard = service.getSystemService(ClipboardManager::class.java) ?: return false
         return try {
-            clipboard.setPrimaryClip(ClipData.newPlainText("Amber", text))
+            val clip = ClipData.newPlainText("Amber", text)
+            // Dictations are private: kept out of clipboard previews, history and keyboard sync.
+            clip.description.extras = android.os.PersistableBundle().apply {
+                putBoolean(SENSITIVE_EXTRA, true)
+            }
+            clipboard.setPrimaryClip(clip)
             true
         } catch (e: Exception) {
             Log.w(TAG, "clipboard write failed", e)
@@ -224,14 +229,14 @@ class TextInserter(
         override fun paste(): Boolean = false
         override fun readBack(): String? = null
         override fun commitText(text: String): Boolean =
-            commitThroughInputMethod(service, text, expectedPackage = null)
+            commitThroughInputMethod(service, text, expectedPackage = packageName)
 
         companion object {
             fun from(service: AccessibilityService): InputConnectionTarget? {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
                 val inputMethod = service.inputMethod ?: return null
                 if (!inputMethod.currentInputStarted || inputMethod.currentInputConnection == null) return null
-                val owner = inputMethod.currentInputEditorInfo?.packageName ?: InsertionEngine.UNKNOWN_PACKAGE
+                val owner = inputMethod.currentInputEditorInfo?.packageName ?: return null
                 return InputConnectionTarget(service, owner)
             }
         }
@@ -240,6 +245,9 @@ class TextInserter(
     private companion object {
         const val TAG = "Amber"
         const val MAX_NODES_SEARCHED = 1_500
+
+        /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
+        const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
 
         /**
          * Types [text] through the service's input method (flagInputMethodEditor). With
@@ -255,8 +263,9 @@ class TextInserter(
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
             val inputMethod = service.inputMethod ?: return false
             if (!inputMethod.currentInputStarted) return false
-            val editorPackage = inputMethod.currentInputEditorInfo?.packageName
-            if (expectedPackage != null && editorPackage != null && editorPackage != expectedPackage) return false
+            // An editor that does not say whose it is gets nothing: the words could land anywhere.
+            val editorPackage = inputMethod.currentInputEditorInfo?.packageName ?: return false
+            if (expectedPackage != null && editorPackage != expectedPackage) return false
             val connection = inputMethod.currentInputConnection ?: return false
             return try {
                 connection.commitText(text, 1, null)
