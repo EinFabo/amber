@@ -255,7 +255,11 @@ Done in 0.16.0:
       FUTO models so the encoder stops at the end of the speech), q8_0 - more accurate than
       the old q5_0, and q8_0 weights get ggml's ARM repacked kernels (q5_0 gets none). Third-
       party file checked tensor by tensor against our own conversion of the original weights.
-      The old q5_0 stays for existing downloads, marked "replaced". Speed on the phone: confirm.
+      The old q5_0 stays for existing downloads, marked "replaced".
+      **Measured on the Pixel 9a** (20 FLEURS sentences, whisper-cli built with the app's
+      flags, run over adb - no ADPF boost, so the app is if anything faster): wait after
+      speaking under 9 s of speech 41.6 s -> 6.0 s (6.9x), longer 44.0 s -> 12.5 s; per
+      second of speech 4.4 s -> 0.86 s. FUTO 244 for comparison: 2.8 s / 5.8 s / 0.40 s.
 - [x] **German "um" and "eh" were deleted as fillers** - 21 times in 80 sentences ("nötig, um
       ... zu bilden" lost its "um"). English-only fillers now stay in German text.
 - [x] **German comma rules** (`GermanCommas`): 98.5 % of the commas they set on 4,200 FLEURS

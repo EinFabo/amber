@@ -89,7 +89,9 @@ object WhisperModels {
             "the stock large model, about three times faster on short dictations.",
         tier = "most accurate",
         shortContext = true,
-        typicalRate = 1.2,
+        // Pixel 9a, whisper-cli over adb with the app's build flags (no ADPF boost, so the app
+        // is if anything faster): 0.86 s per second of speech; the old q5_0 needed 4.4 s.
+        typicalRate = 0.8,
         // As its model card recommends "for stability". Measured on 80 German FLEURS
         // sentences: 4.53 % WER with 128, 4.64 % with 64, for 2.5 % more time.
         contextSlack = 128,
