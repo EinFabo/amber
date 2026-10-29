@@ -20,6 +20,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        # The default package list still names "tools", which current sdkmanager no
+        # longer knows - the step would fail before anything is built.
+        with:
+          packages: platform-tools
 
       - name: Install SDK packages
         # NDK and CMake for whisper.cpp; versions match app/build.gradle.kts.
