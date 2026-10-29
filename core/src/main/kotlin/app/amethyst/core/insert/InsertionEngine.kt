@@ -3,6 +3,7 @@ package app.amethyst.core.insert
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import app.amethyst.core.text.TextSplicer
+import app.amethyst.core.text.TranscriptNormalizer
 
 /**
  * The focused editable field of some app, as the platform layer can see it.
@@ -34,6 +35,14 @@ interface EditableTarget {
      * False when there is none - below Android 13, or when the field never started input.
      */
     fun commitText(text: String): Boolean = false
+
+    /**
+     * The field takes line breaks the way the user could type them: Enter makes a new line
+     * there (multi-line, no "send", "next" or "search" action). Anywhere else - a title whose
+     * Enter jumps to the body, a search box, a messenger set to "Enter sends" - a dictation
+     * goes in as one line, as it would from the keyboard.
+     */
+    val takesLineBreaks: Boolean get() = false
 
     /** Contents after an attempt, for verification. Null when unreadable. */
     fun readBack(): String?
@@ -96,34 +105,39 @@ class InsertionEngine(
         }
 
         val usesClipboard = setOf(InsertionStrategy.PASTE, InsertionStrategy.CLIPBOARD_ONLY)
-        val order = memory.order(packageName)
+        // Typing comes first whenever an input connection is there: it is how every keyboard
+        // writes, so apps keep it. SET_TEXT can show the words and still lose them - Google
+        // Keep's note body displayed a SET_TEXT write and dropped it on closing (Pixel 9a,
+        // 2026-10-29). What worked last time only orders the fallbacks.
+        val order = (listOf(InsertionStrategy.COMMIT_TEXT) + memory.order(packageName).filter { it != InsertionStrategy.COMMIT_TEXT })
             .filter { allowClipboard || it !in usesClipboard }
+        val words = if ('\n' in text && !target.takesLineBreaks) TranscriptNormalizer.oneLine(text) else text
 
         for (strategy in order) {
             val inserted = when (strategy) {
-                InsertionStrategy.COMMIT_TEXT -> when (tryCommit(target, text, options)) {
+                InsertionStrategy.COMMIT_TEXT -> when (tryCommit(target, words, options)) {
                     Commit.LANDED -> true
                     Commit.NOT_POSSIBLE -> false
                     Commit.LOST -> {
                         memory.recordFailure(packageName, strategy)
                         onMemoryChanged(memory)
-                        if (allowClipboard) copied = clipboard.copy(text) || copied
+                        if (allowClipboard) copied = clipboard.copy(words) || copied
                         val shown = if (copied) InsertionStrategy.CLIPBOARD_ONLY else strategy
                         return InsertionOutcome(shown, false, copied, packageName, uncertain = true)
                     }
                 }
 
-                InsertionStrategy.SET_TEXT -> trySetText(target, text, options)
+                InsertionStrategy.SET_TEXT -> trySetText(target, words, options)
 
                 InsertionStrategy.PASTE -> {
                     // Pasting needs the text on the clipboard first; that is also why a
                     // failed paste still leaves the dictation recoverable.
-                    copied = clipboard.copy(text) || copied
-                    copied && tryPaste(target, text)
+                    copied = clipboard.copy(words) || copied
+                    copied && tryPaste(target, words)
                 }
 
                 InsertionStrategy.CLIPBOARD_ONLY -> {
-                    copied = clipboard.copy(text) || copied
+                    copied = clipboard.copy(words) || copied
                     false
                 }
             }

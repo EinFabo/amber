@@ -19,8 +19,8 @@ android {
         applicationId = "app.amber"
         minSdk = 28
         targetSdk = 35
-        versionCode = 31
-        versionName = "0.16.2"
+        versionCode = 32
+        versionName = "0.16.3"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the
@@ -72,6 +72,16 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // -Pamber.insertTestHook=true puts the debug build's adb insertion hook (src/debug) into a
+    // release build, to test on a phone where the accessibility grant belongs to the release
+    // app. Such a build is for one device and one test session - never published.
+    if (providers.gradleProperty("amber.insertTestHook").orNull == "true") {
+        sourceSets.getByName("release") {
+            kotlin.srcDir("src/debug/kotlin")
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+        }
     }
 
     compileOptions {

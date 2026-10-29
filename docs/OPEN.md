@@ -73,10 +73,20 @@ with the release key, the enclave path solid. Each finding was checked against t
 
 The full task prompt, with causes, code pointers and acceptance criteria:
 [`docs/plans/2026-10-29-terminal-mode-and-everyday-fixes.md`](plans/2026-10-29-terminal-mode-and-everyday-fixes.md).
-- [x] 1. Line breaks (0.16.2): a text the cleanup model formatted keeps its paragraphs and list
-      lines (one blank line at most); raw engine output stays one line; a one-line field gets
-      one line; the input-connection path never types a line break ("Enter sends"). The
-      cleanup prompt allows breaks for paragraphs, lists, an email's greeting and sign-off.
+- [x] 1. Line breaks (0.16.2, fixed again in 0.16.3): a text the cleanup model formatted keeps
+      its paragraphs and list lines; raw engine output stays one line. 0.16.2 typed every text
+      on one line (Fabi: "only one line, had to use the clipboard"). Now line breaks go in
+      exactly where the user could type one: the field's EditorInfo says Enter makes a new
+      line (multi-line, no send/next/search action); elsewhere - a title whose Enter jumps
+      on, a search box, a messenger with "Enter sends" - one line. Tested on the Pixel 9a in
+      Google Keep (note body: list and paragraph; title: one line; raw text: one line).
+- [x] Found on the device (0.16.3): Keep's note body *shows* an ACTION_SET_TEXT write and drops
+      it when the note closes - a silent loss the read-back cannot see. SET_TEXT had been
+      remembered for Keep from its title. Typing through the input connection now always
+      comes first; what worked last time only orders the fallbacks. Retested: saved.
+- Testing on a device: `adb shell am broadcast -a app.amber.debug.INSERT ... --es text '...'`
+      (debug builds; a release build with `-Pamber.insertTestHook=true` for a phone whose
+      accessibility grant belongs to the release app - never published).
 - [x] 2. Custom instructions up to 2,000 characters (was 300), multi-line with a counter.
 - [x] 3. "Clipboard shortcut" - a slip of the tongue (Fabi), nothing to do.
 - [ ] 4. Pasting is sometimes unreliable - in WhatsApp, now and then (Fabi). Found and fixed in

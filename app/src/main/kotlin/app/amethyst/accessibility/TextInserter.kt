@@ -17,7 +17,7 @@ import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
-import app.amethyst.core.text.TranscriptNormalizer
+import android.view.inputmethod.EditorInfo
 import app.amethyst.data.StrategyStore
 
 /**
@@ -204,6 +204,9 @@ class TextInserter(
         override fun commitText(text: String): Boolean =
             commitThroughInputMethod(service, text, expectedPackage = packageName)
 
+        /** What the input method knows about Enter in this field; without it, whether the field wraps lines. */
+        override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) ?: node.isMultiLine
+
         override fun readBack(): String? {
             if (!node.refresh()) return null
             return currentText()
@@ -237,6 +240,8 @@ class TextInserter(
         override fun commitText(text: String): Boolean =
             commitThroughInputMethod(service, text, expectedPackage = packageName)
 
+        override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) == true
+
         companion object {
             fun from(service: AccessibilityService): InputConnectionTarget? {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
@@ -261,6 +266,24 @@ class TextInserter(
          * into a connection left over from a different window would put the words somewhere
          * the user is not looking.
          */
+        /**
+         * Whether Enter in the field the input method is bound to makes a new line - multi-line,
+         * and either no Enter action at all or one the field asks keyboards to ignore
+         * (IME_FLAG_NO_ENTER_ACTION). "Send", "next", "search", "go" and "done" fields say
+         * otherwise. Null when the input method knows nothing about this app's field.
+         */
+        fun enterMakesNewLine(service: AccessibilityService, packageName: String): Boolean? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+            val method = service.inputMethod ?: return null
+            if (!method.currentInputStarted) return null
+            val editor = method.currentInputEditorInfo ?: return null
+            if (editor.packageName != packageName) return null
+            if (editor.inputType and EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE == 0) return false
+            if (editor.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) return true
+            val action = editor.imeOptions and EditorInfo.IME_MASK_ACTION
+            return action == EditorInfo.IME_ACTION_NONE || action == EditorInfo.IME_ACTION_UNSPECIFIED
+        }
+
         fun commitThroughInputMethod(
             service: AccessibilityService,
             text: String,
@@ -274,11 +297,11 @@ class TextInserter(
             if (expectedPackage != null && editorPackage != expectedPackage) return false
             val connection = inputMethod.currentInputConnection ?: return false
             return try {
-                // Typed through the input connection, a line break can act as Enter - in a
-                // messenger set to "Enter sends" that would send the message. Never risked here.
-                // The accessibility input connection reports nothing back; whether the words
-                // arrived is checked by InsertionEngine reading the field afterwards.
-                connection.commitText(TranscriptNormalizer.oneLine(text), 1, null)
+                // Line breaks arrive here only for a field where Enter makes a new line; for any
+                // other, InsertionEngine writes them with SET_TEXT or types one line. The
+                // accessibility input connection reports nothing back; whether the words arrived
+                // is checked by InsertionEngine reading the field afterwards.
+                connection.commitText(text, 1, null)
                 true
             } catch (e: RuntimeException) {
                 Log.w(TAG, "commitText failed", e)

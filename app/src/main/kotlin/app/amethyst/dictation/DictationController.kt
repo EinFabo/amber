@@ -468,6 +468,23 @@ class DictationController(
         )
     }
 
+    /**
+     * A ready-made text through the same delivery a dictation takes - normalizing, the target
+     * check, every insertion method - for the debug build's adb test hook (src/debug). The
+     * field that has focus now counts as the one the dictation started in.
+     */
+    internal suspend fun deliverForTest(text: String, formatted: Boolean) {
+        startTarget = graph.accessibilityService?.focusedTarget()
+        val transcript = Transcript(
+            text = text,
+            engineId = "debug-test",
+            trustLevel = TrustLevel.ON_DEVICE,
+            latencyMs = 0,
+            formatted = formatted,
+        )
+        deliver(transcript, graph.settings.value, transcript.engineId)
+    }
+
     private suspend fun deliver(
         transcript: Transcript,
         settings: app.amethyst.core.settings.AmethystSettings,
@@ -477,11 +494,9 @@ class DictationController(
             transcript.text,
             settings.capture.toNormalizeOptions(),
             language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.languageTag,
+            // Whether the field takes them is decided at insertion (InsertionEngine).
             keepLineBreaks = transcript.formatted,
-        ).let { text ->
-            // A one-line field (search, subject) gets the paragraphs as one line.
-            if ('\n' in text && graph.accessibilityService?.focusedIsMultiLine() == false) TranscriptNormalizer.oneLine(text) else text
-        }
+        )
         if (cleaned.isBlank()) {
             fail(SttFailure.NOTHING_RECOGNIZED, engineId)
             return

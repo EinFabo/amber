@@ -31,6 +31,7 @@ class InsertionEngineTest {
         private val hasInputConnection: Boolean = false,
         /** The connection accepts the words and they never arrive: it went stale. */
         private val commitLost: Boolean = false,
+        override val takesLineBreaks: Boolean = false,
         /** Reads after a write that still show the old text, like a Compose field mid-frame. */
         private val readLag: Int = 0,
     ) : EditableTarget {
@@ -281,6 +282,39 @@ class InsertionEngineTest {
 
         assertTrue(outcome.insertedIntoField)
         assertEquals("hallo", target.committed)
+    }
+
+    @Test
+    fun `typing comes first even after SET_TEXT worked in another field of the same app`() {
+        // Keep: the title took SET_TEXT, the note body showed it and dropped it.
+        val memory = StrategyMemory().apply { recordSuccess("com.google.android.keep", InsertionStrategy.SET_TEXT) }
+        val body = FakeTarget(packageName = "com.google.android.keep", hasInputConnection = true)
+        val outcome = engine(body, memory).insert(body, "Milch")
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertEquals(0, body.setTextCalls)
+    }
+
+    @Test
+    fun `line breaks go in where Enter makes a new line`() {
+        // Keep's note body, Gmail's message: multi-line, no Enter action.
+        val target = FakeTarget(initialText = "", hasInputConnection = true, takesLineBreaks = true)
+        val outcome = engine(target).insert(target, "Einkaufen:\n- Milch")
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertEquals("Einkaufen:\n- Milch", target.text)
+    }
+
+    @Test
+    fun `a field whose Enter does something else gets one line, by every method`() {
+        // Keep's title (Enter jumps to the body), a search box, a messenger set to "Enter sends".
+        val typed = FakeTarget(initialText = "", hasInputConnection = true)
+        engine(typed).insert(typed, "Wocheneinkauf\nSamstag")
+        assertEquals("Wocheneinkauf Samstag", typed.text)
+
+        val written = FakeTarget(initialText = "")
+        engine(written).insert(written, "Hallo Anna,\n\nbis morgen")
+        assertEquals("Hallo Anna, bis morgen", written.text)
     }
 
     @Test

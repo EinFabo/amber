@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug build only: a test hook for adb. DUMP is held by the adb shell and the system, never
+     by an app, so nothing on the phone can call it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="app.amethyst.debug.InsertTestReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="app.amber.debug.INSERT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

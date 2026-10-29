@@ -222,15 +222,6 @@ class AmethystAccessibilityService : AccessibilityService() {
         }
     }.getOrNull()
 
-    /**
-     * Whether the focused field takes several lines; null when that cannot be told. From the
-     * node, or from the input method's EditorInfo where there is no node.
-     */
-    fun focusedIsMultiLine(): Boolean? = runCatching {
-        findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isMultiLine
-            ?: startedEditor()?.let { it.inputType and EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE != 0 }
-    }.getOrNull()
-
     /** The EditorInfo of the field the service's input method is bound to (Android 13+). */
     private fun startedEditor(): EditorInfo? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
