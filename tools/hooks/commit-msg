@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Keeps Claude out of the contributor list: strips "Co-Authored-By: Claude ..." and
+# "Claude-Session: ..." lines from the commit message, then trailing blank lines.
+# GitHub counts every Co-Authored-By trailer as a contributor.
+#
+# Enable once per clone: git config core.hooksPath tools/hooks
+set -euo pipefail
+
+MSG="$1"
+TMP="$(mktemp)"
+grep -viE '^(co-authored-by:[[:space:]]*claude\b|claude-session:)' "$MSG" \
+  | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "$TMP" || true
+cat "$TMP" > "$MSG"
+rm -f "$TMP"

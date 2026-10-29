@@ -10,3 +10,6 @@ app/libs/*.aar
 .idea/
 .kotlin/
 .cxx/
+# Claude Code: local overrides and session worktrees stay on this machine.
+.claude/settings.local.json
+.claude/worktrees/

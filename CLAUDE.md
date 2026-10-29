@@ -17,6 +17,16 @@ Exceptions:
 - Historical records (`docs/PLAN.md`, `docs/AUDIT.md`, `docs/DESIGN-0.2.md`) stay as written.
 - The chat with Fabi follows the language he writes in.
 
+## Git: Claude is not a contributor
+
+Commits and pull requests carry Fabi's name only:
+
+- no `Co-Authored-By: Claude ...` trailer, no `Claude-Session:` trailer, no "Generated with
+  Claude Code" line in PR descriptions or release notes
+- `.claude/settings.json` turns Claude Code's attribution off; `tools/hooks/commit-msg`
+  strips such lines from every commit message as a safety net
+  (`git config core.hooksPath tools/hooks` once per clone)
+
 ## Where things live
 
 - Open items: `docs/OPEN.md` ("put it on the list" means there).
