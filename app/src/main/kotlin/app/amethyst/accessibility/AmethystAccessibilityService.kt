@@ -18,6 +18,7 @@ import androidx.annotation.RequiresApi
 import app.amethyst.Graph
 import app.amethyst.AmethystApp
 import app.amethyst.bubble.BubbleController
+import app.amethyst.ui.MainActivity
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.TextFieldKind
 import kotlinx.coroutines.CoroutineScope
@@ -145,8 +146,12 @@ class AmethystAccessibilityService : AccessibilityService() {
                 event.packageName?.toString()?.let { pkg ->
                     if (pkg != packageName) foregroundPackage = pkg
                     // The keyboard and the system bars send window changes too; they are not
-                    // the app the user is in.
-                    if (pkg != SYSTEM_UI && !isKeyboard(pkg)) bubble?.setCurrentApp(pkg)
+                    // the app the user is in. Neither are Amber's own overlays - the hide
+                    // target, a toast, the microphone helper: taken for the app in front, they
+                    // switched off drag-to-hide for the next drag and let the bubble back into
+                    // hidden apps. Only Amber's main screen counts.
+                    val ownOverlay = pkg == packageName && event.className?.toString() != MainActivity::class.java.name
+                    if (pkg != SYSTEM_UI && !isKeyboard(pkg) && !ownOverlay) bubble?.setCurrentApp(pkg)
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
                 // went away, so look at what has input focus now.

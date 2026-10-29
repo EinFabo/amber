@@ -96,14 +96,16 @@ class KeyboardTracker(
 
         val frame = Rect().also(keyboard::getBoundsInScreen)
         if (frame.isEmpty) return@runCatching Reading.Absent
-        if (frame.height() <= screenHeight() * KeyboardPolicy.TALL_FRAME) {
-            if (frame.top >= 0 && KeyboardPolicy.floats(frame.bottom, screenHeight())) {
-                return@runCatching Reading.Floating(Box(frame.left, frame.top, frame.right, frame.bottom))
-            }
-            return@runCatching Reading.Window(frame.top, frame.bottom)
+        // A frame over most of the screen: find where the keys are actually drawn. Gboard's
+        // floating keyboard has such a frame while it is being dragged around.
+        val keys = if (frame.height() <= screenHeight() * KeyboardPolicy.TALL_FRAME) frame else {
+            drawnArea(keyboard, frame) ?: return@runCatching Reading.Unmeasurable
         }
-        // A frame over most of the screen: find where the keys are actually drawn.
-        drawnArea(keyboard, frame)?.let { Reading.Window(it.top, it.bottom) } ?: Reading.Unmeasurable
+        if (keys.top >= 0 && KeyboardPolicy.floats(keys.bottom, screenHeight())) {
+            Reading.Floating(Box(keys.left, keys.top, keys.right, keys.bottom))
+        } else {
+            Reading.Window(keys.top, keys.bottom)
+        }
     }.getOrDefault(Reading.Absent)
 
     /**

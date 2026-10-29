@@ -57,7 +57,11 @@ Candidates, done in 0.15.0 unless marked open:
       to its place for other apps, and a toast says where to undo it.
 - Not done: **smoother motion** with `translationY`. Measured on the Pixel 9a the bubble moves
   at a steady 16-18 ms per frame with per-frame `updateViewLayout`, no dropped frames.
-- [ ] Confirm on the device: floating Gboard, a chat input under the bubble, drag to hide.
+- [x] Confirmed on the device (0.15.1, Fabi): field kept clear, floating Gboard, drag to hide.
+      Fixed on the way: Amber's own overlays (hide target, toasts, mic helper) were taken for
+      the app in front, so every other drag showed no target and a hidden app could get the
+      bubble back; a floating Gboard being dragged has a screen-high frame and was taken for
+      a docked keyboard, so the bubble chased it.
 - [ ] Below Android 13 only focus events say a field is there; apps that never send one
       (some WebViews, custom inputs) get no bubble. TYPE_VIEW_TEXT_SELECTION_CHANGED would
       catch them at the cost of more events - only if a device shows the gap.

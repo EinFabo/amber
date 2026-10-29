@@ -429,6 +429,15 @@ class BubbleController(
                         // Before the hold fired this is a plain move; after, the hold goes on.
                         if (!holding) v.removeCallbacks(holdStarted)
                         mayHide = !holding && !dictating && currentApp.let { it != null && it != service.packageName }
+                        Log.i(
+                            TAG,
+                            "drag in $currentApp: " + when {
+                                mayHide -> "hide target shown"
+                                holding -> "no hide target, dictating while held"
+                                dictating -> "no hide target, a dictation is running"
+                                else -> "no hide target, no other app in front"
+                            },
+                        )
                         if (mayHide) showHideTarget()
                     }
                     if (dragging) {
