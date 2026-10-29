@@ -6,6 +6,29 @@ recognition engines and a visible trust level on every dictation.
 In the spirit of Wispr Flow, but with a different stance: not a black box in the cloud - you
 decide per dictation where your voice goes, and the app tells you.
 
+## Install
+
+1. Download `amber-<version>.apk` from the newest entry under
+   [Releases](../../releases/latest). Android 9 or newer.
+2. Open it on the phone and allow installing from that source once.
+3. Open Amber and follow the setup: allow the microphone, turn on the accessibility service.
+4. Tap into any text field - the amber bubble appears. Tap it, speak, tap again.
+
+Out of the box Amber recognizes speech **on the phone** (Android's own recognizer). Better
+local models (Whisper, Parakeet) can be downloaded inside the app; server engines (Groq,
+OpenAI, Tinfoil, your own server) need an API key you enter under *Engine*.
+
+## Where to look
+
+| You want to … | Look at |
+|---|---|
+| understand what the app does | the next sections of this README |
+| know what is planned or broken | [`docs/OPEN.md`](docs/OPEN.md) |
+| change logic (engines, text insertion, settings) | `core/` - plain Kotlin, unit-tested |
+| change UI, bubble, accessibility, audio | `app/` - the Android side |
+| build, test, sign | [Building](#building) and `tools/` |
+| see what changed per version | [Releases](../../releases) and `git log` |
+
 ## How it works
 
 A **bubble** appears as soon as you tap into a text field and disappears afterwards. Tap, speak,
@@ -88,8 +111,10 @@ exactly the TLS key from the attestation (certificate pinning). If verification 
 
 ```
 core/   pure Kotlin/JVM - engine layer, text splicing, insertion chain, VAD, microphone
-        routing, keyboard policy, settings schema, diagnostics log   → 173 tests
+        routing, keyboard policy, settings schema, diagnostics log   → unit tests
 app/    Android - bubble, accessibility adapter, capture, whisper.cpp JNI, Compose UI
+docs/   open items (OPEN.md), the 512 px app icon, and the historical plan, audit and design notes
+tools/  build helpers: native AARs, reference and type checks, release signing, git hooks
 ```
 
 The split is not cosmetic but the project's ground rule: **everything that can go wrong
@@ -171,6 +196,22 @@ Without an SDK `:core` stays fully buildable instead of breaking the whole build
 Every push builds a debug APK in GitHub Actions and stores it as the `amber-debug-apk`
 artifact.
 
+After cloning, enable the repository's git hooks once:
+
+```bash
+git config core.hooksPath tools/hooks
+```
+
+## Releases
+
+The version lives in `app/build.gradle.kts` (`versionName`, `versionCode`). A release is:
+
+1. Bump both numbers, commit as `Amber <version>: <what changed, in a few words>`.
+2. `tools/sign-release.sh` - builds the release APK and has it signed with the release key.
+3. Tag `v<version>` and publish a GitHub release with the APK attached as
+   `amber-<version>.apk`; the notes say what changed in plain words, and give the APK's
+   SHA-256 and the signer's fingerprint (see below), so a download can be checked.
+
 ## Verifying a release APK
 
 Release APKs are signed with one key. Its certificate's SHA-256 is:
@@ -188,6 +229,12 @@ apksigner verify --print-certs amber.apk | grep "certificate SHA-256"
 It must print exactly this one signer. Android also refuses an update signed with any other
 key. A build from this source signed with your own key works the same, but installs as a
 separate app.
+
+## Contributing
+
+Commits and pull requests carry the human author only - no AI co-author or session
+trailers. The `commit-msg` hook in `tools/hooks` enforces that. Project rules are in
+[`CLAUDE.md`](CLAUDE.md): English everywhere, logic that can go wrong belongs in `core`.
 
 ## Checking on a device
 
