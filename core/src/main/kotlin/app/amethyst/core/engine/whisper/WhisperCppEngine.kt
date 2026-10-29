@@ -53,6 +53,10 @@ class WhisperCppEngine(
     private val threads: Int,
     /** True only for ACFT models; see [WhisperModelSpec.shortContext]. */
     private val shortContext: Boolean = false,
+    /** See [WhisperModelSpec.typicalRate]. */
+    typicalRate: Double = if (shortContext) 0.12 else 3.5,
+    /** See [WhisperModelSpec.contextSlack]. */
+    private val contextSlack: Int = WhisperInput.AUDIO_CTX_SLACK,
     private val clock: () -> Long = System::currentTimeMillis,
     private val compute: CoroutineDispatcher = Dispatchers.Default,
 ) : SttEngine {
@@ -66,9 +70,7 @@ class WhisperCppEngine(
         // whole extra encoder pass: cut those only near the window size. The ACFT models'
         // cost follows the audio length, so short chunks are nearly free for them.
         minChunkMs = if (shortContext) SHORT_CONTEXT_MIN_CHUNK_MS else FULL_CONTEXT_MIN_CHUNK_MS,
-        // Measured on a mid-range phone: the FUTO models run well under real time, stock
-        // large-v3-turbo three to four times over it.
-        typicalRate = if (shortContext) 0.12 else 3.5,
+        typicalRate = typicalRate,
         overheadMs = 150,
     )
 
@@ -88,7 +90,7 @@ class WhisperCppEngine(
                 runtime.transcribe(
                     samples = samples,
                     language = WhisperInput.languageFor(options.languageTag),
-                    audioCtx = if (shortContext) WhisperInput.audioCtxFor(samples.size) else 0,
+                    audioCtx = if (shortContext) WhisperInput.audioCtxFor(samples.size, contextSlack) else 0,
                     threads = threads,
                     prompt = options.precedingText.orEmpty(),
                 ) to runtime.lastLanguage()

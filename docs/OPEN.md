@@ -231,6 +231,68 @@ marked open:
       chunk length, cleanup on/off and model per app. Defaults stay simple; nothing extra shows
       unless Advanced is opened.
 
+## Local models and punctuation: measured (2026-10-29)
+
+80 German sentences from FLEURS (read speech, 3-30 s, reference text with punctuation), each
+model run like the app runs it (whisper.cpp 1.9.5 greedy, German set; sherpa-onnx 1.13.8 for
+Parakeet). x86 PC, 8 threads - times are relative, the phone is slower. Scripts and results
+are not kept in the repo.
+
+| Model | WER | commas P / R | total time | |
+|---|---|---|---|---|
+| FUTO 74 (default) | 19.6 % | 86 / 73 % | 34 s | |
+| FUTO 244 | 10.6 % | 92 / 82 % | 96 s | |
+| Parakeet TDT 0.6B v3 | 9.0 % | 90 / 89 % | 69 s | |
+| large-v3-turbo q5_0, full context (until 0.15) | 4.9 % | 88 / 85 % | 768 s | encoder 93 % |
+| large-v3-turbo q8_0, full context | 4.5 % | 87 / 85 % | 605 s | |
+| large-v3-turbo q5_0, context cut | 22.6 % | 86 / 86 % | 582 s | stock cannot cut |
+| **ACFT large-v3-turbo q8_0, cut +128** | **4.5 %** | 86 / 85 % | **341 s** | 4.1x faster under 8 s |
+| ACFT, cut +64 | 4.6 % | 87 / 85 % | 333 s | |
+| ACFT +128 with a punctuated prompt | 4.6 % | 86 / 86 % | 382 s | not worth it |
+
+Done in 0.16.0:
+- [x] **The large model, about three times faster**: ACFT large-v3-turbo (fine-tuned like the
+      FUTO models so the encoder stops at the end of the speech), q8_0 - more accurate than
+      the old q5_0, and q8_0 weights get ggml's ARM repacked kernels (q5_0 gets none). Third-
+      party file checked tensor by tensor against our own conversion of the original weights.
+      The old q5_0 stays for existing downloads, marked "replaced". Speed on the phone: confirm.
+- [x] **German "um" and "eh" were deleted as fillers** - 21 times in 80 sentences ("nötig, um
+      ... zu bilden" lost its "um"). English-only fillers now stay in German text.
+- [x] **German comma rules** (`GermanCommas`): 98.5 % of the commas they set on 4,200 FLEURS
+      sentences were right. On real model output they rarely fire (0-2 per 80 sentences): the
+      models already put the comma before "dass"/"weil". The commas still missing are grammar
+      (a main clause after a fronted clause, appositions, lists) - rules cannot do that safely.
+
+Findings for the next steps:
+- [ ] **The default model is the weak spot for German**: FUTO 74 gets every fifth word wrong.
+      Suggest by memory (item 2 below): Parakeet or ACFT large where the phone has room, FUTO
+      244 otherwise. Changing `WhisperModels.default` silently would break engines whose
+      `modelId` is null (they would point at a model that is not downloaded) - do it as a
+      suggestion on the engine screen, not by switching.
+- [ ] Better commas than this need the cleanup LLM (server engines) or a punctuation model;
+      none small enough for German without adding wait was found.
+- [ ] i8mm/SME on newer phones: ggml can build CPU variants and pick at runtime
+      (GGML_CPU_ALL_VARIANTS + GGML_BACKEND_DL, Android variants exist). More .so files; worth
+      measuring once the q8_0 numbers from the phone are in.
+
+## Quality of life: what a dictation app needs (research, 2026-10-29)
+
+Compared with Wispr Flow and the usual Android dictation apps; ordered by value for the effort.
+- [ ] **History**: the last dictations kept on the phone (noBackup, off switch, auto-delete
+      after a week), with copy and "insert again". Today they live 20 deep in memory only, so
+      a dictation into the wrong app or a failed insertion is gone after a restart.
+- [ ] **Undo the last insertion**: the inserter knows the field's text before splicing; a
+      short window (bubble gesture or toast action) to put it back.
+- [ ] **Own words** (names, terms): Whisper's prompt (`vocabularyHint` is plumbed for servers),
+      the cleanup prompt, sherpa-onnx hotwords for Parakeet. Wispr learns them from corrections.
+- [ ] **Spoken punctuation and layout**: "neue Zeile", "neuer Absatz", "Komma", "Fragezeichen",
+      "Doppelpunkt" (and English) as rules in :core; "Punkt" only where it cannot be the noun.
+      Single-line fields get no line breaks.
+- [ ] **Keep a failed recording** for a few minutes with "Recognize again" - a refused key or
+      a quota error (no local fallback) loses the dictation today.
+- [ ] **Quick Settings tile / notification action** to dictate without the bubble.
+- [ ] Later: snippets (spoken shortcut -> saved text), a per-dictation language switch.
+
 ## Better local models - for every phone
 
 No vendor-specific paths (an NPU/QNN build would only help Snapdragon phones).

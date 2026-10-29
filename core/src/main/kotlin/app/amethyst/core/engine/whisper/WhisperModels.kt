@@ -22,6 +22,13 @@ data class WhisperModelSpec(
      * then may the context be shortened; a stock Whisper model loses words when it is.
      */
     val shortContext: Boolean = false,
+    /**
+     * Recognition time per second of audio on a mid-range phone, before Amber has measured this
+     * one itself (RecognitionEstimate learns the real rate).
+     */
+    val typicalRate: Double = if (shortContext) 0.12 else 3.5,
+    /** Context positions beyond the audio, for [shortContext] models; see WhisperInput. */
+    val contextSlack: Int = WhisperInput.AUDIO_CTX_SLACK,
 )
 
 object WhisperModels {
@@ -63,20 +70,45 @@ object WhisperModels {
     )
 
     /**
-     * Whisper large-v3-turbo from the whisper.cpp model repository, q5_0. Far more accurate
-     * than the FUTO models, but stock Whisper: it needs the full 30 s context and is
-     * correspondingly slower.
+     * Whisper large-v3-turbo, ACFT fine-tuned (MahmoudAshraf/acft-whisper-large-v3-turbo,
+     * Apache-2.0) so its encoder may stop at the end of the speech instead of always running
+     * a 30 s window - the same method as the FUTO models. q8_0: ggml repacks q8_0 weights for
+     * the dot-product units of every current phone CPU, which q5_0 gets no benefit from.
+     *
+     * The file is a third-party conversion (DeadBranches/acft-whisper-large-v3-turbo_q8_0);
+     * checked tensor by tensor against a conversion of the original weights - all 587
+     * tensors, the vocabulary and the mel filters are identical. Pinned by hash.
+     */
+    val ACFT_LARGE_V3_TURBO_Q8 = WhisperModelSpec(
+        id = "acft-whisper-large-v3-turbo-q8_0",
+        displayName = "Whisper large-v3-turbo",
+        url = "https://huggingface.co/DeadBranches/acft-whisper-large-v3-turbo_q8_0/resolve/main/acft-whisper-large-v3-turbo-q8_0.bin",
+        sizeBytes = 874_188_075L,
+        sha256 = "6d862034d882b83f76366fefc1bd750cef2057d2c644378c46e41e90b0331a72",
+        note = "The large OpenAI model, tuned to stop where your speech stops. As accurate as " +
+            "the stock large model, about three times faster on short dictations.",
+        tier = "most accurate",
+        shortContext = true,
+        typicalRate = 1.2,
+        // As its model card recommends "for stability". Measured on 80 German FLEURS
+        // sentences: 4.53 % WER with 128, 4.64 % with 64, for 2.5 % more time.
+        contextSlack = 128,
+    )
+
+    /**
+     * Stock Whisper large-v3-turbo, q5_0: it needs the full 30 s context for any dictation.
+     * Kept so a download from before 0.16 keeps working; [ACFT_LARGE_V3_TURBO_Q8] replaces it.
      */
     val LARGE_V3_TURBO_Q5 = WhisperModelSpec(
         id = "whisper-large-v3-turbo-q5_0",
-        displayName = "Whisper large-v3-turbo",
+        displayName = "Whisper large-v3-turbo (old)",
         url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         sizeBytes = 574_041_195L,
         sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-        note = "The large OpenAI model, slimmed down. Much more accurate, but a phone's CPU " +
-            "runs it about three times slower than you speak - a 30 s dictation can take " +
-            "over a minute. For this quality without the wait, use it through Tinfoil.",
-        tier = "most accurate",
+        note = "The previous large model: always works through a full 30 s, so even a short " +
+            "dictation waits several seconds. The tuned large-v3-turbo above is as accurate " +
+            "and about three times faster - switch and delete this one.",
+        tier = "replaced",
         shortContext = false,
     )
 
@@ -84,6 +116,7 @@ object WhisperModels {
         FUTO_MULTILINGUAL_39,
         FUTO_MULTILINGUAL_74,
         FUTO_MULTILINGUAL_244,
+        ACFT_LARGE_V3_TURBO_Q8,
         LARGE_V3_TURBO_Q5,
     )
 

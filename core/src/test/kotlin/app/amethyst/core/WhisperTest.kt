@@ -115,6 +115,8 @@ class WhisperTest {
     fun `dictations near or over 30 seconds use the full context`() {
         assertEquals(0, WhisperInput.audioCtxFor(29 * 16_000))
         assertEquals(0, WhisperInput.audioCtxFor(90 * 16_000))
+        // The ACFT large-v3-turbo keeps more room after the speech.
+        assertEquals(628, WhisperInput.audioCtxFor(10 * 16_000, slack = 128))
     }
 
     @Test
@@ -360,9 +362,12 @@ class WhisperTest {
     }
 
     @Test
-    fun `only the FUTO fine-tunes may shorten the context`() {
+    fun `only the ACFT fine-tunes may shorten the context`() {
+        // FUTO's own models and the ACFT large-v3-turbo; stock Whisper loses words with a
+        // shortened context (measured: 62.9 % WER for stock turbo on Earnings22).
         WhisperModels.all.forEach { spec ->
-            assertEquals(spec.url.contains("keyboard.futo.org"), spec.shortContext, spec.id)
+            val acft = spec.url.contains("keyboard.futo.org") || spec.id.startsWith("acft-")
+            assertEquals(acft, spec.shortContext, spec.id)
         }
     }
 

@@ -463,6 +463,7 @@ class DictationController(
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.capture.toNormalizeOptions(),
+            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.languageTag,
         )
         if (cleaned.isBlank()) {
             fail(SttFailure.NOTHING_RECOGNIZED, engineId)

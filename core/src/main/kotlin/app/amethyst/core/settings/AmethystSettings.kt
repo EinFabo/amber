@@ -69,6 +69,8 @@ data class CaptureSettings(
     val minSpeechMs: Int = 350,
     val maxDurationMs: Int = 120_000,
     val stripFillers: Boolean = true,
+    /** Adds the commas German requires before subordinate clauses; rules only, no model. */
+    val germanCommas: Boolean = true,
     /** Recognize finished parts while still speaking, for engines that support it. */
     val chunking: Boolean = true,
     /** Shortest part worth cutting off; null keeps each engine's own (see EngineCapabilities). */
@@ -95,7 +97,7 @@ data class CaptureSettings(
         maxDurationMs = maxDurationMs,
     )
 
-    fun toNormalizeOptions(): NormalizeOptions = NormalizeOptions(stripFillers = stripFillers)
+    fun toNormalizeOptions(): NormalizeOptions = NormalizeOptions(stripFillers = stripFillers, germanCommas = germanCommas)
 
     /**
      * The watchdog always has to outlast the longest recording, the server's own time limit

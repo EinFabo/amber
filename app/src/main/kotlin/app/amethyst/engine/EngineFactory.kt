@@ -11,6 +11,7 @@ import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
+import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.SecureChannel
@@ -88,6 +89,8 @@ class EngineFactory(
                         runtime = whisperRuntime,
                         threads = NativeWhisperRuntime.defaultThreads(),
                         shortContext = whisperModels.shortContextFor(modelId),
+                        typicalRate = WhisperModels.byId(modelId)?.typicalRate ?: 3.5,
+                        contextSlack = WhisperModels.byId(modelId)?.contextSlack ?: WhisperInput.AUDIO_CTX_SLACK,
                         compute = whisperRuntime.dispatcher,
                     ),
                 )

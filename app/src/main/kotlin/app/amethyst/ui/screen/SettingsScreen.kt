@@ -241,6 +241,15 @@ fun RecordingScreen(
                     onUpdateSettings { it.copy(capture = it.capture.copy(stripFillers = value)) }
                 },
             )
+            ToggleRow(
+                label = "Add missing commas",
+                description = "German only: the comma before \"dass\", \"weil\", \"wenn\" or \"um ... zu\" " +
+                    "that recognition often leaves out. Rules, no LLM - it never changes a word.",
+                checked = settings.capture.germanCommas,
+                onChange = { value ->
+                    onUpdateSettings { it.copy(capture = it.capture.copy(germanCommas = value)) }
+                },
+            )
         }
         SectionCard(title = "Recognize while speaking") {
             ChunkingSettings(settings, onUpdateSettings)

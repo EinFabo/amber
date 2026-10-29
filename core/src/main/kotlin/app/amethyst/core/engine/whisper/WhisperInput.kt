@@ -15,9 +15,9 @@ object WhisperInput {
     /**
      * Context positions added on top of the audio itself. The ACFT fine-tune was trained to
      * cope with a shortened context, but cutting it exactly at the last sample clips the final
-     * word; a little slack costs almost nothing.
+     * word; a little slack costs almost nothing. Per model: [WhisperModelSpec.contextSlack].
      */
-    private const val AUDIO_CTX_SLACK = 64
+    const val AUDIO_CTX_SLACK = 64
 
     /** Below this, a shortened context starts to hurt more than it saves. */
     private const val MIN_AUDIO_CTX = 256
@@ -47,8 +47,8 @@ object WhisperInput {
      * comes from. Anything longer than one window uses the full context, because whisper.cpp
      * then slides over the audio window by window.
      */
-    fun audioCtxFor(sampleCount: Int): Int {
-        val needed = ceil(sampleCount.toDouble() / SAMPLES_PER_CTX).toInt() + AUDIO_CTX_SLACK
+    fun audioCtxFor(sampleCount: Int, slack: Int = AUDIO_CTX_SLACK): Int {
+        val needed = ceil(sampleCount.toDouble() / SAMPLES_PER_CTX).toInt() + slack
         return if (needed >= FULL_AUDIO_CTX) 0 else needed.coerceAtLeast(MIN_AUDIO_CTX)
     }
 
