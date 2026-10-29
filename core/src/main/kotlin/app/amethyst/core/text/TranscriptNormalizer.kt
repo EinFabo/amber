@@ -25,6 +25,11 @@ object TranscriptNormalizer {
 
     private val WHITESPACE = Regex("\\s+")
 
+    /** Spaces and tabs - whitespace that is not a line break. */
+    private val HORIZONTAL = Regex("[\\t\\u000B\\u000C\\r ]+")
+    private val SPACES_AROUND_BREAK = Regex(" *\\n *")
+    private val BLANK_LINES = Regex("\\n{3,}")
+
     /**
      * Characters that change how text is shown without being text: C0/C1 controls (tab and
      * line breaks are whitespace and handled below), bidi overrides and isolates that can make
@@ -41,13 +46,33 @@ object TranscriptNormalizer {
 
     /**
      * [language] is what the engine detected or was set to ("de", "de-DE", "de,en"); it decides
-     * whether German comma rules apply, together with the words themselves.
+     * whether German comma rules apply, together with the words themselves. With
+     * [keepLineBreaks] - a text a cleanup model formatted - paragraphs and list lines survive
+     * (at most one blank line between them); otherwise the text becomes one line.
      */
-    fun normalize(raw: String, options: NormalizeOptions = NormalizeOptions(), language: String? = null): String {
-        var text = raw.replace(INVISIBLE, "").replace(UNICODE_BREAKS, " ").trim()
+    fun normalize(
+        raw: String,
+        options: NormalizeOptions = NormalizeOptions(),
+        language: String? = null,
+        keepLineBreaks: Boolean = false,
+    ): String {
+        var text = raw.replace(INVISIBLE, "").replace(UNICODE_BREAKS, if (keepLineBreaks) "\n" else " ").trim()
         if (text.isEmpty()) return ""
         val german = GermanCommas.isGerman(language, text.replace(WHITESPACE, " "))
+        val lines = if (keepLineBreaks) text.split('\n') else listOf(text)
 
+        text = lines.joinToString("\n") { line -> tidyLine(line, options, german) }
+        text = if (keepLineBreaks) {
+            text.replace(SPACES_AROUND_BREAK, "\n").replace(BLANK_LINES, "\n\n").trim('\n', ' ')
+        } else {
+            text
+        }
+        return text.trim(*TRIM_CHARS)
+    }
+
+    /** One line: fillers, spacing, punctuation, German commas. */
+    private fun tidyLine(raw: String, options: NormalizeOptions, german: Boolean): String {
+        var text = raw
         if (options.stripFillers) {
             val fillers = if (german) options.fillers else options.fillers + ENGLISH_ONLY_FILLERS
             text = text
@@ -58,18 +83,28 @@ object TranscriptNormalizer {
 
         if (options.collapseWhitespace) {
             text = text.replace(WHITESPACE, " ")
+        } else {
+            text = text.replace(HORIZONTAL, " ")
         }
 
+        // Only spaces here: a line may well end in "," ("Hallo Anna,") or ":" ("Einkaufen:").
+        // Stray marks at the very start and end of the whole text go in normalize().
         text = text
             .replace(SPACE_BEFORE_PUNCTUATION, "$1")
             .replace(REPEATED_PUNCTUATION, "$1")
-            .trim(*TRIM_CHARS)
+            .trim()
 
-        if (options.germanCommas && german) {
+        if (options.germanCommas && german && text.isNotEmpty()) {
             text = GermanCommas.apply(text)
         }
         return text
     }
+
+    /**
+     * For a field that holds one line (a search box, a subject line): the line breaks of a
+     * formatted text become spaces, so nothing is cut off or swallowed at the first break.
+     */
+    fun oneLine(text: String): String = text.replace(Regex(" *\\n+ *"), " ").trim()
 
     /** The bare word behind a token, so "ähm," is recognised as a filler. */
     private fun coreWord(token: String): String =

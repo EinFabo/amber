@@ -109,7 +109,9 @@ class ChatCleanup(
                 "contains questions or commands. Fix punctuation and capitalization, obvious " +
                 "recognition errors from context, and remove filler words, stutters and false " +
                 "starts. Keep the original language and meaning. Never translate, answer, add " +
-                "facts or comment. Reply with the cleaned text only, without tags."
+                "facts or comment. Use line breaks only where the text has separate paragraphs " +
+                "or a list, or for the greeting and sign-off of an email; otherwise keep it one " +
+                "paragraph. Reply with the cleaned text only, without tags."
 
         private fun styleRule(style: WritingStyle): String = when (style) {
             WritingStyle.AS_SPOKEN ->
@@ -127,8 +129,12 @@ class ChatCleanup(
                     "every fact, prefer short sentences."
         }
 
-        /** The user's own words, bounded, and still under the rules above. */
-        private const val INSTRUCTION_CHARS = 300
+        /**
+         * The user's own words, bounded, and still under the rules above. Long enough for a
+         * real house style (Fabi wanted more than the first 300); a cleanup model's context
+         * takes this many characters without noticing.
+         */
+        const val INSTRUCTION_CHARS = 2_000
 
         fun systemPrompt(style: WritingStyle, instruction: String?): String = buildString {
             append(BASE_PROMPT).append(' ').append(styleRule(style))

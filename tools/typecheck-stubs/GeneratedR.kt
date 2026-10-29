@@ -6,6 +6,7 @@ package app.amethyst
 object R {
     object string {
         const val app_name = 0
+        const val clipboard_after_lost_commit = 0
         const val clipboard_fallback = 0
         const val notification_channel_description = 0
         const val notification_channel_name = 0

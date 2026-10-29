@@ -13,4 +13,9 @@ data class Transcript(
     val detectedLanguage: String? = null,
     /** The enclave that answered, as named by the service (Tinfoil: the Tinfoil-Enclave header). */
     val servedBy: String? = null,
+    /**
+     * Rewritten by a cleanup model, so its line breaks are meant (paragraphs of an email, a
+     * list in a note). An engine's raw output has none worth keeping.
+     */
+    val formatted: Boolean = false,
 )

@@ -29,6 +29,8 @@ class InsertionEngineTest {
         private val pasteWorks: Boolean = true,
         private val unreadable: Boolean = false,
         private val hasInputConnection: Boolean = false,
+        /** The connection accepts the words and they never arrive: it went stale. */
+        private val commitLost: Boolean = false,
         /** Reads after a write that still show the old text, like a Compose field mid-frame. */
         private val readLag: Int = 0,
     ) : EditableTarget {
@@ -85,6 +87,7 @@ class InsertionEngineTest {
         override fun commitText(text: String): Boolean {
             if (!hasInputConnection) return false
             committed = text
+            if (commitLost) return true
             val at = cursor.coerceIn(0, this.text.length)
             this.text = this.text.substring(0, at) + text + this.text.substring(at)
             cursor = at + text.length
@@ -278,6 +281,30 @@ class InsertionEngineTest {
 
         assertTrue(outcome.insertedIntoField)
         assertEquals("hallo", target.committed)
+    }
+
+    @Test
+    fun `typed words that never arrive are reported, kept on the clipboard, and not typed twice`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, commitLost = true)
+        val outcome = engine(target).insert(target, "Welt")
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
+        assertTrue(outcome.copiedToClipboard)
+        assertEquals("Welt", target.clipboardContent)
+        assertEquals(0, target.setTextCalls, "a late commit plus SET_TEXT would give the words twice")
+        assertEquals("Hallo", target.text)
+    }
+
+    @Test
+    fun `a lost commit with the clipboard off is reported as not inserted`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, commitLost = true)
+        val outcome = engine(target).insert(target, "Welt", allowClipboard = false)
+
+        assertFalse(outcome.insertedIntoField)
+        assertFalse(outcome.copiedToClipboard)
+        assertTrue(outcome.uncertain)
+        assertEquals(null, target.clipboardContent)
     }
 
     @Test

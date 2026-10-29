@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.apps.AppChoice
+import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
@@ -263,9 +264,12 @@ private fun ProfileDialog(
                 }
                 OutlinedTextField(
                     value = instruction,
-                    onValueChange = { instruction = it.take(300) },
+                    onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
                     label = { Text("Own instruction (optional)") },
                     placeholder = { Text("e.g. use \"du\", sign with my first name") },
+                    supportingText = { Text("${instruction.length} / ${ChatCleanup.INSTRUCTION_CHARS}") },
+                    minLines = 2,
+                    maxLines = 8,
                     shape = AmberShapes.Inner,
                     colors = fieldColors(),
                     modifier = Modifier.fillMaxWidth(),

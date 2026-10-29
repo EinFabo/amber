@@ -51,6 +51,11 @@ data class InsertionOutcome(
     /** The text is at least on the clipboard, so the user can paste it by hand. */
     val copiedToClipboard: Boolean,
     val targetPackage: String?,
+    /**
+     * Typed through the input connection but never seen in the field. It may still arrive -
+     * so nothing else was tried, which would risk the words twice - or it may be lost.
+     */
+    val uncertain: Boolean = false,
 )
 
 /**
@@ -96,7 +101,17 @@ class InsertionEngine(
 
         for (strategy in order) {
             val inserted = when (strategy) {
-                InsertionStrategy.COMMIT_TEXT -> tryCommit(target, text, options)
+                InsertionStrategy.COMMIT_TEXT -> when (tryCommit(target, text, options)) {
+                    Commit.LANDED -> true
+                    Commit.NOT_POSSIBLE -> false
+                    Commit.LOST -> {
+                        memory.recordFailure(packageName, strategy)
+                        onMemoryChanged(memory)
+                        if (allowClipboard) copied = clipboard.copy(text) || copied
+                        val shown = if (copied) InsertionStrategy.CLIPBOARD_ONLY else strategy
+                        return InsertionOutcome(shown, false, copied, packageName, uncertain = true)
+                    }
+                }
 
                 InsertionStrategy.SET_TEXT -> trySetText(target, text, options)
 
@@ -126,18 +141,30 @@ class InsertionEngine(
         return InsertionOutcome(InsertionStrategy.CLIPBOARD_ONLY, false, copied, packageName)
     }
 
+    private enum class Commit { LANDED, NOT_POSSIBLE, LOST }
+
     /**
-     * Not read back afterwards, unlike the others. A commit travels to the app asynchronously,
-     * so an immediate read often still shows the old text - and treating that as a failure
-     * would hand the same words to SET_TEXT and insert them twice. An input connection is the
-     * channel every keyboard relies on; when one is bound to the field, the commit lands.
+     * A commit travels to the app asynchronously and the accessibility input connection reports
+     * nothing back. So the field is read until the words show up - patiently, since an
+     * immediate read often still shows the old text. When they never do, the connection was
+     * stale (an app that rebuilt its field mid-dictation: WhatsApp, now and then) and the text
+     * is LOST: reported, kept on the clipboard if allowed - but not typed again another way,
+     * because a commit arriving late would then put the words in twice.
      */
-    private fun tryCommit(target: EditableTarget, text: String, options: SpliceOptions): Boolean {
-        if (!target.isEditable) return false
-        val fragment = target.readField()
-            ?.let { field -> commitFragment(field, text, options) }
-            ?: text.trim()
-        return fragment.isNotEmpty() && target.commitText(fragment)
+    private fun tryCommit(target: EditableTarget, text: String, options: SpliceOptions): Commit {
+        if (!target.isEditable) return Commit.NOT_POSSIBLE
+        val field = target.readField()
+        val fragment = field?.let { commitFragment(it, text, options) } ?: text.trim()
+        if (fragment.isEmpty() || !target.commitText(fragment)) return Commit.NOT_POSSIBLE
+        // A field that cannot be read cannot be checked; the connection is all there is.
+        if (field == null) return Commit.LANDED
+        val expected = text.trim()
+        repeat(COMMIT_VERIFY_ATTEMPTS) { attempt ->
+            val after = target.readBack() ?: return Commit.LANDED
+            if (after.contains(expected, ignoreCase = true)) return Commit.LANDED
+            if (attempt < COMMIT_VERIFY_ATTEMPTS - 1) pause(VERIFY_INTERVAL_MS)
+        }
+        return Commit.LOST
     }
 
     /**
@@ -204,5 +231,8 @@ class InsertionEngine(
         /** Five reads 60 ms apart: about four frames at 60 Hz, well past one recomposition. */
         private const val VERIFY_ATTEMPTS = 5
         private const val VERIFY_INTERVAL_MS = 60L
+
+        /** About 0.7 s: an input connection's round trip through the app, with room to spare. */
+        private const val COMMIT_VERIFY_ATTEMPTS = 12
     }
 }

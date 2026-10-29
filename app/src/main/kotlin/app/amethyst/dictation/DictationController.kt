@@ -454,6 +454,7 @@ class DictationController(
                 trace?.cleanupModel = cleanup.model
                 transcript.copy(
                     text = cleaned.text,
+                    formatted = true,
                     // The text is only as trustworthy as the weaker of the two trips it made.
                     trustLevel = listOf(transcript.trustLevel, cleaned.trust).maxBy { it.strictness },
                 )
@@ -476,7 +477,11 @@ class DictationController(
             transcript.text,
             settings.capture.toNormalizeOptions(),
             language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.languageTag,
-        )
+            keepLineBreaks = transcript.formatted,
+        ).let { text ->
+            // A one-line field (search, subject) gets the paragraphs as one line.
+            if ('\n' in text && graph.accessibilityService?.focusedIsMultiLine() == false) TranscriptNormalizer.oneLine(text) else text
+        }
         if (cleaned.isBlank()) {
             fail(SttFailure.NOTHING_RECOGNIZED, engineId)
             return
@@ -533,11 +538,12 @@ class DictationController(
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
             // Neither the field nor the clipboard took it. Quote the words in the message so
             // they survive in the diagnostics card instead of being lost.
+            val what = if (insertion.uncertain) "The text was typed but never showed up in the field"
+            else "No text field accepted the text"
             fail(
-                "No text field accepted the text: \u201C$cleaned\u201D " +
-                    "[${inserter.lastTrace}]",
+                "$what: \u201C$cleaned\u201D [${inserter.lastTrace}]",
                 engineId,
-                brief = "No text field accepted the text. It is in Amber's diagnostics.",
+                brief = "$what. It is in Amber's diagnostics.",
             )
             return
         }

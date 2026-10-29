@@ -74,4 +74,29 @@ class TranscriptNormalizerTest {
         // A joiner inside an emoji sequence is kept.
         assertEquals("Familie \uD83D\uDC68\u200D\uD83D\uDC69", TranscriptNormalizer.normalize("Familie \uD83D\uDC68\u200D\uD83D\uDC69"))
     }
+
+    @Test
+    fun `a formatted text keeps its paragraphs and list lines`() {
+        val email = "Hallo Anna ,\n\n\n\nich komme morgen   um zehn.  \n\nViele Grüße\nFabi"
+        assertEquals(
+            "Hallo Anna,\n\nich komme morgen um zehn.\n\nViele Grüße\nFabi",
+            TranscriptNormalizer.normalize(email, language = "de", keepLineBreaks = true),
+        )
+        val list = "Einkaufen:\n- Milch\n- äh Brot"
+        assertEquals("Einkaufen:\n- Milch\n- Brot", TranscriptNormalizer.normalize(list, language = "de", keepLineBreaks = true))
+    }
+
+    @Test
+    fun `raw engine output and one-line fields stay on one line`() {
+        assertEquals("eins zwei drei", TranscriptNormalizer.normalize("eins\nzwei\n\ndrei"))
+        assertEquals("Hallo Anna, bis morgen", TranscriptNormalizer.oneLine("Hallo Anna,\n\nbis morgen"))
+    }
+
+    @Test
+    fun `German commas are added line by line`() {
+        assertEquals(
+            "Ich glaube, dass es klappt.\n\nWeil es regnet, bleiben wir.",
+            TranscriptNormalizer.normalize("Ich glaube dass es klappt.\n\nWeil es regnet, bleiben wir.", language = "de", keepLineBreaks = true),
+        )
+    }
 }

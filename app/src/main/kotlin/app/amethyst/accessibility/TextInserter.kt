@@ -17,6 +17,7 @@ import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
+import app.amethyst.core.text.TranscriptNormalizer
 import app.amethyst.data.StrategyStore
 
 /**
@@ -50,14 +51,19 @@ class TextInserter(
         val outcome = engine.insert(target, text, options, allowClipboard)
 
         lastTrace = "$trace → ${outcome.strategy.name}" +
-            if (outcome.insertedIntoField) "" else " (not in the field)"
+            when {
+                outcome.uncertain -> " (typed, never showed up in the field)"
+                outcome.insertedIntoField -> ""
+                else -> " (not in the field)"
+            }
         Log.i(TAG, "insertion: $lastTrace")
 
         // Only nag when the text really did not make it into the field. A successful paste
         // also uses the clipboard, and announcing that every time would be noise.
         if (!outcome.insertedIntoField && outcome.copiedToClipboard) {
             mainHandler.post {
-                Toast.makeText(service, R.string.clipboard_fallback, Toast.LENGTH_SHORT).show()
+                val message = if (outcome.uncertain) R.string.clipboard_after_lost_commit else R.string.clipboard_fallback
+                Toast.makeText(service, message, Toast.LENGTH_LONG).show()
             }
         }
 
@@ -268,7 +274,11 @@ class TextInserter(
             if (expectedPackage != null && editorPackage != expectedPackage) return false
             val connection = inputMethod.currentInputConnection ?: return false
             return try {
-                connection.commitText(text, 1, null)
+                // Typed through the input connection, a line break can act as Enter - in a
+                // messenger set to "Enter sends" that would send the message. Never risked here.
+                // The accessibility input connection reports nothing back; whether the words
+                // arrived is checked by InsertionEngine reading the field afterwards.
+                connection.commitText(TranscriptNormalizer.oneLine(text), 1, null)
                 true
             } catch (e: RuntimeException) {
                 Log.w(TAG, "commitText failed", e)

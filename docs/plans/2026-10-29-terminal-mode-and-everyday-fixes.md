@@ -74,26 +74,22 @@ e-mail. Maybe something strips newlines?"
 - Check the cleanup request still fits the models' limits, and that `REASONING_HEADROOM`
   and `TIMEOUT_MS` are still right with a longer system prompt.
 
-### 3. "Clipboard shortcut doesn't work properly" (unclear: ask Fabi)
+### 3. "Clipboard shortcut doesn't work properly" (dropped)
 
-There is no feature called a shortcut. The likely candidate is **Settings → Inserting →
-"Clipboard as a fallback"**: the text goes to the clipboard and a toast says "please paste
-it".
-
-**Ask Fabi:** which app, what he did, and what he expected:
-- an automatic paste?
-- a paste button on the bubble?
-- the clipboard keeping the text?
-
-Then fix what he meant. Related, from the security review (L4): mark clipboard text as
-sensitive (`ClipDescription.EXTRA_IS_SENSITIVE`).
+A slip of the tongue (Fabi, 2026-10-29): there is nothing to fix. Clipboard text is marked
+sensitive since 0.16.1.
 
 ### 4. Pasting into the text field is sometimes unreliable (investigate)
 
-**Fabi:** "sometimes paste into the text field is unreliable."
+**Fabi:** "sometimes paste into the text field is unreliable." Asked which app: WhatsApp, now
+and then.
+
+**Found (0.16.2):** on Android 13+ the first method is `commitText` through the input
+connection. The adapter ignored its result, so a stale connection (WhatsApp rebuilds its field
+now and then) counted as inserted - the text was lost and SET_TEXT never tried. Fixed; confirm
+on the device before looking further.
 
 **Do:**
-- Ask Fabi which apps.
 - Read Diagnostics → the last dictations (strategy, target app, the "not inserted" notes).
 - Look at `TextInserter`, `InsertionEngine` and `StrategyMemory`.
 

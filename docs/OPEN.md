@@ -73,10 +73,16 @@ with the release key, the enclave path solid. Each finding was checked against t
 
 The full task prompt, with causes, code pointers and acceptance criteria:
 [`docs/plans/2026-10-29-terminal-mode-and-everyday-fixes.md`](plans/2026-10-29-terminal-mode-and-everyday-fixes.md).
-- [ ] 1. Line breaks from a style are lost: `TranscriptNormalizer` collapses newlines (confirmed).
-- [ ] 2. Longer custom instructions (cut at 300 characters today).
-- [ ] 3. "Clipboard shortcut doesn't work properly" - ask Fabi what he means.
-- [ ] 4. Pasting is sometimes unreliable - ask Fabi which apps, then fix per app.
+- [x] 1. Line breaks (0.16.2): a text the cleanup model formatted keeps its paragraphs and list
+      lines (one blank line at most); raw engine output stays one line; a one-line field gets
+      one line; the input-connection path never types a line break ("Enter sends"). The
+      cleanup prompt allows breaks for paragraphs, lists, an email's greeting and sign-off.
+- [x] 2. Custom instructions up to 2,000 characters (was 300), multi-line with a counter.
+- [x] 3. "Clipboard shortcut" - a slip of the tongue (Fabi), nothing to do.
+- [ ] 4. Pasting is sometimes unreliable - in WhatsApp, now and then (Fabi). Found and fixed in
+      0.16.2: `commitText`'s result was ignored, so a stale input connection (WhatsApp rebuilds
+      its field now and then) counted as inserted and the text was lost without trying
+      SET_TEXT. Confirm on the device; if it still happens, Diagnostics show the strategy.
 - [ ] 5. Onboarding for normal people, with the model download built in.
 - [ ] 6. Style rules per WhatsApp contact.
 - [ ] 7. Terminal mode: speech becomes shell commands, never executed.
