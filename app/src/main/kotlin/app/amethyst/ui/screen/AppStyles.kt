@@ -111,7 +111,7 @@ fun AppStylesScreen(
 ) {
     var editing by remember { mutableStateOf<AppProfile?>(null) }
     var picking by remember { mutableStateOf(false) }
-    val hasCleanup = settings.activeEngine?.cleanupModel != null
+    val hasCleanup = settings.cleanup != null
 
     SubPage(modifier) {
         SectionCard(
@@ -119,8 +119,8 @@ fun AppStylesScreen(
             subtitle = "How the text is phrased depends on the app it goes into.",
         ) {
             Hint(
-                if (hasCleanup) "Applied by the cleanup model of the active engine. Apps without a style get the text tidied as spoken."
-                else "Styles need a cleanup model: open a server engine (Tinfoil, Groq, OpenAI or your own) and pick one under Cleanup. Until then the text goes in as recognized.",
+                if (hasCleanup) "Applied by the cleanup model chosen under Engines → Cleanup. Apps without a style get the text tidied as spoken."
+                else "Styles need a cleanup model: pick one under Engines → Cleanup (a model on Tinfoil, Groq, OpenAI or your own server). Until then the text goes in as recognized.",
                 if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
             )
             settings.profiles.forEach { profile ->

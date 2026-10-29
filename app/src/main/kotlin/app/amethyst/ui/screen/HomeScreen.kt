@@ -181,6 +181,18 @@ private fun EngineLine(settings: AmethystSettings, onOpenEngines: () -> Unit) {
                 color = if (active == null) AmberPalette.Error else AmberPalette.Text,
             )
             if (active != null) TrustBadge(active.trustLevelForDisplay())
+            // Who rewrites the text, when anyone does: it may go further than the recording.
+            val cleanup = settings.cleanup?.let { choice -> settings.engines.firstOrNull { it.id == choice.engineId }?.let { it to choice.model } }
+            if (cleanup != null) {
+                val (engine, model) = cleanup
+                Text(
+                    "Cleanup: ${engine.displayName} · $model",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AmberPalette.Muted,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                TrustBadge(engine.trustLevelForDisplay())
+            }
         }
         Text("Change", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
     }

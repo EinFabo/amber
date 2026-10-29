@@ -111,7 +111,6 @@ fun EngineDetailScreen(
     var baseUrl by remember(config.id) { mutableStateOf(config.baseUrl.orEmpty()) }
     var modelId by remember(config.id) { mutableStateOf(config.modelId.orEmpty()) }
     var language by remember(config.id) { mutableStateOf(config.languageTag.orEmpty()) }
-    var cleanupModel by remember(config.id) { mutableStateOf(config.cleanupModel) }
     var apiKey by remember(config.id) { mutableStateOf(storedKey.orEmpty()) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
@@ -124,7 +123,6 @@ fun EngineDetailScreen(
         baseUrl = baseUrl.trim().takeIf { it.isNotBlank() },
         modelId = modelId.trim().takeIf { it.isNotBlank() },
         languageTag = language.trim().takeIf { it.isNotBlank() },
-        cleanupModel = cleanupModel,
     )
 
     var confirmRemove by remember { mutableStateOf(false) }
@@ -298,37 +296,7 @@ fun EngineDetailScreen(
                         onSave(edited())
                     }
                 }
-                SectionCard(
-                    title = "Cleanup",
-                    subtitle = "A chat model tidies each dictation before it is typed: punctuation, filler " +
-                        "words, mis-hearings - and the writing style per app. " +
-                        if (provider == ServerProviders.TINFOIL) "Same verified enclave, a moment longer." else "Same server, a moment longer.",
-                ) {
-                    if (provider.known) {
-                        ModelPicker(
-                            choices = provider.cleanupModels,
-                            selected = cleanupModel,
-                            noneLabel = "Off",
-                            onSelect = { id ->
-                                cleanupModel = id
-                                onSave(edited())
-                            },
-                        )
-                    } else {
-                        OutlinedTextField(
-                            value = cleanupModel.orEmpty(),
-                            onValueChange = { cleanupModel = it.ifBlank { null } },
-                            label = { Text("Chat model (empty: off)") },
-                            placeholder = { Text("llama3.2") },
-                            singleLine = true,
-                            shape = AmberShapes.Inner,
-                            colors = fieldColors(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Hint("Any model your server offers at /v1/chat/completions.")
-                    }
-                    Hint("If the cleanup fails or changes too much, the dictation goes in as recognized.")
-                }
+                Hint("Cleanup models of this server are picked under Engines → Cleanup, for any recognition engine.")
                 if (provider == ServerProviders.TINFOIL) EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
             }
 
@@ -607,7 +575,7 @@ private fun ParakeetCard(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ModelPicker(
+internal fun ModelPicker(
     choices: List<EnginePresets.ModelChoice>,
     selected: String?,
     noneLabel: String?,

@@ -69,6 +69,30 @@ with the release key, the enclave path solid. Each finding was checked against t
 - [ ] Release signing key: a leak of it, or of the ssh access to the signing host, lets anyone
       sign as Amber.
 
+## Engines reworked: recognition, cleanup and fallback apart (Fabi, 2026-10-29)
+
+- [x] 0.17.0: the cleanup is its own choice (Engines → Cleanup): off, or a chat model on any
+      configured server engine (its address, key and enclave check), whatever recognizes -
+      local Whisper can be cleaned up on Tinfoil. The home screen shows both, each with its
+      trust; a hint says when the text leaves the phone for the cleanup. Schema 7 moves the
+      active engine's old per-engine cleanup model over.
+- [x] 0.17.0: the fallback is its own choice (Engines → When the server fails): Automatic
+      (Parakeet, then Whisper, as before), Off, or a chosen engine - only ever one at least as
+      private as the recognition (`Fallback.choices`: Tinfoil never falls back to Groq).
+      The old on/off switch is migrated.
+- [ ] Cleanup on the phone, for a fully local pipeline. Research so far:
+      - Gemini Nano through ML Kit GenAI: the Proofreading API does German and has a voice
+        input type (homophone errors), input under 256 tokens, no styles; the Rewriting API
+        has tones (friendly, professional, shorter). Needs AICore with Gemini Nano - the Pixel
+        9a is not on the visible list; `checkFeatureStatus()` answers per phone.
+      - Open ~1B models through llama.cpp (the same ggml as whisper.cpp): Gemma 3 1B, Qwen3
+        1.7B, LFM2 1.2B, Llama 3.2 1B (Q4_0, 0.7-1.1 GB, downloaded for testing). A study on
+        small models found about 1B the sweet spot, Gemma 3 1B first, Qwen3 1.7B second.
+        Estimate on a Tensor G4 from published numbers: 3-5 s for a 50-word dictation.
+      - Next: measure German cleanup quality (FLEURS, as for the speech models) and speed on
+        the phone. Building llama.cpp (v0.8.0, sha256 51b1e025...) for that is waiting for
+        Fabi's OK - it is new third-party code.
+
 ## Fabi's plan: terminal mode and everyday fixes (2026-10-29)
 
 The full task prompt, with causes, code pointers and acceptance criteria:

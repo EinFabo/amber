@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -154,8 +155,10 @@ class StoreShots {
     @Test
     fun appStyles() = shoot("6-app-styles", "App styles") {
         AppStylesScreen(
-            settings = settings.withEngine(settings.engines.first { it.id == EnginePresets.TINFOIL.id }.copy(cleanupModel = "deepseek-v4-1-flash"))
-                .copy(activeEngineId = EnginePresets.TINFOIL.id),
+            settings = settings.copy(
+                activeEngineId = EnginePresets.TINFOIL.id,
+                cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+            ),
             onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(),
         )
     }
@@ -171,7 +174,7 @@ class StoreShots {
     @Test
     fun groqEngine() = shoot("8-groq", "Engine") {
         EngineDetailScreen(
-            config = EngineConfig.fromPreset(EnginePresets.GROQ).copy(cleanupModel = "openai/gpt-oss-20b"),
+            config = EngineConfig.fromPreset(EnginePresets.GROQ),
             active = true, storedKey = "gsk_example", whisperModels = emptyMap(),
             onSaveKey = { _, _ -> }, onSave = {}, onActivate = {}, onDelete = {},
             onTest = { ConnectionTester.Result.Ok("") }, onDownloadModel = {}, onImportModel = {},
@@ -210,6 +213,20 @@ class StoreShots {
             }
         }
         assertTrue(File(dir, "store-ic_launcher.png").length() > 0)
+    }
+
+    /** Not part of the listing set: recognition, cleanup and fallback chosen apart. */
+    @Test
+    fun pipeline() = shoot("x-pipeline", "Engines") {
+        val chosen = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(
+            activeEngineId = EnginePresets.LOCAL_WHISPER.id,
+            cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+        )
+        // Scrollable like the real Engines page: in a bounded column FlowRow drops the chips that do not fit.
+        Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp)) {
+            app.amethyst.ui.screen.FallbackSection(chosen.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})
+            app.amethyst.ui.screen.CleanupSection(chosen, isReady = { true }, onUpdateSettings = {})
+        }
     }
 
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */

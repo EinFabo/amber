@@ -30,7 +30,9 @@ import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineKind
-import app.amethyst.core.engine.LocalFallback
+import app.amethyst.core.engine.EngineTrust
+import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
@@ -100,6 +102,9 @@ class DictationController(
     /** The local engine that took over this dictation from an unreachable server, if any. */
     private var fellBack: String? = null
 
+    /** The engine that failed when [fellBack] took over. */
+    private var fellBackFrom: String? = null
+
     /** A release that came while the proxy activity was still on its way. */
     private val stopDuringHandover = AtomicBoolean(false)
 
@@ -117,6 +122,7 @@ class DictationController(
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
+            fellBackFrom = null
             startTarget = graph.accessibilityService?.focusedTarget()
         }
 
@@ -371,15 +377,15 @@ class DictationController(
                     graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
                 }
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
-                // No signal, a timeout, a server down: the recording is still here, so a local
-                // model can take it instead of the dictation being lost.
-                val recoverable = LocalFallback.recoverable(
+                // No signal, a timeout, a server down: the recording is still here, so another
+                // engine can take it instead of the dictation being lost.
+                val recoverable = Fallback.recoverable(
                     result.exceptionOrNull(),
                     engine.capabilities.trustLevel,
-                    graph.settings.value.capture.localFallback,
+                    graph.settings.value.fallback.mode,
                 )
                 val recovered = recoverable
-                    ?.let { recognizeLocally(outcome.audio, it, engine.capabilities.trustLevel) }
+                    ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel) }
                     ?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error))
@@ -390,31 +396,38 @@ class DictationController(
     }
 
     /**
-     * The first local model that is ready - Parakeet, then Whisper - for a recording the
-     * server could not take. Null when none is downloaded or none recognized it; the
-     * original error then stands.
+     * The fallback the user chose (by default the best local model that is ready - Parakeet,
+     * then Whisper) for a recording the server could not take. Null when none is ready or none
+     * recognized it; the original error then stands.
      */
-    private suspend fun recognizeLocally(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel): Transcript? {
-        // A read timeout or a 5xx came after the upload: the text is the phone's, the
-        // recording may be the server's - and the label says so.
-        val trust = LocalFallback.trustAfter(cause, serverTrust)
-        for (config in LocalFallback.candidates(graph.settings.value.engines)) {
-            val local = graph.engineFactory.create(config).getOrNull() ?: continue
+    private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel): Transcript? {
+        val settings = graph.settings.value
+        val primary = settings.activeEngine ?: return null
+        val candidates = Fallback.candidates(settings.fallback, settings.engines, primary) {
+            EngineTrust.forDisplay(it, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
+        }
+        for (config in candidates) {
+            val other = graph.engineFactory.create(config).getOrNull() ?: continue
             Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
             _state.value = DictationState.Transcribing()
             val result = try {
-                local.transcribe(audio, TranscribeOptions(languageTag = config.languageTag))
+                other.transcribe(audio, TranscribeOptions(languageTag = config.languageTag))
             } finally {
-                runCatching { local.close() }
+                runCatching { other.close() }
             }
             result.getOrNull()?.let { transcript ->
+                // A read timeout or a 5xx came after the upload: the recording may be the
+                // first server's too - and the label says so, as it says the fallback's own.
+                val trust = Fallback.trustAfter(cause, serverTrust, transcript.trustLevel)
                 fellBack = config.displayName
+                fellBackFrom = primary.id
                 trace?.fallback = "server unreachable, recognized by ${config.displayName}, label $trust"
-                val message = if (trust == TrustLevel.ON_DEVICE) {
-                    "No connection - recognized on the phone with ${config.displayName}."
-                } else {
-                    "The server did not answer - recognized on the phone with ${config.displayName}. " +
+                val local = transcript.trustLevel == TrustLevel.ON_DEVICE
+                val message = when {
+                    trust == TrustLevel.ON_DEVICE -> "No connection - recognized on the phone with ${config.displayName}."
+                    local -> "The server did not answer - recognized on the phone with ${config.displayName}. " +
                         "The recording may have reached the server."
+                    else -> "${primary.displayName} did not answer - recognized by ${config.displayName} instead."
                 }
                 mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
                 return transcript.copy(trustLevel = trust)
@@ -429,9 +442,10 @@ class DictationController(
      * recognized, and the diagnostics say why. The bubble stays on "working" meanwhile.
      */
     private suspend fun cleanUp(transcript: Transcript, config: EngineConfig): Transcript {
-        // The server just failed; its cleanup would only add a timeout.
-        if (fellBack != null) return transcript
-        val cleanup = graph.engineFactory.cleanupFor(config) ?: return transcript
+        val settings = graph.settings.value
+        // The server that just failed would only add a timeout; another one may well answer.
+        if (fellBackFrom != null && settings.cleanup?.engineId == fellBackFrom) return transcript
+        val cleanup = graph.engineFactory.cleanupFor(settings) ?: return transcript
         // The style belongs to the app whose field gets the text; after the proxy activity
         // that is only known once focus is back.
         awaitFocusReturn()

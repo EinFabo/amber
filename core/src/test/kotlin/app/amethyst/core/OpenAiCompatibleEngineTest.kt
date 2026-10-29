@@ -2,7 +2,8 @@ package app.amethyst.core
 
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
-import app.amethyst.core.engine.LocalFallback
+import app.amethyst.core.engine.Fallback
+import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -236,7 +237,7 @@ class OpenAiCompatibleEngineTest {
                 engine(transport.asFake(), verifier = verifier, pinnable = transport).transcribe(audio).exceptionOrNull(),
             )
             assertTrue(failure.serviceUnavailable)
-            assertNotNull(LocalFallback.recoverable(failure, TrustLevel.ENCLAVE_VERIFIED, enabled = true))
+            assertNotNull(Fallback.recoverable(failure, TrustLevel.ENCLAVE_VERIFIED, FallbackMode.AUTOMATIC))
             assertTrue(transport.requests.isEmpty() && transport.pinnedRequests.isEmpty())
         }
 
@@ -244,7 +245,7 @@ class OpenAiCompatibleEngineTest {
         val rejected = assertIs<SttFailure>(
             engine(FakeHttpTransport { error("unpinned") }, verifier = ScriptedVerifier(listOf(null))).transcribe(audio).exceptionOrNull(),
         )
-        assertNull(LocalFallback.recoverable(rejected, TrustLevel.ENCLAVE_VERIFIED, enabled = true))
+        assertNull(Fallback.recoverable(rejected, TrustLevel.ENCLAVE_VERIFIED, FallbackMode.AUTOMATIC))
     }
 
     @Test

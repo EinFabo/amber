@@ -186,15 +186,8 @@ fun EnginesScreen(
         Hairline()
         GhostButton("Add engine", { showPresets = true })
 
-        SectionCard(title = "Without a connection") {
-            ToggleRow(
-                label = "Fall back to the phone",
-                description = "If a server cannot be reached, a downloaded local model (Parakeet, " +
-                    "then Whisper) recognizes the recording instead of it being lost.",
-                checked = settings.capture.localFallback,
-                onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(localFallback = on)) } },
-            )
-        }
+        CleanupSection(settings, isReady = { problemsByEngine[it.id].isNullOrEmpty() }, onUpdateSettings = onUpdateSettings)
+        FallbackSection(settings, onUpdateSettings)
     }
 
     if (showPresets) {

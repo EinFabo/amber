@@ -7,6 +7,8 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
+import app.amethyst.core.settings.FallbackMode
+import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
@@ -274,5 +276,34 @@ class CaptureTimeoutTest {
         for (host in listOf("[fd00::5]", "FE80::1%wlan0", "0:0:0:0:0:0:0:1", "::ffff:192.168.1.10", "fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")) {
             assertTrue(ServerProviders.isPrivateHost(host), host)
         }
+    }
+
+    @Test
+    fun `schema 7 moves the active engine's cleanup out of the engine and keeps the fallback switch`() {
+        val groq = EngineConfig.fromPreset(EnginePresets.GROQ).copy(cleanupModel = "openai/gpt-oss-20b")
+        val old = AmethystSettings(
+            activeEngineId = groq.id,
+            engines = listOf(groq, EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER)),
+            capture = CaptureSettings(localFallback = false),
+            schemaVersion = 6,
+        )
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+
+        assertEquals(CleanupChoice(groq.id, "openai/gpt-oss-20b"), migrated.cleanup)
+        assertEquals(FallbackMode.OFF, migrated.fallback.mode)
+        assertTrue(migrated.engines.all { it.cleanupModel == null }, "the old per-engine field is emptied")
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+    }
+
+    @Test
+    fun `an active local engine had no cleanup, and an untouched switch means automatic`() {
+        val old = AmethystSettings(
+            activeEngineId = EnginePresets.LOCAL_WHISPER.id,
+            engines = listOf(EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER), EngineConfig.fromPreset(EnginePresets.GROQ).copy(cleanupModel = "x")),
+            schemaVersion = 6,
+        )
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        assertNull(migrated.cleanup)
+        assertEquals(FallbackMode.AUTOMATIC, migrated.fallback.mode)
     }
 }

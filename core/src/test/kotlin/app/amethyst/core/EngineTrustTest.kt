@@ -2,7 +2,8 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
-import app.amethyst.core.engine.LocalFallback
+import app.amethyst.core.engine.Fallback
+import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.engine.NotSentException
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.privacy.TrustLevel
@@ -23,12 +24,12 @@ class EngineTrustTest {
     @Test
     fun `a text recognized on the phone keeps the server's label when the upload may have happened`() {
         // The server answered (5xx) or went quiet after the upload (read timeout): it may have the recording.
-        assertEquals(TrustLevel.CLOUD, LocalFallback.trustAfter(failure(status = 503), TrustLevel.CLOUD))
-        assertEquals(TrustLevel.CLOUD, LocalFallback.trustAfter(failure(SocketTimeoutException("timeout")), TrustLevel.CLOUD))
-        assertEquals(TrustLevel.CLOUD, LocalFallback.trustAfter(failure(IOException("unexpected end of stream")), TrustLevel.CLOUD))
+        assertEquals(TrustLevel.CLOUD, Fallback.trustAfter(failure(status = 503), TrustLevel.CLOUD))
+        assertEquals(TrustLevel.CLOUD, Fallback.trustAfter(failure(SocketTimeoutException("timeout")), TrustLevel.CLOUD))
+        assertEquals(TrustLevel.CLOUD, Fallback.trustAfter(failure(IOException("unexpected end of stream")), TrustLevel.CLOUD))
         assertEquals(
             TrustLevel.ENCLAVE_VERIFIED,
-            LocalFallback.trustAfter(failure(IOException("canceled")), TrustLevel.ENCLAVE_VERIFIED),
+            Fallback.trustAfter(failure(IOException("canceled")), TrustLevel.ENCLAVE_VERIFIED),
         )
     }
 
@@ -42,7 +43,7 @@ class EngineTrustTest {
             IOException("wrapped", UnknownHostException("inner")),
         )) {
             assertFalse(failure(cause).recordingMayHaveLeft, cause.toString())
-            assertEquals(TrustLevel.ON_DEVICE, LocalFallback.trustAfter(failure(cause), TrustLevel.CLOUD))
+            assertEquals(TrustLevel.ON_DEVICE, Fallback.trustAfter(failure(cause), TrustLevel.CLOUD))
         }
     }
 

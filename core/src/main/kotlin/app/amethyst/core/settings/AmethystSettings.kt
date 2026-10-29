@@ -23,8 +23,8 @@ data class EngineConfig(
     val apiKeyAlias: String? = null,
     val enabled: Boolean = true,
     /**
-     * Chat model that tidies each transcript before it is typed (punctuation, fillers,
-     * mis-hearings), on the same service and connection as the recognition; null for none.
+     * Until schema 7 the cleanup model lived here, tied to the engine. It is only read to move
+     * it to [AmethystSettings.cleanup]; nothing else uses it any more.
      */
     val cleanupModel: String? = null,
     /**
@@ -79,6 +79,7 @@ data class CaptureSettings(
      * When a server cannot be reached, recognize the recording with a local model that is
      * ready on the phone. Only ever towards the phone, so privacy never gets weaker.
      */
+    @Deprecated("Since schema 7: AmethystSettings.fallback. Read only to migrate.")
     val localFallback: Boolean = true,
 ) {
     /**
@@ -175,6 +176,13 @@ data class AmethystSettings(
     /** Per-app writing style and cleanup, edited under Advanced settings. */
     val profiles: List<AppProfile> = AppProfiles.DEFAULTS,
     val stats: StatsSettings = StatsSettings(),
+    /**
+     * Who rewrites the recognized text - chosen apart from who recognizes it, so local
+     * recognition can be cleaned up by a server model (or, later, a local one). Null: nobody.
+     */
+    val cleanup: CleanupChoice? = null,
+    /** Who takes a recording the engine's server could not; see [app.amethyst.core.engine.Fallback]. */
+    val fallback: FallbackSettings = FallbackSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -191,9 +199,10 @@ data class AmethystSettings(
          * 4: per-app profiles - nothing to migrate, an absent field decodes to the defaults.
          * 5: the Tinfoil engine requires its enclave.
          * 6: ElevenLabs Realtime engines (never implemented) are dropped.
+         * 7: cleanup and fallback chosen on their own, no longer per engine.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 6
+        const val SCHEMA_VERSION = 7
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -235,8 +244,23 @@ object SettingsCodec {
         val kept = settings.engines.filterNot { it.kind == EngineKind.ELEVENLABS_REALTIME }
         val active = settings.activeEngineId.takeIf { id -> kept.any { it.id == id } }
             ?: kept.firstOrNull()?.id ?: EnginePresets.ANDROID_ON_DEVICE.id
+        // Version 7: the cleanup the active engine had becomes the cleanup; the fallback switch
+        // becomes the fallback setting.
+        val cleanup = settings.cleanup ?: if (settings.schemaVersion < 7) {
+            kept.firstOrNull { it.id == active && it.kind == EngineKind.OPENAI_COMPATIBLE }
+                ?.let { engine -> engine.cleanupModel?.trim()?.takeIf { it.isNotEmpty() }?.let { CleanupChoice(engine.id, it) } }
+        } else {
+            null
+        }
+        val fallback = if (settings.schemaVersion < 7 && !settings.capture.localFallback) {
+            FallbackSettings(FallbackMode.OFF)
+        } else {
+            settings.fallback
+        }
         return settings.copy(
             activeEngineId = active,
+            cleanup = cleanup,
+            fallback = fallback,
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
@@ -246,11 +270,34 @@ object SettingsCodec {
                         engine.copy(baseUrl = EnginePresets.TINFOIL_BASE_URL)
                     else -> engine
                 }.let { if (it.id == EnginePresets.TINFOIL.id) it.copy(requireEnclave = true) else it }
+                    .copy(cleanupModel = null)
             },
             schemaVersion = AmethystSettings.SCHEMA_VERSION,
         )
     }
 }
+
+/**
+ * A cleanup model on one of the configured server engines, whose address, key and enclave
+ * check it uses. Later also a model on the phone.
+ */
+@Serializable
+data class CleanupChoice(val engineId: String, val model: String)
+
+@Serializable
+enum class FallbackMode {
+    /** The best local model that is ready: Parakeet, then Whisper. */
+    AUTOMATIC,
+
+    /** A failed server is a failed dictation. */
+    OFF,
+
+    /** The engine in [FallbackSettings.engineId], if it is allowed and ready. */
+    ENGINE,
+}
+
+@Serializable
+data class FallbackSettings(val mode: FallbackMode = FallbackMode.AUTOMATIC, val engineId: String? = null)
 
 /** The statistics: kept on this phone only, without text or audio. */
 @Serializable
