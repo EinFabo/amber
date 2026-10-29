@@ -119,8 +119,8 @@ fun AppStylesScreen(
             subtitle = "How the text is phrased depends on the app it goes into.",
         ) {
             Hint(
-                if (hasCleanup) "Applied by the cleanup model chosen under Engines → Cleanup. Apps without a style get the text tidied as spoken."
-                else "Styles need a cleanup model: pick one under Engines → Cleanup (a model on Tinfoil, Groq, OpenAI or your own server). Until then the text goes in as recognized.",
+                if (hasCleanup) "Applied by the cleanup model chosen under Settings → Cleanup. Apps without a style get the text tidied as spoken."
+                else "Styles need a cleanup model: pick one under Settings → Cleanup (a model on Tinfoil, Groq, OpenAI or your own server). Until then the text goes in as recognized.",
                 if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
             )
             settings.profiles.forEach { profile ->

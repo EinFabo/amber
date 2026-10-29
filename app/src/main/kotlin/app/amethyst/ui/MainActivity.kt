@@ -58,7 +58,9 @@ import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.ReliabilityScreen
 import app.amethyst.ui.screen.RecordingScreen
 import app.amethyst.ui.screen.InsertingScreen
-import app.amethyst.ui.screen.EnginesScreen
+import app.amethyst.ui.screen.RecognitionScreen
+import app.amethyst.ui.screen.CleanupScreen
+import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.DiagnosticsCard
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.AppStylesScreen
@@ -201,7 +203,9 @@ private fun Screen.title(): String = when (this) {
     Screen.Settings -> "Settings"
     is Screen.EngineDetail -> "Engine"
     is Screen.Page -> when (page) {
-        SettingsPage.ENGINES -> "Engine"
+        SettingsPage.RECOGNITION -> "Recognition"
+        SettingsPage.CLEANUP -> "Cleanup"
+        SettingsPage.FALLBACK -> "When the server fails"
         SettingsPage.RECORDING -> "Recording"
         SettingsPage.INSERTING -> "Inserting"
         SettingsPage.APP_STYLES -> "App styles"
@@ -288,7 +292,8 @@ private fun AmethystRoot(
                         stats = stats,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
-                        onOpenEngines = { open(Screen.Page(SettingsPage.ENGINES)) },
+                        onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
+                        onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
                         onOpenStats = { open(Screen.Page(SettingsPage.STATS)) },
                         onOpenActiveEngine = { open(Screen.EngineDetail(settings.activeEngineId)) },
                         onInstallLanguage = { onInstallLanguage(settings.activeEngine?.languageTag) },
@@ -315,13 +320,19 @@ private fun AmethystRoot(
                     }
 
                     is Screen.Page -> when (current.page) {
-                        SettingsPage.ENGINES -> EnginesScreen(
+                        SettingsPage.RECOGNITION -> RecognitionScreen(
                             settings = settings,
                             hasKeyFor = { alias -> graph.secretStore.has(alias) },
                             medianWaitMs = stats.medianWaitMs,
                             onUpdateSettings = ::updateSettings,
                             onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
                         )
+                        SettingsPage.CLEANUP -> CleanupScreen(
+                            settings = settings,
+                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                            onUpdateSettings = ::updateSettings,
+                        )
+                        SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
                         SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                         SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
                         SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, apps = apps, usage = appUsage)

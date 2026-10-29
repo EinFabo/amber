@@ -80,6 +80,11 @@ with the release key, the enclave path solid. Each finding was checked against t
       (Parakeet, then Whisper, as before), Off, or a chosen engine - only ever one at least as
       private as the recognition (`Fallback.choices`: Tinfoil never falls back to Groq).
       The old on/off switch is migrated.
+- [x] Layout (Fabi: "too cluttered"): the Engine page with all three stacked is gone. Settings
+      come in three groups - Speech to text (Recognition, Cleanup, When the server fails,
+      Recording), In your apps (Inserting, App styles, Bubble), Amber (Statistics, Reliability,
+      Diagnostics) - and each of the three choices has its own page with one radio list.
+      Model choices are radio lists everywhere instead of chips; home's cleanup line opens Cleanup.
 - [ ] Cleanup on the phone, for a fully local pipeline. Research so far:
       - Gemini Nano through ML Kit GenAI: the Proofreading API does German and has a voice
         input type (homophone errors), input under 256 tokens, no styles; the Rewriting API
@@ -117,9 +122,34 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       0.16.2: `commitText`'s result was ignored, so a stale input connection (WhatsApp rebuilds
       its field now and then) counted as inserted and the text was lost without trying
       SET_TEXT. Confirm on the device; if it still happens, Diagnostics show the strategy.
-- [ ] 5. Onboarding for normal people, with the model download built in.
+- [ ] 5. Onboarding for normal people, with the model download built in - and a walk through
+      the settings that matter. Design: [`docs/plans/2026-10-29-onboarding-design.md`](plans/2026-10-29-onboarding-design.md).
 - [ ] 6. Style rules per WhatsApp contact.
 - [ ] 7. Terminal mode: speech becomes shell commands, never executed.
+
+## F-Droid release (Fabi, 2026-10-29)
+
+Amber in F-Droid, built there from source. What stands in the way today, found in the repo:
+- [ ] **A license.** The repo has no `LICENSE` file; F-Droid only takes free software. Fabi picks
+      one (e.g. GPL-3.0 or Apache-2.0); whisper.cpp (MIT), sherpa-onnx (Apache-2.0) and
+      tinfoil-go (check) must fit it.
+- [ ] **No prebuilt binaries.** `tools/fetch-sherpa-aar.sh` downloads sherpa-onnx's released
+      AAR (with onnxruntime inside). F-Droid builds every native library itself: sherpa-onnx and
+      onnxruntime from source in the build recipe (heavy - check how other apps on F-Droid do
+      it), or Parakeet left out of the F-Droid flavor.
+- [ ] **The Tinfoil AAR** is built with gomobile (`tools/build-tinfoil-aar.sh`, pinned tarball):
+      the recipe needs Go and gomobile at the pinned versions.
+- [ ] **Anti-features** to declare honestly (check against F-Droid's list): Groq, OpenAI and
+      Tinfoil are network services (`NonFreeNet`); models are downloaded at runtime from Hugging
+      Face - check the licences of Parakeet (CC-BY-4.0) and the FUTO and ACFT Whisper models.
+- [ ] **Metadata** in the repo as fastlane (`fastlane/metadata/android/en-US/`: title, short
+      and full description, `changelogs/<versionCode>.txt`, phone screenshots from StoreShots).
+- [ ] **Signing.** F-Droid signs with its own key unless the build is reproducible and matches
+      ours - then it ships our signature and updates cross over with our release APKs. That is the
+      reproducible-build item of M1 above; without it, the two are separate installs.
+- [ ] **IzzyOnDroid first?** Its repo takes the signed APK from a GitHub release (no build from
+      source), so it is the quicker first step; it still scans for non-free libraries.
+- [ ] Recipe (`metadata/app.amber.yml`) as a merge request to fdroiddata.
 
 ## Research: bubble position and field detection (2026-10-29)
 

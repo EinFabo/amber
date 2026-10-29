@@ -74,6 +74,7 @@ import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.ProgressLine
+import app.amethyst.ui.RadioRow
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.SectionCard
@@ -296,7 +297,7 @@ fun EngineDetailScreen(
                         onSave(edited())
                     }
                 }
-                Hint("Cleanup models of this server are picked under Engines → Cleanup, for any recognition engine.")
+                Hint("Cleanup models of this server are picked under Settings → Cleanup, for any recognition engine.")
                 if (provider == ServerProviders.TINFOIL) EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
             }
 
@@ -570,10 +571,8 @@ private fun ParakeetCard(
 }
 
 /**
- * Models as chips with a short note each; [noneLabel] adds a choice for "none" (null). The
- * selected one is filled amber.
+ * Models as a radio list with a short note each; [noneLabel] adds a choice for "none" (null).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ModelPicker(
     choices: List<EnginePresets.ModelChoice>,
@@ -581,14 +580,11 @@ internal fun ModelPicker(
     noneLabel: String?,
     onSelect: (String?) -> Unit,
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (noneLabel != null) ChoiceChip(noneLabel, null, on = selected == null) { onSelect(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (noneLabel != null) RadioRow(noneLabel, null, selected = selected == null, onSelect = { onSelect(null) })
         choices.forEach { choice ->
             val note = if (choice.recommended) "Recommended · ${choice.note}" else choice.note
-            ChoiceChip(choice.label, note, on = choice.id == selected) { onSelect(choice.id) }
+            RadioRow(choice.label, note, selected = choice.id == selected, onSelect = { onSelect(choice.id) })
         }
     }
 }

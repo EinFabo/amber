@@ -75,7 +75,8 @@ fun HomeScreen(
     stats: StatsSummary?,
     onStartTest: () -> Unit,
     onStopTest: () -> Unit,
-    onOpenEngines: () -> Unit,
+    onOpenRecognition: () -> Unit,
+    onOpenCleanup: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenActiveEngine: () -> Unit,
     onInstallLanguage: () -> Unit,
@@ -100,7 +101,7 @@ fun HomeScreen(
             SetupCard(setup, actions, Modifier)
         }
 
-        EngineLine(settings, onOpenEngines)
+        EngineLine(settings, onOpenRecognition, onOpenCleanup)
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
@@ -162,14 +163,17 @@ private fun OrbArea(
     }
 }
 
-/** Which engine dictates and where the voice goes; leads to the engine choice. */
+/**
+ * Which engine dictates and where the voice goes, and below it who tidies the text when anyone
+ * does - it may go further than the recording. Each line leads to its own choice.
+ */
 @Composable
-private fun EngineLine(settings: AmethystSettings, onOpenEngines: () -> Unit) {
+private fun EngineLine(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit) {
     val active = settings.activeEngine
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpenEngines)
+            .clickable(onClick = onOpenRecognition)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -181,20 +185,22 @@ private fun EngineLine(settings: AmethystSettings, onOpenEngines: () -> Unit) {
                 color = if (active == null) AmberPalette.Error else AmberPalette.Text,
             )
             if (active != null) TrustBadge(active.trustLevelForDisplay())
-            // Who rewrites the text, when anyone does: it may go further than the recording.
-            val cleanup = settings.cleanup?.let { choice -> settings.engines.firstOrNull { it.id == choice.engineId }?.let { it to choice.model } }
-            if (cleanup != null) {
-                val (engine, model) = cleanup
-                Text(
-                    "Cleanup: ${engine.displayName} · $model",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AmberPalette.Muted,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                TrustBadge(engine.trustLevelForDisplay())
-            }
         }
         Text("Change", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
+    }
+    val cleanup = settings.cleanupSummary()
+    val cleanupEngine = settings.cleanupEngine()
+    if (cleanup != null && cleanupEngine != null) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenCleanup)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text("Cleanup: $cleanup", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
+            TrustBadge(cleanupEngine.trustLevelForDisplay())
+        }
     }
 }
 

@@ -6,7 +6,6 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -27,7 +26,9 @@ import app.amethyst.ui.screen.AppPickerDialog
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.EngineDetailScreen
-import app.amethyst.ui.screen.EnginesScreen
+import app.amethyst.ui.screen.CleanupScreen
+import app.amethyst.ui.screen.FallbackScreen
+import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
@@ -107,7 +108,7 @@ class StoreShots {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
             dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
-            onStartTest = {}, onStopTest = {}, onOpenEngines = {}, onOpenStats = {},
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
     }
@@ -124,7 +125,7 @@ class StoreShots {
                 ),
             ),
             stats = stats,
-            onStartTest = {}, onStopTest = {}, onOpenEngines = {}, onOpenStats = {},
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
     }
@@ -140,8 +141,8 @@ class StoreShots {
     }
 
     @Test
-    fun engines() = shoot("4-engines", "Engine") {
-        EnginesScreen(
+    fun engines() = shoot("4-engines", "Recognition") {
+        RecognitionScreen(
             settings = settings, hasKeyFor = { true }, medianWaitMs = stats.medianWaitMs,
             onUpdateSettings = {}, onOpenEngine = {},
         )
@@ -215,18 +216,39 @@ class StoreShots {
         assertTrue(File(dir, "store-ic_launcher.png").length() > 0)
     }
 
-    /** Not part of the listing set: recognition, cleanup and fallback chosen apart. */
+    /** Recognition, cleanup and fallback chosen apart: Whisper on the phone, cleaned up on Tinfoil. */
+    private val pipeline = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(
+        activeEngineId = EnginePresets.LOCAL_WHISPER.id,
+        cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+    )
+
+    /** Not part of the listing set: the cleanup page. */
     @Test
-    fun pipeline() = shoot("x-pipeline", "Engines") {
-        val chosen = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(
-            activeEngineId = EnginePresets.LOCAL_WHISPER.id,
-            cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+    fun cleanup() = shoot("x-cleanup", "Cleanup") {
+        CleanupScreen(settings = pipeline, hasKeyFor = { true }, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
+    @Test
+    fun fallback() = shoot("x-fallback", "When the server fails") {
+        FallbackScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the settings list with the whole pipeline in use. */
+    @Test
+    fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
+        SettingsScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1", onOpen = {})
+    }
+
+    /** Not part of the listing set: home with a cleanup in use. */
+    @Test
+    fun homePipeline() = shoot("x-home-pipeline", "Amber") {
+        HomeScreen(
+            setup = ready, actions = actions, settings = pipeline,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
-        // Scrollable like the real Engines page: in a bounded column FlowRow drops the chips that do not fit.
-        Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp)) {
-            app.amethyst.ui.screen.FallbackSection(chosen.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})
-            app.amethyst.ui.screen.CleanupSection(chosen, isReady = { true }, onUpdateSettings = {})
-        }
     }
 
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */

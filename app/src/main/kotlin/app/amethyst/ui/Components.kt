@@ -25,11 +25,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +51,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -380,6 +384,57 @@ fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
                 color = if (on) AmberPalette.Background.copy(alpha = 0.7f) else AmberPalette.Muted,
             )
         }
+    }
+}
+
+/**
+ * One choice of a list: a radio, a label and an optional note, all in one column so a long
+ * list reads top to bottom. The whole row picks it; [trailing] holds a secondary action.
+ */
+@Composable
+fun RadioRow(
+    label: String,
+    note: String?,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    noteColor: Color = AmberPalette.Muted,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(AmberShapes.Inner)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = AmberPalette.Primary,
+                unselectedColor = AmberPalette.Outline,
+            ),
+        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            if (note != null) Text(note, style = MaterialTheme.typography.bodySmall, color = noteColor)
+        }
+        trailing?.invoke(this)
+    }
+}
+
+/** A small heading over a run of rows inside a section or a list. */
+@Composable
+fun GroupLabel(text: String, modifier: Modifier = Modifier, trailing: (@Composable RowScope.() -> Unit)? = null) {
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = AmberPalette.Muted)
+        trailing?.invoke(this)
     }
 }
 

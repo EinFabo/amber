@@ -20,8 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -48,7 +46,9 @@ import androidx.compose.foundation.layout.height
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
+import app.amethyst.ui.GroupLabel
 import app.amethyst.ui.Hairline
+import app.amethyst.ui.RadioRow
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
@@ -62,11 +62,12 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /** Where a settings row leads. */
-enum class SettingsPage { ENGINES, RECORDING, INSERTING, APP_STYLES, BUBBLE, STATS, RELIABILITY, DIAGNOSTICS }
+enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, STATS, RELIABILITY, DIAGNOSTICS }
 
 /**
- * Hearth's settings: a short list, each row showing its current value, each leading to one
- * sub-screen. Nothing collapses, nothing is "advanced" - the rarer options sit lower on the
+ * Hearth's settings: three short groups - how speech becomes text, how it lands in the apps,
+ * and Amber itself. Each row shows its current value and leads to one sub-screen with one
+ * decision. Nothing collapses, nothing is "advanced" - the rarer options sit lower on the
  * page they belong to.
  */
 @Composable
@@ -87,13 +88,21 @@ fun SettingsScreen(
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp),
     ) {
-        Hairline()
-        NavRow("Engine", settings.activeEngine?.let { "${it.displayName} · ${it.trustLevelForDisplay().badgeLabel()}" } ?: "None selected") { onOpen(SettingsPage.ENGINES) }
+        SettingsGroup("Speech to text")
+        NavRow(
+            "Recognition",
+            settings.activeEngine?.let { "${it.displayName} · ${it.trustLevelForDisplay().badgeLabel()}" } ?: "None selected",
+            valueColor = if (settings.activeEngine == null) AmberPalette.Error else AmberPalette.Muted,
+        ) { onOpen(SettingsPage.RECOGNITION) }
+        NavRow("Cleanup", settings.cleanupSummary() ?: "Off - text goes in as recognized") { onOpen(SettingsPage.CLEANUP) }
+        NavRow("When the server fails", settings.fallbackSummary()) { onOpen(SettingsPage.FALLBACK) }
         NavRow(
             "Recording",
             if (capture.autoStopOnSilence) "Stops after %.1f s of silence".format(java.util.Locale.US, capture.silenceTimeoutMs / 1000.0)
             else "Runs until you tap",
         ) { onOpen(SettingsPage.RECORDING) }
+
+        SettingsGroup("In your apps")
         NavRow(
             "Inserting",
             listOfNotNull(
@@ -113,7 +122,8 @@ fun SettingsScreen(
                 "hidden in ${settings.bubble.hiddenIn.size} ${if (settings.bubble.hiddenIn.size == 1) "app" else "apps"}".takeIf { settings.bubble.hiddenIn.isNotEmpty() },
             ).joinToString(" · "),
         ) { onOpen(SettingsPage.BUBBLE) }
-        Hairline()
+
+        SettingsGroup("Amber")
         NavRow("Statistics", if (settings.stats.keep) "Kept on this phone" else "Off") { onOpen(SettingsPage.STATS) }
         val open = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
         NavRow(
@@ -128,12 +138,20 @@ fun SettingsScreen(
     }
 }
 
+/** A hairline and a small heading over one group of the settings list. */
+@Composable
+private fun SettingsGroup(title: String) {
+    Hairline()
+    GroupLabel(title, Modifier.padding(top = 20.dp, bottom = 2.dp))
+}
+
 /**
- * The engines, grouped by where they send your voice, each with the wait measured here. The
- * radio picks the active one; the row's button opens its details.
+ * Who turns the voice into text: the engines, grouped by where they send your voice, each with
+ * the wait measured here. The row picks the active one; its button opens the details. Cleanup
+ * and the fallback have their own pages.
  */
 @Composable
-fun EnginesScreen(
+fun RecognitionScreen(
     settings: AmethystSettings,
     hasKeyFor: (String?) -> Boolean,
     medianWaitMs: Map<String, Long>,
@@ -185,9 +203,6 @@ fun EnginesScreen(
         }
         Hairline()
         GhostButton("Add engine", { showPresets = true })
-
-        CleanupSection(settings, isReady = { problemsByEngine[it.id].isNullOrEmpty() }, onUpdateSettings = onUpdateSettings)
-        FallbackSection(settings, onUpdateSettings)
     }
 
     if (showPresets) {
@@ -466,35 +481,16 @@ private fun EngineRow(
     onSelect: () -> Unit,
     onOpen: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    RadioRow(
+        label = config.displayName,
+        // Name the first missing thing rather than a generic "not configured":
+        // the user should not have to open the detail screen to find out.
+        note = problems.firstOrNull()
+            ?: listOfNotNull(config.modelId ?: "System model", measuredWaitMs?.let { "typically ${formatSeconds(it)} here" }).joinToString(" · "),
+        selected = active,
+        onSelect = onSelect,
+        noteColor = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
     ) {
-        RadioButton(
-            selected = active,
-            onClick = onSelect,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = AmberPalette.Primary,
-                unselectedColor = AmberPalette.Outline,
-            ),
-        )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = config.displayName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = AmberPalette.Text,
-            )
-            Hint(
-                // Name the first missing thing rather than a generic "not configured":
-                // the user should not have to open the detail screen to find out.
-                text = problems.firstOrNull()
-                    ?: listOfNotNull(config.modelId ?: "System model", measuredWaitMs?.let { "typically ${formatSeconds(it)} here" }).joinToString(" · "),
-                color = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
-            )
-        }
         GhostButton("Open", onOpen)
     }
 }
