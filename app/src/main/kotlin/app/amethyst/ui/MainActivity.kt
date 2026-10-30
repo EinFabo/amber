@@ -74,6 +74,7 @@ import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.DiagnosticsCard
 import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.apps.AppChoice
@@ -209,6 +210,7 @@ private sealed interface Screen {
     data object Settings : Screen
     data class Page(val page: SettingsPage) : Screen
     data class EngineDetail(val engineId: String) : Screen
+    data class AppStyle(val packageName: String) : Screen
 }
 
 private fun Screen.title(): String = when (this) {
@@ -216,6 +218,7 @@ private fun Screen.title(): String = when (this) {
     Screen.Home -> "Amber"
     Screen.Settings -> "Settings"
     is Screen.EngineDetail -> "Engine"
+    is Screen.AppStyle -> "App style"
     is Screen.Page -> when (page) {
         SettingsPage.RECOGNITION -> "Recognition"
         SettingsPage.CLEANUP -> "Cleanup"
@@ -448,7 +451,12 @@ private fun AmethystScreens(
                         SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
                         SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                         SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
-                        SettingsPage.APP_STYLES -> AppStylesScreen(settings, ::updateSettings, apps = apps, usage = appUsage)
+                        SettingsPage.APP_STYLES -> AppStylesScreen(
+                            settings, ::updateSettings,
+                            apps = apps,
+                            usage = appUsage,
+                            onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
+                        )
                         SettingsPage.BUBBLE -> BubbleScreen(
                             settings, ::updateSettings,
                             apps = apps,
@@ -477,6 +485,26 @@ private fun AmethystScreens(
                                     },
                                 )
                             }
+                        }
+                    }
+
+                    is Screen.AppStyle -> {
+                        val profile = settings.profiles.firstOrNull { it.packageName == current.packageName }
+                        if (profile == null) {
+                            // Just added from the picker and not stored yet, or removed: as for engines.
+                            LaunchedEffect(current.packageName) {
+                                delay(ENGINE_APPEAR_GRACE_MS)
+                                if (graph.settings.value.profiles.none { it.packageName == current.packageName }) back()
+                            }
+                        } else {
+                            AppStyleScreen(
+                                profile = profile,
+                                settings = settings,
+                                apps = apps,
+                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                onUpdateSettings = ::updateSettings,
+                                onRemoved = ::back,
+                            )
                         }
                     }
 

@@ -164,7 +164,7 @@ class StoreShots {
                 activeEngineId = EnginePresets.TINFOIL.id,
                 cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
             ),
-            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(),
+            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {},
         )
     }
 
@@ -230,6 +230,23 @@ class StoreShots {
     @Test
     fun cleanup() = shoot("x-cleanup", "Cleanup") {
         CleanupScreen(settings = pipeline, hasKeyFor = { true }, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: one app's page with a cleanup model of its own. */
+    @Test
+    fun appStyle() = shoot("x-app-style", "App style") {
+        val keep = app.amethyst.core.settings.AppProfile(
+            "com.google.android.keep", "Keep", app.amethyst.core.settings.WritingStyle.CONCISE,
+            appCleanup = app.amethyst.core.settings.AppCleanup(
+                app.amethyst.core.settings.AppCleanupMode.MODEL,
+                app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "gemma4-31b"),
+            ),
+        )
+        val withKeep = pipeline.copy(profiles = listOf(keep))
+        app.amethyst.ui.screen.AppStyleScreen(
+            profile = keep, settings = withKeep, apps = FakeApps, hasKeyFor = { true },
+            onUpdateSettings = {}, onRemoved = {},
+        )
     }
 
     /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */

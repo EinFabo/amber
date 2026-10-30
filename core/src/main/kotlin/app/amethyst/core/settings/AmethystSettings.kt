@@ -173,7 +173,7 @@ data class AmethystSettings(
     val capture: CaptureSettings = CaptureSettings(),
     val bubble: BubbleSettings = BubbleSettings(),
     val insertion: InsertionSettings = InsertionSettings(),
-    /** Per-app writing style and cleanup, edited under Advanced settings. */
+    /** Per-app writing style and cleanup, edited under In your apps -> App styles. */
     val profiles: List<AppProfile> = AppProfiles.DEFAULTS,
     val stats: StatsSettings = StatsSettings(),
     /**
@@ -203,9 +203,10 @@ data class AmethystSettings(
          * 6: ElevenLabs Realtime engines (never implemented) are dropped.
          * 7: cleanup and fallback chosen on their own, no longer per engine.
          * 8: the introduction - settings from before it count as introduced.
+         * 9: the cleanup per app is a choice (default, off, a model) instead of a switch.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 8
+        const val SCHEMA_VERSION = 9
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -266,6 +267,7 @@ object SettingsCodec {
             fallback = fallback,
             // Version 8: whoever had settings before the introduction existed has set Amber up.
             onboardingDone = settings.onboardingDone || settings.schemaVersion < 8,
+            profiles = if (settings.schemaVersion < 9) settings.profiles.map(::migrateProfile) else settings.profiles,
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
@@ -281,6 +283,13 @@ object SettingsCodec {
         )
     }
 }
+
+/** Version 9: the per-app switch "never" becomes Off, "follow" and "always" the default. */
+@Suppress("DEPRECATION")
+private fun migrateProfile(profile: AppProfile): AppProfile = profile.copy(
+    appCleanup = if (profile.cleanup == false) AppCleanup(AppCleanupMode.OFF) else profile.appCleanup,
+    cleanup = null,
+)
 
 /**
  * A cleanup model on one of the configured server engines, whose address, key and enclave

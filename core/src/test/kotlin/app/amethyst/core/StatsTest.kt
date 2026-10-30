@@ -76,15 +76,28 @@ class StatsTest {
     fun `server cost follows the provider's price`() {
         // Whisper is billed per request, whatever its length.
         val tinfoil = "https://inference.tinfoil.sh/v1"
-        assertEquals(10_000L, ServerCost.microUsd(tinfoil, "whisper-large-v3-turbo", 15_000, 100, null))
-        val voxtral = assertNotNull(ServerCost.microUsd(tinfoil, "voxtral-small-24b", 15_000, 200, null))
+        assertEquals(10_000L, ServerCost.microUsd(tinfoil, "whisper-large-v3-turbo", 15_000, 100, null, null))
+        val voxtral = assertNotNull(ServerCost.microUsd(tinfoil, "voxtral-small-24b", 15_000, 200, null, null))
         assertTrue(voxtral in 30..100, "about \$0.00005 for 15 s, got $voxtral")
-        assertNull(ServerCost.microUsd(tinfoil, null, 15_000, 200, null))
-        assertNull(ServerCost.microUsd(tinfoil, "my-own-model", 15_000, 200, null))
+        assertNull(ServerCost.microUsd(tinfoil, null, 15_000, 200, null, null))
+        assertNull(ServerCost.microUsd(tinfoil, "my-own-model", 15_000, 200, null, null))
         // OpenAI bills per minute: a minute of gpt-4o-mini-transcribe is $0.003.
-        assertEquals(3_000L, ServerCost.microUsd("https://api.openai.com/v1", "gpt-4o-mini-transcribe", 60_000, 0, null))
+        assertEquals(3_000L, ServerCost.microUsd("https://api.openai.com/v1", "gpt-4o-mini-transcribe", 60_000, 0, null, null))
         // A server of your own costs nothing we could know - even with a known model name.
-        assertNull(ServerCost.microUsd("http://192.168.1.20:8000/v1", "whisper-large-v3-turbo", 60_000, 0, null))
+        assertNull(ServerCost.microUsd("http://192.168.1.20:8000/v1", "whisper-large-v3-turbo", 60_000, 0, null, null))
+    }
+
+    @Test
+    fun `the cleanup is priced by the server that cleaned up`() {
+        val groq = "https://api.groq.com/openai/v1"
+        val tinfoil = "https://inference.tinfoil.sh/v1"
+        // Local recognition, Tinfoil cleanup: the cleanup still costs.
+        val cleanupOnly = assertNotNull(ServerCost.microUsd(null, null, 60_000, 400, tinfoil, "deepseek-v4-1-flash"))
+        assertTrue(cleanupOnly in 300..450, "about \$0.0004 for 400 characters, got $cleanupOnly")
+        // Groq recognizes, Tinfoil cleans up: each at its own price.
+        val speechOnly = assertNotNull(ServerCost.microUsd(groq, "whisper-large-v3-turbo", 60_000, 400, null, null))
+        val both = assertNotNull(ServerCost.microUsd(groq, "whisper-large-v3-turbo", 60_000, 400, tinfoil, "deepseek-v4-1-flash"))
+        assertTrue(both - (speechOnly + cleanupOnly) in -1..1, "$both vs $speechOnly + $cleanupOnly")
     }
 
     @Test

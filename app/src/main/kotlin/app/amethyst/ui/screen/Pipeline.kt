@@ -48,13 +48,7 @@ fun CleanupScreen(
     modifier: Modifier = Modifier,
 ) {
     val current = settings.cleanup
-    val servers = settings.engines.filter { it.kind == EngineKind.OPENAI_COMPATIBLE }
-    // hasKeyFor() decrypts, so once per settings change rather than on every recomposition.
-    val ready = remember(settings) {
-        servers.associate { engine ->
-            engine.id to EngineConfigValidator.validate(engine, hasApiKey = hasKeyFor(engine.apiKeyAlias)).isEmpty()
-        }
-    }
+    val ready = rememberCleanupReadiness(settings, hasKeyFor)
     fun choose(choice: CleanupChoice?) = onUpdateSettings { it.copy(cleanup = choice) }
 
     SubPage(modifier) {
@@ -64,38 +58,65 @@ fun CleanupScreen(
                 "and writes in each app's style.",
         ) {
             RadioRow("Off", "Text goes in as recognized", selected = current == null, onSelect = { choose(null) })
-            if (servers.isEmpty()) {
-                Hint("Add a server engine under Recognition (Tinfoil, Groq, OpenAI or your own) to use one of its models.")
-            }
-            servers.forEach { engine ->
-                Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GroupLabel(engine.displayName) { TrustBadge(engine.trustLevelForDisplay()) }
-                    val selected = current?.takeIf { it.engineId == engine.id }?.model
-                    val provider = ServerProviders.forUrl(engine.baseUrl)
-                    when {
-                        ready[engine.id] != true -> Hint("Set this engine up first (address, key).")
-                        provider.known && provider.cleanupModels.isNotEmpty() -> ModelPicker(
-                            choices = provider.cleanupModels,
-                            selected = selected,
-                            noneLabel = null,
-                            onSelect = { id -> id?.let { choose(CleanupChoice(engine.id, it)) } },
-                        )
-                        else -> OwnCleanupModel(selected) { model -> choose(CleanupChoice(engine.id, model)) }
-                    }
-                }
-            }
+            CleanupModelChoices(settings, ready, current, ::choose)
         }
-
-        val recognition = settings.activeEngine?.trustLevelForDisplay()
-        val cleanupTrust = settings.cleanupEngine()?.trustLevelForDisplay()
-        if (recognition != null && cleanupTrust != null && cleanupTrust.strictness > recognition.strictness) {
-            Hint(
-                "The recognized text leaves the phone for the cleanup - your recording does not. " +
-                    "Dictations are labelled with where the text went.",
-                AmberPalette.Primary,
-            )
-        }
+        CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), settings.cleanupEngine()?.trustLevelForDisplay())
         Hint("If the cleanup fails or changes too much, the dictation goes in as recognized.")
+    }
+}
+
+/** Which server engines are set up (address, key) - once per settings change: [hasKeyFor] decrypts. */
+@Composable
+internal fun rememberCleanupReadiness(settings: AmethystSettings, hasKeyFor: (String?) -> Boolean): Map<String, Boolean> =
+    remember(settings) {
+        settings.engines.filter { it.kind == EngineKind.OPENAI_COMPATIBLE }.associate { engine ->
+            engine.id to EngineConfigValidator.validate(engine, hasApiKey = hasKeyFor(engine.apiKeyAlias)).isEmpty()
+        }
+    }
+
+/**
+ * Every configured server engine's chat models under its own heading, [selected] ticked - the
+ * cleanup for every app, or one app's own.
+ */
+@Composable
+internal fun CleanupModelChoices(
+    settings: AmethystSettings,
+    ready: Map<String, Boolean>,
+    selected: CleanupChoice?,
+    onChoose: (CleanupChoice) -> Unit,
+) {
+    val servers = settings.engines.filter { it.kind == EngineKind.OPENAI_COMPATIBLE }
+    if (servers.isEmpty()) {
+        Hint("Add a server engine under Recognition (Tinfoil, Groq, OpenAI or your own) to use one of its models.")
+    }
+    servers.forEach { engine ->
+        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            GroupLabel(engine.displayName) { TrustBadge(engine.trustLevelForDisplay()) }
+            val model = selected?.takeIf { it.engineId == engine.id }?.model
+            val provider = ServerProviders.forUrl(engine.baseUrl)
+            when {
+                ready[engine.id] != true -> Hint("Set this engine up first (address, key).")
+                provider.known && provider.cleanupModels.isNotEmpty() -> ModelPicker(
+                    choices = provider.cleanupModels,
+                    selected = model,
+                    noneLabel = null,
+                    onSelect = { id -> id?.let { onChoose(CleanupChoice(engine.id, it)) } },
+                )
+                else -> OwnCleanupModel(model) { typed -> onChoose(CleanupChoice(engine.id, typed)) }
+            }
+        }
+    }
+}
+
+/** Said wherever the cleanup is chosen: a server cleanup after local recognition sends the text out. */
+@Composable
+internal fun CleanupLeavesPhoneHint(recognition: TrustLevel?, cleanup: TrustLevel?) {
+    if (recognition != null && cleanup != null && cleanup.strictness > recognition.strictness) {
+        Hint(
+            "The recognized text leaves the phone for the cleanup - your recording does not. " +
+                "Dictations are labelled with where the text went.",
+            AmberPalette.Primary,
+        )
     }
 }
 
@@ -177,14 +198,14 @@ fun FallbackScreen(
     }
 }
 
-/** The engine whose chat model does the cleanup, if any. */
-internal fun AmethystSettings.cleanupEngine(): EngineConfig? =
-    cleanup?.let { choice -> engines.firstOrNull { it.id == choice.engineId } }
+/** The engine whose chat model does [choice] - by default the cleanup for every app - if any. */
+internal fun AmethystSettings.cleanupEngine(choice: CleanupChoice? = cleanup): EngineConfig? =
+    choice?.let { engines.firstOrNull { engine -> engine.id == it.engineId } }
 
-/** The cleanup in a few words - "DeepSeek V4.1 Flash · Tinfoil (Enclave)" - or null when off. */
-internal fun AmethystSettings.cleanupSummary(): String? {
-    val choice = cleanup ?: return null
-    val engine = cleanupEngine() ?: return null
+/** A cleanup in a few words - "DeepSeek V4.1 Flash · Tinfoil (Enclave)" - or null when off. */
+internal fun AmethystSettings.cleanupSummary(choice: CleanupChoice? = cleanup): String? {
+    if (choice == null) return null
+    val engine = cleanupEngine(choice) ?: return null
     val model = ServerProviders.forUrl(engine.baseUrl).cleanupModel(choice.model)?.label ?: choice.model
     return "$model · ${engine.displayName}"
 }

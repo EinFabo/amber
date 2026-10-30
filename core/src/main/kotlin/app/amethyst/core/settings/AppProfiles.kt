@@ -18,9 +18,25 @@ enum class WritingStyle {
     CONCISE,
 }
 
+@Serializable
+enum class AppCleanupMode {
+    /** The cleanup chosen for every app (Settings -> Cleanup), or none if that is off. */
+    DEFAULT,
+
+    /** The text goes in as recognized. */
+    OFF,
+
+    /** The model in [AppCleanup.choice], even when the cleanup for every app is off. */
+    MODEL,
+}
+
+/** Which cleanup rewrites a dictation in one app; see [app.amethyst.core.engine.CleanupRouting]. */
+@Serializable
+data class AppCleanup(val mode: AppCleanupMode = AppCleanupMode.DEFAULT, val choice: CleanupChoice? = null)
+
 /**
- * How dictation behaves in one app. Styles need a cleanup model (the engine's "Cleanup");
- * without one the text goes in as recognized.
+ * How dictation behaves in one app. Styles need a cleanup model; without one the text goes in
+ * as recognized.
  */
 @Serializable
 data class AppProfile(
@@ -30,7 +46,9 @@ data class AppProfile(
     val style: WritingStyle = WritingStyle.AS_SPOKEN,
     /** A free instruction on top of the style, e.g. "always sign with my first name". */
     val instruction: String? = null,
-    /** Run the cleanup in this app: null follows the engine, false never, true whenever possible. */
+    val appCleanup: AppCleanup = AppCleanup(),
+    /** Run the cleanup in this app: null followed the engine, false never, true whenever possible. */
+    @Deprecated("Since schema 9: appCleanup. Read only to migrate.")
     val cleanup: Boolean? = null,
 )
 
@@ -48,6 +66,13 @@ object AppProfiles {
 
     fun forPackage(profiles: List<AppProfile>, packageName: String?): AppProfile? =
         packageName?.let { name -> profiles.firstOrNull { it.packageName == name } }
+
+    /**
+     * Changes the profile for [packageName] if it is still there. A page saving on its way out
+     * must not bring back a profile the user just removed.
+     */
+    fun edit(profiles: List<AppProfile>, packageName: String, change: (AppProfile) -> AppProfile): List<AppProfile> =
+        profiles.map { if (it.packageName == packageName) change(it) else it }
 
     /** Replaces the profile for its package, or adds it. */
     fun upsert(profiles: List<AppProfile>, profile: AppProfile): List<AppProfile> =

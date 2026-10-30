@@ -156,11 +156,21 @@ object ServerCost {
     private const val CHARS_PER_TOKEN = 4
     private const val PROMPT_TOKENS = 250
 
-    /** Null for an own server or an unknown model: nothing to estimate, nothing billed by us. */
-    fun microUsd(baseUrl: String?, speechModel: String?, audioMs: Long, chars: Int, cleanupModel: String?): Long? {
-        val provider = ServerProviders.forUrl(baseUrl)
-        val speech = provider.speechModel(speechModel)
-        val cleanup = provider.cleanupModel(cleanupModel)
+    /**
+     * Recognition and cleanup each at the price of the server that did it - a local recognition
+     * passes null for both of its own. Null for an own server or an unknown model: nothing to
+     * estimate, nothing billed by us.
+     */
+    fun microUsd(
+        speechBaseUrl: String?,
+        speechModel: String?,
+        audioMs: Long,
+        chars: Int,
+        cleanupBaseUrl: String?,
+        cleanupModel: String?,
+    ): Long? {
+        val speech = speechModel?.let { ServerProviders.forUrl(speechBaseUrl).speechModel(it) }
+        val cleanup = cleanupModel?.let { ServerProviders.forUrl(cleanupBaseUrl).cleanupModel(it) }
         if (speech == null && cleanup == null) return null
         val textTokens = chars / CHARS_PER_TOKEN + 1
         val speechUsd = speech?.let {

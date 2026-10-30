@@ -29,6 +29,7 @@ import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.engine.AndroidOnDeviceEngine
@@ -246,7 +247,7 @@ class DictationController(
                     else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}")
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
-                deliver(cleanUp(transcript, engineConfig), settings, engineConfig.id)
+                deliver(cleanUp(transcript), settings, engineConfig.id)
             }
 
             if (finished == null) {
@@ -445,35 +446,35 @@ class DictationController(
     }
 
     /**
-     * Runs the engine's chosen cleanup model over the transcript, if any. Never fails the
-     * dictation: on an error, a timeout or an implausible answer the transcript is kept as
-     * recognized, and the diagnostics say why. The bubble stays on "working" meanwhile.
+     * Runs the cleanup chosen for the target app (its own, else the one for every app) over
+     * the transcript, if any. Never fails the dictation: on an error, a timeout or an
+     * implausible answer the transcript is kept as recognized, and the diagnostics say why.
+     * The bubble stays on "working" meanwhile.
      */
-    private suspend fun cleanUp(transcript: Transcript, config: EngineConfig): Transcript {
-        val settings = graph.settings.value
-        // The server that just failed would only add a timeout; another one may well answer.
-        if (fellBackFrom != null && settings.cleanup?.engineId == fellBackFrom) return transcript
-        val cleanup = graph.engineFactory.cleanupFor(settings) ?: return transcript
-        // The style belongs to the app whose field gets the text; after the proxy activity
-        // that is only known once focus is back.
+    private suspend fun cleanUp(transcript: Transcript): Transcript {
+        // Both the cleanup and the style belong to the app whose field gets the text; after
+        // the proxy activity that is only known once focus is back.
         awaitFocusReturn()
+        val settings = graph.settings.value
         val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
-        val profile = AppProfiles.forPackage(graph.settings.value.profiles, target)
-        if (profile?.cleanup == false) {
-            trace?.cleanup = "cleanup off for ${profile.label}"
-            return transcript
-        }
+        val decision = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }
+        val note = decision.note?.let { "$it · " }.orEmpty()
+        val choice = decision.choice ?: return transcript.also { trace?.cleanup = decision.note }
+        val cleanup = graph.engineFactory.cleanupFor(choice, settings)
+            ?: return transcript.also { trace?.cleanup = "${note}cleanup ${choice.model} could not be set up" }
+        val profile = AppProfiles.forPackage(settings.profiles, target)
         val style = profile?.style ?: WritingStyle.AS_SPOKEN
         val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text, style, profile?.instruction) }
         if (result == null) {
-            trace?.cleanup = "cleanup timed out (${cleanup.model})"
+            trace?.cleanup = "${note}cleanup timed out (${cleanup.model})"
             return transcript
         }
         return result.fold(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
-                trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote)"
+                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote)"
                 trace?.cleanupModel = cleanup.model
+                trace?.cleanupEngineId = choice.engineId
                 transcript.copy(
                     text = cleaned.text,
                     formatted = true,
@@ -482,7 +483,7 @@ class DictationController(
                 )
             },
             onFailure = { error ->
-                trace?.cleanup = "cleanup skipped: ${userMessageOf(error)}"
+                trace?.cleanup = "${note}cleanup skipped: ${userMessageOf(error)}"
                 // The error's own text may quote the model's reply, i.e. the dictation.
                 Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.take(80) ?: error.javaClass.simpleName}")
                 transcript
@@ -634,9 +635,12 @@ class DictationController(
                 waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
                 app = (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName },
                 cleanupModel = trace?.cleanupModel,
-                // Priced by the provider the engine talks to; an own server gives null.
-                costMicroUsd = config?.takeIf { it.kind == EngineKind.OPENAI_COMPATIBLE }?.let {
-                    ServerCost.microUsd(it.baseUrl, it.modelId, audioMs, transcript.text.length, trace?.cleanupModel)
+                // Recognition and cleanup each priced by the provider that did it; an own server
+                // gives null.
+                costMicroUsd = run {
+                    val speech = config?.takeIf { it.kind == EngineKind.OPENAI_COMPATIBLE }
+                    val cleanupUrl = settings.engines.firstOrNull { it.id == trace?.cleanupEngineId }?.baseUrl
+                    ServerCost.microUsd(speech?.baseUrl, speech?.modelId, audioMs, transcript.text.length, cleanupUrl, trace?.cleanupModel)
                 },
             ),
         )

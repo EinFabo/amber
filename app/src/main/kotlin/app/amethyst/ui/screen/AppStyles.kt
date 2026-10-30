@@ -3,8 +3,6 @@ package app.amethyst.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -31,14 +29,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.apps.AppChoice
-import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
-import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.InstalledApp
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -107,11 +104,11 @@ fun AppStylesScreen(
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     apps: AppSource,
     usage: Map<String, Int>,
+    onOpenApp: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var editing by remember { mutableStateOf<AppProfile?>(null) }
     var picking by remember { mutableStateOf(false) }
-    val hasCleanup = settings.cleanup != null
+    val ownModels = settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL }
 
     SubPage(modifier) {
         SectionCard(
@@ -119,30 +116,21 @@ fun AppStylesScreen(
             subtitle = "How the text is phrased depends on the app it goes into.",
         ) {
             Hint(
-                if (hasCleanup) "Applied by the cleanup model chosen under Settings → Cleanup. Apps without a style get the text tidied as spoken."
-                else "Styles need a cleanup model: pick one under Settings → Cleanup (a model on Tinfoil, Groq, OpenAI or your own server). Until then the text goes in as recognized.",
-                if (hasCleanup) AmberPalette.Muted else AmberPalette.Primary,
+                when {
+                    settings.cleanup != null -> "Applied by the cleanup chosen under Settings → Cleanup, or by an app's own model. " +
+                        "Apps without a style get the text tidied as spoken."
+                    ownModels -> "Only apps with a cleanup model of their own are tidied. For the others, pick one under " +
+                        "Settings → Cleanup."
+                    else -> "Styles need a cleanup model: pick one under Settings → Cleanup (a model on Tinfoil, Groq, " +
+                        "OpenAI or your own server), or one for a single app on its page. Until then the text goes in as recognized."
+                },
+                if (settings.cleanup != null || ownModels) AmberPalette.Muted else AmberPalette.Primary,
             )
             settings.profiles.forEach { profile ->
-                ProfileRow(profile, apps) { editing = profile }
+                ProfileRow(profile, settings, apps) { onOpenApp(profile.packageName) }
             }
             GhostButton("Add app", { picking = true })
         }
-    }
-
-    editing?.let { profile ->
-        ProfileDialog(
-            profile = profile,
-            onDismiss = { editing = null },
-            onSave = { updated ->
-                onUpdateSettings { it.copy(profiles = AppProfiles.upsert(it.profiles, updated)) }
-                editing = null
-            },
-            onDelete = {
-                onUpdateSettings { it.copy(profiles = it.profiles.filterNot { p -> p.packageName == profile.packageName }) }
-                editing = null
-            },
-        )
     }
 
     if (picking) {
@@ -154,7 +142,10 @@ fun AppStylesScreen(
             onDismiss = { picking = false },
             onPick = { chosen ->
                 picking = false
-                chosen.firstOrNull()?.let { app -> editing = AppProfile(app.packageName, app.label) }
+                chosen.firstOrNull()?.let { app ->
+                    onUpdateSettings { it.copy(profiles = AppProfiles.upsert(it.profiles, AppProfile(app.packageName, app.label))) }
+                    onOpenApp(app.packageName)
+                }
             },
         )
     }
@@ -203,7 +194,7 @@ internal fun WritingStyle.label(): String = when (this) {
     WritingStyle.CONCISE -> "Concise"
 }
 
-private fun WritingStyle.note(): String = when (this) {
+internal fun WritingStyle.note(): String = when (this) {
     WritingStyle.AS_SPOKEN -> "only tidied"
     WritingStyle.CASUAL -> "chat-like"
     WritingStyle.FORMAL -> "for email"
@@ -211,7 +202,7 @@ private fun WritingStyle.note(): String = when (this) {
 }
 
 @Composable
-private fun ProfileRow(profile: AppProfile, apps: AppSource, onClick: () -> Unit) {
+private fun ProfileRow(profile: AppProfile, settings: AmethystSettings, apps: AppSource, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -223,77 +214,19 @@ private fun ProfileRow(profile: AppProfile, apps: AppSource, onClick: () -> Unit
         AppIcon(profile.packageName, apps)
         Column(Modifier.weight(1f)) {
             Text(profile.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            val own = profile.appCleanup
             val extra = listOfNotNull(
                 profile.instruction?.takeIf { it.isNotBlank() }?.let { "own instruction" },
-                when (profile.cleanup) {
-                    false -> "cleanup off"
-                    true -> "cleanup always"
-                    null -> null
+                when (own.mode) {
+                    AppCleanupMode.OFF -> "cleanup off"
+                    AppCleanupMode.MODEL -> own.choice?.let { settings.cleanupSummary(it) ?: it.model }
+                    AppCleanupMode.DEFAULT -> null
                 },
             )
             Hint((listOf(profile.style.label()) + extra).joinToString(" · "))
         }
         Text("Edit", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ProfileDialog(
-    profile: AppProfile,
-    onDismiss: () -> Unit,
-    onSave: (AppProfile) -> Unit,
-    onDelete: () -> Unit,
-) {
-    var style by remember(profile) { mutableStateOf(profile.style) }
-    var instruction by remember(profile) { mutableStateOf(profile.instruction.orEmpty()) }
-    var cleanup by remember(profile) { mutableStateOf(profile.cleanup) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = AmberPalette.Surface,
-        shape = AmberShapes.Card,
-        title = { Text(profile.label, color = AmberPalette.Text) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Hint("Style")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WritingStyle.entries.forEach { option ->
-                        ChoiceChip(option.label(), option.note(), on = option == style) { style = option }
-                    }
-                }
-                OutlinedTextField(
-                    value = instruction,
-                    onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
-                    label = { Text("Own instruction (optional)") },
-                    placeholder = { Text("e.g. use \"du\", sign with my first name") },
-                    supportingText = { Text("${instruction.length} / ${ChatCleanup.INSTRUCTION_CHARS}") },
-                    minLines = 2,
-                    maxLines = 8,
-                    shape = AmberShapes.Inner,
-                    colors = fieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Hint("Cleanup")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChoiceChip("Like the engine", null, on = cleanup == null) { cleanup = null }
-                    ChoiceChip("Always", null, on = cleanup == true) { cleanup = true }
-                    ChoiceChip("Never", "as recognized", on = cleanup == false) { cleanup = false }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(profile.copy(style = style, instruction = instruction.trim().ifEmpty { null }, cleanup = cleanup))
-            }) { Text("Save", color = AmberPalette.Primary) }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onDelete) { Text("Remove", color = AmberPalette.Error) }
-                TextButton(onClick = onDismiss) { Text("Cancel", color = AmberPalette.Muted) }
-            }
-        },
-    )
 }
 
 /**

@@ -45,6 +45,9 @@ internal class RunTrace(val route: String) {
     /** The cleanup model that changed the text, for the cost estimate. */
     var cleanupModel: String? = null
 
+    /** The engine whose server ran [cleanupModel] - the cleanup is priced by its provider. */
+    var cleanupEngineId: String? = null
+
     /** How long the user spoke. */
     val recordingMs: Long get() = if (recordingTo > 0) recordingTo - recordingFrom else 0
 

@@ -11,6 +11,8 @@ import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanup
+import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
@@ -184,6 +186,41 @@ class CaptureTimeoutTest {
     }
 
     @Test
+    fun `schema 9 turns the per-app cleanup switch into a choice`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],"profiles":[
+            {"packageName":"a","label":"A","cleanup":false},
+            {"packageName":"b","label":"B","cleanup":true},
+            {"packageName":"c","label":"C"}],"schemaVersion":8}"""
+        val profiles = SettingsCodec.decode(old).profiles
+        assertEquals(listOf(AppCleanupMode.OFF, AppCleanupMode.DEFAULT, AppCleanupMode.DEFAULT), profiles.map { it.appCleanup.mode })
+        @Suppress("DEPRECATION")
+        assertTrue(profiles.all { it.cleanup == null })
+    }
+
+    @Test
+    fun `a per-app cleanup model survives a round trip`() {
+        val choice = CleanupChoice("tinfoil", "gemma4-31b")
+        val settings = AmethystSettings.defaults().copy(
+            profiles = listOf(AppProfile("md.obsidian", "Obsidian", appCleanup = AppCleanup(AppCleanupMode.MODEL, choice))),
+        )
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        assertEquals(AppCleanup(AppCleanupMode.MODEL, choice), decoded.profiles.single().appCleanup)
+    }
+
+    @Test
+    fun `editing a profile changes only that one`() {
+        val edited = AppProfiles.edit(AppProfiles.DEFAULTS, "com.whatsapp") { it.copy(style = WritingStyle.FORMAL) }
+        assertEquals(WritingStyle.FORMAL, AppProfiles.forPackage(edited, "com.whatsapp")?.style)
+        assertEquals(AppProfiles.DEFAULTS.drop(1), edited.drop(1))
+    }
+
+    @Test
+    fun `editing a removed profile does not bring it back`() {
+        val removed = AppProfiles.DEFAULTS.filterNot { it.packageName == "com.whatsapp" }
+        assertEquals(removed, AppProfiles.edit(removed, "com.whatsapp") { it.copy(instruction = "late save") })
+    }
+
+    @Test
     fun `a tinfoil engine refuses any address but its enclave`() {
         val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
         assertTrue(tinfoil.requireEnclave)
@@ -318,7 +355,7 @@ class CaptureTimeoutTest {
         val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}"""
         val migrated = SettingsCodec.decode(old)
         assertTrue(migrated.onboardingDone)
-        assertEquals(8, migrated.schemaVersion)
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
     }
 
     @Test

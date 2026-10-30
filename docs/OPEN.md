@@ -200,9 +200,11 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       - Disclosure (M6) and the accessibility description name the new read: the chat title,
         only when a dictation starts. Email: the same idea with the recipient field later.
 - [ ] 7. Terminal mode: speech becomes shell commands, never executed.
-- [ ] 8. Cleanup model per app (Advanced): an AI chat may keep small typos, Keep/Obsidian get the
-      best cleanup (Fabi, 2026-10-30). Task prompt:
-      [`docs/plans/2026-10-30-per-app-models-and-voice-commands.md`](plans/2026-10-30-per-app-models-and-voice-commands.md).
+- [x] 8. Cleanup model per app: an AI chat may keep small typos, Keep/Obsidian get the best
+      cleanup (Fabi, 2026-10-30). Built in 0.19.0 - per app Default, Off or a chat model of its
+      own (also with the cleanup for every app off), each app on its own page. Design:
+      [`docs/plans/2026-10-30-per-app-cleanup-design.md`](plans/2026-10-30-per-app-cleanup-design.md).
+      **Open: the device test** listed there.
 - [ ] 9. Voice commands from the bubble ("open WhatsApp", "swipe left") through the
       accessibility service, switchable, local or Tinfoil only - research and design first,
       same task prompt.
