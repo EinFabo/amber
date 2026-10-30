@@ -183,6 +183,8 @@ data class AmethystSettings(
     val cleanup: CleanupChoice? = null,
     /** Who takes a recording the engine's server could not; see [app.amethyst.core.engine.Fallback]. */
     val fallback: FallbackSettings = FallbackSettings(),
+    /** Whether the introduction ran; a fresh install starts without, see [SettingsCodec.migrate]. */
+    val onboardingDone: Boolean = false,
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -200,9 +202,10 @@ data class AmethystSettings(
          * 5: the Tinfoil engine requires its enclave.
          * 6: ElevenLabs Realtime engines (never implemented) are dropped.
          * 7: cleanup and fallback chosen on their own, no longer per engine.
+         * 8: the introduction - settings from before it count as introduced.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 7
+        const val SCHEMA_VERSION = 8
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -261,6 +264,8 @@ object SettingsCodec {
             activeEngineId = active,
             cleanup = cleanup,
             fallback = fallback,
+            // Version 8: whoever had settings before the introduction existed has set Amber up.
+            onboardingDone = settings.onboardingDone || settings.schemaVersion < 8,
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->

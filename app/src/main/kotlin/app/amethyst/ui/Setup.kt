@@ -1,6 +1,7 @@
 package app.amethyst.ui
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,10 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.capture.MicForegroundService
+import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.engine.WhisperNative
+import java.io.File
 
 /** Everything that has to be true before a tap on the bubble can produce text. */
 data class SetupState(
@@ -37,6 +42,20 @@ object Setup {
         micServiceRunning = MicForegroundService.isRunning,
         batteryUnrestricted = isBatteryUnrestricted(context),
     )
+
+    /** What the introduction weighs to suggest an engine: memory, room for models, the CPU. */
+    fun phoneFacts(context: Context): PhoneFacts {
+        val memory = ActivityManager.MemoryInfo()
+        context.getSystemService(ActivityManager::class.java)?.getMemoryInfo(memory)
+        // Where the stores put models (noBackupFilesDir/models), so the free space is theirs.
+        val models = File(context.noBackupFilesDir, "models").apply { mkdirs() }
+        return PhoneFacts(
+            totalRamMb = memory.totalMem / 1_000_000,
+            freeStorageMb = models.usableSpace / 1_000_000,
+            whisperCpu = WhisperNative.cpuSupported(),
+            androidOnDevice = AndroidOnDeviceEngine.onDeviceSpeech,
+        )
+    }
 
     /**
      * Read from Settings.Secure rather than from AccessibilityManager: the latter only lists

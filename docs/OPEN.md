@@ -97,6 +97,59 @@ with the release key, the enclave path solid. Each finding was checked against t
       - Next: measure German cleanup quality (FLEURS, as for the speech models) and speed on
         the phone. Building llama.cpp (v0.8.0, sha256 51b1e025...) for that is waiting for
         Fabi's OK - it is new third-party code.
+      - Simulated wait after speaking, Pixel 9a, Gemma 3 1B int4 (2026-10-30; anchored on Google's
+        LiteRT-LM numbers for the S24 Ultra - CPU 322/47 tok/s prefill/decode, GPU 2586/56 -
+        scaled to Tensor G4; system prompt ~212 tokens, 1.6 tokens per German word):
+        | | 10 words | 25 | 50 | 100 |
+        |---|---|---|---|---|
+        | A whole prompt each time, CPU | 1.5-2.1 s | 2.3-3.1 | 3.5-4.8 | 6.0-8.2 |
+        | B + system prompt kept in the KV cache | 0.6-0.9 | 1.4-1.9 | 2.6-3.6 | 5.1-7.0 |
+        | C + lookup decoding (the output copies the input), x2 | 0.4-0.5 | 0.8-1.1 | 1.5-2.0 | 2.9-4.0 |
+        | D GPU instead (LiteRT-LM), B+C | 0.4-0.6 | 0.9-1.4 | 1.7-2.6 | 3.3-5.1 |
+        | E C + cleaning finished sentences while speaking | 0.4-0.5 | 0.5-0.7 | 0.5-0.7 | 0.5-0.7 |
+        | F E with a 270M-0.6B model | 0.1-0.2 | 0.2-0.3 | 0.2-0.3 | 0.2-0.3 |
+        Decode (writing the answer) is the cost, prefill is small: the GPU barely helps on a Mali.
+        The levers, in order: lookup decoding, cleaning sentence by sentence while the user still
+        speaks (the "recognize while speaking" chunks), the system prompt cached per app style,
+        model kept warm next to the speech model (~0.6 GB more RAM while dictating). Quality of
+        1B models on German is the open risk - measure before building. The simulation script
+        is not kept in the repo.
+      - **Measured on the Pixel 9a (2026-10-30)**: llama.cpp v0.8.0 (tarball sha256 51b1e025...),
+        CPU, 4 threads, Q4_0; Amber's real prompt and ten raw German dictations (fillers,
+        stutter, a self-correction, a mis-hearing, an injection, mixed English).
+        Raw speed (llama-bench pp256/tg64, tok/s): Gemma 3 1B 179/26, LFM2 1.2B 170/24,
+        Qwen3 1.7B 84/12, Qwen3 0.6B 284/26 (noisy), Gemma 3 270M 116/108.
+        Wait for the cleanup (median; short / ~50 words / ~100 words):
+        | | cached prompt | + n-gram lookup |
+        |---|---|---|
+        | Gemma 3 1B | 4.4 s (3.0 / 5.9 / 6.7) | 2.7 s (2.0 / 3.7 / 4.8) |
+        | LFM2 1.2B | 4.0 s (0.8 / 4.2 / 5.8) | 2.6 s (1.1 / 3.4 / 6.3) |
+        | Qwen3 1.7B | 5.5 s (2.3 / 6.8 / 11.0) | 4.6 s (2.4 / 6.7 / 7.2) |
+        | Qwen3 0.6B | 3.6 s | 2.8 s |
+        Caching the system prompt barely matters (prefill is fast); n-gram lookup saves ~40 %
+        on Gemma, less than the simulated 2x. The simulation was right about the order, too
+        optimistic about lookup decoding.
+        **Quality: none of them is usable as is.** LFM2 translates every dictation into English;
+        Gemma 3 1B often appends English chatter ("Here's the cleaned text:") or translates, once
+        wrote Python; Qwen3 0.6B mostly returns the input unchanged; Qwen3 1.7B stays German and
+        adds commas but leaves fillers, misreads the self-correction in the mail ("nein warte,
+        für die Lieferung" became "Warte bitte, bis die Lieferung abgeschlossen ist") and once
+        added typos; Gemma 270M rambles. Only LFM2 obeyed the injection (a cat poem - rejected
+        by the length guard).
+        Until one of the steps below works, the cleanup stays on a server (Tinfoil, DeepSeek).
+- [ ] Local cleanup, step 1 (cheapest): a German system prompt with 2-3 worked examples
+      (fillers, a self-correction, commas) for Qwen3 1.7B and Gemma 3 1B - nearly free with the
+      cached prefix - and the same measurement again. The test set and scripts are not kept in
+      the repo.
+- [ ] Local cleanup, step 2: a 3-4B model (Gemma 3 4B, Qwen3 4B) for quality - expect about 3x
+      the wait (10-20 s for 50 words), so only worth it with sentence-by-sentence cleaning while
+      speaking.
+- [ ] Local cleanup, step 3: fine-tune a ~1B model on German dictation cleanup (FLEURS plus
+      synthetic fillers, stutters and self-corrections) - the likeliest way to fast and good.
+- [ ] Gemini Nano Proofreading (ML Kit GenAI): ask `checkFeatureStatus()` on the Pixel 9a.
+- [ ] **Language guard for every cleanup** (found in the local test): `ChatCleanup.plausible`
+      only compares lengths, so a translated answer passes. Add a check that the cleaned text
+      keeps most of the input's words (or its language) - cheap insurance for server models too.
 
 ## Fabi's plan: terminal mode and everyday fixes (2026-10-29)
 
@@ -123,9 +176,36 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       its field now and then) counted as inserted and the text was lost without trying
       SET_TEXT. Confirm on the device; if it still happens, Diagnostics show the strategy.
 - [ ] 5. Onboarding for normal people, with the model download built in - and a walk through
-      the settings that matter. Design: [`docs/plans/2026-10-29-onboarding-design.md`](plans/2026-10-29-onboarding-design.md).
-- [ ] 6. Style rules per WhatsApp contact.
+      the settings that matter. Design: [`docs/plans/2026-10-29-onboarding-design.md`](plans/2026-10-29-onboarding-design.md),
+      plan: [`docs/plans/2026-10-30-onboarding-plan.md`](plans/2026-10-30-onboarding-plan.md).
+      Built in 0.18.0 (fresh installs only; Settings → Amber → "Show the introduction again"):
+      the engine advice by memory, room and CPU (`EngineAdvice`), downloads that wait for Wi-Fi,
+      a dictation during the download says "Model downloading - 45 %" instead of failing.
+      **Open: the device test** - fresh install of the debug build on the Pixel 9a: the whole
+      flow on Wi-Fi with Parakeet, the flame during the download, a rotation on step 2, five cold
+      starts after it (no flash of the flow), the replay, "Wait for Wi-Fi" on mobile data.
+- [ ] 6. Style rules per chat - WhatsApp and other messengers (Fabi, 2026-10-30: "can it be
+      adjusted per chat, and can it tell which chat you are in?"). Yes, through the
+      accessibility tree Amber already reads:
+      - Which chat: at the moment of dictation, the open conversation's title in the window's
+        toolbar (WhatsApp, Signal, Telegram, Threema; a group's name for groups). No messenger
+        offers an API for it; the title views differ per app and can change with app updates,
+        so one small reader per messenger in :core with tests from recorded node trees, and a
+        plain fallback: no chat found = the app's style.
+      - Rule key: package + chat title; a "WhatsApp → Mum" profile overrides the WhatsApp one.
+        A renamed contact loses its rule (say so in the UI). Stored on the phone only; titles
+        could be kept as a salted hash so the settings file holds no contact names.
+      - Adding one: "Style for this chat" from the bubble (long-press menu) while in the chat,
+        or from the style screen's list of chats dictated into recently.
+      - Disclosure (M6) and the accessibility description name the new read: the chat title,
+        only when a dictation starts. Email: the same idea with the recipient field later.
 - [ ] 7. Terminal mode: speech becomes shell commands, never executed.
+- [ ] 8. Cleanup model per app (Advanced): an AI chat may keep small typos, Keep/Obsidian get the
+      best cleanup (Fabi, 2026-10-30). Task prompt:
+      [`docs/plans/2026-10-30-per-app-models-and-voice-commands.md`](plans/2026-10-30-per-app-models-and-voice-commands.md).
+- [ ] 9. Voice commands from the bubble ("open WhatsApp", "swipe left") through the
+      accessibility service, switchable, local or Tinfoil only - research and design first,
+      same task prompt.
 
 ## F-Droid release (Fabi, 2026-10-29)
 
@@ -150,6 +230,84 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [ ] **IzzyOnDroid first?** Its repo takes the signed APK from a GitHub release (no build from
       source), so it is the quicker first step; it still scans for non-free libraries.
 - [ ] Recipe (`metadata/app.amber.yml`) as a merge request to fdroiddata.
+
+## Research: what Amber needs, best UX, review (Fabi, 2026-10-30)
+
+Security, battery and devices read in the code; Android changes and other dictation apps from
+the web. Most urgent first.
+
+Needs
+- [ ] **Developer verification.** Google's verification for apps outside Play: first countries
+      from September 2026, everywhere from 2027 - unverified apps then need Developer Mode and
+      a 24-hour wait to install. Hits installs of our release APKs and F-Droid alike. Register;
+      a Play developer account carries the verification (see Play below).
+- [ ] **Downloads that survive.** The model download runs only while the process lives;
+      Whisper starts over after a break. Android 14+: a user-initiated data transfer job with
+      a progress notification ("Model ready - dictate now").
+- [ ] **History, undo, keep a failed recording** (Quality of life above) - the everyday safety net.
+- [ ] Later, not now: **a way without the accessibility service** (a voice IME/RecognitionService
+      like FUTO Voice Input, so Gboard's mic uses Amber). Without accessibility there is no
+      bubble that types - the text goes in through the keyboard instead. Only worth it if
+      Advanced Protection (below) or the sideloading hurdles cost real users.
+
+Best UX
+- [ ] Languages follow the phone: `defaultLanguageTag()` and `defaults()` are fixed to de-DE,
+      so an English phone dictates German out of the box. Then a German UI (`values-de`).
+- [ ] Failures with one tap: "Recognize again" / "Use the local model" in the toast.
+- [ ] Ask for unrestricted battery only on makers that kill apps (Xiaomi/HyperOS, Samsung,
+      Huawei/Honor, Oppo), with that maker's steps; nobody else.
+- [ ] Optional start/stop sound, for dictating without looking (and for low vision).
+- [ ] Tablets and landscape: content at most ~600 dp wide, centred.
+- [ ] One name per engine: the last introduction step says "Parakeet TDT (local)", step 4 "Parakeet".
+
+Security
+- [ ] Package names in the release logcat (`TextInserter.kt:59`, `DictationController.kt:538`)
+      behind `BuildConfig.DEBUG` (= L17).
+- [ ] Cleartext is allowed app-wide (network_security_config); only the validator keeps http
+      to local addresses. Belt and braces: an OkHttp interceptor in `OkHttpTransport` refusing
+      http to public hosts, and a test that every built-in URL is https.
+- [ ] Android 17 Advanced Protection (opt-in) takes the accessibility service from apps not
+      marked `isAccessibilityTool`. Amber must not claim it (Play rejects it, Play Protect may
+      block). Accept, document in the README; the IME way above is the only way around.
+- Still open from the audit: CI releases/reproducible builds (M1), Kotlin CVE and dependency
+  verification (M3), security-crypto deprecated, imported models in an isolatedProcess (L11),
+  access to the release signing key.
+
+Battery (already careful: bounded keyboard polling, batched window events, animations only
+while active, model released after 3 min, no wakelocks/alarms/jobs)
+- [ ] Preload on focus (`AmethystApp.kt:151-152`): for 10 min after a dictation every focused
+      field reloads the model once the 3-min release ran - up to 874 MB from flash each time
+      for Whisper large, without a dictation. Do not preload after a release, or only < 300 MB.
+- [ ] `isKeyboard()` reads Settings.Secure on every window change
+      (`AmethystAccessibilityService.kt:177`): cache it, refresh with a ContentObserver.
+- [ ] Measure a normal day: `adb shell dumpsys batterystats --charged app.amber`.
+
+Devices that are still in use
+- [ ] **32-bit Android cannot install Amber at all** (`abiFilters += "arm64-v8a"`): Android Go
+      phones, cheap tablets. Add armeabi-v7a with the Android recognizer and servers (no Whisper).
+- [ ] **No Whisper without ARMv8.2 dot-product**: budget phones 2017-2020 (Snapdragon
+      625/636/660/665, Helio P22/P35/G35). With 4-5 GB they now get only Android's recognizer.
+      ggml CPU variants (see above) or Parakeet from 4 GB when Whisper cannot run (measure first).
+- [ ] **The bubble is silent for TalkBack** (no contentDescription or actions in `bubble/`):
+      a label, the state ("listening") and a "Start dictation" action - dictation matters most
+      to people with low vision or limited motor control.
+- [ ] Makers that kill background apps: the Reliability page with per-maker steps.
+- Fine as is: minSdk 28 (Android 8 and older out), no x86 (Chromebooks), Android 9-12 have no
+  on-device Android recognizer (labelled as cloud).
+
+Google Play - would it help? (2026-10-30)
+- Gains: installs from Play skip the "Restricted settings" unlock for the accessibility
+  service and the coming verification wait; updates come by themselves; reach and trust.
+- Costs: a personal account opened after Nov 2023 needs a closed test with 12 testers for
+  14 days per app; the AccessibilityService declaration with a demo video of the in-app
+  disclosure (Amber has one, M6); a foreground-service declaration for the microphone - a
+  service that runs all day "to keep the microphone ready" may not count as the user-started
+  microphone use the type is meant for (review risk; the proxy activity is the fallback);
+  data safety form and a privacy policy page; target SDK (check the current Play minimum).
+- Signing: Play App Signing can take the existing release key, so Play installs and our release
+  APKs stay one app; otherwise they are two that cannot update each other.
+- [ ] Decide: a Play developer account now (it also settles the verification), a closed test
+      with friends, the listing after that.
 
 ## Research: bubble position and field detection (2026-10-29)
 

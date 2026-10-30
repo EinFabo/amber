@@ -41,6 +41,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.dictation.DictationState
@@ -53,6 +55,8 @@ import app.amethyst.ui.DictateOrb
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PrimaryButton
+import app.amethyst.ui.ProgressLine
+import app.amethyst.ui.RestrictedSettingsHint
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
@@ -73,6 +77,8 @@ fun HomeScreen(
     settings: AmethystSettings,
     dictationState: StateFlow<DictationState>,
     stats: StatsSummary?,
+    /** The active engine's download, while it runs: the flame cannot dictate yet. */
+    download: ModelDownload?,
     onStartTest: () -> Unit,
     onStopTest: () -> Unit,
     onOpenRecognition: () -> Unit,
@@ -105,7 +111,7 @@ fun HomeScreen(
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
-        OrbArea(dictationState, setup.ready, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine)
+        OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine)
 
         if (settings.stats.keep) TodayLine(stats, onOpenStats)
 
@@ -120,6 +126,7 @@ fun HomeScreen(
 private fun OrbArea(
     dictationState: StateFlow<DictationState>,
     ready: Boolean,
+    download: ModelDownload?,
     testField: FocusRequester,
     onStartTest: () -> Unit,
     onStopTest: () -> Unit,
@@ -156,6 +163,7 @@ private fun OrbArea(
         StatusLine(
             state = dictation,
             ready = ready,
+            download = download,
             onInstallLanguage = onInstallLanguage,
             onUseLocalWhisper = onUseLocalWhisper,
             onOpenActiveEngine = onOpenActiveEngine,
@@ -279,6 +287,7 @@ fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
 private fun StatusLine(
     state: DictationState,
     ready: Boolean,
+    download: ModelDownload?,
     onInstallLanguage: () -> Unit,
     onUseLocalWhisper: () -> Unit,
     onOpenActiveEngine: () -> Unit,
@@ -295,10 +304,16 @@ private fun StatusLine(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             when (current) {
-                DictationState.Idle -> Hint(
-                    if (ready) "Tap and speak. The text lands in the test field."
-                    else "Finish the setup below first.",
-                )
+                DictationState.Idle -> when {
+                    !ready -> Hint("Finish the setup below first.")
+                    download != null -> {
+                        Hint(DownloadNotice.short(download), AmberPalette.Text)
+                        val fraction = (download as? ModelDownload.Running)
+                            ?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f }
+                        ProgressLine(fraction, Modifier.padding(horizontal = 48.dp))
+                    }
+                    else -> Hint("Tap and speak. The text lands in the test field.")
+                }
 
                 DictationState.Starting -> Hint("Opening microphone …", AmberPalette.Text)
 
@@ -399,45 +414,6 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
         if (!setup.accessibilityEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             RestrictedSettingsHint(onOpenAppInfo = actions.openAppInfo)
         }
-    }
-}
-
-/**
- * Since Android 13, accessibility is locked for apps installed from a file. There is no API
- * to ask whether the lock applies to us, so the way out is shown whenever the service is off.
- */
-@Composable
-private fun RestrictedSettingsHint(onOpenAppInfo: () -> Unit) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(AmberPalette.Surface, AmberShapes.Inner)
-            .clickable { open = !open }
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            "Greyed out or \"Restricted setting\"?",
-            style = MaterialTheme.typography.bodyLarge,
-            color = AmberPalette.Text,
-        )
-        AnimatedVisibility(visible = open, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Hint(
-                    "Android locks accessibility for apps that do not come from a store. " +
-                        "This lifts the lock once:",
-                    AmberPalette.Text,
-                )
-                Hint("1. Tap \"Open app info\" below.")
-                Hint("2. Top right ⋮ → \"Allow restricted settings\", then confirm.")
-                Hint("3. Go back and turn on the accessibility service.")
-                Hint("The menu item only appears after you have tried to turn it on once.")
-                Spacer(Modifier.height(2.dp))
-                GhostButton("Open app info", onOpenAppInfo)
-            }
-        }
-        if (!open) Hint("Tap for the fix.")
     }
 }
 

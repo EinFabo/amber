@@ -15,6 +15,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.engine.EngineFactory
+import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.NativeWhisperRuntime
 import app.amethyst.engine.ParakeetModelStore
 import app.amethyst.engine.SherpaRuntime
@@ -93,6 +94,14 @@ class Graph(app: Application) {
     val settings: StateFlow<AmethystSettings> = settingsStore.settings
         .stateIn(appScope, SharingStarted.Eagerly, AmethystSettings.defaults())
 
+    /**
+     * The stored settings, null until DataStore has answered. [settings] starts on the defaults,
+     * which would show a fresh install's introduction to everyone for a moment; the start screen
+     * is decided from this instead.
+     */
+    val loadedSettings: StateFlow<AmethystSettings?> = settingsStore.settings
+        .stateIn(appScope, SharingStarted.Eagerly, null)
+
     val whisperRuntime = NativeWhisperRuntime(app)
 
     val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) }
@@ -100,6 +109,9 @@ class Graph(app: Application) {
     val sherpaRuntime = SherpaRuntime()
 
     val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) }
+
+    /** The introduction's downloads, and whether the active engine is still waiting for one. */
+    val modelDownloads: ModelDownloads by lazy { ModelDownloads(app, parakeetModels, whisperModels) }
 
     /** What the Tinfoil verifier did lately, newest first, for the engine screen's debug section. */
     val tinfoilLog = MutableStateFlow<List<String>>(emptyList())

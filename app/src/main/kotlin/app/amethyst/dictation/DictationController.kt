@@ -32,6 +32,8 @@ import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.engine.ModelDownloads
 import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AppProfiles
@@ -118,6 +120,12 @@ class DictationController(
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE, holdToTalk: Boolean = false) {
         if (isRunning) return
+        // The engine chosen in the introduction may still be downloading: say so and record
+        // nothing, rather than taking the words and failing - and never hand them to another engine.
+        graph.settings.value.activeEngine?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
+            notice(DownloadNotice.atStart(download))
+            return
+        }
         if (source != TriggerSource.PROXY_ACTIVITY) {
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
@@ -654,6 +662,12 @@ class DictationController(
     private fun updateListening(transform: (DictationState.Listening) -> DictationState.Listening) {
         val current = _state.value
         if (current is DictationState.Listening) _state.value = transform(current)
+    }
+
+    /** A toast without a failure: the state stays Idle, the bubble stays calm, nothing is logged. */
+    private fun notice(message: String) {
+        Log.i(TAG, "dictation not started: $message")
+        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
     }
 
     private fun fail(

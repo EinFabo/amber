@@ -306,4 +306,24 @@ class CaptureTimeoutTest {
         assertNull(migrated.cleanup)
         assertEquals(FallbackMode.AUTOMATIC, migrated.fallback.mode)
     }
+
+    @Test
+    fun `a fresh install has not seen the introduction`() {
+        assertFalse(AmethystSettings.defaults().onboardingDone)
+        assertFalse(SettingsCodec.decode("").onboardingDone)
+    }
+
+    @Test
+    fun `settings from before version 8 count as introduced`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}"""
+        val migrated = SettingsCodec.decode(old)
+        assertTrue(migrated.onboardingDone)
+        assertEquals(8, migrated.schemaVersion)
+    }
+
+    @Test
+    fun `version 8 settings keep their flag`() {
+        val pending = SettingsCodec.encode(AmethystSettings.defaults())
+        assertFalse(SettingsCodec.decode(pending).onboardingDone)
+    }
 }

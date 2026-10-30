@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +50,16 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.core.onboarding.Onboarding
+import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.core.engine.EngineOption
+import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.engine.ModelDownloads
+import app.amethyst.engine.ParakeetState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import app.amethyst.ui.onboarding.OnboardingContent
+import app.amethyst.ui.onboarding.OnboardingScreen
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsScreen
@@ -192,6 +203,8 @@ class SetupActions(
 )
 
 private sealed interface Screen {
+    /** The introduction; its step lives beside the stack, see [AmethystScreens]. */
+    data object Onboarding : Screen
     data object Home : Screen
     data object Settings : Screen
     data class Page(val page: SettingsPage) : Screen
@@ -199,6 +212,7 @@ private sealed interface Screen {
 }
 
 private fun Screen.title(): String = when (this) {
+    Screen.Onboarding -> ""
     Screen.Home -> "Amber"
     Screen.Settings -> "Settings"
     is Screen.EngineDetail -> "Engine"
@@ -223,9 +237,30 @@ private fun AmethystRoot(
     actions: SetupActions,
     onInstallLanguage: (String?) -> Unit,
 ) {
-    // A back stack: Home → Settings → a page → an engine, and back the same way.
-    var stack by remember { mutableStateOf(listOf<Screen>(Screen.Home)) }
+    // Nothing but the background until the stored settings are read: the defaults would start
+    // everyone - not only a fresh install - in the introduction for a moment.
+    val loaded = graph.loadedSettings.collectAsStateWithLifecycle().value
+    if (loaded == null) {
+        AmberBackground {}
+        return
+    }
+    AmethystScreens(graph, setup, actions, onInstallLanguage, introduce = !loaded.onboardingDone)
+}
+
+@Composable
+private fun AmethystScreens(
+    graph: Graph,
+    setup: SetupState,
+    actions: SetupActions,
+    onInstallLanguage: (String?) -> Unit,
+    introduce: Boolean,
+) {
+    // A back stack: Home → Settings → a page → an engine, and back the same way. A fresh
+    // install starts in the introduction instead of Home.
+    var stack by remember { mutableStateOf(listOf(if (introduce) Screen.Onboarding else Screen.Home)) }
     val screen = stack.last()
+    // Saved, so a trip to Android's settings that recreates the activity comes back to it.
+    var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
     val tester = remember(graph) { ConnectionTester(graph) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
@@ -244,6 +279,21 @@ private fun AmethystRoot(
     val stats = remember(statList, settings.stats.typingWpm, today) {
         StatsSummary.of(statList, today, settings.stats.typingWpm)
     }
+    // Read so the line under the flame follows the download; forEngine reads their current values.
+    // The stores read every model file when they are built, so only for a local engine or the
+    // introduction - not on every start for everyone.
+    val watchModels = screen == Screen.Onboarding || screen is Screen.EngineDetail ||
+        settings.activeEngine?.let(ModelDownloads::downloadsModel) == true
+    val parakeetState = if (watchModels) graph.parakeetModels.state.collectAsStateWithLifecycle().value else ParakeetState.Missing
+    val whisperStates = if (watchModels) graph.whisperModels.states.collectAsStateWithLifecycle().value else emptyMap()
+    val waitingFor = if (watchModels) graph.modelDownloads.waiting.collectAsStateWithLifecycle().value else null
+    val download = if (watchModels) {
+        remember(settings.activeEngine, parakeetState, whisperStates, waitingFor) {
+            settings.activeEngine?.let(graph.modelDownloads::forEngine)
+        }
+    } else {
+        null
+    }
     val apps = remember(context) { AndroidAppSource(context) }
     val appUsage = remember(statList) { AppChoice.usage(statList) }
 
@@ -255,11 +305,31 @@ private fun AmethystRoot(
         stack = stack + next
     }
 
+    // Only for the introduction, and off the main thread: it loads the Whisper library to ask
+    // about the CPU. Read once - memory and the CPU do not change.
+    val phone by produceState<PhoneFacts?>(null, screen == Screen.Onboarding) {
+        if (screen == Screen.Onboarding && value == null) value = withContext(Dispatchers.IO) { Setup.phoneFacts(context) }
+    }
+
+    /** The introduction's engine choice: added if missing, with its model, and made active. */
+    fun useEngine(option: EngineOption) {
+        val preset = EnginePresets.byId(option.presetId) ?: return
+        updateSettings { current ->
+            val base = current.engines.firstOrNull { it.id == preset.id }
+                ?: EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind))
+            val config = option.whisperModelId?.let { base.copy(modelId = it) } ?: base
+            current.withEngine(config).copy(activeEngineId = config.id)
+        }
+    }
+
     fun back() {
         if (stack.size > 1) stack = stack.dropLast(1)
     }
 
     BackHandler(enabled = stack.size > 1) { back() }
+    BackHandler(enabled = screen == Screen.Onboarding && Onboarding.previous(step, settings) != null) {
+        Onboarding.previous(step, settings)?.let { step = it }
+    }
 
     AmberBackground {
         Column(
@@ -268,13 +338,16 @@ private fun AmethystRoot(
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
-            TopBar(
-                title = screen.title(),
-                showBack = screen != Screen.Home,
-                showSettings = screen == Screen.Home,
-                onBack = ::back,
-                onSettings = { open(Screen.Settings) },
-            )
+            // The introduction draws its own line: where you are, Back and Skip.
+            if (screen != Screen.Onboarding) {
+                TopBar(
+                    title = screen.title(),
+                    showBack = screen != Screen.Home,
+                    showSettings = screen == Screen.Home,
+                    onBack = ::back,
+                    onSettings = { open(Screen.Settings) },
+                )
+            }
 
             AnimatedContent(
                 targetState = screen,
@@ -284,12 +357,46 @@ private fun AmethystRoot(
                 modifier = Modifier.fillMaxSize(),
             ) { current ->
                 when (current) {
+                    Screen.Onboarding -> OnboardingScreen(
+                        step = step,
+                        settings = settings,
+                        setup = setup,
+                        actions = actions,
+                        content = OnboardingContent(
+                            phone = phone,
+                            metered = graph.modelDownloads.metered(),
+                            parakeet = parakeetState,
+                            whisper = whisperStates,
+                            waitingFor = waitingFor,
+                            onChooseEngine = { option, mobileData ->
+                                useEngine(option)
+                                graph.modelDownloads.start(option, mobileData)
+                            },
+                            onWaitForWifi = { option ->
+                                useEngine(option)
+                                graph.modelDownloads.waitForWifi(option)
+                            },
+                            onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
+                            download = download,
+                            apps = apps,
+                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                            onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
+                            onUpdateSettings = ::updateSettings,
+                        ),
+                        onStep = { step = it },
+                        onFinish = {
+                            if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
+                            stack = listOf(Screen.Home)
+                        },
+                    )
+
                     Screen.Home -> HomeScreen(
                         setup = setup,
                         actions = actions,
                         settings = settings,
                         dictationState = graph.dictation.state,
                         stats = stats,
+                        download = download,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
@@ -316,6 +423,12 @@ private fun AmethystRoot(
                             diagnosticsCount = records.size,
                             version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() },
                             onOpen = { page -> open(Screen.Page(page)) },
+                            onReplayIntroduction = {
+                                // On top of Settings, the flag left alone: Back on the first step
+                                // returns here, and leaving halfway changes nothing.
+                                step = OnboardingStep.WELCOME
+                                open(Screen.Onboarding)
+                            },
                         )
                     }
 
@@ -369,8 +482,6 @@ private fun AmethystRoot(
 
                     is Screen.EngineDetail -> {
                         val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
-                        val parakeetState by graph.parakeetModels.state.collectAsStateWithLifecycle()
-                        val whisperModels by graph.whisperModels.states.collectAsStateWithLifecycle()
                         val config = settings.engines.firstOrNull { it.id == current.engineId }
                         if (config == null) {
                             // Not in the settings yet (just added) or deleted from under us;
@@ -388,7 +499,7 @@ private fun AmethystRoot(
                                 storedKey = remember(config.apiKeyAlias) {
                                     graph.secretStore.get(config.apiKeyAlias)
                                 },
-                                whisperModels = whisperModels,
+                                whisperModels = whisperStates,
                                 onSaveKey = { alias, value ->
                                     if (value.isBlank()) graph.secretStore.clear(alias)
                                     else graph.secretStore.put(alias, value)

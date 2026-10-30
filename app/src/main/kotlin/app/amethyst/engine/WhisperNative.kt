@@ -39,6 +39,14 @@ internal object WhisperNative {
 
     /** Kernel thread ids of the pool's workers; empty before the first load. */
     external fun workerTids(): IntArray
+
+    private external fun cpuSupportedNative(): Boolean
+
+    /**
+     * Whether this phone can run local Whisper: the library is built for the ARMv8.2
+     * dot-product and fp16 instructions. False where the library did not load at all.
+     */
+    fun cpuSupported(): Boolean = loadError == null && runCatching { cpuSupportedNative() }.getOrDefault(false)
 }
 
 /**

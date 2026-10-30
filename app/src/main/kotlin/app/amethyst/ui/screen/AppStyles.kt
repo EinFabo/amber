@@ -196,7 +196,7 @@ internal fun StepSlider(
     }
 }
 
-private fun WritingStyle.label(): String = when (this) {
+internal fun WritingStyle.label(): String = when (this) {
     WritingStyle.AS_SPOKEN -> "As spoken"
     WritingStyle.CASUAL -> "Casual"
     WritingStyle.FORMAL -> "Formal"

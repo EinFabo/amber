@@ -77,6 +77,7 @@ fun SettingsScreen(
     diagnosticsCount: Int,
     version: String,
     onOpen: (SettingsPage) -> Unit,
+    onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val capture = settings.capture
@@ -132,6 +133,7 @@ fun SettingsScreen(
             valueColor = if (open == 0) AmberPalette.Muted else AmberPalette.Primary,
         ) { onOpen(SettingsPage.RELIABILITY) }
         NavRow("Diagnostics", if (diagnosticsCount == 0) "Nothing dictated yet" else "The last $diagnosticsCount dictations") { onOpen(SettingsPage.DIAGNOSTICS) }
+        NavRow("Show the introduction again", "The setup steps, with your current choices", onClick = onReplayIntroduction)
         Hairline()
         Spacer(Modifier.height(16.dp))
         Hint("Amber $version", AmberPalette.Muted)
@@ -500,7 +502,7 @@ private fun EngineRow(
  * every step of the drag - each write goes through DataStore and resizes the overlay.
  */
 @Composable
-private fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
+internal fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
     var dragging by remember(sizeDp) { mutableStateOf(sizeDp.toFloat()) }
     val shown = dragging.roundToInt()
 
@@ -546,8 +548,8 @@ private fun BubblePreview(size: androidx.compose.ui.unit.Dp) {
     }
 }
 
-private const val MIN_BUBBLE_DP = 44
-private const val MAX_BUBBLE_DP = 96
+internal const val MIN_BUBBLE_DP = 44
+internal const val MAX_BUBBLE_DP = 96
 
 @Composable
 internal fun ToggleRow(
@@ -555,12 +557,14 @@ internal fun ToggleRow(
     description: String,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        leading?.invoke()
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = label,

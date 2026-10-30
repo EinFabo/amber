@@ -205,6 +205,18 @@ private fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elapse
     }
 }
 
+/** The resting flame on its disc, for show only - nothing to tap, nothing moving. */
+@Composable
+fun FlameMark(modifier: Modifier = Modifier, size: Dp = 88.dp) {
+    Canvas(modifier.size(size)) {
+        val cx = this.size.width / 2
+        val cy = this.size.height / 2
+        val r = this.size.width / 2 * Fire.DISC
+        drawCircle(AmberPalette.Primary, radius = r, center = Offset(cx, cy))
+        drawFlame(Color(Fire.INK), AmberPalette.Primary, cx, cy, r)
+    }
+}
+
 /**
  * The flame glyph from [Fire.flame], its inner tongue cut back out in the disc's colour;
  * burning (flickering) while [burningMs] runs, still at 0.

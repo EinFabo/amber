@@ -212,6 +212,12 @@ Java_app_amethyst_engine_WhisperNative_load(JNIEnv *env, jobject /* this */, jst
     return reinterpret_cast<jlong>(ctx);
 }
 
+// Whether this CPU can run the library at all - asked before suggesting a Whisper engine.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_amethyst_engine_WhisperNative_cpuSupportedNative(JNIEnv * /* env */, jobject /* this */) {
+    return cpu_supported() ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_app_amethyst_engine_WhisperNative_free(JNIEnv * /* env */, jobject /* this */, jlong handle) {
     if (handle != 0) whisper_free(reinterpret_cast<whisper_context *>(handle));

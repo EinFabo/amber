@@ -22,6 +22,10 @@ import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.text.Transcript
 import app.amethyst.dictation.DictationState
+import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.engine.ParakeetState
+import app.amethyst.ui.onboarding.OnboardingContent
+import app.amethyst.ui.onboarding.OnboardingScreen
 import app.amethyst.ui.screen.AppPickerDialog
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
@@ -107,7 +111,7 @@ class StoreShots {
     fun home() = shoot("1-home", "Amber") {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
-            dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
             onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
@@ -124,7 +128,7 @@ class StoreShots {
                     "com.whatsapp",
                 ),
             ),
-            stats = stats,
+            stats = stats, download = null,
             onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
@@ -150,7 +154,7 @@ class StoreShots {
 
     @Test
     fun settingsList() = shoot("5-settings", "Settings") {
-        SettingsScreen(settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", onOpen = {})
+        SettingsScreen(settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", onOpen = {}, onReplayIntroduction = {})
     }
 
     @Test
@@ -237,7 +241,7 @@ class StoreShots {
     /** Not part of the listing set: the settings list with the whole pipeline in use. */
     @Test
     fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
-        SettingsScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1", onOpen = {})
+        SettingsScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1", onOpen = {}, onReplayIntroduction = {})
     }
 
     /** Not part of the listing set: home with a cleanup in use. */
@@ -245,11 +249,117 @@ class StoreShots {
     fun homePipeline() = shoot("x-home-pipeline", "Amber") {
         HomeScreen(
             setup = ready, actions = actions, settings = pipeline,
-            dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
             onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
         )
     }
+
+    /** Not part of the listing set: Parakeet still downloading after the introduction. */
+    @Test
+    fun homeDownloading() = shoot("x-home-downloading", "Amber") {
+        HomeScreen(
+            setup = ready, actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
+            download = app.amethyst.core.engine.ModelDownload.Running(300_000_000, 670_000_000),
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+        )
+    }
+
+    /** A fresh install: nothing granted yet. */
+    private val fresh = SetupState()
+
+    /** A Pixel-like phone: room for every engine. */
+    private fun content(
+        parakeet: ParakeetState = ParakeetState.Missing,
+        metered: Boolean = false,
+        download: app.amethyst.core.engine.ModelDownload? = null,
+    ) = OnboardingContent(
+        phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
+        metered = metered,
+        parakeet = parakeet,
+        whisper = emptyMap(),
+        waitingFor = null,
+        onChooseEngine = { _, _ -> },
+        onWaitForWifi = {},
+        onOpenRecognition = {},
+        download = download,
+        apps = FakeApps,
+        hasKeyFor = { false },
+        onSaveKey = { _, _ -> },
+        onUpdateSettings = {},
+    )
+
+    private fun onboarding(
+        name: String,
+        step: OnboardingStep,
+        setup: SetupState = fresh,
+        settings: AmethystSettings = AmethystSettings.defaults(),
+        content: OnboardingContent = content(),
+    ) = shoot("x-onboarding-$name", null) {
+        OnboardingScreen(step = step, settings = settings, setup = setup, actions = actions, content = content, onStep = {}, onFinish = {})
+    }
+
+    @Test
+    fun onboardingWelcome() = onboarding("1-welcome", OnboardingStep.WELCOME)
+
+    @Test
+    fun onboardingAccessibility() = onboarding("2-accessibility", OnboardingStep.ACCESSIBILITY)
+
+    @Test
+    fun onboardingAccessibilityDone() = onboarding("2-accessibility-done", OnboardingStep.ACCESSIBILITY, fresh.copy(accessibilityEnabled = true))
+
+    @Test
+    fun onboardingMicrophone() = onboarding("3-microphone", OnboardingStep.MICROPHONE)
+
+    @Test
+    fun onboardingEngine() = onboarding("4-engine", OnboardingStep.ENGINE, ready)
+
+    @Test
+    fun onboardingEngineDownloading() = onboarding(
+        "4-engine-downloading", OnboardingStep.ENGINE, ready,
+        settings = AmethystSettings.defaults().withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id),
+        content = content(parakeet = app.amethyst.engine.ParakeetState.Busy(300_000_000, 670_000_000)),
+    )
+
+    /** A replay by someone dictating with Groq: the step keeps it instead of forcing a download. */
+    @Test
+    fun onboardingEngineKept() = onboarding(
+        "4-engine-kept", OnboardingStep.ENGINE, ready,
+        settings = AmethystSettings.defaults().withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
+            .copy(activeEngineId = EnginePresets.GROQ.id, onboardingDone = true),
+    )
+
+    @Test
+    fun onboardingEngineMetered() = onboarding("4-engine-metered", OnboardingStep.ENGINE, ready, content = content(metered = true))
+
+    private val parakeetActive = AmethystSettings.defaults()
+        .withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id)
+
+    @Test
+    fun onboardingCleanup() = onboarding("5-cleanup", OnboardingStep.CLEANUP, ready, parakeetActive)
+
+    @Test
+    fun onboardingStyles() = onboarding(
+        "6-styles", OnboardingStep.APP_STYLES, ready,
+        parakeetActive.copy(cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash")),
+    )
+
+    @Test
+    fun onboardingBubble() = onboarding("7-bubble", OnboardingStep.BUBBLE, ready, parakeetActive)
+
+    @Test
+    fun onboardingRecording() = onboarding("8-recording", OnboardingStep.RECORDING, ready, parakeetActive)
+
+    @Test
+    fun onboardingReliability() = onboarding("9-reliability", OnboardingStep.RELIABILITY, fresh.copy(microphoneGranted = true, accessibilityEnabled = true), parakeetActive)
+
+    @Test
+    fun onboardingDone() = onboarding(
+        "10-done", OnboardingStep.DONE, ready, parakeetActive,
+        content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)),
+    )
 
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */
     @Test
@@ -278,13 +388,13 @@ class StoreShots {
         assertTrue(file.length() > 0)
     }
 
-    private fun shoot(name: String, title: String, content: @Composable () -> Unit) {
+    private fun shoot(name: String, title: String?, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
             AmberTheme {
                 AmberBackground {
                     Column(Modifier.fillMaxSize().padding(top = 28.dp)) {
-                        TopBar(title = title, showBack = title != "Amber", showSettings = title == "Amber", onBack = {}, onSettings = {})
+                        if (title != null) TopBar(title = title, showBack = title != "Amber", showSettings = title == "Amber", onBack = {}, onSettings = {})
                         content()
                     }
                 }
