@@ -45,6 +45,7 @@ import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.Hairline
 import app.amethyst.ui.ChevronRight
@@ -137,7 +138,8 @@ private fun OrbArea(
     val dictation by dictationState.collectAsStateWithLifecycle()
     val running = dictation !is DictationState.Idle &&
         dictation !is DictationState.Failed &&
-        dictation !is DictationState.Done
+        dictation !is DictationState.Done &&
+        dictation !is DictationState.Commanded
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -198,7 +200,10 @@ private fun EngineLine(settings: AmethystSettings, onOpenRecognition: () -> Unit
     }
     val cleanup = settings.cleanupSummary()
     val cleanupEngine = settings.cleanupEngine()
-    if (cleanup != null && cleanupEngine != null) {
+    // Apps with a cleanup model of their own send text where the line above may not say.
+    val ownModels = settings.profiles.filter { it.appCleanup.mode == AppCleanupMode.MODEL && settings.cleanupEngine(it.appCleanup.choice) != null }
+    val ownWeakest = ownModels.mapNotNull { settings.cleanupEngine(it.appCleanup.choice)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
+    if ((cleanup != null && cleanupEngine != null) || ownWeakest != null) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -206,8 +211,18 @@ private fun EngineLine(settings: AmethystSettings, onOpenRecognition: () -> Unit
                 .padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text("Cleanup: $cleanup", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
-            TrustBadge(cleanupEngine.trustLevelForDisplay())
+            if (cleanup != null && cleanupEngine != null) {
+                Text("Cleanup: $cleanup", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
+                TrustBadge(cleanupEngine.trustLevelForDisplay())
+            }
+            if (ownWeakest != null) {
+                Text(
+                    "Own cleanup model in ${ownModels.joinToString { it.label }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AmberPalette.Muted,
+                )
+                TrustBadge(ownWeakest)
+            }
         }
     }
 }
@@ -340,6 +355,8 @@ private fun StatusLine(
                         Hint("${current.transcript.latencyMs} ms · ${current.strategy.label()}")
                     }
                 }
+
+                is DictationState.Commanded -> Hint("Command: ${current.did}", AmberPalette.Text)
 
                 is DictationState.Failed -> {
                     Text(

@@ -29,6 +29,13 @@ import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.commands.Command
+import app.amethyst.core.commands.CommandOutcome
+import app.amethyst.core.commands.GlobalAction
+import app.amethyst.core.commands.CommandTrigger
+import app.amethyst.core.commands.RunMode
+import app.amethyst.core.commands.Understanding
+import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineTrust
@@ -111,12 +118,25 @@ class DictationController(
     /** A release that came while the proxy activity was still on its way. */
     private val stopDuringHandover = AtomicBoolean(false)
 
+    /** Counts runs, so a timer from an earlier run never acts on a later one. */
+    private var runSerial = 0
+
+    private val _mode = MutableStateFlow(RunMode.DICTATION)
+
+    /** Whether the run in progress is a dictation or a voice command; the bubble looks the part. */
+    val mode: StateFlow<RunMode> = _mode.asStateFlow()
+
     val isRunning: Boolean
         get() = job?.isActive == true
 
-    /** What the bubble does on a tap. */
-    fun toggle() {
-        if (isRunning) stop() else start()
+    /** What the bubble does on a tap. True when it started a recording rather than stopped one. */
+    fun toggle(): Boolean {
+        if (isRunning) {
+            stop()
+            return false
+        }
+        start()
+        return _state.value is DictationState.Starting
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE, holdToTalk: Boolean = false) {
@@ -128,11 +148,18 @@ class DictationController(
             return
         }
         if (source != TriggerSource.PROXY_ACTIVITY) {
+            runSerial++
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
             fellBackFrom = null
             startTarget = graph.accessibilityService?.focusedTarget()
+            _mode.value = CommandTrigger.modeAtStart(
+                source,
+                commandsOn = graph.settings.value.commands.enabled,
+                textFieldFocused = graph.accessibilityService?.editableFieldFocused == true,
+            )
+            if (_mode.value == RunMode.COMMAND) capCommand()
         }
 
         val route = MicrophoneRouter.route(
@@ -200,6 +227,35 @@ class DictationController(
         }
     }
 
+    /**
+     * The second tap of a double tap: the recording the first tap just started becomes a voice
+     * command instead of being stopped. False when there is nothing to turn - commands off, or
+     * no recording that is still listening.
+     */
+    fun commandInstead(): Boolean {
+        if (!graph.settings.value.commands.enabled || stopRequested.get()) return false
+        val state = _state.value
+        if (state !is DictationState.Starting && state !is DictationState.Listening) return false
+        if (_mode.value != RunMode.COMMAND) {
+            _mode.value = RunMode.COMMAND
+            capCommand()
+        }
+        return true
+    }
+
+    /**
+     * A command is a few words: this run's recording is stopped after
+     * [CommandTrigger.COMMAND_MAX_MS] if it is still going - never a later run's.
+     */
+    private fun capCommand() {
+        val serial = runSerial
+        scope.launch {
+            delay(CommandTrigger.COMMAND_MAX_MS.toLong())
+            val state = _state.value
+            if (runSerial == serial && (state is DictationState.Starting || state is DictationState.Listening)) stop()
+        }
+    }
+
     /** Finish the current recording and transcribe what was captured. */
     fun stop() {
         stopRequested.set(true)
@@ -247,7 +303,7 @@ class DictationController(
                     else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}")
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
-                deliver(cleanUp(transcript), settings, engineConfig.id)
+                if (_mode.value == RunMode.COMMAND) runCommand(transcript) else deliver(cleanUp(transcript), settings, engineConfig.id)
             }
 
             if (finished == null) {
@@ -306,14 +362,19 @@ class DictationController(
         _state.value = DictationState.Listening()
 
         trace?.recordingStarts()
-        val vadConfig = graph.settings.value.capture.toVadConfig().let { config ->
+        val vadConfig = graph.settings.value.capture.let { capture ->
+            // A command started as one ends when the words do, whatever the user chose for
+            // dictations. One a double tap turned into a command keeps the recording it began
+            // with: it ends on silence if dictations do, else by a tap or after the cap.
+            if (_mode.value == RunMode.COMMAND) capture.copy(autoStopOnSilence = true, maxDurationMs = CommandTrigger.COMMAND_MAX_MS) else capture
+        }.toVadConfig().let { config ->
             if (holdToTalk) config.copy(silenceTimeoutMs = Int.MAX_VALUE) else config
         }
         // Finished parts of a longer dictation are recognized while the user is still speaking,
         // so stopping leaves only the last part to wait for.
         // A child of this dictation's job: cancelling the dictation stops the chunk work too.
         val captureSettings = graph.settings.value.capture
-        val chunked = if (captureSettings.chunking && engine.capabilities.chunkable) {
+        val chunked = if (_mode.value == RunMode.DICTATION && captureSettings.chunking && engine.capabilities.chunkable) {
             ChunkedTranscription(engine, options, CoroutineScope(currentCoroutineContext()))
         } else {
             null
@@ -489,6 +550,55 @@ class DictationController(
                 transcript
             },
         )
+    }
+
+    /**
+     * A recognized command: understood by the rules, carried out by the accessibility service
+     * (which refuses while commands are off), kept in Diagnostics - never typed anywhere and
+     * not counted in the statistics.
+     */
+    private suspend fun runCommand(transcript: Transcript) {
+        // After the proxy activity, "back" would close the proxy instead of the user's screen.
+        awaitFocusReturn()
+        val heard = transcript.text.trim()
+        if (heard.isEmpty()) {
+            fail("Nothing heard - say the command again.", transcript.engineId)
+            return
+        }
+        val understanding = VoiceCommands.parse(heard)
+        val outcome = when (understanding) {
+            is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command)
+                ?: CommandOutcome.Failed("Amber's accessibility service is off.")
+            is Understanding.NotUnderstood -> CommandOutcome.Failed(
+                "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
+            )
+        }
+        graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary())
+        if (outcome !is CommandOutcome.Done) {
+            // Logged just above, with what was heard.
+            fail(outcome.message, transcript.engineId, record = false, logAs = "command not done")
+            return
+        }
+        _state.value = DictationState.Commanded(heard, outcome.message)
+        // A toast would end up in the screenshot, and on the lock screen it says nothing new.
+        val action = ((understanding as? Understanding.Understood)?.command as? Command.Navigate)?.action
+        if (action != GlobalAction.SCREENSHOT && action != GlobalAction.LOCK_SCREEN) {
+            mainHandler.post {
+                Toast.makeText(context, "\u201C${heard.take(SHOWN_CHARS)}\u201D \u2192 ${outcome.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        scope.launch {
+            delay(DONE_DISPLAY_MS)
+            if (_state.value is DictationState.Commanded) _state.value = DictationState.Idle
+        }
+    }
+
+    /** A typed command through the same path, for the debug build's adb test hook (src/debug). */
+    internal suspend fun commandForTest(text: String) {
+        _mode.value = RunMode.COMMAND
+        trace = RunTrace("TEST/COMMAND")
+        runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
+        _mode.value = RunMode.DICTATION
     }
 
     /**
@@ -681,9 +791,12 @@ class DictationController(
         // For the toast and logcat when the message quotes the dictated text: the toast is
         // drawn over whatever app is open, and the words stay private to Amber's own screen.
         brief: String = message,
+        record: Boolean = true,
+        // Logcat never gets a heard command's words, which the message may quote.
+        logAs: String = brief,
     ) {
-        Log.w(TAG, "dictation failed: $brief")
-        graph.dictationLog.recordFailure(message, engineId, trace?.summary())
+        Log.w(TAG, "dictation failed: $logAs")
+        if (record) graph.dictationLog.recordFailure(message, engineId, trace?.summary(), command = _mode.value == RunMode.COMMAND)
         _state.value = DictationState.Failed(message, remedy)
 
         // While dictating into another app the bubble is the only visible surface, and a red
@@ -723,5 +836,8 @@ class DictationController(
         const val PROXY_EXIT_TIMEOUT_MS = 1_500L
         const val PROXY_POLL_MS = 50L
         const val FOCUS_SETTLE_MS = 200L
+
+        /** How much of a heard command a toast or message quotes. */
+        const val SHOWN_CHARS = 60
     }
 }

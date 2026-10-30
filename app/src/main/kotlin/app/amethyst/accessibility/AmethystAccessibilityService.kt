@@ -21,6 +21,8 @@ import app.amethyst.bubble.BubbleController
 import app.amethyst.ui.MainActivity
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.TextFieldKind
+import app.amethyst.core.commands.RunMode
+import app.amethyst.dictation.DictationState
 import app.amethyst.core.insert.InputTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +56,10 @@ class AmethystAccessibilityService : AccessibilityService() {
     lateinit var textInserter: TextInserter
         private set
 
+    /** Carries out voice commands; refuses everything while they are switched off. */
+    lateinit var commands: CommandExecutor
+        private set
+
     private var bubble: BubbleController? = null
 
     private var keyboard: KeyboardTracker? = null
@@ -60,6 +67,14 @@ class AmethystAccessibilityService : AccessibilityService() {
     /** Package of the app currently in front, for logs and per-app behaviour. */
     @Volatile
     var foregroundPackage: String? = null
+        private set
+
+    /**
+     * The app the user is in: like [foregroundPackage], but never the keyboard, the system bars
+     * or one of Amber's overlays. A voice command checks with it that an app it opened came up.
+     */
+    @Volatile
+    var appInFront: String? = null
         private set
 
     /** A field that takes dictation has focus - not a password, PIN or number field. */
@@ -75,12 +90,14 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         graph = AmethystApp.graph(this)
         textInserter = TextInserter(this, graph.strategyStore)
+        commands = CommandExecutor(this, graph)
 
         // Attaching is left to the settings collector below, so the bubble switch is the
         // single place that decides whether the overlay exists.
         bubble = BubbleController(
             service = this,
             onTap = { graph.dictation.toggle() },
+            onDoubleTap = { graph.dictation.commandInstead() },
             onHoldStart = {
                 if (graph.dictation.isRunning) {
                     false
@@ -120,12 +137,17 @@ class AmethystAccessibilityService : AccessibilityService() {
             graph.dictation.state.collect { state -> bubble?.render(state) }
         }
         scope.launch {
+            combine(graph.dictation.state, graph.dictation.mode) { state, mode ->
+                mode == RunMode.COMMAND && state != DictationState.Idle
+            }.collect { command -> bubble?.setCommand(command) }
+        }
+        scope.launch {
             graph.settings.collectLatest { settings ->
                 val controller = bubble ?: return@collectLatest
                 if (settings.bubble.enabled) {
                     // Settings first: attach() builds the window from them, so applying
                     // afterwards would create it at the default position every time.
-                    controller.applySettings(settings.bubble)
+                    controller.applySettings(settings.bubble, commands = settings.commands.enabled)
                     controller.attach()
                 } else {
                     controller.detach()
@@ -152,7 +174,10 @@ class AmethystAccessibilityService : AccessibilityService() {
                     // switched off drag-to-hide for the next drag and let the bubble back into
                     // hidden apps. Only Amber's main screen counts.
                     val ownOverlay = pkg == packageName && event.className?.toString() != MainActivity::class.java.name
-                    if (pkg != SYSTEM_UI && !isKeyboard(pkg) && !ownOverlay) bubble?.setCurrentApp(pkg)
+                    if (pkg != SYSTEM_UI && !isKeyboard(pkg) && !ownOverlay) {
+                        appInFront = pkg
+                        bubble?.setCurrentApp(pkg)
+                    }
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
                 // went away, so look at what has input focus now.
@@ -186,6 +211,14 @@ class AmethystAccessibilityService : AccessibilityService() {
      * can be Amber itself (its test field), else the last app in front.
      */
     fun targetPackage(): String? = focusedInputPackage() ?: foregroundPackage
+
+    /** Where the bubble is while it shows; a voice command's gesture keeps clear of it. */
+    fun bubbleFrame(): Box? = bubble?.frame()
+
+    /** Out of sight for a screenshot taken by voice, and back. Main thread. */
+    fun hideBubbleForCapture(hidden: Boolean) {
+        bubble?.setHiddenForCapture(hidden)
+    }
 
     /** The package of the node with input focus, if any - the most certain target there is. */
     fun focusedInputPackage(): String? =

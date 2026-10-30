@@ -48,7 +48,9 @@ object CleanupRouting {
         val choice = decision.choice ?: return decision
         if (choice.engineId == fellBackFrom) {
             val engine = settings.engines.firstOrNull { it.id == fellBackFrom }?.displayName ?: fellBackFrom
-            return Decision(null, "cleanup skipped: $engine did not answer")
+            // An app's own model on that server: the default on another one may well answer.
+            val instead = default(settings, hasKey).choice?.takeIf { own?.mode == AppCleanupMode.MODEL && it.engineId != fellBackFrom }
+            return Decision(instead, "cleanup skipped: $engine did not answer" + if (instead != null) " - the default is used" else "")
         }
         return decision
     }

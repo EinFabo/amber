@@ -74,6 +74,7 @@ import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.DiagnosticsCard
 import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.core.stats.StatsSummary
@@ -227,6 +228,7 @@ private fun Screen.title(): String = when (this) {
         SettingsPage.INSERTING -> "Inserting"
         SettingsPage.APP_STYLES -> "App styles"
         SettingsPage.BUBBLE -> "Bubble"
+        SettingsPage.COMMANDS -> "Voice commands"
         SettingsPage.STATS -> "Statistics"
         SettingsPage.RELIABILITY -> "Reliability"
         SettingsPage.DIAGNOSTICS -> "Diagnostics"
@@ -462,6 +464,7 @@ private fun AmethystScreens(
                             apps = apps,
                             usage = appUsage,
                         )
+                        SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
                         SettingsPage.STATS -> StatsScreen(
                             settings = settings,
                             stats = stats,

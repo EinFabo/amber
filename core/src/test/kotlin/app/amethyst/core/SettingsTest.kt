@@ -221,6 +221,13 @@ class CaptureTimeoutTest {
     }
 
     @Test
+    fun `voice commands start switched off, for old settings too`() {
+        assertFalse(AmethystSettings.defaults().commands.enabled)
+        val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":9}"""
+        assertFalse(SettingsCodec.decode(old).commands.enabled)
+    }
+
+    @Test
     fun `a tinfoil engine refuses any address but its enclave`() {
         val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
         assertTrue(tinfoil.requireEnclave)

@@ -13,6 +13,8 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
 import app.amethyst.core.bubble.BubblePlacement
+import app.amethyst.core.bubble.BubbleVisibility
+import app.amethyst.core.commands.CommandTrigger
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
@@ -27,7 +29,10 @@ import kotlin.math.roundToInt
  */
 class BubbleController(
     private val service: AccessibilityService,
-    private val onTap: () -> Unit,
+    /** Returns whether the tap started a recording (not stopped one) - for the double tap. */
+    private val onTap: () -> Boolean,
+    /** A second tap right after a tap that started recording; false when it made no command. */
+    private val onDoubleTap: () -> Boolean,
     /** Press and hold: start dictating. Returns false when nothing was started. */
     private val onHoldStart: () -> Boolean,
     /** Finger lifted after a hold that started a dictation. */
@@ -60,6 +65,7 @@ class BubbleController(
     private var sparkParams: WindowManager.LayoutParams? = null
     private val sparkAfterAppear = Runnable { sparkView.spark() }
     private var settings = BubbleSettings()
+    private var commandsOn = false
     private var hapticsEnabled = true
 
     private var textFieldFocused = false
@@ -216,8 +222,9 @@ class BubbleController(
      * Safe to call before [attach]: the settings are stored either way, so a later attach
      * builds the window from them instead of from defaults.
      */
-    fun applySettings(bubbleSettings: BubbleSettings) {
+    fun applySettings(bubbleSettings: BubbleSettings, commands: Boolean) {
         settings = bubbleSettings
+        commandsOn = commands
         hapticsEnabled = bubbleSettings.haptics
         view.restingOpacity = bubbleSettings.restingOpacity
         if (shown) view.settleAlpha()
@@ -305,12 +312,23 @@ class BubbleController(
         applyVisibility(immediate = false)
     }
 
-    private fun wantsVisible(): Boolean {
-        // A running dictation keeps its bubble, wherever it is.
-        if (dictating) return true
-        if (currentApp != null && currentApp in settings.hiddenIn) return false
-        return !settings.onlyWithTextField || textFieldFocused
+    private fun wantsVisible(): Boolean =
+        BubbleVisibility.wanted(dictating, currentApp, settings, textFieldFocused, commandsOn)
+
+    /** The run in progress is a voice command; see [BubbleView.command]. */
+    fun setCommand(on: Boolean) {
+        view.command = on
     }
+
+    /** Invisible at once, sparks included, without the vanish animation - for a screenshot. */
+    fun setHiddenForCapture(hidden: Boolean) {
+        val visibility = if (hidden) View.INVISIBLE else View.VISIBLE
+        view.visibility = visibility
+        sparkView.visibility = visibility
+    }
+
+    /** Where the bubble is on screen while it shows - a dispatched gesture keeps clear of it. */
+    fun frame(): Box? = params?.takeIf { shown }?.let { Box(it.x, it.y, it.x + it.width, it.y + it.height) }
 
     /**
      * Showing is immediate; hiding waits a moment. Moving from one field to the next reports
@@ -359,6 +377,7 @@ class BubbleController(
             is DictationState.Listening -> BubbleVisual.LISTENING
             is DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
             is DictationState.Done -> BubbleVisual.DONE
+            is DictationState.Commanded -> BubbleVisual.DONE
             is DictationState.Failed -> BubbleVisual.FAILED
         }
         // Fully there while it works, back to the chosen opacity at rest.
@@ -371,7 +390,7 @@ class BubbleController(
         sparkView.listening = state is DictationState.Listening
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
-            is DictationState.Done -> haptic(confirmConstant())
+            is DictationState.Done, is DictationState.Commanded -> haptic(confirmConstant())
             is DictationState.Failed -> haptic(rejectConstant())
             else -> Unit
         }
@@ -393,6 +412,11 @@ class BubbleController(
         private var startY = 0
         private var dragging = false
         private var holding = false
+
+        /** The last tap's lift, and whether that tap started a recording - for the double tap. */
+        private var lastTapUpAt: Long? = null
+        private var lastTapStarted = false
+        private var secondTap = false
 
         /** This drag may end on the hide target: idle, and an app other than Amber in front. */
         private var mayHide = false
@@ -417,6 +441,7 @@ class BubbleController(
                     startY = layoutParams.y
                     dragging = false
                     holding = false
+                    secondTap = CommandTrigger.isDoubleTap(lastTapUpAt, lastTapStarted, event.eventTime, commandsOn)
                     v.postDelayed(holdStarted, HOLD_MS)
                     return true
                 }
@@ -484,7 +509,12 @@ class BubbleController(
                     overTarget = false
                     if (tapped) {
                         haptic(HapticFeedbackConstants.CONTEXT_CLICK)
-                        onTap()
+                        // The recording the first tap started becomes a command instead of stopping.
+                        val wasDoubleTap = secondTap && onDoubleTap()
+                        lastTapStarted = !wasDoubleTap && onTap()
+                        lastTapUpAt = if (wasDoubleTap) null else event.eventTime
+                    } else {
+                        lastTapUpAt = null
                     }
                     holding = false
                     dragging = false

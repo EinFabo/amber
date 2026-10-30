@@ -185,6 +185,7 @@ data class AmethystSettings(
     val fallback: FallbackSettings = FallbackSettings(),
     /** Whether the introduction ran; a fresh install starts without, see [SettingsCodec.migrate]. */
     val onboardingDone: Boolean = false,
+    val commands: CommandSettings = CommandSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -297,6 +298,13 @@ private fun migrateProfile(profile: AppProfile): AppProfile = profile.copy(
  */
 @Serializable
 data class CleanupChoice(val engineId: String, val model: String)
+
+/**
+ * Voice commands from the bubble ("open WhatsApp", "go back"). Off unless the user switches them
+ * on and agrees to what they do: while off, Amber never acts for the user.
+ */
+@Serializable
+data class CommandSettings(val enabled: Boolean = false)
 
 @Serializable
 enum class FallbackMode {

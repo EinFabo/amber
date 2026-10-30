@@ -1,8 +1,9 @@
 package app.amethyst.ui
 
 import android.content.Context
-import android.content.Intent
 import android.util.LruCache
+import app.amethyst.apps.InstalledApp
+import app.amethyst.apps.Launcher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,9 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-/** An app the user can pick: what the launcher shows. */
-data class InstalledApp(val packageName: String, val label: String)
 
 /** The installed apps with their names and icons, for picking one and for showing picked ones. */
 interface AppSource {
@@ -48,11 +46,7 @@ class AndroidAppSource(context: Context) : AppSource {
     private var loaded: List<InstalledApp>? = null
 
     override suspend fun all(): List<InstalledApp> = loaded ?: withContext(Dispatchers.IO) {
-        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        packages.queryIntentActivities(launcher, 0)
-            .map { InstalledApp(it.activityInfo.packageName, it.loadLabel(packages).toString()) }
-            .filter { it.packageName != context.packageName }
-            .distinctBy { it.packageName }
+        Launcher.apps(context)
     }.also { loaded = it }
 
     override fun label(packageName: String): String = runCatching {

@@ -1,5 +1,6 @@
 package app.amethyst.ui
 
+import app.amethyst.apps.InstalledApp
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
@@ -246,6 +247,15 @@ class StoreShots {
         app.amethyst.ui.screen.AppStyleScreen(
             profile = keep, settings = withKeep, apps = FakeApps, hasKeyFor = { true },
             onUpdateSettings = {}, onRemoved = {},
+        )
+    }
+
+    /** Not part of the listing set: the voice commands page, switched on. */
+    @Test
+    fun voiceCommands() = shoot("x-voice-commands", "Voice commands") {
+        app.amethyst.ui.screen.VoiceCommandsScreen(
+            settings = settings.copy(commands = app.amethyst.core.settings.CommandSettings(enabled = true)),
+            onUpdateSettings = {},
         )
     }
 

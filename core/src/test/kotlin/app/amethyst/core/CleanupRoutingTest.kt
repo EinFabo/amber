@@ -105,6 +105,13 @@ class CleanupRoutingTest {
     }
 
     @Test
+    fun `an own model on the server that just failed hands over to the default on another`() {
+        val decision = decide(settings(onGroq, app(AppCleanupMode.MODEL, gemma)), fellBackFrom = tinfoil.id)
+        assertEquals(onGroq, decision.choice)
+        assertNotNull(decision.note)
+    }
+
+    @Test
     fun `another server still cleans up after a fallback`() {
         assertEquals(CleanupRouting.Decision(onGroq), decide(settings(onGroq), fellBackFrom = tinfoil.id))
     }

@@ -36,7 +36,7 @@ import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
-import app.amethyst.ui.InstalledApp
+import app.amethyst.apps.InstalledApp
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard

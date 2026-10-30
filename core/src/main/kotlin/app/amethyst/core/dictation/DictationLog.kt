@@ -1,5 +1,6 @@
 package app.amethyst.core.dictation
 
+import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
@@ -60,7 +61,7 @@ class DictationLog(
         ),
     )
 
-    fun recordFailure(message: String, engineId: String? = null, timing: String? = null) = add(
+    fun recordFailure(message: String, engineId: String? = null, timing: String? = null, command: Boolean = false) = add(
         DictationRecord(
             text = "",
             engineId = engineId,
@@ -72,6 +73,25 @@ class DictationLog(
             error = message,
             atMillis = clock(),
             timing = timing,
+            command = command,
+        ),
+    )
+
+    /** A voice command: what was heard and what came of it. Nothing was inserted anywhere. */
+    fun recordCommand(heard: String, outcome: CommandOutcome, engineId: String?, timing: String? = null) = add(
+        DictationRecord(
+            text = heard,
+            engineId = engineId,
+            trustLevel = null,
+            latencyMs = null,
+            strategy = null,
+            inserted = false,
+            targetPackage = null,
+            error = outcome.message.takeUnless { outcome is CommandOutcome.Done },
+            atMillis = clock(),
+            note = outcome.message,
+            timing = timing,
+            command = true,
         ),
     )
 
@@ -100,11 +120,14 @@ data class DictationRecord(
     val atMillis: Long,
     val note: String? = null,
     val timing: String? = null,
+    /** A voice command, not a dictation: [text] is what was heard, [note] what came of it. */
+    val command: Boolean = false,
 ) {
     val failed: Boolean get() = error != null
 
     /** One line for the diagnostics card. User-facing. */
     fun summary(): String = when {
+        command -> "Command" + (engineId?.let { " · $it" } ?: "") + " · " + (note ?: error ?: "")
         error != null -> "Error: $error"
         !inserted -> "Recognized but not inserted (${strategy?.name ?: "no method"})" +
             (note?.let { " – $it" } ?: "")

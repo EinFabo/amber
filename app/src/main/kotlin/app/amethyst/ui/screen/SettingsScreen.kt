@@ -62,7 +62,7 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /** Where a settings row leads. */
-enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, STATS, RELIABILITY, DIAGNOSTICS }
+enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS }
 
 /**
  * Hearth's settings: three short groups - how speech becomes text, how it lands in the apps,
@@ -123,6 +123,14 @@ fun SettingsScreen(
                 "hidden in ${settings.bubble.hiddenIn.size} ${if (settings.bubble.hiddenIn.size == 1) "app" else "apps"}".takeIf { settings.bubble.hiddenIn.isNotEmpty() },
             ).joinToString(" · "),
         ) { onOpen(SettingsPage.BUBBLE) }
+        NavRow(
+            "Voice commands",
+            when {
+                !settings.commands.enabled -> "Off"
+                !settings.bubble.enabled -> "On - but the bubble is off"
+                else -> "On · double-tap the bubble"
+            },
+        ) { onOpen(SettingsPage.COMMANDS) }
 
         SettingsGroup("Amber")
         NavRow("Statistics", if (settings.stats.keep) "Kept on this phone" else "Off") { onOpen(SettingsPage.STATS) }
@@ -345,7 +353,8 @@ fun BubbleScreen(
             ToggleRow(
                 label = "Only with a text field",
                 description = "The bubble appears as soon as you tap into an input field, " +
-                    "and disappears again afterwards.",
+                    "and disappears again afterwards." +
+                    if (settings.commands.enabled) " While voice commands are on, it shows in every app." else "",
                 checked = settings.bubble.onlyWithTextField,
                 onChange = { value ->
                     onUpdateSettings {

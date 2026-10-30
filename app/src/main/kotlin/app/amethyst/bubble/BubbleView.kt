@@ -46,6 +46,18 @@ class BubbleView(context: Context) : View(context) {
             }
         }
 
+    /**
+     * A voice command is being taken: the disc turns dark with an amber rim and glyph, so a
+     * command never looks like a dictation about to type somewhere.
+     */
+    var command: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     /** 0f..1f from the recorder; smoothed per frame before it is drawn. */
     var amplitude: Float = 0f
         set(value) {
@@ -108,8 +120,15 @@ class BubbleView(context: Context) : View(context) {
         val still = !ValueAnimator.areAnimatorsEnabled()
         val r = discRadius
 
-        disc.color = if (visual == BubbleVisual.FAILED) Fire.ERROR else Fire.AMBER
+        val inverted = command && visual != BubbleVisual.FAILED
+        disc.color = when {
+            visual == BubbleVisual.FAILED -> Fire.ERROR
+            inverted -> Fire.INK
+            else -> Fire.AMBER
+        }
+        glyph.color = if (inverted) Fire.AMBER else Fire.INK
         canvas.drawCircle(cx, cy, r, disc)
+        if (inverted) canvas.drawCircle(cx, cy, r, fuse.apply { alpha = 255 })
 
         when (visual) {
             BubbleVisual.TRANSCRIBING -> {

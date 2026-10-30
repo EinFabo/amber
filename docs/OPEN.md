@@ -205,9 +205,28 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       own (also with the cleanup for every app off), each app on its own page. Design:
       [`docs/plans/2026-10-30-per-app-cleanup-design.md`](plans/2026-10-30-per-app-cleanup-design.md).
       **Open: the device test** listed there.
-- [ ] 9. Voice commands from the bubble ("open WhatsApp", "swipe left") through the
-      accessibility service, switchable, local or Tinfoil only - research and design first,
-      same task prompt.
+- [x] 9. Voice commands from the bubble ("open WhatsApp", "swipe left") through the
+      accessibility service. Built in 0.20.0: double-tap (or one tap without a text field),
+      navigation, opening apps, scrolling and swiping, understood by rules on the phone, off
+      until switched on with its own consent. Research:
+      [`docs/voice-commands-research.md`](voice-commands-research.md), design:
+      [`docs/plans/2026-10-30-voice-commands-design.md`](plans/2026-10-30-voice-commands-design.md).
+      **Open: the device test** - the update keeps the service on with the gesture capability
+      (`adb shell dumpsys accessibility`), each command through the debug hook
+      (`am broadcast -a app.amber.debug.COMMAND -n app.amber.debug/app.amethyst.debug.CommandTestReceiver --es text 'offne whatsapp'`),
+      by voice from the launcher and from a chat field, a swipe with the bubble mid-screen,
+      refused while locked, no heard words in logcat.
+- [ ] Review leftovers of 0.19/0.20 (small, none urgent): cleanup readiness is checked twice
+      (router and factory, one extra key decrypt per dictation) and a factory refusal gets no
+      default; when an app's own model and the default both fail, the note drops the default's
+      reason; an app page's Default row says "Off" when the cleanup engine was removed, and its
+      readiness goes stale when only a key changes; picking an app stores its profile at once;
+      the schema 9 migration clears the old `cleanup=false`, so a downgrade to 0.18 loses "Off";
+      profile removal is written out in three places (`AppProfiles.remove`); "open <app>" reads
+      the launcher list each time; the node walk exists twice (TextInserter, CommandExecutor); a
+      command a double tap turned into one keeps the recording's silence setting.
+- [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
+      text - its own consent, prompt-injection rules), a model for free phrasing.
 
 ## F-Droid release (Fabi, 2026-10-29)
 

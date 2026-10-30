@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.privacy.TrustLevel
@@ -91,6 +92,37 @@ class DictationLogTest {
         val record = log.last!!
         assertTrue(!record.failed, "a clipboard fallback is not an engine failure")
         assertContains(record.summary(), "not inserted")
+    }
+
+    @Test
+    fun `a command is kept with what was heard and what happened`() {
+        val log = log()
+        log.recordCommand("öffne WhatsApp", CommandOutcome.Done("Opened WhatsApp"), engineId = "parakeet")
+
+        val record = log.last!!
+        assertTrue(record.command)
+        assertTrue(!record.failed)
+        assertEquals("öffne WhatsApp", record.text)
+        assertContains(record.summary(), "Command")
+        assertContains(record.summary(), "Opened WhatsApp")
+    }
+
+    @Test
+    fun `a command that could not be done counts as failed`() {
+        val log = log()
+        log.recordCommand("öffne Kalender", CommandOutcome.Failed("No app called “kalender”."), engineId = "parakeet")
+
+        val record = log.last!!
+        assertTrue(record.failed)
+        assertContains(record.summary(), "No app called")
+    }
+
+    @Test
+    fun `a recording for a command that failed says it was one`() {
+        val log = log()
+        log.recordFailure("Nothing heard", command = true)
+        assertTrue(log.last!!.command)
+        assertContains(log.last!!.summary(), "Command")
     }
 
     @Test

@@ -25,6 +25,9 @@ sealed interface DictationState {
         val insertedIntoApp: String?,
     ) : DictationState
 
+    /** A voice command was carried out: [heard] as recognized, [did] what came of it. */
+    data class Commanded(val heard: String, val did: String) : DictationState
+
     data class Failed(
         val message: String,
         val remedy: SttFailure.Remedy? = null,

@@ -8,6 +8,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,10 @@ import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import kotlinx.coroutines.delay
+
+/** Typing pauses this long before the instruction is saved. */
+private const val INSTRUCTION_SAVE_MS = 600L
 
 /**
  * One app's page: how the text reads there (style, own instruction) and who tidies it - the
@@ -122,7 +127,13 @@ fun AppStyleScreen(
         }, color = AmberPalette.Error)
     }
 
-    // Typed an instruction and went back: keep it, as the engine page does.
+    // Saved a moment after typing stops: Home and a dictation right away, or a rotation, must
+    // not leave the old instruction in use.
+    LaunchedEffect(instruction) {
+        delay(INSTRUCTION_SAVE_MS)
+        persistInstruction()
+    }
+    // Typed an instruction and went back at once: keep it, as the engine page does.
     val latestPersist by rememberUpdatedState(::persistInstruction)
     DisposableEffect(profile.packageName) {
         onDispose { latestPersist() }
