@@ -46,6 +46,8 @@ class AmethystApp : Application() {
         super.onCreate()
         graph = Graph(this)
         app.amethyst.engine.AndroidOnDeviceEngine.detectOnDeviceSpeech(this)
+        // A recording a dying process left in the Opus scratch file goes; file I/O, so not here.
+        graph.appScope.launch(Dispatchers.IO) { graph.opusEncoder.clearLeftovers() }
     }
 
     /**
@@ -126,11 +128,14 @@ class Graph(app: Application) {
     /** One HTTP client for the engines and the model lists, so they share connections. */
     val httpTransport: HttpTransport by lazy { OkHttpTransport() }
 
+    /** Compresses recordings for Amber servers that take Ogg Opus. */
+    val opusEncoder = OpusEncoder(app)
+
     // Lazy too, so that merely building the graph does not force the secret store open.
     val engineFactory: EngineFactory by lazy {
         EngineFactory(
             app, httpTransport, secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime,
-            encoder = OpusEncoder(app),
+            encoder = opusEncoder,
             settings = { settings.value },
             compressionRefused = { engineId, baseUrl -> amberCatalogs.compressionRefused(engineId, baseUrl) },
         )

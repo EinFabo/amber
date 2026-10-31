@@ -17,11 +17,12 @@ import java.io.File
 /**
  * Ogg Opus for an Amber server that takes it: Android's own Opus encoder (MediaCodec) and Ogg
  * muxer (MediaMuxer), both there from Android 10. Mono, 24 kbit/s, the encoder's 20 ms frames -
- * about a tenth of the WAV, and whisper hears no difference.
+ * about a seventh to a tenth of the WAV with the Ogg framing, and whisper hears no difference.
  *
- * Null whenever it cannot - Android 9, the main thread, an encoder that fails - and the WAV
- * goes up as always. MediaMuxer writes only to a file: the recording is in the app's own cache
- * for the milliseconds encoding takes, and deleted right after, failed or not.
+ * Null whenever it cannot - Android 9, the main thread, an encoder that fails, output that is
+ * not Ogg Opus - and the WAV goes up as always. MediaMuxer writes only to a file: the recording
+ * is in the app's own cache for the milliseconds encoding takes, and deleted right after,
+ * failed or not; a file a dying process left behind goes at the next start ([clearLeftovers]).
  */
 class OpusEncoder(private val context: Context) : AudioEncoder {
 
@@ -43,10 +44,16 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
         }
     }
 
+    /** Deletes what a process that died mid-encode left behind. Blocking: not on the main thread. */
+    fun clearLeftovers() {
+        synchronized(lock) { scratchDir().listFiles()?.forEach { it.delete() } }
+    }
+
+    private fun scratchDir() = File(context.cacheDir, SCRATCH_DIR)
+
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun encodeOgg(audio: PcmAudio): ByteArray? {
-        val dir = File(context.cacheDir, SCRATCH_DIR).apply { mkdirs() }
-        // A process that died mid-encode left its file behind.
+        val dir = scratchDir().apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, "upload.ogg")
         val pcm = littleEndian(audio.samples)
@@ -116,13 +123,17 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
             output.stop()
             output.release()
             muxer = null
-            val bytes = file.readBytes()
-            return bytes.takeIf { it.size > OGG_MAGIC.length && it.decodeToString(0, OGG_MAGIC.length) == OGG_MAGIC }
+            // What the server was promised: an Ogg page that opens with the Opus header.
+            return file.readBytes().takeIf(EncodedAudio::isOggOpus)
         } finally {
             runCatching { codec.stop() }
             runCatching { codec.release() }
-            // Never started (or stop failed): release alone, as stop would throw.
-            muxer?.let { runCatching { it.release() } }
+            // Left early (deadline, a failure): a started muxer is stopped first, and released
+            // either way - stop throws if it never started, which changes nothing here.
+            muxer?.let {
+                runCatching { it.stop() }
+                runCatching { it.release() }
+            }
             file.delete()
         }
     }
@@ -140,7 +151,10 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
     private companion object {
         const val TAG = "Amber"
 
-        /** Amber's phone API recommends 24 kbit/s: a tenth of 16 kHz WAV, plenty for speech. */
+        /**
+         * Amber's phone API recommends 24 kbit/s: under a tenth of 16 kHz WAV (256 kbit/s)
+         * before the Ogg framing, and plenty for speech.
+         */
         const val BIT_RATE = 24_000
 
         /** The input rates Android's Opus encoder takes; capture records 16 kHz. */
@@ -152,8 +166,5 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
         const val TIMEOUT_MS = 5_000L
 
         const val SCRATCH_DIR = "opus-upload"
-
-        /** Every Ogg page starts with it; anything else is not what the server was promised. */
-        const val OGG_MAGIC = "OggS"
     }
 }

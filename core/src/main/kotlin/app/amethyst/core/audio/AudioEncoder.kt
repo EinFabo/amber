@@ -20,5 +20,23 @@ class EncodedAudio(val bytes: ByteArray, val fileName: String, val mimeType: Str
          * "Compressed uploads"). The server sniffs the first bytes and resamples by itself.
          */
         fun oggOpus(bytes: ByteArray) = EncodedAudio(bytes, "dictation.ogg", "audio/ogg")
+
+        /**
+         * Whether [bytes] open as an Ogg Opus file must: an Ogg page ("OggS") whose first packet
+         * is the Opus identification header ("OpusHead"). The packet follows the page's 27-byte
+         * header and its lacing values - one for Android's encoder, so it starts at byte 28.
+         */
+        fun isOggOpus(bytes: ByteArray): Boolean {
+            if (bytes.size < OGG_PAGE_HEADER || !bytes.hasAt(0, OGG_MAGIC)) return false
+            val lacing = bytes[OGG_PAGE_HEADER - 1].toInt() and 0xFF
+            return bytes.hasAt(OGG_PAGE_HEADER + lacing, OPUS_HEAD)
+        }
+
+        private const val OGG_PAGE_HEADER = 27
+        private const val OGG_MAGIC = "OggS"
+        private const val OPUS_HEAD = "OpusHead"
+
+        private fun ByteArray.hasAt(offset: Int, ascii: String): Boolean =
+            offset + ascii.length <= size && ascii.indices.all { this[offset + it] == ascii[it].code.toByte() }
     }
 }

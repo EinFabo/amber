@@ -579,8 +579,9 @@ marked open:
       off, implausible bounds rechecked only briefly.
 - [ ] Low, open: verifier should check config_repo and the fingerprint format. Secrets fall
       back to plain storage silently. Parakeet not abortable. WAV uploads to Groq, OpenAI and
-      Tinfoil (FLAC/Opus would halve them; Amber servers that list Opus get it already). Supply-chain pin gaps (tinfoil-go tarball hash, AAR hashes at build time,
-      Gradle wrapper checksum, CI actions by SHA).
+      Tinfoil (FLAC/Opus would halve them; Amber servers that list Opus get it already).
+      Supply-chain pin gaps (tinfoil-go tarball hash, AAR hashes at build time, Gradle wrapper
+      checksum, CI actions by SHA).
 
 ## Second code review (2026-10-28, of 6c3dac3) - fixed in 0.13.2
 

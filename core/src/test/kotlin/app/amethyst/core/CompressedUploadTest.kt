@@ -21,6 +21,8 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.StoredCatalog
 import kotlinx.coroutines.test.runTest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -251,6 +253,52 @@ class CompressedUploadTest {
         assertEquals(400, assertIs<SttFailure>(result.exceptionOrNull()).statusCode)
         assertEquals(1, transport.requests.size)
         assertEquals(0, refusals)
+    }
+
+    @Test
+    fun `a refusal is passed on once, however many requests meet it at the same time`() {
+        repeat(200) { round ->
+            val calls = AtomicInteger()
+            val upload = CompressedUpload(AudioEncoder { null }) {
+                calls.incrementAndGet()
+                // Holds the first caller inside, so a late check-then-set would let a second one in.
+                Thread.sleep(1)
+            }
+            val start = CountDownLatch(1)
+            val threads = List(8) { Thread { start.await(); upload.refused() }.apply { start() } }
+            start.countDown()
+            threads.forEach { it.join() }
+            assertEquals(1, calls.get(), "round $round")
+        }
+    }
+
+    // --- what the encoder hands back ---
+
+    /** The first page of an Ogg Opus file: page header, one lacing value, the identification header. */
+    private fun oggPage(packet: String, lacing: List<Int> = listOf(19)): ByteArray {
+        val header = ByteArray(27)
+        "OggS".encodeToByteArray().copyInto(header)
+        header[5] = 2 // beginning of stream
+        header[26] = lacing.size.toByte()
+        return header + ByteArray(lacing.size) { lacing[it].toByte() } + packet.encodeToByteArray() + ByteArray(11)
+    }
+
+    @Test
+    fun `an ogg page that opens with the opus identification header is ogg opus`() {
+        assertTrue(EncodedAudio.isOggOpus(oggPage("OpusHead")))
+        // Where the packet starts follows from the page's own lacing values.
+        assertTrue(EncodedAudio.isOggOpus(oggPage("OpusHead", lacing = listOf(255, 19))))
+    }
+
+    @Test
+    fun `anything else is not what the server was promised`() {
+        assertFalse(EncodedAudio.isOggOpus(ByteArray(0)))
+        assertFalse(EncodedAudio.isOggOpus("OggS".encodeToByteArray()), "a page header cut short")
+        assertFalse(EncodedAudio.isOggOpus(oggPage("\u0001vorbis")), "Ogg, but Vorbis")
+        assertFalse(EncodedAudio.isOggOpus(oggPage("OpusHead").copyOf(32)), "the header cut short")
+        assertFalse(EncodedAudio.isOggOpus(oggPage("OpusHead", lacing = List(40) { 255 }).copyOf(60)), "lacing past the end")
+        assertFalse(EncodedAudio.isOggOpus(audio.toWav()))
+        assertFalse(EncodedAudio.isOggOpus(ogg), "OggS alone is not enough")
     }
 
     @Test

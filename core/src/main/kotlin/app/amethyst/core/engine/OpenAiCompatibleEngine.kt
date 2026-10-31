@@ -51,8 +51,11 @@ class OpenAiCompatibleEngine(
     private val attestationVerifier: AttestationVerifier? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val compressedUpload: CompressedUpload? = null,
-    /** Where the recording is compressed: off the caller's thread, which may be the main one. */
-    private val encodeContext: CoroutineContext = Dispatchers.Default,
+    /**
+     * Where the recording is compressed: off the caller's thread, which may be the main one.
+     * The encoder blocks - codec waits and a scratch file, up to seconds - so the IO pool.
+     */
+    private val encodeContext: CoroutineContext = Dispatchers.IO,
 ) : SttEngine {
 
     private val channel = SecureChannel(baseUrl, displayName, transport, attestationVerifier, capabilities.trustLevel)
@@ -109,7 +112,9 @@ class OpenAiCompatibleEngine(
 
         var sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
         // A server that announced more than it takes: the same request once more as WAV, and
-        // WAV from then on, until its list is fetched again.
+        // WAV from then on, until its list is fetched again. A 400 that was really about the
+        // prompt counts as a refusal too - Opus stays off until the next fetch, which costs a
+        // bigger upload, never a dictation.
         if (compressed != null && sent.response.code == COMPRESSION_REFUSED) {
             compressed = null
             compressedUpload?.refused()

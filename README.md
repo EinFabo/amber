@@ -112,8 +112,8 @@ Known providers get pickers; an own server gets free fields, and `http://` works
 addresses in your own network only. An own server that is an Amber PC or Amber Server lists
 its models itself (`GET /v1/models` with an `amber` object), and gets pickers too; the list is
 kept on the phone, so it also works offline. When the list says it takes Ogg Opus
-(`amber.audio`), recordings go up compressed - about a tenth of the WAV, encoded on the phone
-with Android's own codec from Android 10 - and as WAV wherever that fails.
+(`amber.audio`), recordings go up compressed - about a seventh to a tenth of the WAV, encoded
+on the phone with Android's own codec from Android 10 - and as WAV wherever that fails.
 
 **Amber never claims more trust than it can prove.** An enclave engine only shows
 `ENCLAVE_VERIFIED` once its attestation has actually been verified. Your voice is never
