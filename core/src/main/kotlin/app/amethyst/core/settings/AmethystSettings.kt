@@ -1,6 +1,7 @@
 package app.amethyst.core.settings
 
 import app.amethyst.core.audio.VadConfig
+import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
@@ -186,10 +187,25 @@ data class AmethystSettings(
     /** Whether the introduction ran; a fresh install starts without, see [SettingsCodec.migrate]. */
     val onboardingDone: Boolean = false,
     val commands: CommandSettings = CommandSettings(),
+    /**
+     * The model lists Amber PCs and Amber Servers sent, by engine id - kept so the pickers work
+     * offline and on a cold start. See [app.amethyst.core.engine.AmberCatalogs].
+     */
+    val serverCatalogs: Map<String, StoredCatalog> = emptyMap(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
         get() = engines.firstOrNull { it.id == activeEngineId }
+
+    /**
+     * The list [engine]'s Amber server sent last - only while the engine still points at the
+     * address it came from, however that is spelled.
+     */
+    fun catalogFor(engine: EngineConfig): AmberCatalog? {
+        val stored = serverCatalogs[engine.id] ?: return null
+        val baseUrl = engine.baseUrl?.takeIf { it.isNotBlank() } ?: return null
+        return if (AmberCatalog.modelsUrl(stored.baseUrl) == AmberCatalog.modelsUrl(baseUrl)) stored.toCatalog() else null
+    }
 
     fun withEngine(config: EngineConfig): AmethystSettings {
         val replaced = engines.map { if (it.id == config.id) config else it }
@@ -205,9 +221,11 @@ data class AmethystSettings(
          * 7: cleanup and fallback chosen on their own, no longer per engine.
          * 8: the introduction - settings from before it count as introduced.
          * 9: the cleanup per app is a choice (default, off, a model) instead of a switch.
+         * 10: the model lists of Amber servers - nothing to migrate, an absent field decodes
+         * to none, and the next fetch fills it.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 9
+        const val SCHEMA_VERSION = 10
 
         /** What a new Whisper engine detects between - German and English cover most mixing. */
         const val WHISPER_DEFAULT_LANGUAGES = "de,en"
@@ -298,6 +316,41 @@ private fun migrateProfile(profile: AppProfile): AppProfile = profile.copy(
  */
 @Serializable
 data class CleanupChoice(val engineId: String, val model: String)
+
+/**
+ * An [AmberCatalog] as stored, with the [baseUrl] it was fetched from: an engine pointed
+ * elsewhere since has no list until its new address sends one.
+ */
+@Serializable
+data class StoredCatalog(
+    val baseUrl: String,
+    val service: String,
+    val version: String = "",
+    val speech: List<StoredModel> = emptyList(),
+    val cleanup: List<StoredModel> = emptyList(),
+) {
+    fun toCatalog(): AmberCatalog = AmberCatalog(service, version, speech.map { it.toChoice() }, cleanup.map { it.toChoice() })
+
+    companion object {
+        fun of(baseUrl: String, catalog: AmberCatalog) = StoredCatalog(
+            baseUrl = baseUrl,
+            service = catalog.service,
+            version = catalog.version,
+            speech = catalog.speech.map(StoredModel::of),
+            cleanup = catalog.cleanup.map(StoredModel::of),
+        )
+    }
+}
+
+/** One model of a [StoredCatalog]: the id sent as `model`, and what the picker shows. */
+@Serializable
+data class StoredModel(val id: String, val label: String, val note: String = "", val recommended: Boolean = false) {
+    fun toChoice() = EnginePresets.ModelChoice(id, label, note, recommended = recommended)
+
+    companion object {
+        fun of(choice: EnginePresets.ModelChoice) = StoredModel(choice.id, choice.label, choice.note, choice.recommended)
+    }
+}
 
 /**
  * Voice commands from the bubble ("open WhatsApp", "go back"). Off unless the user switches them

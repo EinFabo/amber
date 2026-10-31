@@ -25,7 +25,7 @@ object SettingsSummaries {
     fun cleanup(settings: AmethystSettings, choice: CleanupChoice? = settings.cleanup): String {
         if (choice == null) return OFF
         val engine = settings.engines.firstOrNull { it.id == choice.engineId } ?: return OFF
-        return ServerProviders.forUrl(engine.baseUrl).cleanupModel(choice.model)?.label ?: choice.model
+        return ServerProviders.forEngine(engine, settings).cleanupModel(choice.model)?.label ?: choice.model
     }
 
     fun onOff(on: Boolean): String = if (on) ON else OFF

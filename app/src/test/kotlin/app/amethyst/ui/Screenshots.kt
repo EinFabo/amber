@@ -194,7 +194,7 @@ class Screenshots {
     @Test
     fun groqEngine() = shoot("8-groq", "Engine") {
         EngineDetailScreen(
-            config = EngineConfig.fromPreset(EnginePresets.GROQ),
+            config = EngineConfig.fromPreset(EnginePresets.GROQ), catalog = null,
             active = true, storedKey = "gsk_example", whisperModels = emptyMap(),
             onSaveKey = { _, _ -> }, onSave = {}, onActivate = {}, onDelete = {},
             onTest = { ConnectionTester.Result.Ok("") }, onDownloadModel = {}, onImportModel = {},
@@ -245,6 +245,50 @@ class Screenshots {
     @Test
     fun cleanup() = shoot("x-cleanup", "Cleanup") {
         CleanupScreen(settings = pipeline, hasKeyFor = { true }, onUpdateSettings = {})
+    }
+
+    /** An own server that turned out to be an Amber PC, with the one model of each kind it uses. */
+    private val amberPc = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED)
+        .copy(baseUrl = "http://192.168.1.20:8765/k3y/v1", modelId = "acft-large-v3-turbo-q8_0")
+
+    private val amberPcCatalog = app.amethyst.core.engine.AmberCatalog(
+        service = "amber-pc",
+        version = "0.4.2",
+        speech = listOf(EnginePresets.ModelChoice("acft-large-v3-turbo-q8_0", "Large v3 Turbo", "on this PC · NVIDIA GPU (CUDA)", recommended = true)),
+        cleanup = listOf(EnginePresets.ModelChoice("qwen3-4b-instruct-2507-q4km", "Qwen3 4B Instruct", "on this PC · NVIDIA GPU (CUDA)", recommended = true)),
+    )
+
+    /** Not part of the listing set: the engine page of an Amber PC, its models listed. */
+    @Test
+    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
+    fun amberPcEngine() = shoot("x-amber-pc-engine", "Engine") {
+        EngineDetailScreen(
+            config = amberPc, catalog = amberPcCatalog,
+            active = true, storedKey = null, whisperModels = emptyMap(),
+            onSaveKey = { _, _ -> }, onSave = {}, onActivate = {}, onDelete = {},
+            onTest = { ConnectionTester.Result.Ok("") }, onDownloadModel = {}, onImportModel = {},
+            onCancelModel = {}, onDeleteModel = {}, enclaveLog = emptyList(),
+            onVerifyEnclave = { app.amethyst.core.privacy.AttestationResult(false, "") },
+            parakeetState = app.amethyst.engine.ParakeetState.Missing,
+            onDownloadParakeet = {}, onCancelParakeet = {}, onDeleteParakeet = {},
+        )
+    }
+
+    /**
+     * Not part of the listing set: the cleanup page with the Amber PC's list - the model chosen
+     * earlier is no longer on it, and says so.
+     */
+    @Test
+    fun amberPcCleanup() = shoot("x-amber-pc-cleanup", "Cleanup") {
+        CleanupScreen(
+            settings = pipeline.withEngine(amberPc).copy(
+                activeEngineId = amberPc.id,
+                cleanup = app.amethyst.core.settings.CleanupChoice(amberPc.id, "qwen2.5-3b-instruct-q4km"),
+                serverCatalogs = mapOf(amberPc.id to app.amethyst.core.settings.StoredCatalog.of(amberPc.baseUrl!!, amberPcCatalog)),
+            ),
+            hasKeyFor = { true },
+            onUpdateSettings = {},
+        )
     }
 
     /** Keep with a cleanup model of its own. */

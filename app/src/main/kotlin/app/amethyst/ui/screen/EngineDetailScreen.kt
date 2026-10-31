@@ -7,6 +7,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.DisposableEffect
+import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.ServerProviders
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -88,6 +89,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun EngineDetailScreen(
     config: EngineConfig,
+    /** The models an Amber PC or Amber Server listed for this engine, if it is one. */
+    catalog: AmberCatalog?,
     active: Boolean,
     storedKey: String?,
     whisperModels: Map<String, SlotState>,
@@ -224,8 +227,9 @@ fun EngineDetailScreen(
             EngineKind.OPENAI_COMPATIBLE -> {
                 // One backend for every server; the provider only decides what is offered. Taken
                 // from the saved address, not the one being typed, so the choices do not change
-                // mid-word - the same provider the factory and the statistics go by.
-                val provider = remember(config.baseUrl) { ServerProviders.forUrl(config.baseUrl) }
+                // mid-word - the same provider the factory and the statistics go by. An own
+                // server that turned out to be an Amber PC or Server offers what it listed.
+                val provider = remember(config.baseUrl, catalog) { ServerProviders.forUrl(config.baseUrl, catalog) }
                 val fixedAddress = remember(config.id, config.baseUrl) { ServerProviders.addressFixed(config) }
                 SectionCard(
                     title = "Connection",
@@ -245,16 +249,24 @@ fun EngineDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Hint("With or without /v1. http:// only for servers in your own network.")
-                        OutlinedTextField(
-                            value = modelId,
-                            onValueChange = { modelId = it },
-                            label = { Text("Speech model") },
-                            placeholder = { Text("Systran/faster-whisper-large-v3") },
-                            singleLine = true,
-                            shape = AmberShapes.Inner,
-                            colors = fieldColors(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (catalog != null && provider.listsItself) {
+                            Hint(
+                                listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" ") +
+                                    " - its models are listed below.",
+                                AmberPalette.TrustOnDevice,
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = modelId,
+                                onValueChange = { modelId = it },
+                                label = { Text("Speech model") },
+                                placeholder = { Text("Systran/faster-whisper-large-v3") },
+                                singleLine = true,
+                                shape = AmberShapes.Inner,
+                                colors = fieldColors(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
 
                     if (config.apiKeyAlias != null) {
@@ -273,7 +285,7 @@ fun EngineDetailScreen(
                         Hint("Stored encrypted on this phone only.")
                     }
                 }
-                if (provider.known) {
+                if (provider.hasModelList) {
                     SectionCard(
                         title = "Speech model",
                         subtitle = "Which of ${provider.name}'s models turns your voice into text.",
@@ -282,11 +294,13 @@ fun EngineDetailScreen(
                             choices = provider.speechModels,
                             selected = modelId.trim(),
                             noneLabel = null,
+                            notOffered = provider.notOfferedNote(modelId, provider.speechModels),
                             onSelect = { id ->
                                 modelId = id ?: modelId
                                 onSave(edited())
                             },
                         )
+                        if (provider.speechModels.isEmpty()) Hint("${provider.name} offers no speech model right now.")
                     }
                 }
                 SectionCard(
@@ -579,13 +593,21 @@ internal fun ModelPicker(
     choices: List<EnginePresets.ModelChoice>,
     selected: String?,
     noneLabel: String?,
+    /**
+     * Said under a [selected] model the server no longer lists, which then stays as a row of
+     * its own: still chosen, still sent.
+     */
+    notOffered: String? = null,
     onSelect: (String?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (noneLabel != null) RadioRow(noneLabel, null, selected = selected == null, onSelect = { onSelect(null) })
         choices.forEach { choice ->
-            val note = if (choice.recommended) "Recommended · ${choice.note}" else choice.note
+            val note = if (choice.recommended) "Recommended · ${choice.note}".trimEnd(' ', '·') else choice.note
             RadioRow(choice.label, note, selected = choice.id == selected, onSelect = { onSelect(choice.id) })
+        }
+        if (notOffered != null && selected != null && choices.none { it.id == selected }) {
+            RadioRow(selected, notOffered, selected = true, onSelect = {}, noteColor = AmberPalette.Primary)
         }
     }
 }

@@ -480,57 +480,63 @@ private fun AmethystScreens(
                         )
                     }
 
-                    is Screen.Page -> when (current.page) {
-                        SettingsPage.RECOGNITION -> RecognitionScreen(
-                            settings = settings,
-                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                            medianWaitMs = stats.medianWaitMs,
-                            onUpdateSettings = ::updateSettings,
-                            onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
-                        )
-                        SettingsPage.CLEANUP -> CleanupScreen(
-                            settings = settings,
-                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                            onUpdateSettings = ::updateSettings,
-                        )
-                        SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
-                        SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
-                        SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
-                        SettingsPage.APP_STYLES -> AppStylesScreen(
-                            settings, ::updateSettings,
-                            apps = apps,
-                            usage = appUsage,
-                            onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
-                        )
-                        SettingsPage.BUBBLE -> BubbleScreen(
-                            settings, ::updateSettings,
-                            apps = apps,
-                            usage = appUsage,
-                        )
-                        SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
-                        SettingsPage.STATS -> StatsScreen(
-                            settings = settings,
-                            stats = stats,
-                            today = today,
-                            engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
-                            appName = apps::label,
-                            onUpdateSettings = ::updateSettings,
-                            onClear = { graph.stats.clear() },
-                        )
-                        SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
-                        SettingsPage.DIAGNOSTICS -> {
-                            val records by graph.dictationLog.records.collectAsStateWithLifecycle()
-                            val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
-                            val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
-                            DiagnosticsScreen(
-                                records = records,
-                                keyboardLog = keyboardLog,
-                                onClear = {
-                                    graph.dictationLog.clear()
-                                    graph.keyboardLog.value = emptyList()
-                                },
-                                appTitle = "Amber $version".trim(),
+                    is Screen.Page -> {
+                        // The pages that show model lists ask Amber PCs and Servers for theirs.
+                        if (current.page == SettingsPage.RECOGNITION || current.page == SettingsPage.CLEANUP) {
+                            LaunchedEffect(current.page) { graph.amberCatalogs.refreshAll() }
+                        }
+                        when (current.page) {
+                            SettingsPage.RECOGNITION -> RecognitionScreen(
+                                settings = settings,
+                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                medianWaitMs = stats.medianWaitMs,
+                                onUpdateSettings = ::updateSettings,
+                                onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
                             )
+                            SettingsPage.CLEANUP -> CleanupScreen(
+                                settings = settings,
+                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                onUpdateSettings = ::updateSettings,
+                            )
+                            SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
+                            SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
+                            SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
+                            SettingsPage.APP_STYLES -> AppStylesScreen(
+                                settings, ::updateSettings,
+                                apps = apps,
+                                usage = appUsage,
+                                onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
+                            )
+                            SettingsPage.BUBBLE -> BubbleScreen(
+                                settings, ::updateSettings,
+                                apps = apps,
+                                usage = appUsage,
+                            )
+                            SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
+                            SettingsPage.STATS -> StatsScreen(
+                                settings = settings,
+                                stats = stats,
+                                today = today,
+                                engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
+                                appName = apps::label,
+                                onUpdateSettings = ::updateSettings,
+                                onClear = { graph.stats.clear() },
+                            )
+                            SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
+                            SettingsPage.DIAGNOSTICS -> {
+                                val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                                val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+                                val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
+                                DiagnosticsScreen(
+                                    records = records,
+                                    keyboardLog = keyboardLog,
+                                    onClear = {
+                                        graph.dictationLog.clear()
+                                        graph.keyboardLog.value = emptyList()
+                                    },
+                                    appTitle = "Amber $version".trim(),
+                                )
+                            }
                         }
                     }
 
@@ -543,6 +549,8 @@ private fun AmethystScreens(
                                 if (graph.settings.value.profiles.none { it.packageName == current.packageName }) back()
                             }
                         } else {
+                            // Its cleanup picker lists what Amber PCs and Servers offer.
+                            LaunchedEffect(current.packageName) { graph.amberCatalogs.refreshAll() }
                             AppStyleScreen(
                                 profile = profile,
                                 settings = settings,
@@ -565,8 +573,10 @@ private fun AmethystScreens(
                                 if (graph.settings.value.engines.none { it.id == current.engineId }) back()
                             }
                         } else {
+                            LaunchedEffect(config.id) { graph.amberCatalogs.refresh(config) }
                             EngineDetailScreen(
                                 config = config,
+                                catalog = settings.catalogFor(config),
                                 active = config.id == settings.activeEngineId,
                                 // Read once per engine, not on every recomposition: this is a
                                 // decrypt out of EncryptedSharedPreferences.
@@ -580,6 +590,8 @@ private fun AmethystScreens(
                                 },
                                 onSave = { updated: EngineConfig ->
                                     updateSettings { it.withEngine(updated) }
+                                    // A new address is asked at once, the same one once a minute.
+                                    graph.amberCatalogs.refresh(updated)
                                 },
                                 onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
                                 onDelete = {
@@ -587,6 +599,7 @@ private fun AmethystScreens(
                                         val remaining = current.engines.filterNot { it.id == config.id }
                                         current.copy(
                                             engines = remaining,
+                                            serverCatalogs = current.serverCatalogs - config.id,
                                             activeEngineId = if (current.activeEngineId == config.id) {
                                                 remaining.firstOrNull()?.id ?: ""
                                             } else {
@@ -596,7 +609,11 @@ private fun AmethystScreens(
                                     }
                                     back()
                                 },
-                                onTest = { candidate -> tester.test(candidate) },
+                                onTest = { candidate ->
+                                    tester.test(candidate).also { result ->
+                                        if (result is ConnectionTester.Result.Ok) graph.amberCatalogs.refresh(candidate, force = true)
+                                    }
+                                },
                                 onDownloadModel = { spec -> graph.whisperModels.download(spec) },
                                 onImportModel = { uri -> graph.whisperModels.import(uri) },
                                 onCancelModel = { id -> graph.whisperModels.cancel(id) },

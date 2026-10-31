@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.ServerProviders
@@ -17,6 +18,7 @@ import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.settings.SettingsCodec
+import app.amethyst.core.settings.StoredCatalog
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -195,6 +197,28 @@ class CaptureTimeoutTest {
         assertEquals(listOf(AppCleanupMode.OFF, AppCleanupMode.DEFAULT, AppCleanupMode.DEFAULT), profiles.map { it.appCleanup.mode })
         @Suppress("DEPRECATION")
         assertTrue(profiles.all { it.cleanup == null })
+    }
+
+    @Test
+    fun `schema 10 keeps amber catalogs, and older settings start without`() {
+        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
+        val old = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
+            "displayName":"Own server","baseUrl":"http://192.168.1.20:8765/k3y/v1","modelId":"acft-large-v3-turbo-q8_0"}],"schemaVersion":9}"""
+        val migrated = SettingsCodec.decode(old)
+        assertTrue(migrated.serverCatalogs.isEmpty())
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+        assertEquals("acft-large-v3-turbo-q8_0", migrated.engines.single().modelId)
+    }
+
+    @Test
+    fun `a stored amber catalog survives a round trip, so it works offline and on a cold start`() {
+        val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = "http://192.168.1.20:8765/k3y/v1")
+        val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS))
+        val settings = AmethystSettings.defaults().withEngine(own)
+            .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        assertEquals(settings, decoded)
+        assertEquals(pc, decoded.catalogFor(own))
     }
 
     @Test

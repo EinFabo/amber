@@ -109,7 +109,9 @@ code: the OpenAI audio endpoint for recognition, the chat endpoint for the clean
 writing style per app. What differs lives in a provider catalog (`ServerProviders`): the
 models each one offers, their prices for the cost estimate, and whether the address is fixed.
 Known providers get pickers; an own server gets free fields, and `http://` works there for
-addresses in your own network only.
+addresses in your own network only. An own server that is an Amber PC or Amber Server lists
+its models itself (`GET /v1/models` with an `amber` object), and gets pickers too; the list is
+kept on the phone, so it also works offline.
 
 **Amber never claims more trust than it can prove.** An enclave engine only shows
 `ENCLAVE_VERIFIED` once its attestation has actually been verified. Your voice is never

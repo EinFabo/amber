@@ -47,7 +47,8 @@ import app.amethyst.ui.theme.badgeLabel
 /**
  * Who rewrites the recognized text, chosen apart from who recognizes it: local Whisper can be
  * cleaned up by a model on Tinfoil, Groq, OpenAI or an own server. Every configured server
- * engine lists its chat models under its own heading; one of them is the cleanup, or none.
+ * engine lists its chat models under its own heading - an Amber PC or Server the ones it
+ * offers; one of them is the cleanup, or none.
  */
 @Composable
 fun CleanupScreen(
@@ -101,14 +102,17 @@ internal fun CleanupModelChoices(
     servers.forEach { engine ->
         val model = selected?.takeIf { it.engineId == engine.id }?.model
         var open by rememberSaveable(engine.id) { mutableStateOf(model != null) }
-        val provider = ServerProviders.forUrl(engine.baseUrl)
-        val listed = provider.known && provider.cleanupModels.isNotEmpty()
+        val provider = ServerProviders.forEngine(engine, settings)
+        val listed = provider.hasModelList
         val isReady = ready[engine.id] == true
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             EngineFold(
                 engine = engine,
                 note = when {
                     !isReady -> "Set up first"
+                    listed && provider.cleanupModels.isEmpty() -> "None offered right now"
+                    // Named, since the engine is still called "Own server".
+                    provider.listsItself -> "${provider.name} · ${SettingsSummaries.models(provider.cleanupModels.size)}"
                     listed -> SettingsSummaries.models(provider.cleanupModels.size)
                     else -> model ?: "Your own model"
                 },
@@ -119,12 +123,16 @@ internal fun CleanupModelChoices(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when {
                         !isReady -> Hint("Set this engine up first (address, key).")
-                        listed -> ModelPicker(
-                            choices = provider.cleanupModels,
-                            selected = model,
-                            noneLabel = null,
-                            onSelect = { id -> id?.let { onChoose(CleanupChoice(engine.id, it)) } },
-                        )
+                        listed -> {
+                            ModelPicker(
+                                choices = provider.cleanupModels,
+                                selected = model,
+                                noneLabel = null,
+                                notOffered = provider.notOfferedNote(model, provider.cleanupModels),
+                                onSelect = { id -> id?.let { onChoose(CleanupChoice(engine.id, it)) } },
+                            )
+                            if (provider.cleanupModels.isEmpty()) Hint("${provider.name} offers no cleanup model right now.")
+                        }
                         else -> OwnCleanupModel(model) { typed -> onChoose(CleanupChoice(engine.id, typed)) }
                     }
                 }
@@ -253,7 +261,7 @@ internal fun AmethystSettings.cleanupEngine(choice: CleanupChoice? = cleanup): E
 internal fun AmethystSettings.cleanupSummary(choice: CleanupChoice? = cleanup): String? {
     if (choice == null) return null
     val engine = cleanupEngine(choice) ?: return null
-    val model = ServerProviders.forUrl(engine.baseUrl).cleanupModel(choice.model)?.label ?: choice.model
+    val model = ServerProviders.forEngine(engine, this).cleanupModel(choice.model)?.label ?: choice.model
     return "$model · ${engine.displayName}"
 }
 

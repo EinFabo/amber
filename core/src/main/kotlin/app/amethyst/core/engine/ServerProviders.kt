@@ -1,6 +1,7 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.engine.EnginePresets.ModelChoice
+import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 
 /**
@@ -8,7 +9,7 @@ import app.amethyst.core.settings.EngineConfig
  * OpenAI audio endpoint for recognition and the chat endpoint for cleanup. What differs is
  * only what a provider offers, and that lives here: its speech and chat models with their
  * prices, and whether its address is fixed. An unknown host is an own server, where the user
- * names the models.
+ * names the models - unless it is an Amber PC or Amber Server, which lists its own.
  */
 data class ServerProvider(
     val id: String,
@@ -18,11 +19,31 @@ data class ServerProvider(
     val cleanupModels: List<ModelChoice>,
     /** Known services have one address; only an own server's can be edited. */
     val fixedAddress: Boolean,
+    /** Models to pick from: a known service's, or the ones an Amber server listed. */
+    val hasModelList: Boolean = hosts.isNotEmpty(),
+    /**
+     * For a list the server sent itself, the machine that answers for a model no longer on it:
+     * "the PC", "the server". Null for the lists this app keeps.
+     */
+    val listedBy: String? = null,
 ) {
-    val known: Boolean get() = hosts.isNotEmpty()
+    /** The lists came from the server, so they are all it takes; nothing else is typed. */
+    val listsItself: Boolean get() = listedBy != null
 
     fun speechModel(id: String?): ModelChoice? = speechModels.firstOrNull { it.id == id }
     fun cleanupModel(id: String?): ModelChoice? = cleanupModels.firstOrNull { it.id == id }
+
+    /**
+     * A chosen model [id] the server's own list ([models]) no longer has, said as such. It is
+     * still sent, and the server answers with its default. Null when it is listed, when none
+     * is chosen, and for the lists this app keeps - a model typed for Groq is the user's own.
+     */
+    fun notOfferedNote(id: String?, models: List<ModelChoice>): String? {
+        val by = listedBy ?: return null
+        val chosen = id?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (models.any { it.id == chosen }) return null
+        return "Not offered by $by any more - it uses its default instead"
+    }
 }
 
 object ServerProviders {
@@ -94,6 +115,31 @@ object ServerProviders {
         val host = EnginePresets.hostOf(baseUrl) ?: return CUSTOM
         return known.firstOrNull { host in it.hosts } ?: CUSTOM
     }
+
+    /**
+     * A known service by its host; else, with the [catalog] an Amber PC or Amber Server sent,
+     * a provider built from it; else an own server.
+     */
+    fun forUrl(baseUrl: String?, catalog: AmberCatalog?): ServerProvider {
+        val byHost = forUrl(baseUrl)
+        return if (byHost === CUSTOM && catalog != null) fromCatalog(catalog) else byHost
+    }
+
+    /** [engine]'s provider, with the catalog stored for it at its current address. */
+    fun forEngine(engine: EngineConfig, settings: AmethystSettings): ServerProvider =
+        forUrl(engine.baseUrl, settings.catalogFor(engine))
+
+    /** The models an Amber server listed, no prices - it runs on its owner's machine. */
+    fun fromCatalog(catalog: AmberCatalog) = ServerProvider(
+        id = catalog.service.ifBlank { "amber" },
+        name = catalog.name,
+        hosts = emptySet(),
+        speechModels = catalog.speech,
+        cleanupModels = catalog.cleanup,
+        fixedAddress = false,
+        hasModelList = true,
+        listedBy = catalog.machine,
+    )
 
     /**
      * Whether the address stays out of the user's hands. Never for the own-server engine:

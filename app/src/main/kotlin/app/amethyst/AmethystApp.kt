@@ -15,6 +15,7 @@ import app.amethyst.dictation.DictationController
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.engine.AmberCatalogRefresher
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.NativeWhisperRuntime
@@ -22,6 +23,7 @@ import app.amethyst.engine.ParakeetModelStore
 import app.amethyst.engine.SherpaRuntime
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
+import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -120,9 +122,17 @@ class Graph(app: Application) {
     /** One per process, so its cache of proofs spans dictations. */
     val tinfoilVerifier: TinfoilVerifier by lazy { TinfoilVerifier(tinfoilLog) }
 
+    /** One HTTP client for the engines and the model lists, so they share connections. */
+    val httpTransport: HttpTransport by lazy { OkHttpTransport() }
+
     // Lazy too, so that merely building the graph does not force the secret store open.
     val engineFactory: EngineFactory by lazy {
-        EngineFactory(app, OkHttpTransport(), secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime)
+        EngineFactory(app, httpTransport, secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime)
+    }
+
+    /** The model lists of Amber PCs and Amber Servers, fetched in the background. */
+    val amberCatalogs: AmberCatalogRefresher by lazy {
+        AmberCatalogRefresher(appScope, httpTransport, { alias -> secretStore.get(alias) }, { settings.value }, settingsStore::update)
     }
 
     /** How long recognition takes per engine and model on this phone, for the progress ring. */

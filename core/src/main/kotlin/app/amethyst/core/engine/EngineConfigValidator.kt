@@ -47,6 +47,9 @@ object EngineConfigValidator {
     fun isReady(config: EngineConfig, hasApiKey: Boolean): Boolean =
         validate(config, hasApiKey).isEmpty()
 
+    /** What is wrong with the address alone; empty when requests may go to it. */
+    fun addressProblems(config: EngineConfig): List<String> = validateUrl(config)
+
     private fun validateUrl(config: EngineConfig): List<String> {
         val url = config.baseUrl?.trim()
         if (url.isNullOrBlank()) return listOf("The base URL is missing.")
