@@ -94,6 +94,8 @@ fun SettingsScreen(
     val engine = settings.activeEngine
     val trust = engine?.trustLevelForDisplay()
     val reliabilityOpen = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
+    // Folded, "Advanced" passes on what Reliability needs; open, the Reliability row says it itself.
+    val advancedFlags = if (advancedOpen) 0 else reliabilityOpen
     val commandsWithoutBubble = settings.commands.enabled && !settings.bubble.enabled
 
     SubPage(modifier) {
@@ -119,8 +121,8 @@ fun SettingsScreen(
 
         SettingsGroup(label = null) {
             NavRow(
-                "Advanced", SettingsSummaries.advanced(ADVANCED_ROWS, reliabilityOpen), Modifier.foldState(advancedOpen), icon = AmberIcons.Tune,
-                summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
+                "Advanced", SettingsSummaries.advanced(ADVANCED_ROWS, advancedFlags), Modifier.foldState(advancedOpen), icon = AmberIcons.Tune,
+                summaryColor = if (advancedFlags > 0) AmberPalette.Primary else AmberPalette.Muted,
                 trailing = { ExpandChevron(advancedOpen) },
                 onClick = onToggleAdvanced,
             )

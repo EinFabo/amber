@@ -55,7 +55,7 @@ fun StatsScreen(
     SubPage(modifier) {
         MainSwitch(
             label = "Use statistics",
-            summary = "Counts only, never what you said.",
+            summary = "Counts and timings only, never what you said.",
             checked = settings.stats.keep,
             onChange = { on -> onUpdateSettings { it.copy(stats = it.stats.copy(keep = on)) } },
         )
