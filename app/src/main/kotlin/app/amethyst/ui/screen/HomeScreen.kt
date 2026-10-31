@@ -1,10 +1,7 @@
 package app.amethyst.ui.screen
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.stringResource
 import app.amethyst.R
-import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -15,15 +12,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,12 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.DownloadNotice
@@ -47,8 +38,12 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.dictation.DictationState
-import app.amethyst.ui.Hairline
-import app.amethyst.ui.ChevronRight
+import app.amethyst.ui.AccessibilityConsentDialog
+import app.amethyst.ui.AmberIcons
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.PageGutter
+import app.amethyst.ui.RowDivider
+import app.amethyst.ui.SettingsGroup
 import app.amethyst.core.stats.StatsSummary
 import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,14 +52,13 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.ProgressLine
-import app.amethyst.ui.RestrictedSettingsHint
+import app.amethyst.ui.RestrictedSettingsSteps
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.StatusRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
-import app.amethyst.ui.theme.AmberShapes
 
 /**
  * Hearth: one quiet home. The engine on top, the flame alone in the middle, one line of today's
@@ -96,7 +90,7 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = PageGutter)
             .padding(bottom = 32.dp),
     ) {
         // First run: nothing else matters until these two are done.
@@ -105,16 +99,20 @@ fun HomeScreen(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut(tween(250)) + shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)),
         ) {
-            SetupCard(setup, actions, Modifier)
+            Column {
+                SetupCard(setup, actions, Modifier)
+                // Back from Android's settings without the service, on an install Android may lock.
+                if (setup.accessibilityTried && setup.restrictedSettings) RestrictedSettingsSteps(actions.openAppInfo)
+            }
         }
 
-        EngineLine(settings, onOpenRecognition, onOpenCleanup)
+        EngineGroup(settings, onOpenRecognition, onOpenCleanup)
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
         OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine)
 
-        if (settings.stats.keep) TodayLine(stats, onOpenStats)
+        if (settings.stats.keep) TodayRow(stats, onOpenStats)
 
         TestFieldCard(testField, Modifier)
 
@@ -175,90 +173,62 @@ private fun OrbArea(
 
 /**
  * Which engine dictates and where the voice goes, and below it who tidies the text when anyone
- * does - it may go further than the recording. Each line leads to its own choice.
+ * does - it may go further than the recording. Each row leads to its own choice.
  */
 @Composable
-private fun EngineLine(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit) {
+private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit) {
     val active = settings.activeEngine
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenRecognition)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = active?.displayName ?: "No engine selected",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (active == null) AmberPalette.Error else AmberPalette.Text,
-            )
-            if (active != null) TrustBadge(active.trustLevelForDisplay())
-        }
-        Text("Change", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
-    }
     val cleanup = settings.cleanupSummary()
     val cleanupEngine = settings.cleanupEngine()
-    // Apps with a cleanup model of their own send text where the line above may not say.
+    // Apps with a cleanup model of their own send text where the rows above may not say.
     val ownModels = settings.profiles.filter { it.appCleanup.mode == AppCleanupMode.MODEL && settings.cleanupEngine(it.appCleanup.choice) != null }
     val ownWeakest = ownModels.mapNotNull { settings.cleanupEngine(it.appCleanup.choice)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
-    if ((cleanup != null && cleanupEngine != null) || ownWeakest != null) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpenCleanup)
-                .padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            if (cleanup != null && cleanupEngine != null) {
-                Text("Cleanup: $cleanup", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
-                TrustBadge(cleanupEngine.trustLevelForDisplay())
-            }
-            if (ownWeakest != null) {
-                Text(
-                    "Own cleanup model in ${ownModels.joinToString { it.label }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AmberPalette.Muted,
-                )
-                TrustBadge(ownWeakest)
-            }
+    SettingsGroup(label = null) {
+        NavRow(
+            title = active?.displayName ?: "No engine selected",
+            summary = null,
+            icon = AmberIcons.Mic,
+            titleColor = if (active == null) AmberPalette.Error else AmberPalette.Text,
+            below = active?.let { { TrustBadge(it.trustLevelForDisplay()) } },
+            onClick = onOpenRecognition,
+        )
+        if (cleanup != null && cleanupEngine != null) {
+            RowDivider()
+            NavRow(
+                title = "Cleanup",
+                summary = cleanup,
+                icon = AmberIcons.AutoFix,
+                // Where the text goes: said in full, not cut off.
+                summaryMaxLines = 2,
+                below = { TrustBadge(cleanupEngine.trustLevelForDisplay()) },
+                onClick = onOpenCleanup,
+            )
+        }
+        if (ownWeakest != null) {
+            RowDivider()
+            NavRow(
+                title = "Own cleanup model",
+                summary = "In ${ownModels.joinToString { it.label }}",
+                icon = AmberIcons.Palette,
+                summaryMaxLines = 2,
+                below = { TrustBadge(ownWeakest) },
+                onClick = onOpenCleanup,
+            )
         }
     }
 }
 
-/** Today in one line - the door to the statistics. */
+/** Today in one row - the door to the statistics. */
 @Composable
-private fun TodayLine(stats: StatsSummary?, onOpenStats: () -> Unit) {
-    Hairline()
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenStats)
-            .padding(vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            if (stats == null || stats.dictationsToday == 0) {
-                Text(
-                    if (stats == null || stats.isEmpty) "No dictations yet" else "Nothing dictated today",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = AmberPalette.Text,
-                )
-                Hint(
-                    if (stats == null || stats.isEmpty) "Your numbers appear here, counted on this phone."
-                    else "${formatCount(stats.totalWords)} words so far · ${stats.streakDays.daysInARow()}",
-                )
-            } else {
-                Text(
-                    "${formatCount(stats.wordsToday)} words today",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = AmberPalette.Text,
-                )
-                Hint("${stats.dictationsToday} ${if (stats.dictationsToday == 1) "dictation" else "dictations"} · ${formatMinutesSaved(stats.minutesSavedToday)}")
-            }
-        }
-        ChevronRight()
+private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
+    val (title, summary) = when {
+        stats == null || stats.isEmpty -> "No dictations yet" to "Counted here, on this phone only."
+        stats.dictationsToday == 0 -> "Nothing dictated today" to "${formatCount(stats.totalWords)} words so far · ${stats.streakDays.daysInARow()}"
+        else -> "${formatCount(stats.wordsToday)} words today" to
+            "${stats.dictationsToday} ${if (stats.dictationsToday == 1) "dictation" else "dictations"} · ${formatMinutesSaved(stats.minutesSavedToday)}"
+    }
+    SettingsGroup(label = null) {
+        NavRow(title, summary, icon = AmberIcons.BarChart, onClick = onOpenStats)
     }
 }
 
@@ -320,7 +290,7 @@ private fun StatusLine(
         ) {
             when (current) {
                 DictationState.Idle -> when {
-                    !ready -> Hint("Finish the setup below first.")
+                    !ready -> Hint("Finish the setup above first.")
                     download != null -> {
                         Hint(DownloadNotice.short(download), AmberPalette.Text)
                         val fraction = (download as? ModelDownload.Running)
@@ -383,30 +353,16 @@ private fun StatusLine(
 
 @Composable
 private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifier) {
-    // What the service reads, said before Android asks - and agreed to, not just scrolled past.
+    // What the service reads and does, said before Android asks - and agreed to, not just scrolled past.
     var disclosing by remember { mutableStateOf(false) }
     if (disclosing) {
-        AlertDialog(
-            onDismissRequest = { disclosing = false },
-            containerColor = AmberPalette.Surface,
-            shape = AmberShapes.Card,
-            title = { Text("What the accessibility service does", color = AmberPalette.Text) },
-            text = {
-                Text(
-                    stringResource(R.string.accessibility_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AmberPalette.Text,
-                )
+        AccessibilityConsentDialog(
+            restricted = setup.restrictedSettings,
+            onAgree = {
+                disclosing = false
+                actions.openAccessibility()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    disclosing = false
-                    actions.openAccessibility()
-                }) { Text("I agree - open settings", color = AmberPalette.Primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = { disclosing = false }) { Text("Not now", color = AmberPalette.Muted) }
-            },
+            onDismiss = { disclosing = false },
         )
     }
     SectionCard(
@@ -423,14 +379,15 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
         )
         StatusRow(
             label = "Accessibility service",
-            description = "Shows the bubble and types the text into the active field.",
+            description = if (setup.accessibilityTried) {
+                "Not on yet. Switch on ${stringResource(R.string.accessibility_label)} and allow it."
+            } else {
+                "Shows the bubble and types the text into the active field."
+            },
             done = setup.accessibilityEnabled,
             actionLabel = "Open",
             onAction = { disclosing = true },
         )
-        if (!setup.accessibilityEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            RestrictedSettingsHint(onOpenAppInfo = actions.openAppInfo)
-        }
     }
 }
 

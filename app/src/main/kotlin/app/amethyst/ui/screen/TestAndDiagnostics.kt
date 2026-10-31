@@ -24,6 +24,7 @@ import app.amethyst.ui.DangerAction
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -41,10 +42,11 @@ import app.amethyst.ui.theme.AmberShapes
 fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier) {
     var testText by rememberSaveable { mutableStateOf("") }
 
-    SectionCard(
-        title = "Test field",
-        subtitle = "The test dictation lands here, just like it will in other apps.",
+    // The field is the group's surface itself, not a box inside it.
+    SettingsGroup(
+        label = "Test field",
         modifier = modifier,
+        note = "A test dictation lands here, as in any other app.",
         trailing = if (testText.isNotEmpty()) {
             { GhostButton("Clear", { testText = "" }) }
         } else {
@@ -56,9 +58,9 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
             onValueChange = { testText = it },
             placeholder = { Text("Tap the flame and speak …", color = AmberPalette.Muted) },
             minLines = 3,
-            shape = AmberShapes.Inner,
+            shape = AmberShapes.Card,
             textStyle = MaterialTheme.typography.bodyLarge,
-            colors = fieldColors(),
+            colors = fieldColors(container = Color.Transparent),
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester),
@@ -68,12 +70,12 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
 
 /**
  * Filled fields without a frame; only the focused one gets a thin amber edge. Raised a step
- * above the group surface they mostly sit on.
+ * above the group surface they mostly sit on, unless [container] says otherwise.
  */
 @Composable
-fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = AmberPalette.Elevated,
-    unfocusedContainerColor = AmberPalette.Elevated,
+fun fieldColors(container: Color = AmberPalette.Elevated) = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = container,
+    unfocusedContainerColor = container,
     focusedBorderColor = AmberPalette.Primary,
     unfocusedBorderColor = Color.Transparent,
     cursorColor = AmberPalette.Primary,

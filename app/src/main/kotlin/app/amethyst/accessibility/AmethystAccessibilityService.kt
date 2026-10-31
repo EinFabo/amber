@@ -132,6 +132,8 @@ class AmethystAccessibilityService : AccessibilityService() {
         }
 
         graph.accessibilityService = this
+        // Switched on just now from Amber's setup: back to Amber, without the user pressing Back.
+        graph.returnToAmber.serviceConnected(this)
 
         scope.launch {
             graph.dictation.state.collect { state -> bubble?.render(state) }
@@ -211,6 +213,19 @@ class AmethystAccessibilityService : AccessibilityService() {
      * can be Amber itself (its test field), else the last app in front.
      */
     fun targetPackage(): String? = focusedInputPackage() ?: foregroundPackage
+
+    /**
+     * Brings Amber's screen back to the front, as it was left - the launcher's own intent
+     * reuses the task, and REORDER_TO_FRONT keeps a second copy of the screen from stacking on
+     * it. An accessibility service may start activities from the background.
+     */
+    fun bringAmberBack() {
+        val intent = Intent(this, MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        runCatching { startActivity(intent) }.onFailure { Log.w(TAG, "could not bring Amber back", it) }
+    }
 
     /** Where the bubble is while it shows; a voice command's gesture keeps clear of it. */
     fun bubbleFrame(): Box? = bubble?.frame()

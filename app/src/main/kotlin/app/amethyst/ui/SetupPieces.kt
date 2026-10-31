@@ -1,86 +1,211 @@
 package app.amethyst.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.amethyst.R
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /*
  * The setup pieces Home's setup card and the introduction share: what the accessibility
- * service reads, and the way past Android's lock on it.
+ * service reads and does, what to do in Android's settings, and the way past Android's lock
+ * on it.
  */
 
-/** What the accessibility service reads, said in full before Android asks (security review M6). */
+/** The consent button's words, the same wherever the service is asked for. */
+const val AGREE_AND_OPEN = "I agree - open settings"
+
+/**
+ * What the accessibility service reads and does, said row by row before Android asks, with
+ * the full text one tap away (security review M6).
+ */
 @Composable
 fun AccessibilityDisclosure(modifier: Modifier = Modifier) {
-    Text(
-        stringResource(R.string.accessibility_description),
-        style = MaterialTheme.typography.bodyMedium,
-        color = AmberPalette.Text,
-        modifier = modifier
-            .fillMaxWidth()
-            .background(AmberPalette.Surface, AmberShapes.Inner)
-            .padding(16.dp),
+    Column(modifier) {
+        SettingsGroup("What Amber reads and does") { DisclosureRows() }
+        NothingStoredLine()
+        FullDisclosure()
+    }
+}
+
+/**
+ * One row per thing [R.string.accessibility_description] names, in its words; the line under
+ * them is [NothingStoredLine]. Keep the two in step: what the description adds, a row says.
+ */
+@Composable
+private fun DisclosureRows() {
+    Fact(AmberIcons.Apps, "Which app is in front", "To show or hide the bubble.")
+    RowDivider()
+    Fact(AmberIcons.TextFields, "Whether a text field has focus", "To show the bubble when you can type.")
+    RowDivider()
+    Fact(AmberIcons.Keyboard, "Where the keyboard is", "To keep the bubble above it.")
+    RowDivider()
+    Fact(AmberIcons.Subject, "The text in the field", "Only while inserting a dictation, so the new words fit in at the cursor.")
+    RowDivider()
+    Fact(
+        AmberIcons.VoiceCommand,
+        "With voice commands on: what can scroll, your list of apps",
+        "Not what the screen shows. Amber acts only on the command you just spoke: back, home, open an app, scroll, swipe.",
+    )
+}
+
+@Composable
+private fun Fact(icon: ImageVector, title: String, detail: String) {
+    NavRow(title, detail, icon = icon, summaryMaxLines = Int.MAX_VALUE, trailing = null, onClick = null)
+}
+
+@Composable
+private fun NothingStoredLine() {
+    GroupFootnote(
+        "Nothing is stored or sent - only your recording, and with cleanup its text, goes to the engine you chose.",
+        AmberIcons.Lock,
+    )
+}
+
+/** The description Android shows too, word for word. */
+@Composable
+fun FullDisclosure(label: String = "Full text") {
+    LearnMore(stringResource(R.string.accessibility_description), label = label)
+}
+
+/** What to do once Android's settings are open, said before they open. */
+@Composable
+fun SwitchOnNote() {
+    val name = stringResource(R.string.accessibility_label)
+    GroupFootnote(
+        "In Android's settings, tap $name, switch it on and allow it. Amber then comes back here by itself.",
+        AmberIcons.OpenInNew,
     )
 }
 
 /**
- * Since Android 13, accessibility is locked for apps installed from a file. There is no API
- * to ask whether the lock applies to us, so the way out is shown whenever the service is off.
+ * For an install Android may lock (see SetupState.restrictedSettings), said before the
+ * settings open - on amber, so it is read before the button rather than found after it.
  */
 @Composable
-fun RestrictedSettingsHint(onOpenAppInfo: () -> Unit) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    Column(
-        Modifier
+fun RestrictedSettingsNote(modifier: Modifier = Modifier) {
+    Row(
+        modifier
             .fillMaxWidth()
-            .background(AmberPalette.Surface, AmberShapes.Inner)
-            .clickable { open = !open }
+            .clip(AmberShapes.Card)
+            .background(AmberPalette.Deep)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Icon(AmberIcons.Info, contentDescription = null, tint = AmberPalette.Primary, modifier = Modifier.size(20.dp))
         Text(
-            "Greyed out or \"Restricted setting\"?",
-            style = MaterialTheme.typography.bodyLarge,
+            "Amber is not from a store, so Android may block the switch. If it does, come back here for the way past it.",
+            style = MaterialTheme.typography.bodyMedium,
             color = AmberPalette.Text,
         )
-        AnimatedVisibility(visible = open, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Hint(
-                    "Android locks accessibility for apps that do not come from a store. " +
-                        "This lifts the lock once:",
-                    AmberPalette.Text,
-                )
-                Hint("1. Tap \"Open app info\" below.")
-                Hint("2. Top right ⋮ → \"Allow restricted settings\", then confirm.")
-                Hint("3. Go back and turn on the accessibility service.")
-                Hint("The menu item only appears after you have tried to turn it on once.")
-                Spacer(Modifier.height(2.dp))
-                GhostButton("Open app info", onOpenAppInfo)
+    }
+}
+
+/** The same three taps as numbered steps, for someone who came back without the service on. */
+@Composable
+fun SwitchOnSteps() {
+    val name = stringResource(R.string.accessibility_label)
+    SettingsGroup("In Android's settings") {
+        Step(1, "Tap $name", "In the list, if Android shows one.")
+        RowDivider()
+        Step(2, "Switch on \"Use $name\"", null)
+        RowDivider()
+        Step(3, "Tap \"Allow\"", "Amber comes back here by itself.")
+    }
+}
+
+/**
+ * Since Android 13, accessibility is locked for apps installed from a file until the user
+ * allows it in the app info. The way past it, step by step, with the button for the first.
+ */
+@Composable
+fun RestrictedSettingsSteps(onOpenAppInfo: () -> Unit, modifier: Modifier = Modifier) {
+    SettingsGroup(
+        "If Android said \"Restricted setting\"",
+        modifier,
+        note = "Android locks it for apps installed from a file. To lift the lock, once:",
+    ) {
+        Step(1, "Open Amber's app info", "With the button below.")
+        RowDivider()
+        Step(2, "Tap ⋮ at the top right", "It has the next item only after you tried the switch.")
+        RowDivider()
+        Step(3, "Tap \"Allow restricted settings\"", "And confirm if Android asks.")
+        RowDivider()
+        Step(4, "Then open the settings again", "From here - now the switch turns on.")
+        PrimaryButton(
+            "Open app info",
+            onOpenAppInfo,
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
+        )
+    }
+}
+
+@Composable
+private fun Step(number: Int, title: String, detail: String?) {
+    NavRow(title, detail, leading = { NumberTile(number) }, summaryMaxLines = Int.MAX_VALUE, trailing = null, onClick = null)
+}
+
+/**
+ * Home's way to the service: the same rows as the introduction, then the consent. Wider than
+ * a stock dialog so the rows keep their room; the rows scroll, the buttons stay.
+ */
+@Composable
+fun AccessibilityConsentDialog(restricted: Boolean, onAgree: () -> Unit, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier
+                .padding(horizontal = PageGutter, vertical = 24.dp)
+                .fillMaxWidth()
+                .clip(AmberShapes.Card)
+                .background(AmberPalette.Surface),
+        ) {
+            Column(
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 20.dp),
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("What Amber reads and does", style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+                    Hint("The accessibility service shows the bubble and types your dictation into the field you are in. For that it reads:")
+                    if (restricted) RestrictedSettingsNote(Modifier.padding(vertical = 8.dp))
+                }
+                DisclosureRows()
+                NothingStoredLine()
+                FullDisclosure()
+                SwitchOnNote()
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GhostButton("Not now", onDismiss, color = AmberPalette.Muted)
+                GhostButton(AGREE_AND_OPEN, onAgree)
             }
         }
-        if (!open) Hint("Tap for the fix.")
     }
 }

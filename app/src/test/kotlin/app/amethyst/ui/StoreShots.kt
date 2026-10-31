@@ -342,6 +342,25 @@ class StoreShots {
         )
     }
 
+    /** Not part of the listing set: a sideloaded first run, back from Android's settings without the service. */
+    @Test
+    @Config(qualifiers = "w360dp-h1300dp-xxhdpi")
+    fun homeSetup() = shoot("x-home-setup", "Amber") {
+        HomeScreen(
+            setup = SetupState(microphoneGranted = true, restrictedSettings = true, accessibilityTried = true),
+            actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+        )
+    }
+
+    /** Not part of the listing set: Home's way to the service, the same rows as the introduction. */
+    @Test
+    fun homeDisclosure() = shootDialog("x-home-disclosure") {
+        AccessibilityConsentDialog(restricted = true, onAgree = {}, onDismiss = {})
+    }
+
     /** A fresh install: nothing granted yet. */
     private val fresh = SetupState()
 
@@ -381,6 +400,27 @@ class StoreShots {
 
     @Test
     fun onboardingAccessibility() = onboarding("2-accessibility", OnboardingStep.ACCESSIBILITY)
+
+    /** The whole page before the button, rows and notes - taller than a phone. */
+    @Test
+    @Config(qualifiers = "w360dp-h1120dp-xxhdpi")
+    fun onboardingAccessibilityTall() = onboarding("2-accessibility-tall", OnboardingStep.ACCESSIBILITY, fresh.copy(restrictedSettings = true))
+
+    /** Installed from a file on Android 13+: the step says before the button that Android may block it. */
+    @Test
+    fun onboardingAccessibilitySideloaded() = onboarding("2-accessibility-sideloaded", OnboardingStep.ACCESSIBILITY, fresh.copy(restrictedSettings = true))
+
+    /** Sent to the settings, back without the service on (or on the way there). */
+    @Test
+    fun onboardingAccessibilityWaiting() = onboarding("2-accessibility-waiting", OnboardingStep.ACCESSIBILITY, fresh.copy(accessibilityTried = true))
+
+    /** The same on an install Android may lock: the way past "Restricted setting". */
+    @Test
+    @Config(qualifiers = "w360dp-h900dp-xxhdpi")
+    fun onboardingAccessibilityRestricted() = onboarding(
+        "2-accessibility-restricted", OnboardingStep.ACCESSIBILITY,
+        fresh.copy(accessibilityTried = true, restrictedSettings = true),
+    )
 
     @Test
     fun onboardingAccessibilityDone() = onboarding("2-accessibility-done", OnboardingStep.ACCESSIBILITY, fresh.copy(accessibilityEnabled = true))
@@ -438,27 +478,28 @@ class StoreShots {
 
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */
     @Test
-    fun appPicker() {
+    fun appPicker() = shootDialog("x-app-picker") {
+        AppPickerDialog(
+            title = "Hide the bubble in",
+            existing = emptySet(),
+            apps = FakeApps,
+            usage = mapOf("com.whatsapp" to 31, "com.google.android.gm" to 4),
+            multiple = true,
+            confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
+            onDismiss = {},
+            onPick = {},
+        )
+    }
+
+    /** A dialog draws in a window of its own; this takes that window. */
+    private fun shootDialog(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
-        activity.setContent {
-            AmberTheme {
-                AppPickerDialog(
-                    title = "Hide the bubble in",
-                    existing = emptySet(),
-                    apps = FakeApps,
-                    usage = mapOf("com.whatsapp" to 31, "com.google.android.gm" to 4),
-                    multiple = true,
-                    confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
-                    onDismiss = {},
-                    onPick = {},
-                )
-            }
-        }
+        activity.setContent { AmberTheme { content() } }
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
         val view = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
-        val file = File(out, "x-app-picker.png")
+        val file = File(out, "$name.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         assertTrue(file.length() > 0)
     }

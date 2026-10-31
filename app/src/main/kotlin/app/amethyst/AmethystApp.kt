@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
+import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.SecretStore
@@ -141,6 +142,9 @@ class Graph(app: Application) {
     /** Set by the accessibility service while it is connected; null means no insertion path. */
     @Volatile
     var accessibilityService: AmethystAccessibilityService? = null
+
+    /** Brings Amber back from Android's settings once what it sent the user for is on. */
+    val returnToAmber = ReturnToAmber(app, appScope) { accessibilityService }
 
     private var releaseJob: Job? = null
 

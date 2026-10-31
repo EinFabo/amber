@@ -1,6 +1,5 @@
 package app.amethyst.ui.onboarding
 
-import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,23 +7,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.amethyst.ui.AGREE_AND_OPEN
 import app.amethyst.ui.AccessibilityDisclosure
 import app.amethyst.ui.FlameMark
+import app.amethyst.ui.FullDisclosure
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PrimaryButton
-import app.amethyst.ui.RestrictedSettingsHint
+import app.amethyst.ui.RestrictedSettingsNote
+import app.amethyst.ui.RestrictedSettingsSteps
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.StatusRow
+import app.amethyst.ui.SwitchOnNote
+import app.amethyst.ui.SwitchOnSteps
 import app.amethyst.ui.theme.AmberPalette
+import kotlinx.coroutines.delay
 
 /** The step's main button, across the width. */
 @Composable
@@ -62,33 +69,71 @@ internal fun WelcomeStep(onNext: () -> Unit) {
 }
 
 /**
- * The service that shows the bubble and types the text - with everything it reads said on the
- * page before Android asks, and an explicit "I agree" (security review M6).
+ * The service that shows the bubble and types the text - with everything it reads and does
+ * said on the page before Android asks, and an explicit "I agree" (security review M6). The
+ * button goes as close to Amber's switch as Android allows, and once the service is on Amber
+ * comes back here by itself and moves on. Someone who comes back without it on gets the steps
+ * again - and on an install Android may lock, the way past the lock.
  */
 @Composable
 internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {
     val on = setup.accessibilityEnabled
+    val waiting = !on && setup.accessibilityTried
+    val locked = waiting && setup.restrictedSettings
+    // Moves on by itself only when the switch was turned on while this step was up - not when
+    // Back leads here with it already on.
+    var watching by rememberSaveable { mutableStateOf(!on) }
+    val moveOn by rememberUpdatedState(onNext)
+    LaunchedEffect(on) {
+        if (on && watching) {
+            watching = false
+            delay(DONE_BEAT_MS)
+            moveOn()
+        }
+    }
     StepPage(
         title = "Let Amber type for you",
-        lead = "Android's accessibility service lets Amber show the flame over other apps and type into the field you are in.",
+        lead = when {
+            locked -> "Not on yet. If Android blocked the switch, this is the way past it."
+            waiting -> "Not on yet. It takes three taps."
+            else -> "Android's accessibility service lets Amber show the flame over other apps and type into the field you are in."
+        },
         buttons = {
-            if (on) {
-                ContinueButton(onNext)
-            } else {
-                ContinueButton(actions.openAccessibility, "I agree - open settings")
-                LaterButton("Not now", onNext)
+            when {
+                on -> ContinueButton(onNext)
+                locked -> {
+                    // The filled button is the lock's "Open app info" above; this comes after it.
+                    GhostButton("Open settings again", actions.openAccessibility)
+                    LaterButton("Not now", onNext)
+                }
+                waiting -> {
+                    ContinueButton(actions.openAccessibility, "Open settings again")
+                    LaterButton("Not now", onNext)
+                }
+                else -> {
+                    ContinueButton(actions.openAccessibility, AGREE_AND_OPEN)
+                    LaterButton("Not now", onNext)
+                }
             }
         },
     ) {
-        if (on) {
-            Done("Accessibility service", "On - the flame can appear in every app.")
-        } else {
-            AccessibilityDisclosure()
-            Hint("In Android's list, pick Amber and switch it on, then come back here.")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) RestrictedSettingsHint(onOpenAppInfo = actions.openAppInfo)
+        when {
+            on -> Done("Accessibility service", "On - the flame can appear in every app.")
+            waiting -> {
+                if (locked) RestrictedSettingsSteps(actions.openAppInfo) else SwitchOnSteps()
+                FullDisclosure("What Amber reads and does")
+            }
+            else -> Column {
+                if (setup.restrictedSettings) RestrictedSettingsNote()
+                AccessibilityDisclosure()
+                SwitchOnNote()
+            }
         }
     }
 }
+
+/** How long the ticked row shows before the step moves on by itself. */
+private const val DONE_BEAT_MS = 900L
 
 @Composable
 internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {

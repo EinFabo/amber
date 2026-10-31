@@ -129,7 +129,9 @@ fun SectionCard(
 /**
  * One row of a group that leads somewhere: a leading [icon] in a tinted square (or any
  * [leading], such as an app icon), the title, ONE line of [summary] and a chevron. Without
- * [onClick] it is a plain row, its [trailing] doing the acting.
+ * [onClick] it is a plain row, its [trailing] doing the acting. [below] adds a line of its
+ * own under the summary, such as a trust badge; a row that states facts rather than settings
+ * lets its summary run to [summaryMaxLines].
  */
 @Composable
 fun NavRow(
@@ -140,6 +142,8 @@ fun NavRow(
     leading: (@Composable () -> Unit)? = null,
     titleColor: Color = AmberPalette.Text,
     summaryColor: Color = AmberPalette.Muted,
+    summaryMaxLines: Int = 1,
+    below: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = { ChevronRight() },
     onClick: (() -> Unit)?,
 ) {
@@ -159,8 +163,9 @@ fun NavRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = titleColor, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (summary != null) {
-                Text(summary, style = MaterialTheme.typography.bodySmall, color = summaryColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(summary, style = MaterialTheme.typography.bodySmall, color = summaryColor, maxLines = summaryMaxLines, overflow = TextOverflow.Ellipsis)
             }
+            below?.invoke()
         }
         trailing?.invoke()
     }
@@ -177,6 +182,35 @@ fun IconTile(icon: ImageVector) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = AmberPalette.Primary, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** A step's number on the same tinted square, for "do this, then that" lists. */
+@Composable
+fun NumberTile(number: Int) {
+    Box(
+        Modifier
+            .size(TileSize)
+            .clip(RoundedCornerShape(10.dp))
+            .background(AmberPalette.Deep),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("$number", style = MaterialTheme.typography.titleMedium, color = AmberPalette.Primary)
+    }
+}
+
+/** A line under a group, lined up with its label, with a small [icon] in front. */
+@Composable
+fun GroupFootnote(text: String, icon: ImageVector, modifier: Modifier = Modifier, color: Color = AmberPalette.Muted) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = Inset)
+            .padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = 1.dp).size(16.dp))
+        Hint(text, color)
     }
 }
 
@@ -271,7 +305,7 @@ private fun AmberSwitch(checked: Boolean) {
 
 /** An explanation longer than a line or two, one tap away instead of in the way. */
 @Composable
-fun LearnMore(text: String, modifier: Modifier = Modifier) {
+fun LearnMore(text: String, modifier: Modifier = Modifier, label: String = "Learn more") {
     var open by rememberSaveable(text) { mutableStateOf(false) }
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -284,7 +318,7 @@ fun LearnMore(text: String, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text("Learn more", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
+            Text(label, style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
             ExpandChevron(open, AmberPalette.Primary)
         }
         Unfold(open) {

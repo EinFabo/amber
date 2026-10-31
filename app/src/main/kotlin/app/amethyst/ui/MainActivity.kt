@@ -52,6 +52,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.engine.ModelDownloads
@@ -89,6 +90,9 @@ class MainActivity : ComponentActivity() {
 
     private val setupState = MutableStateFlow(SetupState())
 
+    /** Sent to switch the accessibility service on and not back with it on yet; see [SetupState.accessibilityTried]. */
+    private var accessibilityTried = false
+
     private val requestMicrophone =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             refreshSetup()
@@ -108,6 +112,7 @@ class MainActivity : ComponentActivity() {
         // The glass background runs behind the status and navigation bars.
         enableEdgeToEdge()
         val graph = AmethystApp.graph(this)
+        accessibilityTried = savedInstanceState?.getBoolean(KEY_ACCESSIBILITY_TRIED) ?: false
         refreshSetup()
 
         setContent {
@@ -125,9 +130,9 @@ class MainActivity : ComponentActivity() {
                                 requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                             }
                         },
-                        openAccessibility = { Setup.openAccessibilitySettings(this) },
+                        openAccessibility = ::openAccessibility,
                         openAppInfo = { Setup.openAppSettings(this) },
-                        openBattery = { Setup.openBatterySettings(this) },
+                        openBattery = ::openBattery,
                         startMicService = {
                             MicForegroundService.start(this)
                             refreshSetup()
@@ -140,9 +145,40 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Back in front, by the service or by hand: nothing left to bring back.
+        AmethystApp.graph(this).returnToAmber.cancel()
         // Accessibility and battery state change outside the app, in system settings.
         refreshSetup()
         ensureMicServiceRunning()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_ACCESSIBILITY_TRIED, accessibilityTried)
+    }
+
+    /**
+     * To Amber's switch in Android's settings, asking to be brought back once it is on. The
+     * screens learn the trip was made, so a sideloaded Amber can show the way past Android's
+     * lock if the user comes back without it.
+     */
+    private fun openAccessibility() {
+        val back = AmethystApp.graph(this).returnToAmber
+        back.sending(SettingsTrip.ACCESSIBILITY)
+        if (Setup.openAccessibilitySettings(this)) {
+            accessibilityTried = true
+        } else {
+            back.cancel()
+            Toast.makeText(this, "Android's accessibility settings did not open. Find them under Settings → Accessibility.", Toast.LENGTH_LONG).show()
+        }
+        refreshSetup()
+    }
+
+    /** To the battery list, watched while the user is there; back to Amber once Amber is exempt. */
+    private fun openBattery() {
+        val back = AmethystApp.graph(this).returnToAmber
+        back.sending(SettingsTrip.BATTERY)
+        if (!Setup.openBatterySettings(this)) back.cancel()
     }
 
     /**
@@ -185,11 +221,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshSetup() {
-        setupState.value = Setup.snapshot(this)
+        val state = Setup.snapshot(this, accessibilityTried)
+        // On is on: the next time it is off, the trip starts over.
+        if (state.accessibilityEnabled) accessibilityTried = false
+        setupState.value = state
     }
 
     private companion object {
         const val SERVICE_START_GRACE_MS = 600L
+        const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
     }
 }
 

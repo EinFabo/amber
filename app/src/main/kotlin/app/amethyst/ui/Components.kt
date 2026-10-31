@@ -25,7 +25,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -347,10 +346,6 @@ fun GroupLabel(text: String, modifier: Modifier = Modifier, trailing: (@Composab
         trailing?.invoke(this)
     }
 }
-
-/** A hairline between groups of rows. */
-@Composable
-fun Hairline() = HorizontalDivider(thickness = 1.dp, color = AmberPalette.Outline)
 
 /**
  * A few days as thin columns, today in amber, the rest in outline grey: one glance at the

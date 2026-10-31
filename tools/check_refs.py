@@ -7,7 +7,7 @@ kt = [p for p in kt if '/build/' not in str(p)]
 # would let a stub declaration satisfy an import that has no real counterpart.
 kt = [p for p in kt if 'tools/typecheck-stubs' not in str(p)]
 
-MODIFIERS = r'(?:public |internal |private |abstract |sealed |open |data |value |enum |annotation |inline |expect |actual |fun )*'
+MODIFIERS = r'(?:public |internal |private |abstract |sealed |open |data |value |enum |annotation |inline |expect |actual |const |fun )*'
 type_re = re.compile(r'^\s*(?:@\w+\s+)*' + MODIFIERS +
                      r'(?:class|interface|object|enum class|annotation class|typealias)\s+([A-Za-z_]\w*)', re.M)
 # Extension functions and properties carry a receiver before the name, which must not be
