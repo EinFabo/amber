@@ -59,12 +59,24 @@ private fun DisclosureRows() {
     RowDivider()
     Fact(AmberIcons.Keyboard, "Where the keyboard is", "To keep the bubble above it.")
     RowDivider()
-    Fact(AmberIcons.Subject, "The text in the field", "Only while inserting a dictation, so the new words fit in at the cursor.")
+    Fact(
+        AmberIcons.Subject,
+        "The text in the field",
+        "Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field.",
+    )
+    RowDivider()
+    Fact(
+        AmberIcons.Replay,
+        "Brings you back to Amber",
+        "Right after you switch on what Amber sent you to Android's settings for: this service, battery use without limits.",
+    )
     RowDivider()
     Fact(
         AmberIcons.VoiceCommand,
-        "With voice commands on: what can scroll, your list of apps",
-        "Not what the screen shows. Amber acts only on the command you just spoke: back, home, open an app, scroll, swipe.",
+        "With voice commands on",
+        "Your list of apps, which parts of the screen can scroll and whether they moved - not what they show. Amber acts " +
+            "only on the command you just spoke: navigate, open an app or a settings page, scroll or swipe, media keys and " +
+            "volume, the flashlight, edit the field you are in. Never in a password field; it never sends, pays or confirms.",
     )
 }
 

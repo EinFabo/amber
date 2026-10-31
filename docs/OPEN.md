@@ -216,6 +216,18 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       (`am broadcast -a app.amber.debug.COMMAND -n app.amber.debug/app.amethyst.debug.CommandTestReceiver --es text 'offne whatsapp'`),
       by voice from the launcher and from a chat field, a swipe with the bubble mid-screen,
       refused while locked, no heard words in logcat.
+- [x] Voice commands v2 (after 0.20.0, Fabi: "many commands are not recognized, there should be
+      many more"): a 250-phrasing corpus test (every miss of the v1 probe), counts ("zehnmal
+      runter", "swipe 5 times down", at most 20), "ganz nach unten" until nothing moves (at most
+      30 steps), pages, a bare app name on an exact or unique-prefix match, media keys and
+      volume, flashlight, close notifications, split screen, power menu, settings pages, and
+      text in the focused field (delete words, select all, copy, cut, paste, new line).
+      Plan: [`docs/plans/2026-10-31-settings-onboarding-commands-plan.md`](plans/2026-10-31-settings-onboarding-commands-plan.md), Task 3.
+      **Open: the device test** through the debug hook - flashlight on a phone whose camera is
+      free and in use, media keys with and without a player, volume at its limits, split screen
+      on the Pixel launcher, page actions in an app that offers them, "ganz nach unten" stopping
+      at the end of a long list and of a WebView, text commands in a View field, a Compose
+      field and a WebView, refused in a password field, "neue Zeile" refused where Enter sends.
 - [ ] Review leftovers of 0.19/0.20 (small, none urgent): cleanup readiness is checked twice
       (router and factory, one extra key decrypt per dictation) and a factory refusal gets no
       default; when an app's own model and the default both fail, the note drops the default's

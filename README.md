@@ -45,10 +45,13 @@ Controls:
 - **Drag** moves the bubble at any time, even mid-dictation. It stays where you drop it and
   steps above an open keyboard.
 - **Double-tap** gives a voice command instead - once switched on under Settings → Voice
-  commands: "zurück", "öffne WhatsApp", "scroll runter", "go home", "swipe left". Without a
-  text field one tap is enough, and the bubble then shows in every app. Understood by fixed
-  rules on the phone; Amber reads which parts of the screen can scroll, never what they show,
-  and never taps, types, sends or deletes. Switched off, Amber never acts for you. Android 17's
+  commands: "zurück", "öffne WhatsApp", "zehnmal runter", "ganz nach unten", "lauter",
+  "Taschenlampe an", "WLAN-Einstellungen", "lösche das letzte Wort", "go home", "swipe left".
+  Without a text field one tap is enough, and the bubble then shows in every app. Understood by
+  fixed rules on the phone; Amber reads which parts of the screen can scroll and whether they
+  moved, never what they show - and for a text command the field you are writing in, never a
+  password field. Settings pages only open; it never switches Wi-Fi or Bluetooth, never sends,
+  pays or confirms anything. Switched off, Amber never acts for you. Android 17's
   Advanced Protection takes the accessibility service - bubble and commands - away from every
   app that is not an accessibility tool, Amber included.
 
