@@ -145,6 +145,10 @@ class VoiceCommandsCorpusTest {
         "Starte Spotify" to app("spotify"),
         "Mach Google Maps auf" to app("google maps"),
         "Launch YouTube" to app("youtube"),
+        "Öffnen WhatsApp" to app("whatsapp"),
+        "Starten Spotify." to app("spotify"),
+        "Start Spotify" to app("spotify"),
+        "Open Chrome." to app("chrome"),
         "WhatsApp." to app("whatsapp"),
         "Spotify" to app("spotify"),
         "Kamera" to app("kamera"),
@@ -364,6 +368,9 @@ class VoiceCommandsCorpusTest {
         "Kein WhatsApp",
         "Erfner Whats",
         "Homepage schon, oder?",
+        "Beende WhatsApp",
+        "Quit Spotify",
+        "Mein Telegram",
     )
 
     private fun mismatches(cases: List<Pair<String, Command>>): List<String> = cases.mapNotNull { (heard, expected) ->

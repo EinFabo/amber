@@ -68,6 +68,13 @@ class VoiceCommandsTest {
         assertCommand(Command.OpenApp("whatsapp"), "Öffne die App WhatsApp", "oeffne whatsapp", "offne whatsapp")
     }
 
+    @Test
+    fun `an opening verb may come first in its infinitive too`() {
+        assertCommand(Command.OpenApp("whatsapp"), "Öffnen WhatsApp", "Oeffnen WhatsApp.", "Öffnen die App WhatsApp")
+        assertCommand(Command.OpenApp("spotify"), "Starten Spotify", "Start Spotify", "Launch Spotify")
+        assertCommand(Command.Navigate(GlobalAction.NOTIFICATIONS), "Öffnen Benachrichtigungen")
+    }
+
     private val apps = listOf("WhatsApp", "Google Maps", "Spotify", "Telegram", "Telefon")
 
     @Test
@@ -84,7 +91,27 @@ class VoiceCommandsTest {
             "Ich habe kein WhatsApp",
             "Ich habe WhatsApp",
             "Kein WhatsApp",
+            "Keinem WhatsApp",
             "Nicht WhatsApp",
+            "Nein WhatsApp",
+            "Nee Spotify",
+            "Mein Telegram",
+            "Meine Telegram",
+            "My Spotify",
+            "Beende WhatsApp",
+            "Beenden Spotify",
+            "Schließe WhatsApp",
+            "Schließen WhatsApp",
+            "Verlasse WhatsApp",
+            "Deinstalliere WhatsApp",
+            "Entferne WhatsApp",
+            "Quit Spotify",
+            "Exit WhatsApp",
+            "Close WhatsApp",
+            "Kill Spotify",
+            "Uninstall WhatsApp",
+            "Delete WhatsApp",
+            "Remove WhatsApp",
             "Lauter WhatsApp",
             "Schließ WhatsApp",
             "Lösche WhatsApp",

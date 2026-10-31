@@ -140,6 +140,17 @@ class VoiceCommandsExplainTest {
     fun `an open word without an app name`() {
         assertContains(reason("Öffne"), "“offne” without an app name")
         assertContains(reason("Öffne die App"), "without an app name")
+        assertContains(reason("Öffnen die App"), "“offnen” without an app name")
+    }
+
+    @Test
+    fun `a closing word or a possessive before an app's name says why it does not open`() {
+        val quit = reason("Beende WhatsApp")
+        assertContains(quit, "“beende”")
+        assertContains(quit, "closes, quits or removes")
+        val mine = reason("Mein Telegram", labels = apps)
+        assertContains(mine, "“mein”")
+        assertContains(mine, "say “öffne telegram”")
     }
 
     @Test
@@ -197,7 +208,8 @@ class VoiceCommandsExplainTest {
             "nächste Seite", "wisch nach links", "lauter", "dreimal leiser", "Pause", "Taschenlampe an", "WLAN", "lösche 3 Wörter",
             "alles markieren", "neue Zeile", "Äh", "Ich bin gleich zu Hause", "Zweimal Startbildschirm", "", "öffne",
             "Erfner WhatsApp", "Öffner WhatsApp", "Ich habe kein WhatsApp", "Kein WhatsApp", "Erfner Whats", "Homepage",
-            "Home page", "Zweimal Erfner WhatsApp",
+            "Home page", "Zweimal Erfner WhatsApp", "Öffnen WhatsApp", "Starten Spotify", "Beende WhatsApp", "Mein Telegram",
+            "Quit Spotify", "Öffnen die App",
         ).forEach { heard ->
             val last = verdict(heard)
             when (val understanding = VoiceCommands.parse(heard) { apps }) {

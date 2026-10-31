@@ -13,9 +13,11 @@ import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperRuntime
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -87,16 +89,56 @@ class CommandLanguagesTest {
 
     @Test
     fun `the prompt read back is an echo, one of its commands is not`() {
-        val german = CommandLanguages.promptFor("de")
-        assertTrue(CommandLanguages.isEcho(german!!, german))
-        assertTrue(CommandLanguages.isEcho(" öffne whatsapp, zurück ", german), "two of its phrases in a row")
-        assertTrue(CommandLanguages.isEcho("Zurück. Startbildschirm.", german))
-        assertFalse(CommandLanguages.isEcho("Zurück.", german), "one of its phrases is what the user may have said")
+        val german = CommandLanguages.promptFor("de")!!
+        val phrases = german.split(". ").map { it.trim().removeSuffix(".") }
+        assertTrue(CommandLanguages.isEcho(german, german))
+        assertTrue(CommandLanguages.isEcho(" ${phrases[0].lowercase()}, ${phrases[1].lowercase()} ", german), "two of its phrases in a row")
+        assertTrue(CommandLanguages.isEcho("${phrases[1]}. ${phrases[2]}.", german))
+        assertFalse(CommandLanguages.isEcho("${phrases[0]}.", german), "one of its phrases is what the user may have said")
         assertFalse(CommandLanguages.isEcho("WhatsApp", german))
         assertFalse(CommandLanguages.isEcho("Öffne WhatsApp.", german))
         assertFalse(CommandLanguages.isEcho("Öffne Spotify", german))
-        assertFalse(CommandLanguages.isEcho("Zurück. Zurück.", german), "not in the prompt's order")
+        assertFalse(CommandLanguages.isEcho("${phrases[1]}. ${phrases[1]}.", german), "not in the prompt's order")
         assertFalse(CommandLanguages.isEcho("Zurück", null))
+    }
+
+    /** Each word of [prompt], folded, with the number of the phrase it is in. */
+    private fun promptWords(prompt: String) = prompt.split('.').map(VoiceCommands::normalize).filter { it.isNotEmpty() }
+        .flatMapIndexed { phrase, text -> text.split(' ').map { it to phrase } }
+
+    @Test
+    fun `no run of words across two prompt phrases is a command - an echo there would swallow it`() {
+        listOf("de", "en").forEach { language ->
+            val words = promptWords(CommandLanguages.promptFor(language)!!)
+            val commands = buildList {
+                for (start in words.indices) for (end in start + 2..words.size) {
+                    val run = words.subList(start, end)
+                    if (run.first().second == run.last().second) continue
+                    val text = run.joinToString(" ") { it.first }
+                    if (VoiceCommands.parse(text) { listOf("WhatsApp") } is Understanding.Understood) add(text)
+                }
+            }
+            assertTrue(commands.isEmpty(), "$language: $commands")
+        }
+        // Found by the review: these were taken for the English prompt read back.
+        val english = CommandLanguages.promptFor("en")
+        assertFalse(CommandLanguages.isEcho("Go back home", english))
+        assertFalse(CommandLanguages.isEcho("Back home", english))
+    }
+
+    @Test
+    fun `no swipe in a prompt, and a direction comes with its opposite or not at all`() {
+        val pairs = mapOf(
+            "de" to listOf("runter" to "hoch", "lauter" to "leiser", "an" to "aus"),
+            "en" to listOf("down" to "up", "louder" to "quieter", "on" to "off"),
+        )
+        pairs.forEach { (language, opposites) ->
+            val words = promptWords(CommandLanguages.promptFor(language)!!).map { it.first }
+            assertTrue(words.none { it in setOf("wisch", "wische", "wischen", "swipe") }, "$language: $words")
+            opposites.forEach { (one, other) ->
+                assertEquals(one in words, other in words, "$language: \"$one\" and \"$other\" in $words")
+            }
+        }
     }
 
     // --- recognizing ----------------------------------------------------------------------
@@ -120,8 +162,6 @@ class CommandLanguagesTest {
         }
     }
 
-    private fun understood(text: String) = VoiceCommands.parse(text) { listOf("WhatsApp", "Spotify") } is Understanding.Understood
-
     private fun nothing(technical: String = "whisper returned no speech: \"\"") =
         Result.failure<String>(SttFailure(SttFailure.NOTHING_RECOGNIZED, technical))
 
@@ -130,7 +170,7 @@ class CommandLanguagesTest {
         tag: String? = "de,en",
         phone: String? = "de",
         lines: MutableList<String> = mutableListOf(),
-    ) = CommandLanguages.recognize(engine, audio, TranscribeOptions(languageTag = tag), phone, ::understood, lines::add)
+    ) = CommandLanguages.recognize(engine, audio, TranscribeOptions(languageTag = tag), phone, { listOf("WhatsApp", "Spotify") }, note = lines::add)
 
     @Test
     fun `German first on a German phone, one pass when the rules understand it`() = runTest {
@@ -271,6 +311,39 @@ class CommandLanguagesTest {
         val prompt = CommandLanguages.promptFor("de")!!
         recognize(FakeEngine(mapOf("de" to Result.success(prompt)), whisperLike), tag = "de", lines = echo)
         assertEquals(listOf("heard as de: \"$prompt\" - the prompt read back, taken as nothing heard"), echo)
+    }
+
+    @Test
+    fun `a misheard open is assumed only for the words that stand, never from a later pass`() = runTest {
+        // "Lösche WhatsApp" refused in German must not turn into an open through an English pass.
+        val delete = FakeEngine(mapOf("de" to Result.success("Lösche WhatsApp."), "en" to Result.success("Lush WhatsApp.")), whisperLike)
+        val deleted = recognize(delete).result.getOrThrow().text
+        assertEquals("Lösche WhatsApp.", deleted)
+        assertTrue(VoiceCommands.parse(deleted) { listOf("WhatsApp") } is Understanding.NotUnderstood)
+
+        // The German pass's misheard "öffne" stands when no pass is a sure command - and opens.
+        val misheard = FakeEngine(mapOf("de" to Result.success("Erfner WhatsApp."), "en" to Result.success("If now what's up?")), whisperLike)
+        val opened = recognize(misheard).result.getOrThrow().text
+        assertEquals("Erfner WhatsApp.", opened)
+        assertEquals(2, misheard.calls.size, "a misheard open is no reason to stop early")
+        assertTrue(VoiceCommands.parse(opened) { listOf("WhatsApp") } is Understanding.Understood)
+    }
+
+    @Test
+    fun `a tap during a later pass keeps the earlier passes and stops the command`() = runTest {
+        val engine = object : SttEngine {
+            override val id = "local-whisper"
+            override val displayName = "Whisper"
+            override val capabilities = whisperLike
+            override suspend fun transcribe(audio: PcmAudio, options: TranscribeOptions): Result<Transcript> =
+                if (options.languageTag == "de") Result.success(Transcript("Hallo du.", id, TrustLevel.ON_DEVICE, 0))
+                else throw CancellationException("stopped by a tap")
+        }
+        val lines = mutableListOf<String>()
+        assertFailsWith<CancellationException> {
+            CommandLanguages.recognize(engine, audio, TranscribeOptions(languageTag = "de,en"), "de", { emptyList() }, note = lines::add)
+        }
+        assertEquals(listOf("heard as de: \"Hallo du.\" - not understood"), lines)
     }
 
     // --- which engines ---------------------------------------------------------------------

@@ -6,6 +6,9 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.text.Transcript
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Which language a voice command is recognized in. A command is a second of audio, too little
@@ -31,10 +34,16 @@ object CommandLanguages {
         return ordered.take(maxAttempts.coerceAtLeast(1))
     }
 
-    /** Commands in their words, as speech engines write them: the prompt for a pass in that language. */
+    /**
+     * Commands in their words, as speech engines write them: the prompt for a pass in that
+     * language. A direction comes with its opposite, so neither is pulled toward; no swipe,
+     * which an echo could turn into an archived mail; and no run of words across two phrases
+     * is itself a command ("Go back. Home screen." held "go back home"), else [isEcho] would
+     * swallow it. "Öffne" goes last: anything after it would read as an app's name.
+     */
     private val PROMPTS = mapOf(
-        "de" to "Öffne WhatsApp. Zurück. Startbildschirm. Scroll runter. Wisch nach links. Lauter. Taschenlampe an.",
-        "en" to "Open WhatsApp. Go back. Home screen. Scroll down. Swipe left. Louder. Flashlight on.",
+        "de" to "Zurück. Lauter. Scroll runter. Taschenlampe an. Leiser. Scroll hoch. Taschenlampe aus. Startbildschirm. Öffne WhatsApp.",
+        "en" to "Go back. Louder. Scroll down. Flashlight on. Quieter. Scroll up. Flashlight off. Home screen. Open WhatsApp.",
     )
 
     /** The command vocabulary for a pass in [language] ("de", "de-DE"); null for any other or none. */
@@ -71,18 +80,24 @@ object CommandLanguages {
      * Recognizes a command's [audio] with [engine], language by language where the engine takes
      * one per request ([app.amethyst.core.engine.EngineCapabilities.commandLanguageAttempts]),
      * with the command vocabulary as prompt where it takes one, and stops at the first words
-     * [understood] accepts. An engine that takes neither gets the one plain pass it always had.
-     * Each pass is [note]d for Diagnostics as it ends, so a tap that stops the next one still
-     * leaves it there.
+     * the rules surely understand ([VoiceCommands.parseStrict], the installed apps from
+     * [appLabels], read on [readOn]). An engine that takes neither gets the one plain pass it
+     * always had. Each pass is [note]d for Diagnostics as it ends, so a tap that stops the next
+     * one still leaves it there.
      */
     suspend fun recognize(
         engine: SttEngine,
         audio: PcmAudio,
         options: TranscribeOptions,
         phoneLanguage: String?,
-        understood: suspend (String) -> Boolean,
+        appLabels: () -> List<String>,
+        readOn: CoroutineContext = EmptyCoroutineContext,
         note: (String) -> Unit = {},
     ): Recognition {
+        // Strictly: a misheard "öffne" is assumed only for the words that stand, never from a
+        // later pass - "Lösche WhatsApp" refused in German must not open it as "Lush WhatsApp".
+        suspend fun understood(text: String) =
+            withContext(readOn) { VoiceCommands.parseStrict(text, appLabels) is Understanding.Understood }
         val caps = engine.capabilities
         if (caps.commandLanguageAttempts <= 1 && !caps.commandPrompt) {
             return Recognition(engine.transcribe(audio, options), passes = 1)

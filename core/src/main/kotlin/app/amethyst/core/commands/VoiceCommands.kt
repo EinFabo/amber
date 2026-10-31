@@ -69,6 +69,14 @@ object VoiceCommands : CommandParser {
     override fun parse(heard: String, appLabels: () -> List<String>): Understanding =
         command(read(heard), appLabels)?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
 
+    /**
+     * [parse] without the guess that one unknown word before an app's name is a misheard
+     * "öffne" ([misheardOpen]) - for choosing among a command's language passes
+     * ([CommandLanguages]), where a later pass must not turn a refused phrase into an open.
+     */
+    fun parseStrict(heard: String, appLabels: () -> List<String>): Understanding =
+        command(read(heard), appLabels, guessMisheard = false)?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+
     /** What was heard as the rules see it: folded, the count taken out, the words kept. */
     private class Reading(val normalized: String, val times: Int?, val words: List<String>) {
         /** Every folded word, the count and the fillers still in. */
@@ -81,11 +89,12 @@ object VoiceCommands : CommandParser {
         return Reading(normalized, times, tidy(counted).flatMap(::unglue))
     }
 
-    private fun command(reading: Reading, appLabels: () -> List<String>): Command? {
+    private fun command(reading: Reading, appLabels: () -> List<String>, guessMisheard: Boolean = true): Command? {
         val (times, words) = reading.times to reading.words
         if (words.isEmpty() || (times != null && times < 1)) return null
         // A bare name with a count ("zweimal WhatsApp") is not an app being opened.
-        return (rule(words) ?: if (times == null) bareApp(words, appLabels) ?: misheardOpen(words, appLabels) else null)?.repeated(times)
+        val app = if (times != null) null else bareApp(words, appLabels) ?: misheardOpen(words, appLabels).takeIf { guessMisheard }
+        return (rule(words) ?: app)?.repeated(times)
     }
 
     // ---- Explaining, for Diagnostics ----
@@ -218,6 +227,7 @@ object VoiceCommands : CommandParser {
         val (verb, name) = when {
             lead != null -> lead to words.drop(lead.split(' ').size)
             words.last() in APP_TRAILS -> words.last() to words.dropLast(1)
+            words.first() in APP_TRAILS -> words.first() to words.drop(1)
             (words.first() == "mach" || words.first() == "mache") && words.last() == "auf" -> "mach … auf" to words.drop(1).dropLast(1)
             else -> return null
         }
@@ -237,10 +247,13 @@ object VoiceCommands : CommandParser {
             val name = appName(words.drop(cut))?.takeIf { words.size - cut <= MAX_NAME_WORDS } ?: continue
             if (exactApp(name, labels) == null) continue
             val before = words.take(cut)
+            val word = before.first()
             return when {
                 before.size > 1 -> "“${before.joinToString(" ")}” before “$name”: only one unknown word before an app's exact name " +
                     "is taken for a misheard “öffne”"
-                else -> "“${before.single()}” is a word the rules know, so it is not taken for a misheard “öffne” before “$name”"
+                word in CLOSING_VERBS -> "“$word” closes, quits or removes - it is never taken for a misheard “öffne” before “$name”"
+                word in POSSESSIVES -> "“$word” before “$name”: a name alone is opened, not with “$word” - say “öffne $name”"
+                else -> "“$word” is a word the rules know, so it is not taken for a misheard “öffne” before “$name” - say “öffne $name”"
             }
         }
         val rest = appName(words.drop(1))?.takeIf { words.size - 1 <= MAX_NAME_WORDS } ?: return null
@@ -322,7 +335,7 @@ object VoiceCommands : CommandParser {
 
     /** Words a phrase may start or end with around its noun: "zeig die …", "… öffnen". */
     private val LEAD_VERBS = listOf(
-        "geh zu", "gehe zu", "go to", "geh", "gehe", "go", "zeig", "zeige", "show", "offne", "oeffne", "open",
+        "geh zu", "gehe zu", "go to", "geh", "gehe", "go", "zeig", "zeige", "show", "offne", "oeffne", "offnen", "oeffnen", "open",
         "mach", "mache", "take", "nimm",
     )
     private val TRAIL_VERBS = setOf(
@@ -627,6 +640,8 @@ object VoiceCommands : CommandParser {
         val name = when {
             (words.first() == "mach" || words.first() == "mache") && words.last() == "auf" -> words.drop(1).dropLast(1)
             words.size > 1 && words.last() in APP_TRAILS -> words.dropLast(1)
+            // "Öffnen WhatsApp", "Starten Spotify": the infinitive first, as it is often said.
+            words.size > 1 && words.first() in APP_TRAILS -> words.drop(1)
             else -> APP_LEADS.firstOrNull { startsWith(words, it) }?.let { words.drop(it.split(' ').size) } ?: return null
         }
         return appName(name)?.let { Command.OpenApp(it) }
@@ -639,6 +654,8 @@ object VoiceCommands : CommandParser {
     private fun bareApp(words: List<String>, appLabels: () -> List<String>): Command? {
         val rest = BARE_LEADS.firstOrNull { startsWith(words, it) && words.size > it.split(' ').size }
             ?.let { words.drop(it.split(' ').size) } ?: words
+        // "Mein Telegram" is more likely the start of a sentence than a command.
+        if (rest.any { it in POSSESSIVES }) return null
         val name = appName(rest)?.takeIf { rest.size <= MAX_NAME_WORDS } ?: return null
         return Command.OpenApp(name).takeIf { AppMatch.find(name, appLabels(), strict = true) { it } is AppMatch.Found }
     }
@@ -661,8 +678,21 @@ object VoiceCommands : CommandParser {
 
     /** "Kein WhatsApp", "nicht Spotify": never taken for a misheard "öffne". */
     private val NEGATIONS = setOf(
-        "kein", "keine", "keinen", "keiner", "nicht", "nie", "niemals", "ohne", "no", "not", "never", "without", "dont", "doesnt",
-        "cant", "wont",
+        "kein", "keine", "keinen", "keiner", "keinem", "keines", "nicht", "nie", "niemals", "ohne", "nein", "nee", "no", "not",
+        "never", "without", "dont", "doesnt", "cant", "wont",
+    )
+
+    /** "Beende WhatsApp", "quit Spotify": the opposite of opening, never taken for a misheard "öffne". */
+    private val CLOSING_VERBS = setOf(
+        "beende", "beenden", "beend", "schliess", "schliesse", "schliessen", "verlasse", "verlassen", "verlass", "deinstalliere",
+        "deinstallieren", "deinstallier", "losche", "losch", "loschen", "loesche", "loeschen", "entferne", "entfern", "entfernen",
+        "quit", "exit", "close", "kill", "uninstall", "delete", "remove",
+    )
+
+    /** "Mein Telegram", "my Spotify": a bare name after them is not opened, nor taken for a misheard "öffne". */
+    private val POSSESSIVES = setOf(
+        "mein", "meine", "meinen", "meinem", "meiner", "dein", "deine", "deinen", "sein", "seine", "ihr", "ihre", "unser", "unsere",
+        "my", "your", "his", "her", "our", "their",
     )
 
     /** Every word some rule takes, and negations. Lazy: the word lists stand all over this file. */
@@ -672,7 +702,7 @@ object VoiceCommands : CommandParser {
             MOTION_WORDS, VOLUME_NOUNS, SONG_NOUNS, MEDIA_FILLERS, LOUDER, QUIETER, RAISE, LOWER, MUTE, ON, OFF, PAUSE, PLAY_PARTS,
             NEXT, SKIP, PREVIOUS, TORCHES, SWITCH_FILLERS, PAGE_NAMES.keys, PAGE_TOPICS.keys, SETTINGS, SETTINGS_FILLERS,
             DELETE_VERBS, WORDS, DELETE_EXTRAS, ALL, SELECT_VERBS, OBJECT_WORDS, NEW_LINES, CLIPBOARD.keys.flatten(), APP_LEADS, APP_TRAILS,
-            BARE_LEADS, NEGATIONS, setOf("app", "turn", "unmute", "stummschaltung", "aufheben", "schalten", "ein"),
+            BARE_LEADS, NEGATIONS, CLOSING_VERBS, POSSESSIVES, setOf("app", "turn", "unmute", "stummschaltung", "aufheben", "schalten", "ein"),
         ).flatten().flatMap { it.split(' ') }.toSet()
     }
 

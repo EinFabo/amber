@@ -427,7 +427,7 @@ class DictationController(
         source: TriggerSource,
         /** Engine and model, for learning how long recognition takes here. */
         estimateKey: String,
-        /** For a command: which language's words the rules understand. */
+        /** The installed apps' labels for a command's app names, read once per run ([appLabelsOnce]). */
         appLabels: () -> List<String>,
     ): Transcript? {
         _state.value = DictationState.Listening()
@@ -565,7 +565,8 @@ class DictationController(
         audio,
         options,
         phoneLanguage = phoneLanguage(),
-        understood = { text -> withContext(Dispatchers.IO) { VoiceCommands.parse(text, appLabels) is Understanding.Understood } },
+        appLabels = appLabels,
+        readOn = Dispatchers.IO,
         // The trace begins with the first pass: a tap before it still reads "before the command ran".
         note = { line -> (commandSteps ?: CommandTrace().also { commandSteps = it }).note(line) },
     )
