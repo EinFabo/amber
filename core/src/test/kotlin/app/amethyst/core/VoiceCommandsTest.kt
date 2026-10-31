@@ -100,7 +100,6 @@ class VoiceCommandsTest {
             "Ich bin gleich zu Hause",
             "Wir sehen uns morgen um acht",
             "Kannst du mir das bitte schicken",
-            "nach unten",
             "öffne",
             "",
             "Zurück zum Thema: die Lieferung kommt morgen",

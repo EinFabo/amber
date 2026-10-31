@@ -3,7 +3,9 @@ package app.amethyst.core.commands
 /**
  * The app a spoken name means, by its launcher label. Tiers from sure to loose - the exact name,
  * a unique start, a word inside, a name a recognizer slightly mis-heard ("Telegramm") - and the
- * first tier with any hit decides. Several apps there are never guessed between.
+ * first tier with any hit decides. Several apps there are never guessed between. A [strict]
+ * search knows only the first two tiers: for a bare name, said without "open", which is a
+ * command only when it is surely an app.
  */
 sealed interface AppMatch<out T> {
     data class Found<T>(val app: T) : AppMatch<T>
@@ -12,7 +14,7 @@ sealed interface AppMatch<out T> {
 
     companion object {
 
-        fun <T> find(name: String, apps: List<T>, labelOf: (T) -> String): AppMatch<T> {
+        fun <T> find(name: String, apps: List<T>, strict: Boolean = false, labelOf: (T) -> String): AppMatch<T> {
             val query = key(name)
             if (query.isEmpty()) return NotFound
             val labelled = apps.map { it to key(labelOf(it)) }
@@ -21,9 +23,10 @@ sealed interface AppMatch<out T> {
                 { query.length >= 3 && it.startsWith(query) },
                 { query.length >= 4 && query in it },
             )
-            for (tier in tiers) {
+            for (tier in if (strict) tiers.take(2) else tiers) {
                 decide(labelled.filter { (_, label) -> tier(label) }.map { it.first })?.let { return it }
             }
+            if (strict) return NotFound
             return decide(closest(query, apps, labelOf)) ?: NotFound
         }
 

@@ -9,6 +9,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.amethyst.Graph
+import app.amethyst.apps.Launcher
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
@@ -54,6 +55,7 @@ import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -61,6 +63,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -565,7 +568,13 @@ class DictationController(
             fail("Nothing heard - say the command again.", transcript.engineId)
             return
         }
-        val understanding = VoiceCommands.parse(heard)
+        // A bare app name ("WhatsApp") is a command only if it names an installed app. The list
+        // is read only when the rules need it, and not at all while commands are off.
+        val understanding = withContext(Dispatchers.IO) {
+            VoiceCommands.parse(heard) {
+                if (graph.settings.value.commands.enabled) Launcher.apps(context).map { it.label } else emptyList()
+            }
+        }
         val outcome = when (understanding) {
             is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command)
                 ?: CommandOutcome.Failed("Amber's accessibility service is off.")

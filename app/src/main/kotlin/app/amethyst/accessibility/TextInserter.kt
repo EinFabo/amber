@@ -105,6 +105,19 @@ class TextInserter(
         return null to "no text field found (findFocus: ${focused?.describe() ?: "nothing"})"
     }
 
+    /**
+     * The editable node that has input focus - for the text commands, which change the field
+     * the user is writing in. Found as [resolveTarget] finds it, without the input connection.
+     */
+    fun focusedEditable(): AccessibilityNodeInfo? {
+        val focused = runCatching { service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
+        return if (focused?.isEditable == true) focused else findFocusedEditable()
+    }
+
+    /** Whether Enter makes a new line in [node]'s field rather than sending or moving on. */
+    fun takesLineBreaks(packageName: String, node: AccessibilityNodeInfo?): Boolean =
+        enterMakesNewLine(service, packageName) ?: (node?.isMultiLine == true)
+
     /** Breadth-first through every window, the active one first, bounded so it stays cheap. */
     private fun findFocusedEditable(): AccessibilityNodeInfo? {
         val roots = runCatching {

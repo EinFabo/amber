@@ -2,8 +2,8 @@ package app.amethyst.core.commands
 
 import app.amethyst.core.bubble.Box
 
-/** The scroll actions a node offers (`AccessibilityNodeInfo.AccessibilityAction`). */
-enum class ScrollAction { UP, DOWN, LEFT, RIGHT, FORWARD, BACKWARD }
+/** The scroll and page actions a node offers (`AccessibilityNodeInfo.AccessibilityAction`). */
+enum class ScrollAction { UP, DOWN, LEFT, RIGHT, FORWARD, BACKWARD, PAGE_UP, PAGE_DOWN, PAGE_LEFT, PAGE_RIGHT }
 
 /** A scrollable node as the executor found it: no text, only where it is and what it offers. */
 data class Scrollable(val id: Int, val area: Long, val activeWindow: Boolean, val vertical: Boolean, val actions: Set<ScrollAction>)
@@ -36,9 +36,24 @@ object ScrollTarget {
                     else -> null
                 }
             }
-            .sortedWith(compareByDescending<Pair<Scrollable, ScrollAction>> { it.first.activeWindow }.thenByDescending { it.first.area })
+            .sortedWith(compareBy(ORDER) { it.first })
             .firstOrNull()
         return if (best != null) ScrollPick.Node(best.first.id, best.second) else ScrollPick.None
+    }
+
+    /**
+     * Which node a "page down" pages: one offering the page action (Android 10+, a reader or a
+     * pager), by the same order as [pick]; without one, a page is a scroll.
+     */
+    fun pickPage(nodes: List<Scrollable>, direction: Direction): ScrollPick {
+        val page = when (direction) {
+            Direction.UP -> ScrollAction.PAGE_UP
+            Direction.DOWN -> ScrollAction.PAGE_DOWN
+            Direction.LEFT -> ScrollAction.PAGE_LEFT
+            Direction.RIGHT -> ScrollAction.PAGE_RIGHT
+        }
+        val best = nodes.filter { page in it.actions }.sortedWith(ORDER).firstOrNull()
+        return if (best != null) ScrollPick.Node(best.id, page) else pick(nodes, direction)
     }
 
     /**
@@ -46,13 +61,16 @@ object ScrollTarget {
      * horizontal scroll view, a pager) or a grid of one row.
      */
     fun isVertical(className: String?, rows: Int, columns: Int, actions: Set<ScrollAction>): Boolean {
-        val up = ScrollAction.UP in actions || ScrollAction.DOWN in actions
-        val side = ScrollAction.LEFT in actions || ScrollAction.RIGHT in actions
+        val up = actions.any { it == ScrollAction.UP || it == ScrollAction.DOWN || it == ScrollAction.PAGE_UP || it == ScrollAction.PAGE_DOWN }
+        val side = actions.any { it == ScrollAction.LEFT || it == ScrollAction.RIGHT || it == ScrollAction.PAGE_LEFT || it == ScrollAction.PAGE_RIGHT }
         if (up != side) return up
         val name = className.orEmpty()
         if ("Horizontal" in name || "Pager" in name) return false
         return !(rows == 1 && columns > 1)
     }
+
+    /** The window in use before others, the largest before smaller. */
+    private val ORDER = compareByDescending<Scrollable> { it.activeWindow }.thenByDescending { it.area }
 
     private fun Direction.action(): ScrollAction = when (this) {
         Direction.UP -> ScrollAction.UP

@@ -56,6 +56,27 @@ class ScrollTargetTest {
     }
 
     @Test
+    fun `a page goes by the page action where a node offers one`() {
+        val list = node(1, 2_000, ScrollAction.DOWN, ScrollAction.FORWARD)
+        val reader = node(2, 900, ScrollAction.PAGE_DOWN, ScrollAction.DOWN)
+        assertEquals(ScrollPick.Node(2, ScrollAction.PAGE_DOWN), ScrollTarget.pickPage(listOf(list, reader), Direction.DOWN))
+        assertEquals(ScrollPick.Node(3, ScrollAction.PAGE_UP), ScrollTarget.pickPage(listOf(node(3, 900, ScrollAction.PAGE_UP)), Direction.UP))
+    }
+
+    @Test
+    fun `without a page action a page is a scroll`() {
+        val list = node(1, 2_000, ScrollAction.DOWN, ScrollAction.FORWARD)
+        assertEquals(ScrollPick.Node(1, ScrollAction.DOWN), ScrollTarget.pickPage(listOf(list), Direction.DOWN))
+        assertEquals(ScrollPick.None, ScrollTarget.pickPage(listOf(node(2, 900, ScrollAction.PAGE_UP)), Direction.DOWN))
+    }
+
+    @Test
+    fun `page actions tell the axis too`() {
+        assertFalse(ScrollTarget.isVertical("androidx.viewpager2.widget.ViewPager2", rows = 0, columns = 0, actions = setOf(ScrollAction.PAGE_RIGHT)))
+        assertTrue(ScrollTarget.isVertical(null, rows = 0, columns = 0, actions = setOf(ScrollAction.PAGE_DOWN)))
+    }
+
+    @Test
     fun `the axis comes from the actions, the class or the grid`() {
         assertTrue(ScrollTarget.isVertical("androidx.recyclerview.widget.RecyclerView", rows = 20, columns = 1, actions = setOf(ScrollAction.FORWARD)))
         assertFalse(ScrollTarget.isVertical("android.widget.HorizontalScrollView", 0, 0, setOf(ScrollAction.FORWARD)))

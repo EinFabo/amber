@@ -360,6 +360,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     }
 
     private fun teardown() {
+        if (::commands.isInitialized) commands.close()
         fieldCheck.stop()
         keyboard?.stop()
         keyboard = null

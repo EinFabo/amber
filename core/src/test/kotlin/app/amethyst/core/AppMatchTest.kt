@@ -46,6 +46,16 @@ class AppMatchTest {
     }
 
     @Test
+    fun `strict matching knows only the exact name and a unique start`() {
+        fun strict(name: String) = AppMatch.find(name, apps, strict = true) { it }
+        assertEquals(AppMatch.Found("WhatsApp"), strict("whatsapp"))
+        assertEquals(AppMatch.Found("Einstellungen"), strict("einst"))
+        assertIs<AppMatch.Ambiguous<String>>(strict("tele"))
+        assertIs<AppMatch.NotFound>(strict("maps"), "a word inside is not enough")
+        assertIs<AppMatch.NotFound>(strict("telegramm"), "nor a near miss")
+    }
+
+    @Test
     fun `short or unknown names find nothing`() {
         assertIs<AppMatch.NotFound>(find("xyz"))
         assertIs<AppMatch.NotFound>(find("ga"))

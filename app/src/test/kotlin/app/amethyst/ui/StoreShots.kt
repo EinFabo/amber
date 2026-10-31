@@ -280,6 +280,22 @@ class StoreShots {
         )
     }
 
+    /** Not part of the listing set: the whole voice commands page in one picture, every kind of command. */
+    @Test
+    @Config(qualifiers = "w360dp-h1500dp-xxhdpi")
+    fun voiceCommandsTall() = shoot("x-voice-commands-tall", "Voice commands") {
+        app.amethyst.ui.screen.VoiceCommandsScreen(
+            settings = settings.copy(commands = app.amethyst.core.settings.CommandSettings(enabled = true)),
+            onUpdateSettings = {},
+        )
+    }
+
+    /** Not part of the listing set: what switching voice commands on asks first. */
+    @Test
+    fun voiceCommandsConsent() = shootDialog("x-voice-commands-consent") {
+        app.amethyst.ui.screen.VoiceCommandsConsent(onAgree = {}, onDismiss = {})
+    }
+
     /** Not part of the listing set: the recording page. */
     @Test
     fun recording() = shoot("x-recording", "Recording") {

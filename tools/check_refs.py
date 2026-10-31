@@ -69,7 +69,8 @@ for f in res.rglob('*.xml'):
         res_ids[kind].add(f.stem)
 
 for p in kt:
-    for kind, name in re.findall(r'\bR\.(\w+)\.(\w+)', p.read_text()):
+    # android.R.* is the framework's (android.R.id.copy), never one of the app's resources.
+    for kind, name in re.findall(r'(?<!android\.)\bR\.(\w+)\.(\w+)', p.read_text()):
         if name not in res_ids.get(kind, set()):
             errors.append(f"{p.relative_to(root)}: missing resource R.{kind}.{name}")
 
