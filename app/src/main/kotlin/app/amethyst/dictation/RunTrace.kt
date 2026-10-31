@@ -36,6 +36,9 @@ internal class RunTrace(val route: String) {
 
     /** The enclave that answered, when the engine names one (Tinfoil). */
     var servedBy: String? = null
+
+    /** How the recording went up to a server - format and size, never the address. */
+    var upload: String? = null
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
@@ -89,6 +92,7 @@ internal class RunTrace(val route: String) {
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
         fallback?.let(::add)
         cleanup?.let(::add)
+        upload?.let(::add)
         servedBy?.let { add("enclave $it") }
         // The whisper thread's own group says more than the caller's, when there is one.
         whisperScheduling?.let(::add) ?: cpuGroup?.let { add("CPU group $it") }

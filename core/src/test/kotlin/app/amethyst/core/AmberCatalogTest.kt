@@ -267,6 +267,29 @@ class AmberCatalogTest {
         assertEquals("qwen3-4b-instruct-2507-q4km", SettingsSummaries.cleanup(settings.copy(serverCatalogs = emptyMap())))
     }
 
+    // --- an engine without a model yet ---
+
+    @Test
+    fun `an engine without a speech model gets the server's default once the list is there`() {
+        for (blank in listOf(null, "", "  ")) {
+            assertEquals("acft-large-v3-turbo-q8_0", AmberCatalogs.speechModelToPreselect(blank, pc), "[$blank]")
+        }
+        val server = pc.copy(
+            speech = listOf(ModelChoice("large-v3", "Large v3", ""), ModelChoice("turbo", "Turbo", "", recommended = true)),
+        )
+        assertEquals("turbo", AmberCatalogs.speechModelToPreselect(null, server), "the default, wherever it is listed")
+        val unmarked = pc.copy(speech = listOf(ModelChoice("large-v3", "Large v3", ""), ModelChoice("turbo", "Turbo", "")))
+        assertEquals("large-v3", AmberCatalogs.speechModelToPreselect(null, unmarked), "the first, when none is marked")
+    }
+
+    @Test
+    fun `a chosen speech model is never replaced, and without a list nothing is picked`() {
+        assertNull(AmberCatalogs.speechModelToPreselect("acft-large-v3-turbo-q8_0", pc))
+        assertNull(AmberCatalogs.speechModelToPreselect("large-v2", pc), "not offered any more, still the user's choice")
+        assertNull(AmberCatalogs.speechModelToPreselect(null, null))
+        assertNull(AmberCatalogs.speechModelToPreselect(null, pc.copy(speech = emptyList())), "it lists no speech model")
+    }
+
     // --- keeping it ---
 
     private val withOwn = AmethystSettings.defaults().withEngine(own)

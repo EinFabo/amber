@@ -24,12 +24,13 @@ class EncodedAudio(val bytes: ByteArray, val fileName: String, val mimeType: Str
         /**
          * Whether [bytes] open as an Ogg Opus file must: an Ogg page ("OggS") whose first packet
          * is the Opus identification header ("OpusHead"). The packet follows the page's 27-byte
-         * header and its lacing values - one for Android's encoder, so it starts at byte 28.
+         * header and its segment table, one lacing value per segment; byte 26 holds the number of
+         * segments - one for Android's encoder, so the packet starts at byte 28.
          */
         fun isOggOpus(bytes: ByteArray): Boolean {
             if (bytes.size < OGG_PAGE_HEADER || !bytes.hasAt(0, OGG_MAGIC)) return false
-            val lacing = bytes[OGG_PAGE_HEADER - 1].toInt() and 0xFF
-            return bytes.hasAt(OGG_PAGE_HEADER + lacing, OPUS_HEAD)
+            val segments = bytes[OGG_PAGE_HEADER - 1].toInt() and 0xFF
+            return bytes.hasAt(OGG_PAGE_HEADER + segments, OPUS_HEAD)
         }
 
         private const val OGG_PAGE_HEADER = 27

@@ -1,5 +1,6 @@
 package app.amethyst.core.text
 
+import app.amethyst.core.engine.UploadReport
 import app.amethyst.core.privacy.TrustLevel
 
 /** What an engine returns for one dictation. */
@@ -18,4 +19,6 @@ data class Transcript(
      * list in a note). An engine's raw output has none worth keeping.
      */
     val formatted: Boolean = false,
+    /** How the recording went up to the server, for the diagnostics; null for engines on the phone. */
+    val upload: UploadReport? = null,
 )

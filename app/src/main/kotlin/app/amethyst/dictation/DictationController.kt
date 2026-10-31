@@ -527,6 +527,7 @@ class DictationController(
                     else -> engine.transcribe(outcome.audio, options)
                 }
                 trace?.transcribingEnds()
+                trace?.upload = result.getOrNull()?.upload?.summary()
                 // A cold model's load time would teach the wrong rate, and so would a command
                 // heard in several languages.
                 if (result.isSuccess && !coldModel && passes == 1) {

@@ -82,6 +82,7 @@ class OpenAiCompatibleEngine(
             .takeIf { it.isNotEmpty() }
 
         var compressed = compressedUpload?.let { upload -> withContext(encodeContext) { upload.encode(audio) } }
+        var opusRefused = false
 
         fun request(withPrompt: Boolean) = HttpRequest(
             method = "POST",
@@ -117,6 +118,7 @@ class OpenAiCompatibleEngine(
         // bigger upload, never a dictation.
         if (compressed != null && sent.response.code == COMPRESSION_REFUSED) {
             compressed = null
+            opusRefused = true
             compressedUpload?.refused()
             sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
         }
@@ -159,6 +161,11 @@ class OpenAiCompatibleEngine(
                 latencyMs = clock() - startedAt,
                 detectedLanguage = parsed.language,
                 servedBy = response.header(ENCLAVE_HEADER),
+                upload = UploadReport(
+                    oggOpus = compressed != null,
+                    bytes = compressed?.bytes?.size ?: (PcmAudio.WAV_HEADER_SIZE + audio.samples.size * 2),
+                    opusRefused = opusRefused,
+                ),
             ),
         )
     }

@@ -12,6 +12,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
+import app.amethyst.core.engine.UploadReport
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
@@ -181,6 +182,31 @@ class CompressedUploadTest {
         val encoder = FakeEncoder()
         engine(FakeHttpTransport.json(ok), CompressedUpload(encoder)).transcribe(audio, TranscribeOptions()).getOrThrow()
         assertNotEquals(Thread.currentThread().name, assertNotNull(encoder.thread))
+    }
+
+    // --- what the diagnostics are told ---
+
+    @Test
+    fun `the transcript says how the recording went up, for the diagnostics`() = runTest {
+        val wavBytes = audio.toWav().size
+        val opus = engine(FakeHttpTransport.json(ok), CompressedUpload(FakeEncoder())).transcribe(audio, TranscribeOptions()).getOrThrow()
+        assertEquals(UploadReport(oggOpus = true, bytes = ogg.size), opus.upload)
+        val wav = engine(FakeHttpTransport.json(ok), upload = null).transcribe(audio, TranscribeOptions()).getOrThrow()
+        assertEquals(UploadReport(oggOpus = false, bytes = wavBytes), wav.upload)
+        val refusing = FakeHttpTransport { request ->
+            if (request.file().contentType == "audio/ogg") HttpResponse(400, "unsupported audio".encodeToByteArray())
+            else HttpResponse(200, ok.encodeToByteArray())
+        }
+        val refused = engine(refusing, CompressedUpload(FakeEncoder())).transcribe(audio, TranscribeOptions()).getOrThrow()
+        assertEquals(UploadReport(oggOpus = false, bytes = wavBytes, opusRefused = true), refused.upload)
+    }
+
+    @Test
+    fun `the upload line names format and size, never where it went`() {
+        assertEquals("upload Ogg Opus 34 KB", UploadReport(oggOpus = true, bytes = 34_500).summary())
+        assertEquals("upload WAV 263 KB", UploadReport(oggOpus = false, bytes = 268_844).summary())
+        assertEquals("upload WAV 31 KB, the server refused Opus", UploadReport(oggOpus = false, bytes = 32_044, opusRefused = true).summary())
+        assertEquals("upload Ogg Opus 900 B", UploadReport(oggOpus = true, bytes = 900).summary())
     }
 
     // --- a server that announced more than it takes ---

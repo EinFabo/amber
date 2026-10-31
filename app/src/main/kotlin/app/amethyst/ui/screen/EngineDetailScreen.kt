@@ -7,7 +7,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import app.amethyst.core.engine.AmberCatalog
+import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.ServerProviders
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -231,6 +233,15 @@ fun EngineDetailScreen(
                 // server that turned out to be an Amber PC or Server offers what it listed.
                 val provider = remember(config.baseUrl, catalog) { ServerProviders.forUrl(config.baseUrl, catalog) }
                 val fixedAddress = remember(config.id, config.baseUrl) { ServerProviders.addressFixed(config) }
+                // No speech model yet and the server's list just came: its default is saved
+                // right away, so the engine is ready without a tap. A chosen model stays.
+                LaunchedEffect(config.id, catalog) {
+                    val pick = AmberCatalogs.speechModelToPreselect(modelId.ifBlank { config.modelId }, catalog)
+                    if (pick != null) {
+                        modelId = pick
+                        onSave(config.copy(modelId = pick))
+                    }
+                }
                 SectionCard(
                     title = "Connection",
                     subtitle = if (fixedAddress) "${provider.name} · ${baseUrl.trim()}"

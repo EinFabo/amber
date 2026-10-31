@@ -210,6 +210,16 @@ object AmberCatalogs {
     }
 
     /**
+     * The speech model an engine gets once its Amber server's [catalog] is there: the server's
+     * default, or its first model when none is marked. Only while [current] is blank - a chosen
+     * model, listed or not, is never replaced. Null when there is nothing to pick.
+     */
+    fun speechModelToPreselect(current: String?, catalog: AmberCatalog?): String? {
+        if (!current.isNullOrBlank() || catalog == null) return null
+        return (catalog.speech.firstOrNull { it.recommended } ?: catalog.speech.firstOrNull())?.id
+    }
+
+    /**
      * How [engine] may compress its recordings: with [encoder], when it is an own server whose
      * stored list (from the address it points at now) takes Ogg Opus. Null - WAV as always -
      * for every other engine: Groq, OpenAI, Tinfoil and plain own servers have no list, and
