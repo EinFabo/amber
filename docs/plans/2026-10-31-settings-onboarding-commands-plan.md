@@ -24,7 +24,7 @@ their work; the decisions below are the controller's, made on his behalf.
 - Verify before reporting done - all of these, read the output:
   `./gradlew :core:test`, `python3 -I tools/check_refs.py`,
   `./gradlew :app:lintDebug :app:assembleDebug`, `tools/typecheck-android.sh`,
-  `./gradlew :app:testDebugUnitTest --tests '*StoreShots*'` (PNGs in `app/build/store-shots/`:
+  `./gradlew :app:testDebugUnitTest --tests '*Screenshots*'` (PNGs in `app/build/screenshots/`:
   open the ones your change touches and look at them; fix what looks wrong).
 - Privacy promises stay true: nothing heard or read from the screen goes to logcat; the
   accessibility disclosure (`R.string.accessibility_description`) must describe exactly what is
@@ -65,7 +65,7 @@ summaries are short state, not explanations.
    longer than two lines move behind a "Learn more" expander; at most one short hint per
    section stays visible. Model lists on Cleanup and on an app's page: only the engine group
    holding the current choice is expanded, the others collapse to one row ("Groq · 3 models").
-4. StoreShots: keep every existing shot compiling and looking right; add a tall variant of the
+4. Screenshots: keep every existing shot compiling and looking right; add a tall variant of the
    settings list (e.g. a Robolectric qualifier with a tall screen) so the whole list can be seen
    in one PNG, and one of the App style page.
 
@@ -109,7 +109,7 @@ check on return, degrade gracefully.
    it shows the way out as numbered steps (App info → ⋮ top right → "Allow restricted settings" →
    back here, "Open settings" again) with an "Open app info" button - prominent, not a footnote.
 5. Home's setup card uses the same flow (same actions, same return).
-6. StoreShots: the accessibility step before, during (waiting) and after; the restricted-settings
+6. Screenshots: the accessibility step before, during (waiting) and after; the restricted-settings
    state.
 
 **Done when:** from the introduction a single tap lands on Amber's own switch, switching it on
@@ -158,7 +158,7 @@ runter", "Swipe 5 times down", "Multitasking", "Scroll to the bottom".
 5. Every new capability is named in `R.string.accessibility_description`, in the voice-commands
    consent dialog and on the Voice commands page, whose "What you can say" list is grouped by
    kind (Navigate, Apps, Scroll & swipe, Media, System, Text).
-6. StoreShots: the Voice commands page.
+6. Screenshots: the Voice commands page.
 
 **Done when:** every miss above and the whole corpus parse as expected, repeated scrolls stop at
 the end of a list, and each new command group works through the debug hook

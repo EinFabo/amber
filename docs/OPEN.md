@@ -294,7 +294,7 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
       Tinfoil are network services (`NonFreeNet`); models are downloaded at runtime from Hugging
       Face - check the licences of Parakeet (CC-BY-4.0) and the FUTO and ACFT Whisper models.
 - [ ] **Metadata** in the repo as fastlane (`fastlane/metadata/android/en-US/`: title, short
-      and full description, `changelogs/<versionCode>.txt`, phone screenshots from StoreShots).
+      and full description, `changelogs/<versionCode>.txt`, phone screenshots from `Screenshots`).
 - [ ] **Signing.** F-Droid signs with its own key unless the build is reproducible and matches
       ours - then it ships our signature and updates cross over with our release APKs. That is the
       reproducible-build item of M1 above; without it, the two are separate installs.
@@ -569,8 +569,8 @@ marked open:
 
 ## Screenshots and icons (2026-10-28)
 
-- [x] 0.12.0: five screenshots rendered with Robolectric (StoreShots), PNG launcher icons next
-      to the adaptive one, for stores and installers that cannot read the vector icon.
+- [x] 0.12.0: five screenshots rendered with Robolectric (`Screenshots`), PNG launcher icons
+      next to the adaptive one, for stores and installers that cannot read the vector icon.
 
 ## Per-app style, under Advanced settings (Fabi, 2026-10-28)
 
@@ -740,8 +740,6 @@ Endurance
 - [ ] **Release signing** with an own keystore instead of the debug key (more pressing now that
       Tinfoil promises the audio only goes to a verified enclave). Needs one uninstall; models
       have to be downloaded again.
-- [ ] **Screenshots and icon**: a PNG icon for installers that cannot read the vector icon, and
-      2-3 screenshots.
 - [x] **CI**: `tools/typecheck-android.sh` fetches the compiler's runtime dependency
       (`kotlinx-coroutines-core-jvm` 1.8.0) and runs again.
 - [x] **`docs/PLAN.md`** marked as historical.

@@ -3,7 +3,7 @@ package app.amethyst.core.commands
 /**
  * What one voice command went through, step by step, in short English lines - what the rules
  * made of the words, what the executor picked, what each step did, why it stopped - for
- * Diagnostics, where Fabi copies it from. Never for logcat: the lines name what was heard,
+ * Diagnostics, where the user copies it from. Never for logcat: the lines name what was heard,
  * apps and screens.
  *
  * Bounded, so a thirty-step "ganz nach unten" stays readable: at most [maxLines] lines of at

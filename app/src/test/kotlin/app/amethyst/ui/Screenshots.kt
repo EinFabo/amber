@@ -53,14 +53,14 @@ import org.junit.Assert.assertTrue
 /**
  * Renders the main screens with sample data into PNGs - the listing screenshots, and a look at
  * the layout without a phone. Real Android drawing (Robolectric's native graphics), a 1080 ×
- * 2340 phone. Written to app/build/store-shots; the numbers are made-up examples.
+ * 2340 phone. Written to app/build/screenshots; the numbers are made-up examples.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w360dp-h780dp-xxhdpi")
-class StoreShots {
+class Screenshots {
 
-    private val out = File("build/store-shots").apply { mkdirs() }
+    private val out = File("build/screenshots").apply { mkdirs() }
 
     private val ready = SetupState(
         microphoneGranted = true,
@@ -217,7 +217,7 @@ class StoreShots {
         val background = context.getDrawable(app.amethyst.R.drawable.ic_launcher_background)!!
         val foreground = context.getDrawable(app.amethyst.R.drawable.ic_launcher_foreground)!!
         val dir = File(out, "icons").apply { mkdirs() }
-        mapOf("mdpi" to 48, "hdpi" to 72, "xhdpi" to 96, "xxhdpi" to 144, "xxxhdpi" to 192, "store" to 512).forEach { (density, size) ->
+        mapOf("mdpi" to 48, "hdpi" to 72, "xhdpi" to 96, "xxhdpi" to 144, "xxxhdpi" to 192, "listing" to 512).forEach { (density, size) ->
             for (round in listOf(false, true)) {
                 val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
@@ -232,7 +232,7 @@ class StoreShots {
                 File(dir, "$density-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             }
         }
-        assertTrue(File(dir, "store-ic_launcher.png").length() > 0)
+        assertTrue(File(dir, "listing-ic_launcher.png").length() > 0)
     }
 
     /** Recognition, cleanup and fallback chosen apart: Whisper on the phone, cleaned up on Tinfoil. */

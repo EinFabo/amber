@@ -131,7 +131,7 @@ class ChatCleanup(
 
         /**
          * The user's own words, bounded, and still under the rules above. Long enough for a
-         * real house style (Fabi wanted more than the first 300); a cleanup model's context
+         * real house style (the first 300 were not enough); a cleanup model's context
          * takes this many characters without noticing.
          */
         const val INSTRUCTION_CHARS = 2_000

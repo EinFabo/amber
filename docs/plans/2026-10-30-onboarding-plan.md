@@ -6,7 +6,7 @@
 
 **Architecture:** The rules (which steps, their order, the engine advice, the download wording, the done flag) live in `:core` and are unit-tested. `:app` adds a `Screen.Onboarding` at the root of `MainActivity`'s back stack and one small composable per step, built from the existing components (`RadioRow`, `StatusRow`, `ReliabilityRows`, the bubble preview). A dictation started while the active engine's download runs is refused with a notice instead of a failure.
 
-**Tech Stack:** Kotlin, Jetpack Compose (Material 3), kotlinx.serialization (settings JSON in DataStore), JUnit via `kotlin.test` in `:core`, Robolectric `StoreShots` for screenshots, JNI (whisper.cpp).
+**Tech Stack:** Kotlin, Jetpack Compose (Material 3), kotlinx.serialization (settings JSON in DataStore), JUnit via `kotlin.test` in `:core`, Robolectric `Screenshots` for screenshots, JNI (whisper.cpp).
 
 **Spec:** [`docs/plans/2026-10-29-onboarding-design.md`](2026-10-29-onboarding-design.md) - read it first; this plan does not repeat the step texts.
 
@@ -23,7 +23,7 @@
 
 ## Review Focus
 
-1. **Settings not loaded yet.** `Graph.settings` starts as `AmethystSettings.defaults()` (onboardingDone = false) until DataStore answers - without a guard every cold start flashes the flow. Expect: nothing but the background until the first real settings arrive. → Task 6 adds `Graph.settingsLoaded` and a StoreShots-free check on the device (Task 10).
+1. **Settings not loaded yet.** `Graph.settings` starts as `AmethystSettings.defaults()` (onboardingDone = false) until DataStore answers - without a guard every cold start flashes the flow. Expect: nothing but the background until the first real settings arrive. → Task 6 adds `Graph.settingsLoaded` and a Screenshots-free check on the device (Task 10).
 2. **Coming back from system settings.** Steps 2, 3 and 9 send the user to Android's screens; the activity may be recreated. Expect: the same step, refreshed ticks. → Task 6 keeps the step in `rememberSaveable`; Task 10 rotates and returns on the device.
 3. **Cleanup turned off again on the replay.** With cleanup on, APP_STYLES is in the list; the user goes back to CLEANUP and picks Off. Expect: the step after CLEANUP is BUBBLE and the count shrinks. → `OnboardingTest` (Task 2) pins it.
 4. **A download that fails or lacks storage on the engine step.** Expect: the store's message, "Try again", and the next smaller option; a dictation afterwards gets today's "Download model" remedy, not the downloading notice. → `DownloadNoticeTest` (Task 4) pins "failed is not downloading"; Task 8's step shows the retry.
@@ -199,7 +199,7 @@ fun `version 8 settings keep their flag`() {
 **Files:**
 - Create: `app/src/main/kotlin/app/amethyst/ui/onboarding/OnboardingScreen.kt` (frame), `app/src/main/kotlin/app/amethyst/ui/onboarding/Steps.kt` (step composables), `app/src/main/kotlin/app/amethyst/ui/SetupPieces.kt`
 - Modify: `app/src/main/kotlin/app/amethyst/ui/MainActivity.kt`, `app/src/main/kotlin/app/amethyst/ui/screen/HomeScreen.kt` (use the moved pieces), `app/src/main/kotlin/app/amethyst/AmethystApp.kt` (`settingsLoaded`)
-- Test: `app/src/test/kotlin/app/amethyst/ui/StoreShots.kt`
+- Test: `app/src/test/kotlin/app/amethyst/ui/Screenshots.kt`
 
 **Interfaces:**
 - Consumes: Task 1 `onboardingDone`; Task 2 `Onboarding`, `OnboardingStep`; `SetupState`, `SetupActions`.
@@ -213,26 +213,26 @@ fun `version 8 settings keep their flag`() {
 - [ ] **Step 1:** Move the disclosure and `RestrictedSettingsHint` into `SetupPieces.kt`; `HomeScreen` uses them unchanged in behaviour.
 - [ ] **Step 2:** Write the frame and steps WELCOME, ACCESSIBILITY, MICROPHONE with the spec's texts (*The flow* → 1-3). ACCESSIBILITY shows a tick and "Continue" when `setup.accessibilityEnabled`, otherwise the disclosure plus "Not now"; MICROPHONE calls `actions.requestMicrophone`, and after a denial shows "Open app settings" (`actions.openAppInfo`).
 - [ ] **Step 3:** Wire `MainActivity` (settingsLoaded guard, `Screen.Onboarding`, saved step, `BackHandler` going to `Onboarding.previous`, finishing).
-- [ ] **Step 4:** Add StoreShots `x-onboarding-1-welcome`, `x-onboarding-2-accessibility`, `x-onboarding-3-microphone`; run `./gradlew :app:testDebugUnitTest --tests 'app.amethyst.ui.StoreShots'` and look at the three PNGs in `app/build/store-shots/`: one decision per screen, nothing cut off at 360 dp.
+- [ ] **Step 4:** Add Screenshots `x-onboarding-1-welcome`, `x-onboarding-2-accessibility`, `x-onboarding-3-microphone`; run `./gradlew :app:testDebugUnitTest --tests 'app.amethyst.ui.Screenshots'` and look at the three PNGs in `app/build/screenshots/`: one decision per screen, nothing cut off at 360 dp.
 
 ### Task 7: Home while downloading
 
 **Files:**
 - Modify: `app/src/main/kotlin/app/amethyst/ui/screen/HomeScreen.kt` (`download: ModelDownload?` parameter, `StatusLine` Idle text), `app/src/main/kotlin/app/amethyst/ui/MainActivity.kt` (pass `graph.modelDownloads.forEngine(active)` - collect the Parakeet and Whisper state flows so it updates)
-- Test: `StoreShots` (`x-home-downloading`)
+- Test: `Screenshots` (`x-home-downloading`)
 
 **Interfaces:**
 - Consumes: Task 4 `ModelDownload`, `DownloadNotice.short`; Task 5 `ModelDownloads.forEngine`.
 
 - [ ] **Step 1:** In `StatusLine`, `DictationState.Idle` with a non-null `download` shows `DownloadNotice.short(download)` above a `ProgressLine(fraction)` (null fraction for `WaitingForWifi`) instead of "Tap and speak ...".
-- [ ] **Step 2:** Pass the download from `MainActivity`; update both existing `HomeScreen` calls in StoreShots (`download = null`) and add `x-home-downloading` with `Running(300_000_000, 670_000_000)`.
-- [ ] **Step 3:** Run the StoreShots and look at `x-home-downloading.png`: "Model downloading - 44 %" with the line under the flame.
+- [ ] **Step 2:** Pass the download from `MainActivity`; update both existing `HomeScreen` calls in Screenshots (`download = null`) and add `x-home-downloading` with `Running(300_000_000, 670_000_000)`.
+- [ ] **Step 3:** Run the Screenshots and look at `x-home-downloading.png`: "Model downloading - 44 %" with the line under the flame.
 
 ### Task 8: Step 4 - how Amber hears you
 
 **Files:**
 - Modify: `app/src/main/kotlin/app/amethyst/ui/onboarding/Steps.kt`, `OnboardingScreen.kt` (`OnboardingContent`), `MainActivity.kt`
-- Test: `StoreShots` (`x-onboarding-4-engine`, `x-onboarding-4-engine-downloading`, `x-onboarding-4-engine-metered`)
+- Test: `Screenshots` (`x-onboarding-4-engine`, `x-onboarding-4-engine-downloading`, `x-onboarding-4-engine-metered`)
 
 **Interfaces:**
 - Consumes: Task 3 `EngineAdvice`, `EngineOption`, `PhoneFacts`; Task 5 `Setup.phoneFacts`, `ModelDownloads.start/waitForWifi/waiting`; `ParakeetState`, `SlotState`.
@@ -241,13 +241,13 @@ fun `version 8 settings keep their flag`() {
 
 - [ ] **Step 1:** Write the step: the recommendation card (name, `TrustBadge`, size in MB, wait text: PARAKEET "text about 1 s after you stop", FUTO_244 "about 3 s", FUTO_74 "about 1 s, less exact", ACFT_LARGE "a few seconds", ANDROID "no download"), the button by network ("Download" / "Download now - 670 MB of mobile data" + "Wait for Wi-Fi"), progress and "You can go on - it keeps downloading." once running, the failure message with "Try again" and the next fitting smaller option on failure, and "Other options" expanding `advice.others` as `RadioRow`s with the same facts. "Continue" appears once a download runs, waits, is done, or ANDROID is chosen.
 - [ ] **Step 2:** Wire it in `MainActivity` (phone facts read once per flow via `remember`, metered from `ConnectivityManager`).
-- [ ] **Step 3:** Add the three StoreShots and look at them: no "model" on the card, the card fits at 360 dp, the metered variant has both buttons.
+- [ ] **Step 3:** Add the three Screenshots and look at them: no "model" on the card, the card fits at 360 dp, the metered variant has both buttons.
 
 ### Task 9: Steps 5-10 and "Show the introduction again"
 
 **Files:**
 - Modify: `Steps.kt`, `OnboardingScreen.kt`, `MainActivity.kt`, `app/src/main/kotlin/app/amethyst/ui/screen/SettingsScreen.kt` (make `BubbleSizeRow` and `BubblePreview` internal; the replay row)
-- Test: `StoreShots` (`x-onboarding-5-cleanup`, `-6-styles`, `-7-bubble`, `-8-recording`, `-9-reliability`, `-10-done`, `x-settings` with the new row)
+- Test: `Screenshots` (`x-onboarding-5-cleanup`, `-6-styles`, `-7-bubble`, `-8-recording`, `-9-reliability`, `-10-done`, `x-settings` with the new row)
 
 **Interfaces:**
 - Consumes: `CleanupChoice`, `EnginePresets.TINFOIL`, `AppProfiles.DEFAULTS`, `AppSource`, `ReliabilityRows`, `BubbleSizeRow`, `RadioRow`, `cleanupSummary()`, `fallbackSummary()`.
@@ -258,7 +258,7 @@ fun `version 8 settings keep their flag`() {
 - [ ] **Step 3: BUBBLE, RECORDING, RELIABILITY** - per the spec; Skip keeps the current value and never resets one (the replay case).
 - [ ] **Step 4: DONE** - the summary lines with their Settings paths (recognition name, `cleanupSummary() ?: "Cleanup off"`, the bubble choice, "Everything else - Settings, top right on the home screen"), the download progress when running, "Try it" → `onFinish()`, Home with the test field focused.
 - [ ] **Step 5:** The replay row in `SettingsScreen` and its wiring.
-- [ ] **Step 6:** Add the StoreShots and look at each: one decision per screen, defaults selected, Skip only from step 5.
+- [ ] **Step 6:** Add the Screenshots and look at each: one decision per screen, defaults selected, Skip only from step 5.
 - [ ] **Step 7:** Run the full check: `./gradlew :core:test`, `python3 -I tools/check_refs.py`, `tools/typecheck-android.sh`, `./gradlew :app:lintDebug :app:assembleDebug` - all pass.
 
 ### Task 10: On the phone, version, list
@@ -268,7 +268,7 @@ fun `version 8 settings keep their flag`() {
 
 - [ ] **Step 1:** Pixel 9a: uninstall, install the debug build. Go through the flow on Wi-Fi with Parakeet; tap the flame while it downloads (toast, no red bubble, Home shows the percentage); dictate in the test field after it finishes. Rotate on step 2 and come back from the accessibility settings: same step, ticked. Cold-start the app five times after finishing: no flash of the flow. Replay from Settings; Skip keeps the settings. If a phone on mobile data is at hand: "Wait for Wi-Fi" starts by itself on Wi-Fi.
 - [ ] **Step 2:** Bump the version, tick item 5 in `docs/OPEN.md` with the device results.
-- [ ] **Step 3:** Show Fabi the StoreShots and the device results; commit only on his OK:
+- [ ] **Step 3:** Show Fabi the Screenshots and the device results; commit only on his OK:
 
 ```bash
 git add -A

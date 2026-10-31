@@ -222,7 +222,7 @@ The current step is kept in a `rememberSaveable` in `:app`, so a trip to the sys
 - `:core` unit tests: steps with and without cleanup, next/previous at the ends, positions;
   engine advice at the thresholds (RAM 5.9/6 GB, storage just short of a model, no Whisper CPU,
   no on-device Android); migration 7 → 8 sets the flag, a fresh `defaults()` does not.
-- `StoreShots`: each step rendered (`x-onboarding-<n>`), looked at like the settings pages.
+- `Screenshots`: each step rendered (`x-onboarding-<n>`), looked at like the settings pages.
 - `check_refs`, `lintDebug`, `assembleDebug`, `typecheck-android.sh` for the non-Compose parts
   (`DownloadGate`, `Setup`).
 - On the Pixel 9a: uninstall, install, go through the flow with the Parakeet download on Wi-Fi,

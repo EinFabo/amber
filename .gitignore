@@ -19,6 +19,8 @@ app/libs/*.jar
 *.idsig
 app/release/
 CLAUDE.local.md
+# tools/sign-release.sh settings for this machine: signing host and paths.
+tools/sign-release.local
 .idea/
 .kotlin/
 .cxx/

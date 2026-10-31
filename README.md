@@ -197,9 +197,9 @@ python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
 tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned and checksummed
 ./gradlew :app:assembleDebug    # needs an Android SDK
-./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.StoreShots
+./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.Screenshots
                                 # renders the main screens and the icon PNGs (Robolectric)
-                                # into app/build/store-shots - screenshots, layout check
+                                # into app/build/screenshots - screenshots, layout check
 
 tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none
 tools/sign-release.sh           # release APK, signed with the release key
