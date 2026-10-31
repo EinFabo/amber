@@ -316,6 +316,14 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       another field); in a pass with the command prompt, two or more whole prompt phrases one
       after the other in its order ("Zurück, Taschenlampe aus") are taken for the prompt read
       back - "und" between them works.
+      Review leftovers (small): with a comma "Zurück, nach oben" / "Zurück, zum Anfang" stay
+      Back then a scroll (Fabi to decide: scroll up instead?); without a joining word a Back
+      next to a scroll is dropped ("Zurück scroll runter" only scrolls); single commands that
+      are two prompt phrases ("Zurück Startbildschirm", "Go back home screen") are taken for an
+      echo; "Wisch nach links, nach rechts" swipes then scrolls; repeats differ ("Runter und
+      runter" not understood, "Lauter und lauter" once); "new line" after select all could
+      replace the field in an editor that ignores the cursor move; the page should mention the
+      echo limit.
 - [ ] Later: voice commands in more languages (Fabi, 2026-10-31) - German and English for now.
 - [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
       text - its own consent, prompt-injection rules), a model for free phrasing.
