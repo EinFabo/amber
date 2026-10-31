@@ -6,7 +6,7 @@ Everything that lands in this project is written in English:
 
 - app text: UI labels, hints, error and toast messages, notifications, accessibility strings
 - diagnostics and log lines, tool and script output
-- store listing texts on publish (summary, description, changelog)
+- listing texts when a release is published (summary, description, changelog)
 - docs (`README.md`, `docs/`), code comments, commit messages
 
 Exceptions:
