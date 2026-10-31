@@ -36,6 +36,36 @@ class CommandTriggerTest {
         assertFalse(CommandTrigger.isDoubleTap(previousTapUpAt = 1_000, previousTapStarted = true, downAt = 1_100, commandsOn = false))
         assertFalse(CommandTrigger.isDoubleTap(previousTapUpAt = null, previousTapStarted = true, downAt = 1_100, commandsOn = true))
     }
+
+    @Test
+    fun `a tap while a command is carried out stops it at once`() {
+        // "zwanzigmal lauter" misheard: the tap is the way out, not the end of the run.
+        assertEquals(CommandTrigger.TapInRun.CANCEL, CommandTrigger.tapInRun(RunMode.COMMAND, recording = false))
+    }
+
+    @Test
+    fun `a tap while recording ends the recording, a dictation keeps its words`() {
+        assertEquals(CommandTrigger.TapInRun.STOP_RECORDING, CommandTrigger.tapInRun(RunMode.COMMAND, recording = true))
+        assertEquals(CommandTrigger.TapInRun.STOP_RECORDING, CommandTrigger.tapInRun(RunMode.DICTATION, recording = true))
+        // Past its recording a dictation is being written: a tap does not throw the words away.
+        assertEquals(CommandTrigger.TapInRun.STOP_RECORDING, CommandTrigger.tapInRun(RunMode.DICTATION, recording = false))
+    }
+
+    @Test
+    fun `the second tap of a double tap that stopped a command starts nothing`() {
+        // Lifted 250 ms apart, as a double tap is: the stop, then its second half.
+        assertTrue(CommandTrigger.isSecondTapOfStop(stoppedAt = 1_000, upAt = 1_250))
+        // A gap of 300 ms and a press just short of a hold.
+        assertTrue(CommandTrigger.isSecondTapOfStop(stoppedAt = 1_000, upAt = 1_000 + CommandTrigger.DOUBLE_TAP_MS + 290))
+    }
+
+    @Test
+    fun `a tap well after the stop starts a new recording`() {
+        assertFalse(CommandTrigger.isSecondTapOfStop(stoppedAt = 1_000, upAt = 2_000))
+        assertFalse(CommandTrigger.isSecondTapOfStop(stoppedAt = null, upAt = 1_100))
+        // A clock that went backwards (another run's time) is no double tap.
+        assertFalse(CommandTrigger.isSecondTapOfStop(stoppedAt = 1_000, upAt = 900))
+    }
 }
 
 class BubbleVisibilityTest {

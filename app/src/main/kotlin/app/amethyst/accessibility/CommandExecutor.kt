@@ -19,22 +19,29 @@ import app.amethyst.Graph
 import app.amethyst.apps.Launcher
 import app.amethyst.core.commands.AppMatch
 import app.amethyst.core.commands.Command
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.Direction
+import app.amethyst.core.commands.EditTarget
 import app.amethyst.core.commands.GesturePath
 import app.amethyst.core.commands.GlobalAction
 import app.amethyst.core.commands.RepeatRun
 import app.amethyst.core.commands.Repeats
 import app.amethyst.core.commands.Repetition
 import app.amethyst.core.commands.ScrollAction
+import app.amethyst.core.commands.ScrollMove
 import app.amethyst.core.commands.ScrollPick
+import app.amethyst.core.commands.ScrollRun
+import app.amethyst.core.commands.ScrollSnapshot
 import app.amethyst.core.commands.ScrollTarget
 import app.amethyst.core.commands.Scrollable
 import app.amethyst.core.commands.SettingsPage
 import app.amethyst.core.commands.Step
 import app.amethyst.core.commands.Stroke
 import app.amethyst.core.commands.VolumeChange
+import app.amethyst.core.insert.InputTarget
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -42,9 +49,10 @@ import kotlin.coroutines.resume
 
 /**
  * Carries out a voice command - the only place Amber acts for the user. Every command passes
- * one gate first: voice commands switched on, the phone unlocked. Nothing on the screen is read
- * beyond which nodes can scroll, how large they are and whether anything moved; a text command
- * reads the field being written in, nothing else. Logcat gets the kind of command only, never
+ * one gate first: voice commands switched on, the phone unlocked. Nothing the screen shows is
+ * read: a scroll looks for which nodes can scroll and how large they are, and while it repeats,
+ * where the scrolled node and the items inside it sit - to see whether it moved; a text command
+ * reads the field it was started in, nothing else. Logcat gets the kind of command only, never
  * what was heard, which app or any text.
  */
 class CommandExecutor(private val service: AmethystAccessibilityService, private val graph: Graph) {
@@ -52,7 +60,8 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
     private val device = DeviceControls(service)
     private val editor = FieldEditor(service, service.textInserter)
 
-    suspend fun execute(command: Command): CommandOutcome {
+    /** [startedIn]: the field that had the cursor when the command's recording began, if any. */
+    suspend fun execute(command: Command, startedIn: InputTarget?): CommandOutcome {
         if (!graph.settings.value.commands.enabled) return CommandOutcome.Refused("Voice commands are off.")
         if (service.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) {
             return CommandOutcome.Refused("Unlock the phone first.")
@@ -69,8 +78,18 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
             is Command.Volume -> withContext(Dispatchers.Main) { volume(command.change, command.times) }
             is Command.Torch -> withContext(Dispatchers.Main) { device.torch(command.on) }
             is Command.OpenSettings -> openSettings(command.page)
-            is Command.Edit -> withContext(Dispatchers.Default) { editor.apply(command.edit, command.times) }
+            is Command.Edit -> withContext(Dispatchers.Default) { edit(command, startedIn) }
         }
+    }
+
+    /**
+     * A text command, only in the field it was started in and never in a password field
+     * ([EditTarget]) - recognition took seconds, and meanwhile the user may have tapped into
+     * another chat, where "einfügen" would paste the clipboard.
+     */
+    private suspend fun edit(command: Command.Edit, startedIn: InputTarget?): CommandOutcome {
+        EditTarget.refusal(startedIn, service.focusedTarget())?.let { return CommandOutcome.Refused(it) }
+        return editor.apply(command.edit, command.times)
     }
 
     /** The service is going away: let go of what watches the phone. */
@@ -110,7 +129,8 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         return try {
             withContext(Dispatchers.Main) { action() }.also { delay(CAPTURE_MS) }
         } finally {
-            withContext(Dispatchers.Main) { service.hideBubbleForCapture(false) }
+            // Also when a tap stopped the command meanwhile: the bubble comes back either way.
+            withContext(NonCancellable + Dispatchers.Main) { service.hideBubbleForCapture(false) }
         }
     }
 
@@ -164,20 +184,20 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
 
     // ---- Scrolling, pages, swiping ----
 
-    /** Once: as v1, by the node's action or a stroke. More often: until the count or until nothing moves. */
+    /** Once: as v1, by the node's action or a stroke. More often: step by step ([moving]). */
     private suspend fun scroll(direction: Direction, times: Int): CommandOutcome {
         val did = "Scrolled ${direction.word()}"
         if (times == 1) return once(did) { scrollStep(direction, look(), page = false) }
-        return moving(times) { scrollStep(direction, it, page = false) }.outcome(did, "nothing more to scroll")
+        return moving(direction, page = false, times, look()).outcome(did, "nothing more to scroll")
     }
 
     private suspend fun page(direction: Direction, times: Int): CommandOutcome {
         val did = "Paged ${direction.word()}"
         if (times == 1) return once(did) { scrollStep(direction, look(), page = true) }
-        return moving(times) { scrollStep(direction, it, page = true) }.outcome(did, "nothing more to scroll")
+        return moving(direction, page = true, times, look()).outcome(did, "nothing more to scroll")
     }
 
-    /** "Ganz nach unten": step after step until nothing moves any more, at most [Repeats.MAX_TO_END]. */
+    /** "Ganz nach unten": step after step until the end, at most [Repeats.MAX_TO_END]. */
     private suspend fun scrollToEnd(direction: Direction): CommandOutcome {
         val end = when (direction) {
             Direction.DOWN -> "the bottom"
@@ -185,7 +205,13 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
             Direction.LEFT -> "the left end"
             Direction.RIGHT -> "the right end"
         }
-        val run = moving(Repeats.MAX_TO_END) { scrollStep(direction, it, page = false) }
+        val screen = look()
+        if (ScrollRun.move(screen.nodes, direction, pages = false, scrolledNode = false) == ScrollMove.Gesture) {
+            // Nothing here says it scrolls, so nothing can say where its end is: one stroke, not thirty unseen.
+            return if (stroke(direction)) CommandOutcome.Done("Scrolled ${direction.word()} once - this screen does not show where its end is")
+            else CommandOutcome.Failed(GESTURE_REFUSED)
+        }
+        val run = moving(direction, page = false, Repeats.MAX_TO_END, screen)
         return when (run.stop) {
             Step.Unchanged -> CommandOutcome.Done(if (run.done == 0) "Already at $end" else "Scrolled to $end")
             null -> CommandOutcome.Done("Scrolled ${direction.word()} ${run.done} times - still not at $end")
@@ -207,18 +233,37 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         Repetition.run(times, pause = { delay(Repetition.PAUSE_MS) }, step = step)
 
     /**
-     * Repeated scrolling: each step acts, lets the content settle for [Repetition.PAUSE_MS] - the
-     * pause between steps - and looks again; a step after which nothing moved ends the run.
+     * Repeated scrolling, step by step as [ScrollRun] decides: the picked node's action, a
+     * pause for the content to settle - the pause between steps - then that node looked at
+     * again, its place and the places of what lies inside it, nothing else on the screen. From
+     * the second step on only that node counts; the run ends where it cannot go on, refuses or
+     * did not move, and never falls back to a stroke there. Only where nothing on that axis says
+     * it scrolls do strokes make up the count, unseen.
      */
-    private suspend fun moving(times: Int, act: suspend (Screen) -> Boolean): RepeatRun {
-        var screen = look()
+    private suspend fun moving(direction: Direction, page: Boolean, times: Int, screen: Screen): RepeatRun {
+        val pages = page && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        var candidates = screen.scrollables
+        var scrolledNode = false
         return Repetition.run(times, pause = {}) {
-            if (!act(screen)) return@run Step.Failed(GESTURE_REFUSED)
-            delay(Repetition.PAUSE_MS)
-            val after = look()
-            val moved = after.layout != screen.layout
-            screen = after
-            if (moved) Step.Done else Step.Unchanged
+            when (val move = ScrollRun.move(candidates.map { it.first }, direction, pages, scrolledNode)) {
+                ScrollMove.End -> Step.Unchanged
+                ScrollMove.Gesture -> {
+                    if (!stroke(direction)) return@run Step.Failed(GESTURE_REFUSED)
+                    delay(Repetition.PAUSE_MS)
+                    Step.Done
+                }
+                is ScrollMove.Node -> {
+                    val (picked, node) = candidates.first { it.first.id == move.id }
+                    val before = withContext(Dispatchers.Default) { snapshot(node) } ?: return@run Step.Unchanged
+                    val took = withContext(Dispatchers.Main) { node.performAction(move.action.id()) }
+                    if (took) delay(Repetition.PAUSE_MS)
+                    val after = if (took) withContext(Dispatchers.Default) { snapshot(node) } else null
+                    scrolledNode = true
+                    // Refreshed by the snapshot: what the node offers now says whether it can go on.
+                    candidates = listOfNotNull(after?.let { scrollable(node, picked.id, picked.activeWindow) }?.let { it to node })
+                    ScrollRun.result(took, before, after)
+                }
+            }
         }
     }
 
@@ -227,14 +272,18 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
      * False only when Android did not take the stroke.
      */
     private suspend fun scrollStep(direction: Direction, screen: Screen, page: Boolean): Boolean {
-        val nodes = screen.scrollables.map { it.first }
+        val nodes = screen.nodes
         val pick = if (page && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ScrollTarget.pickPage(nodes, direction) else ScrollTarget.pick(nodes, direction)
         if (pick is ScrollPick.Node) {
             val node = screen.scrollables.first { it.first.id == pick.id }.second
             if (withContext(Dispatchers.Main) { node.performAction(pick.action.id()) }) return true
         }
-        return dispatch(GesturePath.scroll(direction, screenWidth(), screenHeight(), service.bubbleFrame()))
+        return stroke(direction)
     }
+
+    /** A finger stroke that scrolls towards [direction], clear of the bubble. */
+    private suspend fun stroke(direction: Direction): Boolean =
+        dispatch(GesturePath.scroll(direction, screenWidth(), screenHeight(), service.bubbleFrame()))
 
     /** False when the service may not perform gestures yet or the gesture was cancelled. */
     private suspend fun dispatch(stroke: Stroke): Boolean = withContext(Dispatchers.Main) {
@@ -260,26 +309,23 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         }
     }
 
-    /**
-     * What can scroll, and a fingerprint of where everything is ([layout]): the bounds of the
-     * nodes and the list positions of their items - no text - so a step that moved nothing shows.
-     */
-    private class Screen(val scrollables: List<Pair<Scrollable, AccessibilityNodeInfo>>, val layout: Int)
+    /** What can scroll on the screen, each with its node. */
+    private class Screen(val scrollables: List<Pair<Scrollable, AccessibilityNodeInfo>>) {
+        val nodes: List<Scrollable> get() = scrollables.map { it.first }
+    }
 
     private suspend fun look(): Screen = withContext(Dispatchers.Default) { screen() }
 
     /**
      * Every node that can scroll in the apps' windows - not Amber's own overlays, not the
-     * keyboard - bounded like the text field search. Only bounds, class, actions and an item's
-     * position in its list are read.
+     * keyboard - bounded like the text field search. Of each node only whether it scrolls is
+     * read; of one that does, its class, actions, grid and size.
      */
     private fun screen(): Screen {
         val windows = runCatching { service.windows }.getOrDefault(emptyList()).filter {
             it.type != AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY && it.type != AccessibilityWindowInfo.TYPE_INPUT_METHOD
         }
         val found = mutableListOf<Pair<Scrollable, AccessibilityNodeInfo>>()
-        val bounds = Rect()
-        var layout = 1
         var visited = 0
         for (window in windows) {
             val root = window.root ?: continue
@@ -288,22 +334,41 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
             while (queue.isNotEmpty() && visited < MAX_NODES) {
                 val node = queue.removeFirst()
                 visited++
-                node.getBoundsInScreen(bounds)
-                val item = node.collectionItemInfo
-                layout = 31 * layout + bounds.hashCode()
-                if (item != null) layout = 31 * layout + item.rowIndex * 1_009 + item.columnIndex
-                if (node.isScrollable && node.isVisibleToUser) {
-                    val actions = node.actionList.mapNotNull { it.scrollAction() }.toSet()
-                    if (actions.isNotEmpty()) {
-                        val grid = node.collectionInfo
-                        val vertical = ScrollTarget.isVertical(node.className?.toString(), grid?.rowCount ?: 0, grid?.columnCount ?: 0, actions)
-                        found += Scrollable(found.size, bounds.width().toLong() * bounds.height(), window.isActive, vertical, actions) to node
-                    }
-                }
+                scrollable(node, found.size, window.isActive)?.let { found += it to node }
                 for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
             }
         }
-        return Screen(found, layout)
+        return Screen(found)
+    }
+
+    /** [node] as something that scrolls - its class, actions, grid and size; null when it does not. */
+    private fun scrollable(node: AccessibilityNodeInfo, id: Int, activeWindow: Boolean): Scrollable? {
+        if (!node.isScrollable || !node.isVisibleToUser) return null
+        val actions = node.actionList.mapNotNull { it.scrollAction() }.toSet()
+        if (actions.isEmpty()) return null
+        val grid = node.collectionInfo
+        val bounds = Rect().also(node::getBoundsInScreen)
+        val vertical = ScrollTarget.isVertical(node.className?.toString(), grid?.rowCount ?: 0, grid?.columnCount ?: 0, actions)
+        return Scrollable(id, bounds.width().toLong() * bounds.height(), activeWindow, vertical, actions)
+    }
+
+    /**
+     * Where the scrolled [node] and the items inside it sit ([ScrollSnapshot]) - bounds and
+     * list positions only, never text, nothing outside the node. Refreshed first; null when the
+     * node is gone.
+     */
+    private fun snapshot(node: AccessibilityNodeInfo): ScrollSnapshot? {
+        if (!runCatching { node.refresh() }.getOrDefault(false)) return null
+        val rect = Rect()
+        return runCatching {
+            ScrollSnapshot.of(
+                node,
+                bounds = { n -> n.getBoundsInScreen(rect); Box(rect.left, rect.top, rect.right, rect.bottom) },
+                place = { n -> n.collectionItemInfo?.let { it.rowIndex to it.columnIndex } },
+                scrolls = { n -> n.isScrollable },
+                children = { n -> (0 until n.childCount).mapNotNull { n.getChild(it) } },
+            )
+        }.getOrNull()
     }
 
     private fun screenWidth(): Int = screenSize().x

@@ -48,10 +48,13 @@ Controls:
   commands: "zurück", "öffne WhatsApp", "zehnmal runter", "ganz nach unten", "lauter",
   "Taschenlampe an", "WLAN-Einstellungen", "lösche das letzte Wort", "go home", "swipe left".
   Without a text field one tap is enough, and the bubble then shows in every app. Understood by
-  fixed rules on the phone; Amber reads which parts of the screen can scroll and whether they
-  moved, never what they show - and for a text command the field you are writing in, never a
-  password field. Settings pages only open; it never switches Wi-Fi or Bluetooth, never sends,
-  pays or confirms anything. Switched off, Amber never acts for you. Android 17's
+  fixed rules on the phone; Amber reads which parts of the screen can scroll and, in the one it
+  scrolls, where the items sit - to tell whether it moved, never what they show - and for a text
+  command the field you started it in, never a password field. A tap on the bubble stops a
+  command that is still running. Settings pages only open; it never switches Wi-Fi or
+  Bluetooth, never taps buttons or confirms dialogs - but a swipe does what your own swipe would
+  do in that app (in a mail list it may archive a mail). Switched off, Amber never acts for
+  you. Android 17's
   Advanced Protection takes the accessibility service - bubble and commands - away from every
   app that is not an accessibility tool, Amber included.
 
@@ -61,8 +64,8 @@ While the text is being written a spark runs around the rim; when it is in, a ti
 short burst of sparks ("Fuse"). Failure turns the disc red and puts the sparks out. Nothing
 moves at rest. The sparks fly in a second overlay window that takes no touches.
 
-The app itself ("Hearth"): the engine and where it sends your voice, the flame, one line of
-today's numbers and a test field. Settings are a short grouped list, each row an icon and its
+The app itself ("Hearth"): the engine and where it sends your voice, the flame, a row with
+today's numbers that opens the statistics, and a test field. Settings are a short grouped list, each row an icon and its
 state in a few words: recognition, cleanup, bubble and voice commands first, then the app
 styles, the rarer pages folded under Advanced (when the server fails, recording, inserting,
 reliability), and statistics and diagnostics. Each page starts with what matters; longer

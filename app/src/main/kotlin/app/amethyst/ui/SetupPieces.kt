@@ -53,7 +53,7 @@ fun AccessibilityDisclosure(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun DisclosureRows() {
-    Fact(AmberIcons.Apps, "Which app is in front", "To show or hide the bubble.")
+    Fact(AmberIcons.Apps, "Which app is in front", "To show or hide the bubble - and, with voice commands on, to see that an app it opened came up.")
     RowDivider()
     Fact(AmberIcons.TextFields, "Whether a text field has focus", "To show the bubble when you can type.")
     RowDivider()
@@ -74,9 +74,17 @@ private fun DisclosureRows() {
     Fact(
         AmberIcons.VoiceCommand,
         "With voice commands on",
-        "Your list of apps, which parts of the screen can scroll and whether they moved - not what they show. Amber acts " +
-            "only on the command you just spoke: navigate, open an app or a settings page, scroll or swipe, media keys and " +
-            "volume, the flashlight, edit the field you are in. Never in a password field; it never sends, pays or confirms.",
+        "It reads your list of apps, which parts of the screen can scroll and where the items sit in the one it scrolls - to tell " +
+            "whether it moved, never what they show - the volume and whether the flashlight is on.",
+    )
+    RowDivider()
+    Fact(
+        AmberIcons.Tune,
+        "Acts on the command you spoke",
+        "Only that one: back, home, recent apps, quick settings, notifications, lock, screenshot, split screen, power " +
+            "menu; open an app or a settings page; scroll, page, swipe; media keys and volume; the flashlight; edit the " +
+            "field you started the command in, never a password field. It never taps buttons or confirms dialogs; a " +
+            "swipe does what your own swipe would do in that app.",
     )
 }
 
@@ -125,7 +133,7 @@ fun RestrictedSettingsNote(modifier: Modifier = Modifier) {
     ) {
         Icon(AmberIcons.Info, contentDescription = null, tint = AmberPalette.Primary, modifier = Modifier.size(20.dp))
         Text(
-            "Amber is not from a store, so Android may block the switch. If it does, come back here for the way past it.",
+            "If Android blocks the switch, come back here for the way past it - it may do that for an app it did not get from a store it knows.",
             style = MaterialTheme.typography.bodyMedium,
             color = AmberPalette.Text,
         )
@@ -200,13 +208,14 @@ fun AccessibilityConsentDialog(restricted: Boolean, onAgree: () -> Unit, onDismi
             ) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("What Amber reads and does", style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
-                    Hint("The accessibility service shows the bubble and types your dictation into the field you are in. For that it reads:")
-                    if (restricted) RestrictedSettingsNote(Modifier.padding(vertical = 8.dp))
+                    Hint("The accessibility service shows the bubble and types your dictation into the field you are in. Here is what it reads and does:")
                 }
                 DisclosureRows()
                 NothingStoredLine()
                 FullDisclosure()
                 SwitchOnNote()
+                // About what may happen in Android's settings: next to the note on them, read before the button.
+                if (restricted) RestrictedSettingsNote(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp))
             }
             Row(
                 Modifier

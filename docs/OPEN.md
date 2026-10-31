@@ -228,6 +228,25 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       on the Pixel launcher, page actions in an app that offers them, "ganz nach unten" stopping
       at the end of a long list and of a WebView, text commands in a View field, a Compose
       field and a WebView, refused in a password field, "neue Zeile" refused where Enter sends.
+      Since the final review's fixes also: a tap on the bubble stops "zwanzigmal lauter" and
+      "ganz nach unten" within a step, and the second tap of a double tap given to stop starts
+      nothing; "ganz nach oben" and "zehnmal hoch" at the top of the Gmail inbox stop without a
+      pull to refresh; "ganz nach unten" on a feed with an advancing banner ends at the list's
+      end, not after 30 steps; a text command started in chat A and chat B opened while it is
+      recognized is refused ("einfügen" pastes nothing there); in split screen a text command
+      edits the half with the keyboard; "neue Zeile" with a selection lands behind it in a
+      View field and a Compose field (or is refused there, never a false "New line").
+- [x] An introduction that takes you there and brings you back (Task 2 of the same plan): the
+      disclosure as rows, Android's settings as close to Amber's switch as Android allows, back
+      to Amber by itself once the service or the battery exemption is on, the way past
+      "Restricted setting". **Open: the device test** - on the Pixel and one OEM phone: the
+      automatic return over Settings brings the same Amber screen to the front, without a
+      second MainActivity (`adb shell dumpsys activity activities`); Back after the return
+      (it likely shows the Accessibility page again - if that reads as a bug, try
+      `FLAG_ACTIVITY_NO_HISTORY` on the list intent and check the "Allow" and restricted
+      dialogs still work); the battery return arrives within about half a second; whether
+      Settings flashes Amber's row; the restricted-settings path on a sideloaded install
+      (adb, and a third-party store: what `packageSource` it reports decides the callout).
 - [ ] Review leftovers of 0.19/0.20 (small, none urgent): cleanup readiness is checked twice
       (router and factory, one extra key decrypt per dictation) and a factory refusal gets no
       default; when an app's own model and the default both fail, the note drops the default's
@@ -237,6 +256,21 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       profile removal is written out in three places (`AppProfiles.remove`); "open <app>" reads
       the launcher list each time; the node walk exists twice (TextInserter, CommandExecutor); a
       command a double tap turned into one keeps the recording's silence setting.
+- [ ] Review leftovers of the settings / introduction / voice commands v2 plan (small, none
+      urgent): "Learn more" sits at the bottom of long groups, far from its note; the Advanced
+      rows are a hand-kept list (`ADVANCED_ROWS`); the enclave trust level has three names; the
+      model label is looked up in two places; small text mismatches in the screenshots;
+      repeated spacing literals; the return request is lost when the process dies while the
+      user is in Settings (then Back is needed); after a blocked attempt the plain three taps
+      are no longer shown; bare "Ende" / "Top" / "Anfang" start a scroll to the end; "Ein Lied
+      weiter" plays instead of skipping, and "Spiel weiter", "Turn off Bluetooth", "Stumm aus",
+      "Ton ein" are not understood; the corpus has few ordinary sentences with a command word
+      in them; a single "hoch" at the top of a pull-to-refresh list still strokes (and pulls)
+      as in v1 - only repeated runs stop there; a horizontal swipe may be repeated up to 20
+      times; command icons are keyed on group titles; `volumeStep` is not wrapped like
+      `mute`; select all and the clipboard actions through the input connection say "Done"
+      unchecked; no emoji case in `TextEditsTest`; the Home and MusicNote icon paths were
+      written from memory, not checked against Material Symbols.
 - [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
       text - its own consent, prompt-injection rules), a model for free phrasing.
 

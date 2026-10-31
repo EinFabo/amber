@@ -57,9 +57,11 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     // Moves on as the settings will be once a step's choice is written - DataStore answers a
-    // moment later, and the cleanup step decides whether the styles step comes next.
-    val nextWith: (AmethystSettings) -> Unit = { after -> Onboarding.next(step, after)?.let(onStep) ?: onFinish() }
-    val next: () -> Unit = { nextWith(settings) }
+    // moment later, and the cleanup step decides whether the styles step comes next. Each step
+    // moves on from itself: a step still fading out that calls it late only repeats the move
+    // already made, never makes a second one past the step that came in.
+    val nextFrom: (OnboardingStep, AmethystSettings) -> Unit = { from, after -> Onboarding.next(from, after)?.let(onStep) ?: onFinish() }
+    val next: () -> Unit = { nextFrom(step, settings) }
     Column(modifier.fillMaxSize()) {
         StepLine(
             step = step,
@@ -73,16 +75,17 @@ fun OnboardingScreen(
             label = "step",
             modifier = Modifier.weight(1f),
         ) { current ->
+            val onward: () -> Unit = { nextFrom(current, settings) }
             when (current) {
-                OnboardingStep.WELCOME -> WelcomeStep(next)
-                OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, next)
-                OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, next)
-                OnboardingStep.ENGINE -> EngineStep(settings, content, next)
-                OnboardingStep.CLEANUP -> CleanupStep(settings, content, nextWith)
-                OnboardingStep.APP_STYLES -> AppStylesStep(settings, content, next)
-                OnboardingStep.BUBBLE -> BubbleStep(settings, content, next)
-                OnboardingStep.RECORDING -> RecordingStep(settings, content, next)
-                OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, next)
+                OnboardingStep.WELCOME -> WelcomeStep(onward)
+                OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, onward)
+                OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, onward)
+                OnboardingStep.ENGINE -> EngineStep(settings, content, onward)
+                OnboardingStep.CLEANUP -> CleanupStep(settings, content) { after -> nextFrom(current, after) }
+                OnboardingStep.APP_STYLES -> AppStylesStep(settings, content, onward)
+                OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
+                OnboardingStep.RECORDING -> RecordingStep(settings, content, onward)
+                OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
                 OnboardingStep.DONE -> DoneStep(settings, content.download, onFinish)
             }
         }

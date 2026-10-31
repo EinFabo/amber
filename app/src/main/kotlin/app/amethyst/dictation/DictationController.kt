@@ -132,12 +132,31 @@ class DictationController(
     val isRunning: Boolean
         get() = job?.isActive == true
 
-    /** What the bubble does on a tap. True when it started a recording rather than stopped one. */
+    /** When a tap last stopped a command (uptime), so the second tap of that double tap starts nothing. */
+    private var commandStoppedAt: Long? = null
+
+    /**
+     * What the bubble does on a tap. True when it started a recording rather than stopped one.
+     * While a command is being carried out a tap stops it at once - a misheard "zwanzigmal
+     * lauter" must have a way out - and the second tap of a double tap given for that is no
+     * new recording.
+     */
     fun toggle(): Boolean {
+        val now = SystemClock.uptimeMillis()
         if (isRunning) {
-            stop()
+            val recording = _state.value.let { it is DictationState.Starting || it is DictationState.Listening }
+            when (CommandTrigger.tapInRun(_mode.value, recording)) {
+                CommandTrigger.TapInRun.STOP_RECORDING -> stop()
+                CommandTrigger.TapInRun.CANCEL -> {
+                    commandStoppedAt = now
+                    cancel()
+                    Log.i(TAG, "command stopped by a tap")
+                    mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
+                }
+            }
             return false
         }
+        if (CommandTrigger.isSecondTapOfStop(commandStoppedAt, now)) return false
         start()
         return _state.value is DictationState.Starting
     }
@@ -576,7 +595,9 @@ class DictationController(
             }
         }
         val outcome = when (understanding) {
-            is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command)
+            // A text command changes only the field it was started in, checked as a dictation's
+            // text is (EditTarget) - recognition took seconds, the user may be in another chat now.
+            is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command, startedIn = startTarget)
                 ?: CommandOutcome.Failed("Amber's accessibility service is off.")
             is Understanding.NotUnderstood -> CommandOutcome.Failed(
                 "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
@@ -602,10 +623,14 @@ class DictationController(
         }
     }
 
-    /** A typed command through the same path, for the debug build's adb test hook (src/debug). */
+    /**
+     * A typed command through the same path, for the debug build's adb test hook (src/debug).
+     * The field that has focus now counts as the one the command was started in.
+     */
     internal suspend fun commandForTest(text: String) {
         _mode.value = RunMode.COMMAND
         trace = RunTrace("TEST/COMMAND")
+        startTarget = graph.accessibilityService?.focusedTarget()
         runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
         _mode.value = RunMode.DICTATION
     }

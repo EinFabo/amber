@@ -31,6 +31,32 @@ object TextEdits {
         return FieldState(text.substring(0, end) + "\n" + text.substring(end), end + 1)
     }
 
+    /**
+     * Where an input connection types a new line. It sees only the text [around] the cursor,
+     * starting at [offset] in the field - -1 where the field does not say. Behind a selection
+     * the cursor first moves to the selection's end, a place in the whole field; without the
+     * offset that place is unknown, and a break typed anyway would land somewhere else.
+     */
+    fun lineBreakPlan(around: FieldState, offset: Int): LineBreakPlan {
+        if (around.selectionStart == around.selectionEnd) return LineBreakPlan.AtCursor
+        if (offset < 0) return LineBreakPlan.Unknown
+        return LineBreakPlan.After(offset + maxOf(around.selectionStart, around.selectionEnd))
+    }
+
+    /**
+     * Whether a typed line break arrived where it belongs: the text before the cursor [after]
+     * is what lay before the cursor - behind any selection - [before], plus the break. Both
+     * are windows of capped length ending at the cursor, so one only has to end the other. A
+     * cursor that merely moved is no new line.
+     */
+    fun lineBreakLanded(before: FieldState, after: FieldState): Boolean {
+        val (text, _, end) = clamped(before)
+        val expected = text.substring(0, end) + "\n"
+        val (afterText, afterStart) = clamped(after)
+        val actual = afterText.substring(0, afterStart)
+        return actual.endsWith("\n") && (expected.endsWith(actual) || actual.endsWith(expected))
+    }
+
     private fun wordStart(text: String, cursor: Int, count: Int): Int {
         var i = cursor
         repeat(count.coerceAtLeast(0)) {
@@ -47,4 +73,16 @@ object TextEdits {
         val b = field.selectionEnd.coerceIn(0, text.length)
         return Triple(text, minOf(a, b), maxOf(a, b))
     }
+}
+
+/** How a new line goes in through an input connection ([TextEdits.lineBreakPlan]). */
+sealed interface LineBreakPlan {
+    /** At the cursor as it is. */
+    data object AtCursor : LineBreakPlan
+
+    /** The cursor moves to [position] in the field first: behind the selection. */
+    data class After(val position: Int) : LineBreakPlan
+
+    /** Behind a selection whose place in the field is not known: not through the connection. */
+    data object Unknown : LineBreakPlan
 }

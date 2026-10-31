@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -83,10 +84,14 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
     // Moves on by itself only when the switch was turned on while this step was up - not when
     // Back leads here with it already on.
     var watching by rememberSaveable { mutableStateOf(!on) }
+    // The beat before it moves on: Continue waits too, so a tap in it cannot move on twice and
+    // skip the microphone step.
+    var beat by remember { mutableStateOf(false) }
     val moveOn by rememberUpdatedState(onNext)
     LaunchedEffect(on) {
         if (on && watching) {
             watching = false
+            beat = true
             delay(DONE_BEAT_MS)
             moveOn()
         }
@@ -100,7 +105,7 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         },
         buttons = {
             when {
-                on -> ContinueButton(onNext)
+                on -> ContinueButton(onNext, enabled = !beat)
                 locked -> {
                     // The filled button is the lock's "Open app info" above; this comes after it.
                     GhostButton("Open settings again", actions.openAccessibility)

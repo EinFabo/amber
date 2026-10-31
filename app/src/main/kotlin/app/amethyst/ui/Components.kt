@@ -11,7 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -53,21 +52,6 @@ import app.amethyst.ui.theme.badgeLabel
 
 /** Quick, plain transitions everywhere: nothing on screen bounces or overshoots. */
 internal const val FAST_MS = 150
-
-/** A filled area for the few things that are one tappable unit. No border, no shadow. */
-@Composable
-fun Panel(
-    modifier: Modifier = Modifier,
-    shape: androidx.compose.ui.graphics.Shape = AmberShapes.Card,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(AmberPalette.Surface),
-        content = content,
-    )
-}
 
 @Composable
 fun StatusRow(

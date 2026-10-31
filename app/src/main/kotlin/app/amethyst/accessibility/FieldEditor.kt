@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.CommandOutcome
+import app.amethyst.core.commands.LineBreakPlan
 import app.amethyst.core.commands.TextEdit
 import app.amethyst.core.commands.TextEdits
 import app.amethyst.core.text.FieldState
@@ -16,8 +17,10 @@ import kotlinx.coroutines.delay
 /**
  * The text commands: changes to the field the user is writing in, worked out by [TextEdits]
  * and written the ways a dictation is - the service's input connection (Android 13+), the
- * field's own node actions. Only an editable field that is not a password field. Its text is
- * read for the command that needs it and goes nowhere - not to logcat, not into a message.
+ * field's own node actions. Only an editable field that is not a password field, and only the
+ * one the command was started in (checked before, [app.amethyst.core.commands.EditTarget]).
+ * Its text is read for the command that needs it and goes nowhere - not to logcat, not into a
+ * message.
  */
 class FieldEditor(private val service: AccessibilityService, private val inserter: TextInserter) {
 
@@ -37,12 +40,25 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
     /** The field with the cursor: its node, and from Android 13 the input connection bound to it. */
     private class Field(val node: AccessibilityNodeInfo?, val keys: Keys?, val secret: Boolean, val takesLineBreaks: Boolean)
 
+    /**
+     * The field with the cursor, looked for in a dictation's order: the node Android reports as
+     * having input focus, with the input connection only if it belongs to the same app; else
+     * (Android 13+) the input connection - bound to the very field the keyboard types into -
+     * with a searched node only from that app; else a searched node only in the window in use.
+     * Never a field in another window: in split screen the other half may have one focused too.
+     */
     private fun find(): Field? {
-        val node = inserter.focusedEditable()
-        val nodePackage = node?.packageName?.toString()
-        val bound = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ConnectionKeys.bound(service, nodePackage) else null
+        val focused = inserter.inputFocus()
+        val focusedPackage = focused?.packageName?.toString()
+        val bound = when {
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU -> null
+            // A focused node that does not say whose it is: no connection to match it with.
+            focused != null && focusedPackage == null -> null
+            else -> ConnectionKeys.bound(service, expectedPackage = focusedPackage)
+        }
+        val node = focused ?: inserter.searchFocusedEditable(owner = bound?.packageName)
         if (node == null && bound == null) return null
-        val packageName = nodePackage ?: bound?.packageName ?: return null
+        val packageName = node?.packageName?.toString() ?: bound?.packageName ?: return null
         val secret = (node != null && TextFieldKind.of(node.inputType, node.isPassword) == TextFieldKind.SECRET) ||
             bound?.kind == TextFieldKind.SECRET
         return Field(node, bound?.keys, secret, inserter.takesLineBreaks(packageName, node))
@@ -56,7 +72,8 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
             val chars = TextEdits.charsBeforeCursor(before.state, count)
             if (chars == 0) return CommandOutcome.Failed(NOTHING_BEFORE)
             keys.deleteBefore(chars)
-            return if (changed(keys, before)) CommandOutcome.Done(did) else CommandOutcome.Failed(NOT_TAKEN)
+            val changed = verified(keys) { after -> after.beforeCursor() != before.beforeCursor() }
+            return if (changed) CommandOutcome.Done(did) else CommandOutcome.Failed(NOT_TAKEN)
         }
         val node = field.node ?: return CommandOutcome.Failed(NOT_EDITABLE)
         val state = read(node) ?: return CommandOutcome.Failed(UNREADABLE)
@@ -65,19 +82,40 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
         return write(node, result, did)
     }
 
-    /** Where Enter would send or move on, a line break is not typed: it might do just that. */
+    /**
+     * Where Enter would send or move on, a line break is not typed: it might do just that. A
+     * selection stays - the break goes behind it, not over it ([TextEdits.lineBreakPlan]) - and
+     * "New line" is said only once the break is there.
+     */
     private suspend fun newLine(field: Field): CommandOutcome {
         if (!field.takesLineBreaks) return CommandOutcome.Refused("Enter sends or moves on in this field - no new line here.")
         val keys = field.keys
         val before = keys?.surrounding()
         if (keys != null && before != null) {
-            // A selection stays: the break goes after it, not over it.
-            val end = before.offset + maxOf(before.state.selectionStart, before.state.selectionEnd)
-            if (before.state.selectionStart != before.state.selectionEnd) keys.select(end, end)
-            keys.type("\n")
-            return if (changed(keys, before)) CommandOutcome.Done("New line") else CommandOutcome.Failed(NOT_TAKEN)
+            val plan = TextEdits.lineBreakPlan(before.state, before.offset)
+            when (plan) {
+                LineBreakPlan.AtCursor -> keys.type("\n")
+                is LineBreakPlan.After -> {
+                    keys.select(plan.position, plan.position)
+                    keys.type("\n")
+                }
+                // The connection cannot tell where the selection ends in the field; the node can.
+                LineBreakPlan.Unknown -> return newLineByNode(field)
+                    ?: CommandOutcome.Failed("This field does not say where the selection ends - tap where the new line goes.")
+            }
+            if (verified(keys) { after -> TextEdits.lineBreakLanded(before.state, after.state) }) return CommandOutcome.Done("New line")
+            // Typed but not taken: the selection as it was, not collapsed by the move.
+            if (plan is LineBreakPlan.After) {
+                keys.select(before.offset + before.state.selectionStart, before.offset + before.state.selectionEnd)
+            }
+            return CommandOutcome.Failed(NOT_TAKEN)
         }
-        val node = field.node ?: return CommandOutcome.Failed(NOT_EDITABLE)
+        return newLineByNode(field) ?: CommandOutcome.Failed(NOT_EDITABLE)
+    }
+
+    /** The node's way: the whole text with the break in it. Null without a node. */
+    private fun newLineByNode(field: Field): CommandOutcome? {
+        val node = field.node ?: return null
         val state = read(node) ?: return CommandOutcome.Failed(UNREADABLE)
         return write(node, TextEdits.newLine(state), "New line")
     }
@@ -115,13 +153,13 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
 
     /**
      * An input connection reports nothing back and its changes travel asynchronously, so the
-     * field is read again until the text before the cursor differs. Unreadable afterwards: done,
-     * as far as anyone can tell.
+     * field is read again until [arrived] says the change is there. Unreadable afterwards:
+     * done, as far as anyone can tell.
      */
-    private suspend fun changed(keys: Keys, before: Surrounding): Boolean {
+    private suspend fun verified(keys: Keys, arrived: (Surrounding) -> Boolean): Boolean {
         repeat(VERIFY_ATTEMPTS) { attempt ->
             val after = keys.surrounding() ?: return true
-            if (after.beforeCursor() != before.beforeCursor()) return true
+            if (arrived(after)) return true
             if (attempt < VERIFY_ATTEMPTS - 1) delay(VERIFY_INTERVAL_MS)
         }
         return false
@@ -189,16 +227,11 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
 
         companion object {
             fun bound(service: AccessibilityService, expectedPackage: String?): Bound? {
-                val method = service.inputMethod ?: return null
-                if (!method.currentInputStarted) return null
-                val editor = method.currentInputEditorInfo ?: return null
-                // A connection left over from another app's field would edit text the user is not looking at.
-                val owner = editor.packageName ?: return null
-                if (expectedPackage != null && owner != expectedPackage) return null
-                val kind = TextFieldKind.of(editor.inputType)
+                val input = TextInserter.boundInput(service, expectedPackage) ?: return null
+                val kind = TextFieldKind.of(input.editor.inputType)
                 if (kind == TextFieldKind.NONE) return null
-                val connection = method.currentInputConnection ?: return null
-                return Bound(ConnectionKeys(connection), kind, owner)
+                val connection = input.connection ?: return null
+                return Bound(ConnectionKeys(connection), kind, input.owner)
             }
         }
     }

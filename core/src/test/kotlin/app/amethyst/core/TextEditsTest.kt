@@ -1,9 +1,12 @@
 package app.amethyst.core
 
+import app.amethyst.core.commands.LineBreakPlan
 import app.amethyst.core.commands.TextEdits
 import app.amethyst.core.text.FieldState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TextEditsTest {
 
@@ -68,5 +71,38 @@ class TextEditsTest {
         assertEquals(FieldState("Hallo\n", 6), TextEdits.newLine(FieldState("Hallo", 5)))
         assertEquals(FieldState("Hallo\n Welt", 6), TextEdits.newLine(FieldState("Hallo Welt", 5)))
         assertEquals(FieldState("Hallo Welt\n", 11), TextEdits.newLine(FieldState("Hallo Welt", 0, 10)))
+    }
+
+    @Test
+    fun `through an input connection a new line goes at the cursor, or behind the selection by its place in the field`() {
+        assertEquals(LineBreakPlan.AtCursor, TextEdits.lineBreakPlan(FieldState("Hallo", 5), offset = 0))
+        // Where the text around the cursor starts does not matter without a selection.
+        assertEquals(LineBreakPlan.AtCursor, TextEdits.lineBreakPlan(FieldState("Hallo", 5), offset = -1))
+        // The connection sees text from field position 40 on; "schöne" is selected.
+        assertEquals(LineBreakPlan.After(52), TextEdits.lineBreakPlan(FieldState("Hallo schöne Welt", 6, 12), offset = 40))
+        assertEquals(LineBreakPlan.After(52), TextEdits.lineBreakPlan(FieldState("Hallo schöne Welt", 12, 6), offset = 40))
+    }
+
+    @Test
+    fun `a selection in a field that does not say where its text starts has no place for the break`() {
+        assertEquals(LineBreakPlan.Unknown, TextEdits.lineBreakPlan(FieldState("Hallo schöne Welt", 6, 12), offset = -1))
+    }
+
+    @Test
+    fun `the break counts only where it landed - right before the cursor, behind what was there`() {
+        assertTrue(TextEdits.lineBreakLanded(FieldState("Hallo", 5), FieldState("Hallo\n", 6)))
+        assertTrue(TextEdits.lineBreakLanded(FieldState("Hallo schöne Welt", 6, 12), FieldState("Hallo schöne\n", 13)))
+        // The text around the cursor is capped: the window after the break starts one later.
+        val long = "x".repeat(1_000)
+        assertTrue(TextEdits.lineBreakLanded(FieldState(long, 1_000), FieldState(long.drop(1) + "\n", 1_000)))
+    }
+
+    @Test
+    fun `a cursor that only moved, or a break in the wrong place, is no new line`() {
+        // The selection collapsed to its end, but the field ignored the typed break.
+        assertFalse(TextEdits.lineBreakLanded(FieldState("Hallo schöne Welt", 6, 12), FieldState("Hallo schöne", 12)))
+        // The break went in over or before the selection.
+        assertFalse(TextEdits.lineBreakLanded(FieldState("Hallo schöne Welt", 6, 12), FieldState("Hallo \n", 7)))
+        assertFalse(TextEdits.lineBreakLanded(FieldState("Hallo", 5), FieldState("Hallo", 5)))
     }
 }

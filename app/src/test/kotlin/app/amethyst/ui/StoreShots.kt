@@ -419,7 +419,7 @@ class StoreShots {
 
     /** The whole page before the button, rows and notes - taller than a phone. */
     @Test
-    @Config(qualifiers = "w360dp-h1120dp-xxhdpi")
+    @Config(qualifiers = "w360dp-h1560dp-xxhdpi")
     fun onboardingAccessibilityTall() = onboarding("2-accessibility-tall", OnboardingStep.ACCESSIBILITY, fresh.copy(restrictedSettings = true))
 
     /** Installed from a file on Android 13+: the step says before the button that Android may block it. */

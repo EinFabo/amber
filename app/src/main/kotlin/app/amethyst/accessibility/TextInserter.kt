@@ -1,6 +1,7 @@
 package app.amethyst.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.InputMethod
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.os.Build
@@ -10,6 +11,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import app.amethyst.R
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
@@ -106,25 +108,39 @@ class TextInserter(
     }
 
     /**
-     * The editable node that has input focus - for the text commands, which change the field
-     * the user is writing in. Found as [resolveTarget] finds it, without the input connection.
+     * The editable node Android reports as having input focus - the surest answer, when it
+     * gives one (Compose fields do not). For the text commands, which look further as
+     * [resolveTarget] does: the input connection, then [searchFocusedEditable].
      */
-    fun focusedEditable(): AccessibilityNodeInfo? {
-        val focused = runCatching { service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
-        return if (focused?.isEditable == true) focused else findFocusedEditable()
-    }
+    fun inputFocus(): AccessibilityNodeInfo? =
+        runCatching { service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()?.takeIf { it.isEditable }
+
+    /**
+     * A focused editable node found by searching the windows: [owner]'s, the app the input
+     * connection belongs to - else, without a connection, only in the window in use. In split
+     * screen the other half may hold a focused field of its own, which is not the user's.
+     */
+    fun searchFocusedEditable(owner: String?): AccessibilityNodeInfo? =
+        findFocusedEditable(onlyInUse = owner == null, owner = owner)
 
     /** Whether Enter makes a new line in [node]'s field rather than sending or moving on. */
     fun takesLineBreaks(packageName: String, node: AccessibilityNodeInfo?): Boolean =
         enterMakesNewLine(service, packageName) ?: (node?.isMultiLine == true)
 
-    /** Breadth-first through every window, the active one first, bounded so it stays cheap. */
-    private fun findFocusedEditable(): AccessibilityNodeInfo? {
+    /**
+     * Breadth-first through every window, the active one first, bounded so it stays cheap. With
+     * [onlyInUse] only the active or focused window; with [owner] only that app's windows.
+     */
+    private fun findFocusedEditable(onlyInUse: Boolean = false, owner: String? = null): AccessibilityNodeInfo? {
         val roots = runCatching {
-            service.windows.sortedByDescending { it.isActive || it.isFocused }.mapNotNull { it.root }
+            service.windows
+                .filter { !onlyInUse || it.isActive || it.isFocused }
+                .sortedByDescending { it.isActive || it.isFocused }
+                .mapNotNull { it.root }
         }.getOrDefault(emptyList()).ifEmpty { listOfNotNull(service.rootInActiveWindow) }
 
         for (root in roots) {
+            if (owner != null && root.packageName?.toString() != owner) continue
             val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
             var visited = 0
             while (queue.isNotEmpty() && visited < MAX_NODES_SEARCHED) {
@@ -258,27 +274,43 @@ class TextInserter(
         companion object {
             fun from(service: AccessibilityService): InputConnectionTarget? {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-                val inputMethod = service.inputMethod ?: return null
-                if (!inputMethod.currentInputStarted || inputMethod.currentInputConnection == null) return null
-                val owner = inputMethod.currentInputEditorInfo?.packageName ?: return null
-                return InputConnectionTarget(service, owner)
+                val bound = boundInput(service, expectedPackage = null)?.takeIf { it.connection != null } ?: return null
+                return InputConnectionTarget(service, bound.owner)
             }
         }
     }
 
-    private companion object {
-        const val TAG = "Amber"
-        const val MAX_NODES_SEARCHED = 1_500
+    /**
+     * The field the service's input method is bound to (flagInputMethodEditor, Android 13+):
+     * its EditorInfo, the app it belongs to and the connection, if there is one.
+     */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    class BoundInput(val editor: EditorInfo, val owner: String, val connection: InputMethod.AccessibilityInputConnection?)
+
+    companion object {
+        private const val TAG = "Amber"
+        private const val MAX_NODES_SEARCHED = 1_500
 
         /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
-        const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
+        private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
 
         /**
-         * Types [text] through the service's input method (flagInputMethodEditor). With
-         * [expectedPackage] set it refuses a connection that belongs to another app - typing
-         * into a connection left over from a different window would put the words somewhere
-         * the user is not looking.
+         * The input the service's input method is bound to, if input has started - only
+         * [expectedPackage]'s, when given: a connection left over from another app's field
+         * would reach text the user is not looking at. An editor that does not say whose it
+         * is gets nothing, the words could land anywhere. The one place these checks live, for
+         * dictation and the text commands alike.
          */
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        fun boundInput(service: AccessibilityService, expectedPackage: String?): BoundInput? {
+            val method = service.inputMethod ?: return null
+            if (!method.currentInputStarted) return null
+            val editor = method.currentInputEditorInfo ?: return null
+            val owner = editor.packageName ?: return null
+            if (expectedPackage != null && owner != expectedPackage) return null
+            return BoundInput(editor, owner, method.currentInputConnection)
+        }
+
         /**
          * Whether Enter in the field the input method is bound to makes a new line - multi-line,
          * and either no Enter action at all or one the field asks keyboards to ignore
@@ -287,28 +319,25 @@ class TextInserter(
          */
         fun enterMakesNewLine(service: AccessibilityService, packageName: String): Boolean? {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-            val method = service.inputMethod ?: return null
-            if (!method.currentInputStarted) return null
-            val editor = method.currentInputEditorInfo ?: return null
-            if (editor.packageName != packageName) return null
+            val editor = boundInput(service, expectedPackage = packageName)?.editor ?: return null
             if (editor.inputType and EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE == 0) return false
             if (editor.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) return true
             val action = editor.imeOptions and EditorInfo.IME_MASK_ACTION
             return action == EditorInfo.IME_ACTION_NONE || action == EditorInfo.IME_ACTION_UNSPECIFIED
         }
 
+        /**
+         * Types [text] through the service's input method. With [expectedPackage] set it
+         * refuses a connection that belongs to another app - typing into a connection left over
+         * from a different window would put the words somewhere the user is not looking.
+         */
         fun commitThroughInputMethod(
             service: AccessibilityService,
             text: String,
             expectedPackage: String?,
         ): Boolean {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
-            val inputMethod = service.inputMethod ?: return false
-            if (!inputMethod.currentInputStarted) return false
-            // An editor that does not say whose it is gets nothing: the words could land anywhere.
-            val editorPackage = inputMethod.currentInputEditorInfo?.packageName ?: return false
-            if (expectedPackage != null && editorPackage != expectedPackage) return false
-            val connection = inputMethod.currentInputConnection ?: return false
+            val connection = boundInput(service, expectedPackage)?.connection ?: return false
             return try {
                 // Line breaks arrive here only for a field where Enter makes a new line; for any
                 // other, InsertionEngine writes them with SET_TEXT or types one line. The

@@ -12,8 +12,9 @@ sealed interface ScrollPick {
     data class Node(val id: Int, val action: ScrollAction) : ScrollPick
 
     /**
-     * Nothing offers scrolling that way - a gesture may still move something. Also when a list
-     * is at its end: it may be a small one inside a page that scrolls without saying so.
+     * Nothing offers scrolling that way - for a single scroll a gesture may still move
+     * something. Also when a list is at its end: it may be a small one inside a page that
+     * scrolls without saying so. A repeated run ends there instead ([ScrollRun]).
      */
     data object None : ScrollPick
 }

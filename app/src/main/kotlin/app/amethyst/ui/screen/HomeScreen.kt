@@ -61,7 +61,7 @@ import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.theme.AmberPalette
 
 /**
- * Hearth: one quiet home. The engine on top, the flame alone in the middle, one line of today's
+ * Hearth: one quiet home. The engine on top, the flame alone in the middle, a row with today's
  * numbers that opens the statistics, and the test field. Setup shows above the flame until
  * it is done, reliability only while something is open; diagnostics live in the settings.
  */
