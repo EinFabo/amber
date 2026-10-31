@@ -50,4 +50,15 @@ class EditTargetTest {
         )
         assertEquals("No text field has the cursor - tap into one first.", EditTarget.refusal(null, null))
     }
+
+    @Test
+    fun `the check is named for Diagnostics`() {
+        val login = InputTarget("com.bank", windowId = 3, fieldId = 1, kind = TextFieldKind.SECRET)
+        assertEquals("same field", EditTarget.verdict(aliceChat, aliceChat.copy()))
+        assertEquals("moved to another app, window or field", EditTarget.verdict(aliceChat, aliceChat.copy(windowId = 52)))
+        assertEquals("no field has the cursor now", EditTarget.verdict(aliceChat, null))
+        assertEquals("no field had the cursor at the start", EditTarget.verdict(null, aliceChat))
+        assertEquals("no field, neither at the start nor now", EditTarget.verdict(null, null))
+        assertEquals("password field", EditTarget.verdict(aliceChat, login))
+    }
 }

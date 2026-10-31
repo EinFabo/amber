@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.graphics.Point
 import android.graphics.Rect
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
@@ -21,6 +22,7 @@ import app.amethyst.core.commands.AppMatch
 import app.amethyst.core.commands.Command
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.commands.CommandOutcome
+import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.Direction
 import app.amethyst.core.commands.EditTarget
 import app.amethyst.core.commands.GesturePath
@@ -53,32 +55,41 @@ import kotlin.coroutines.resume
  * read: a scroll looks for which nodes can scroll and how large they are, and while it repeats,
  * where the scrolled node and the items inside it sit - to see whether it moved; a text command
  * reads the field it was started in, nothing else. Logcat gets the kind of command only, never
- * what was heard, which app or any text.
+ * what was heard, which app or any text. What each step did goes into the command's
+ * [CommandTrace] instead, for Diagnostics: names and counts, never a field's text.
  */
 class CommandExecutor(private val service: AmethystAccessibilityService, private val graph: Graph) {
 
     private val device = DeviceControls(service)
     private val editor = FieldEditor(service, service.textInserter)
 
-    /** [startedIn]: the field that had the cursor when the command's recording began, if any. */
-    suspend fun execute(command: Command, startedIn: InputTarget?): CommandOutcome {
-        if (!graph.settings.value.commands.enabled) return CommandOutcome.Refused("Voice commands are off.")
+    /**
+     * [startedIn]: the field that had the cursor when the command's recording began, if any.
+     * [trace] gets a line for every decision and step.
+     */
+    suspend fun execute(command: Command, startedIn: InputTarget?, trace: CommandTrace): CommandOutcome {
+        if (!graph.settings.value.commands.enabled) {
+            trace.note("gate: voice commands are switched off")
+            return CommandOutcome.Refused("Voice commands are off.")
+        }
         if (service.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) {
+            trace.note("gate: the phone is locked")
             return CommandOutcome.Refused("Unlock the phone first.")
         }
+        trace.note("gate: passed (commands on, phone unlocked)")
         Log.i(TAG, "command: ${command.kind()}")
         return when (command) {
-            is Command.Navigate -> navigate(command.action, command.times)
-            is Command.OpenApp -> open(command.name)
-            is Command.Scroll -> scroll(command.direction, command.times)
-            is Command.ScrollToEnd -> scrollToEnd(command.direction)
-            is Command.Page -> page(command.direction, command.times)
-            is Command.Swipe -> swipe(command.direction, command.times)
-            is Command.Media -> withContext(Dispatchers.Main) { device.press(command.key) }
-            is Command.Volume -> withContext(Dispatchers.Main) { volume(command.change, command.times) }
-            is Command.Torch -> withContext(Dispatchers.Main) { device.torch(command.on) }
-            is Command.OpenSettings -> openSettings(command.page)
-            is Command.Edit -> withContext(Dispatchers.Default) { edit(command, startedIn) }
+            is Command.Navigate -> navigate(command.action, command.times, trace)
+            is Command.OpenApp -> open(command.name, trace)
+            is Command.Scroll -> scroll(command.direction, command.times, trace)
+            is Command.ScrollToEnd -> scrollToEnd(command.direction, trace)
+            is Command.Page -> page(command.direction, command.times, trace)
+            is Command.Swipe -> swipe(command.direction, command.times, trace)
+            is Command.Media -> withContext(Dispatchers.Main) { device.press(command.key, trace) }
+            is Command.Volume -> withContext(Dispatchers.Main) { volume(command.change, command.times, trace) }
+            is Command.Torch -> withContext(Dispatchers.Main) { device.torch(command.on, trace) }
+            is Command.OpenSettings -> openSettings(command.page, trace)
+            is Command.Edit -> withContext(Dispatchers.Default) { edit(command, startedIn, trace) }
         }
     }
 
@@ -87,15 +98,17 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
      * ([EditTarget]) - recognition took seconds, and meanwhile the user may have tapped into
      * another chat, where "einfügen" would paste the clipboard.
      */
-    private suspend fun edit(command: Command.Edit, startedIn: InputTarget?): CommandOutcome {
-        EditTarget.refusal(startedIn, service.focusedTarget())?.let { return CommandOutcome.Refused(it) }
-        return editor.apply(command.edit, command.times)
+    private suspend fun edit(command: Command.Edit, startedIn: InputTarget?, trace: CommandTrace): CommandOutcome {
+        val now = service.focusedTarget()
+        trace.note("target check: ${EditTarget.verdict(startedIn, now)}")
+        EditTarget.refusal(startedIn, now)?.let { return CommandOutcome.Refused(it) }
+        return editor.apply(command.edit, command.times, trace)
     }
 
     /** The service is going away: let go of what watches the phone. */
     fun close() = device.close()
 
-    private suspend fun navigate(action: GlobalAction, times: Int): CommandOutcome {
+    private suspend fun navigate(action: GlobalAction, times: Int, trace: CommandTrace): CommandOutcome {
         val (id, done) = when (action) {
             GlobalAction.BACK -> AccessibilityService.GLOBAL_ACTION_BACK to "Back"
             GlobalAction.HOME -> AccessibilityService.GLOBAL_ACTION_HOME to "Home screen"
@@ -113,10 +126,14 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         }
         val refused = "Android refused: ${done.lowercase()}."
         if (action == GlobalAction.SCREENSHOT) {
-            return if (withoutBubble { service.performGlobalAction(id) }) CommandOutcome.Done(done) else CommandOutcome.Failed(refused)
+            val taken = withoutBubble { service.performGlobalAction(id) }
+            trace.note("global action $action, the bubble hidden for the capture: ${if (taken) "taken" else "refused"}")
+            return if (taken) CommandOutcome.Done(done) else CommandOutcome.Failed(refused)
         }
-        return steps(times) { if (withContext(Dispatchers.Main) { service.performGlobalAction(id) }) Step.Done else Step.Failed(refused) }
-            .outcome(done, "nothing changed")
+        trace.note("global action $action")
+        return steps(times, trace) {
+            if (withContext(Dispatchers.Main) { service.performGlobalAction(id) }) Step.Done else Step.Failed(refused)
+        }.outcome(done, "nothing changed")
     }
 
     /**
@@ -134,24 +151,45 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         }
     }
 
-    private suspend fun open(name: String): CommandOutcome {
+    private suspend fun open(name: String, trace: CommandTrace): CommandOutcome {
         val apps = withContext(Dispatchers.IO) { Launcher.apps(service) }
+        trace.note("app search: “$name” among ${apps.size} launcher apps")
         return when (val match = AppMatch.find(name, apps) { it.label }) {
             is AppMatch.Found -> {
                 val app = match.app
+                trace.note("Found: ${app.label} (${AppMatch.tier(name, app.label).words()})")
                 val intent = service.packageManager.getLaunchIntentForPackage(app.packageName)
-                    ?: return CommandOutcome.Failed("${app.label} cannot be opened.")
-                start(intent, app.label, app.packageName)
+                if (intent == null) {
+                    trace.note("no launch intent for ${app.packageName}")
+                    return CommandOutcome.Failed("${app.label} cannot be opened.")
+                }
+                start(intent, app.label, app.packageName, trace)
             }
-            is AppMatch.Ambiguous -> CommandOutcome.Failed(
-                "Which one? ${match.candidates.take(MAX_NAMED).joinToString { it.label }} - say the full name.",
-            )
-            AppMatch.NotFound -> CommandOutcome.Failed("No app called “$name”.")
+            is AppMatch.Ambiguous -> {
+                val labels = match.candidates.map { it.label }
+                val more = if (labels.size > MAX_TRACED) ", ${labels.size - MAX_TRACED} more" else ""
+                trace.note(
+                    "Ambiguous: ${labels.size} apps by ${AppMatch.tier(name, labels.first()).words()} - " +
+                        labels.take(MAX_TRACED).joinToString() + more,
+                )
+                CommandOutcome.Failed("Which one? ${labels.take(MAX_NAMED).joinToString()} - say the full name.")
+            }
+            AppMatch.NotFound -> {
+                trace.note("NotFound: no exact name, start, word inside or near miss")
+                CommandOutcome.Failed("No app called “$name”.")
+            }
         }
     }
 
+    private fun AppMatch.Tier.words(): String = when (this) {
+        AppMatch.Tier.EXACT -> "exact name"
+        AppMatch.Tier.START -> "start of the name"
+        AppMatch.Tier.INSIDE -> "word inside the name"
+        AppMatch.Tier.CLOSE -> "near miss"
+    }
+
     /** A page of Android's settings - opened only; what is on it the user switches. */
-    private suspend fun openSettings(page: SettingsPage): CommandOutcome {
+    private suspend fun openSettings(page: SettingsPage, trace: CommandTrace): CommandOutcome {
         val (actions, label) = when (page) {
             SettingsPage.WIFI -> listOf(Settings.ACTION_WIFI_SETTINGS) to "Wi-Fi settings"
             SettingsPage.BLUETOOTH -> listOf(Settings.ACTION_BLUETOOTH_SETTINGS) to "Bluetooth settings"
@@ -160,58 +198,76 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
             SettingsPage.BATTERY -> listOf(Intent.ACTION_POWER_USAGE_SUMMARY, Settings.ACTION_BATTERY_SAVER_SETTINGS) to "Battery settings"
         }
         // The settings app has a launcher icon, so the manifest's launcher query makes it visible here.
-        val (intent, owner) = actions.firstNotNullOfOrNull { action ->
+        val resolved = actions.firstNotNullOfOrNull { action ->
             val intent = Intent(action)
             intent.resolveActivity(service.packageManager)?.packageName?.let { intent to it }
-        } ?: return CommandOutcome.Failed("This phone has no $label page Amber can open.")
-        return start(intent, label, owner)
+        }
+        if (resolved == null) {
+            trace.note("settings page $page: nothing resolves ${actions.joinToString()}")
+            return CommandOutcome.Failed("This phone has no $label page Amber can open.")
+        }
+        val (intent, owner) = resolved
+        trace.note("settings page $page: ${intent.action} resolved to $owner")
+        return start(intent, label, owner, trace)
     }
 
     /**
      * The system binds accessibility services allowed to start activities from the background.
      * A start Android blocks anyway fails without an error, so the app in front is checked.
      */
-    private suspend fun start(intent: Intent, label: String, packageName: String): CommandOutcome {
+    private suspend fun start(intent: Intent, label: String, packageName: String, trace: CommandTrace): CommandOutcome {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val started = withContext(Dispatchers.Main) { runCatching { service.startActivity(intent) }.isSuccess }
-        if (!started) return CommandOutcome.Failed("Android did not let Amber open $label.")
+        val started = withContext(Dispatchers.Main) { runCatching { service.startActivity(intent) } }
+        started.exceptionOrNull()?.let { error ->
+            trace.note("start: Android threw ${error::class.java.simpleName}")
+            return CommandOutcome.Failed("Android did not let Amber open $label.")
+        }
+        val sentAt = SystemClock.elapsedRealtime()
         repeat(LAUNCH_CHECKS) {
-            if (service.appInFront == packageName) return CommandOutcome.Done("Opened $label")
+            if (service.appInFront == packageName) {
+                trace.note("launch check: $packageName came to the front after ${SystemClock.elapsedRealtime() - sentAt} ms")
+                return CommandOutcome.Done("Opened $label")
+            }
             delay(LAUNCH_CHECK_MS)
         }
+        trace.note(
+            "launch check: $packageName not in front within ${SystemClock.elapsedRealtime() - sentAt} ms " +
+                "(in front: ${service.appInFront ?: "not known"})",
+        )
         return CommandOutcome.Failed("$label did not come to the front - Android may have blocked the start.")
     }
 
     // ---- Scrolling, pages, swiping ----
 
     /** Once: as v1, by the node's action or a stroke. More often: step by step ([moving]). */
-    private suspend fun scroll(direction: Direction, times: Int): CommandOutcome {
+    private suspend fun scroll(direction: Direction, times: Int, trace: CommandTrace): CommandOutcome {
         val did = "Scrolled ${direction.word()}"
-        if (times == 1) return once(did) { scrollStep(direction, look(), page = false) }
-        return moving(direction, page = false, times, look()).outcome(did, "nothing more to scroll")
+        if (times == 1) return once(did) { scrollStep(direction, look(trace), page = false, trace) }
+        return moving(direction, page = false, times, look(trace), trace).outcome(did, "nothing more to scroll")
     }
 
-    private suspend fun page(direction: Direction, times: Int): CommandOutcome {
+    private suspend fun page(direction: Direction, times: Int, trace: CommandTrace): CommandOutcome {
         val did = "Paged ${direction.word()}"
-        if (times == 1) return once(did) { scrollStep(direction, look(), page = true) }
-        return moving(direction, page = true, times, look()).outcome(did, "nothing more to scroll")
+        if (times == 1) return once(did) { scrollStep(direction, look(trace), page = true, trace) }
+        return moving(direction, page = true, times, look(trace), trace).outcome(did, "nothing more to scroll")
     }
 
     /** "Ganz nach unten": step after step until the end, at most [Repeats.MAX_TO_END]. */
-    private suspend fun scrollToEnd(direction: Direction): CommandOutcome {
+    private suspend fun scrollToEnd(direction: Direction, trace: CommandTrace): CommandOutcome {
         val end = when (direction) {
             Direction.DOWN -> "the bottom"
             Direction.UP -> "the top"
             Direction.LEFT -> "the left end"
             Direction.RIGHT -> "the right end"
         }
-        val screen = look()
+        val screen = look(trace)
         if (ScrollRun.move(screen.nodes, direction, pages = false, scrolledNode = false) == ScrollMove.Gesture) {
             // Nothing here says it scrolls, so nothing can say where its end is: one stroke, not thirty unseen.
-            return if (stroke(direction)) CommandOutcome.Done("Scrolled ${direction.word()} once - this screen does not show where its end is")
+            trace.note("picked: nothing says it scrolls, so no end can be seen - one stroke instead of a run")
+            return if (stroke(direction, trace)) CommandOutcome.Done("Scrolled ${direction.word()} once - this screen does not show where its end is")
             else CommandOutcome.Failed(GESTURE_REFUSED)
         }
-        val run = moving(direction, page = false, Repeats.MAX_TO_END, screen)
+        val run = moving(direction, page = false, Repeats.MAX_TO_END, screen, trace)
         return when (run.stop) {
             Step.Unchanged -> CommandOutcome.Done(if (run.done == 0) "Already at $end" else "Scrolled to $end")
             null -> CommandOutcome.Done("Scrolled ${direction.word()} ${run.done} times - still not at $end")
@@ -219,18 +275,42 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         }
     }
 
-    private suspend fun swipe(direction: Direction, times: Int): CommandOutcome =
-        steps(times) {
-            if (dispatch(GesturePath.swipe(direction, screenWidth(), screenHeight(), service.bubbleFrame()))) Step.Done
+    private suspend fun swipe(direction: Direction, times: Int, trace: CommandTrace): CommandOutcome =
+        steps(times, trace) {
+            if (gesture(GesturePath.swipe(direction, screenWidth(), screenHeight(), service.bubbleFrame()), trace)) Step.Done
             else Step.Failed(GESTURE_REFUSED)
         }.outcome("Swiped ${direction.word()}", "nothing changed")
 
     private suspend fun once(did: String, act: suspend () -> Boolean): CommandOutcome =
         if (act()) CommandOutcome.Done(did) else CommandOutcome.Failed(GESTURE_REFUSED)
 
-    /** [times] steps with [Repetition.PAUSE_MS] between them, stopping at the first that fails. */
-    private suspend fun steps(times: Int, step: suspend () -> Step): RepeatRun =
-        Repetition.run(times, pause = { delay(Repetition.PAUSE_MS) }, step = step)
+    /**
+     * [times] steps with [Repetition.PAUSE_MS] between them, stopping at the first that fails;
+     * each step and the end of the run go into [trace].
+     */
+    private suspend fun steps(times: Int, trace: CommandTrace, step: suspend () -> Step): RepeatRun {
+        var n = 0
+        val run = Repetition.run(times, pause = { delay(Repetition.PAUSE_MS) }) {
+            n++
+            step().also { result ->
+                trace.note(
+                    "step $n: " + when (result) {
+                        Step.Done -> "done"
+                        Step.Unchanged -> "nothing changed"
+                        is Step.Failed -> "failed - ${result.message}"
+                    },
+                )
+            }
+        }
+        trace.note(
+            when (val stop = run.stop) {
+                null, Step.Done -> "stopped: count reached (${run.done} of ${run.asked})"
+                Step.Unchanged -> "stopped at step ${run.done + 1} of ${run.asked}: nothing changed"
+                is Step.Failed -> "stopped at step ${run.done + 1} of ${run.asked}: ${stop.message}"
+            },
+        )
+        return run
+    }
 
     /**
      * Repeated scrolling, step by step as [ScrollRun] decides: the picked node's action, a
@@ -240,53 +320,110 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
      * did not move, and never falls back to a stroke there. Only where nothing on that axis says
      * it scrolls do strokes make up the count, unseen.
      */
-    private suspend fun moving(direction: Direction, page: Boolean, times: Int, screen: Screen): RepeatRun {
+    private suspend fun moving(direction: Direction, page: Boolean, times: Int, screen: Screen, trace: CommandTrace): RepeatRun {
         val pages = page && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         var candidates = screen.scrollables
         var scrolledNode = false
-        return Repetition.run(times, pause = {}) {
+        var step = 0
+        // Why the step that ended the run did, for the last line.
+        var ended = "nothing changed"
+        val run = Repetition.run(times, pause = {}) {
+            step++
             when (val move = ScrollRun.move(candidates.map { it.first }, direction, pages, scrolledNode)) {
-                ScrollMove.End -> Step.Unchanged
+                ScrollMove.End -> {
+                    ended = if (scrolledNode) "end of the list - it offers ${direction.word()} no more"
+                    else "a list on that axis cannot scroll ${direction.word()} - already at its end"
+                    trace.note("step $step: $ended")
+                    Step.Unchanged
+                }
                 ScrollMove.Gesture -> {
-                    if (!stroke(direction)) return@run Step.Failed(GESTURE_REFUSED)
+                    if (step == 1) trace.note("picked: nothing on that axis says it scrolls - gestures, unseen")
+                    if (!stroke(direction, trace)) {
+                        ended = "gesture not taken"
+                        return@run Step.Failed(GESTURE_REFUSED)
+                    }
                     delay(Repetition.PAUSE_MS)
                     Step.Done
                 }
                 is ScrollMove.Node -> {
                     val (picked, node) = candidates.first { it.first.id == move.id }
-                    val before = withContext(Dispatchers.Default) { snapshot(node) } ?: return@run Step.Unchanged
+                    if (!scrolledNode) trace.note("picked: ${picked.describe(node)}, node action ${move.action}")
+                    val before = withContext(Dispatchers.Default) { snapshot(node) }
+                    if (before == null) {
+                        ended = "the list is gone"
+                        trace.note("step $step: $ended")
+                        return@run Step.Unchanged
+                    }
                     val took = withContext(Dispatchers.Main) { node.performAction(move.action.id()) }
                     if (took) delay(Repetition.PAUSE_MS)
                     val after = if (took) withContext(Dispatchers.Default) { snapshot(node) } else null
                     scrolledNode = true
                     // Refreshed by the snapshot: what the node offers now says whether it can go on.
                     candidates = listOfNotNull(after?.let { scrollable(node, picked.id, picked.activeWindow) }?.let { it to node })
-                    ScrollRun.result(took, before, after)
+                    val result = ScrollRun.result(took, before, after)
+                    val what = when {
+                        !took -> "action ${move.action} refused by the list"
+                        after == null -> "the list is gone after the action"
+                        result == Step.Done -> "moved"
+                        else -> "did not move"
+                    }
+                    trace.note("step $step: $what")
+                    if (result != Step.Done) ended = what
+                    result
                 }
             }
         }
+        trace.note(
+            when (run.stop) {
+                null, Step.Done -> "stopped: count reached (${run.done} of ${run.asked})"
+                else -> "stopped at step ${run.done + 1} of ${run.asked}: $ended"
+            },
+        )
+        return run
     }
 
     /**
      * One scroll: the picked node's page or scroll action, else - or when it refuses - a stroke.
      * False only when Android did not take the stroke.
      */
-    private suspend fun scrollStep(direction: Direction, screen: Screen, page: Boolean): Boolean {
+    private suspend fun scrollStep(direction: Direction, screen: Screen, page: Boolean, trace: CommandTrace): Boolean {
         val nodes = screen.nodes
         val pick = if (page && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ScrollTarget.pickPage(nodes, direction) else ScrollTarget.pick(nodes, direction)
         if (pick is ScrollPick.Node) {
-            val node = screen.scrollables.first { it.first.id == pick.id }.second
-            if (withContext(Dispatchers.Main) { node.performAction(pick.action.id()) }) return true
+            val (picked, node) = screen.scrollables.first { it.first.id == pick.id }
+            trace.note("picked: ${picked.describe(node)}, node action ${pick.action}")
+            if (withContext(Dispatchers.Main) { node.performAction(pick.action.id()) }) {
+                trace.note("node action ${pick.action}: taken")
+                return true
+            }
+            trace.note("node action ${pick.action}: refused - gesture fallback")
+        } else {
+            trace.note("picked: no node offers ${direction.word()} - gesture fallback")
         }
-        return stroke(direction)
+        return stroke(direction, trace)
     }
 
     /** A finger stroke that scrolls towards [direction], clear of the bubble. */
-    private suspend fun stroke(direction: Direction): Boolean =
-        dispatch(GesturePath.scroll(direction, screenWidth(), screenHeight(), service.bubbleFrame()))
+    private suspend fun stroke(direction: Direction, trace: CommandTrace): Boolean =
+        gesture(GesturePath.scroll(direction, screenWidth(), screenHeight(), service.bubbleFrame()), trace)
 
-    /** False when the service may not perform gestures yet or the gesture was cancelled. */
-    private suspend fun dispatch(stroke: Stroke): Boolean = withContext(Dispatchers.Main) {
+    /** [stroke] dispatched, how it went noted; true when it completed. */
+    private suspend fun gesture(stroke: Stroke, trace: CommandTrace): Boolean {
+        val result = dispatch(stroke)
+        trace.note(
+            "gesture: " + when (result) {
+                Gesture.COMPLETED -> "dispatched and completed"
+                Gesture.CANCELLED -> "dispatched, then cancelled"
+                Gesture.REFUSED -> "refused by Android"
+            },
+        )
+        return result == Gesture.COMPLETED
+    }
+
+    private enum class Gesture { COMPLETED, CANCELLED, REFUSED }
+
+    /** Refused when the service may not perform gestures yet; cancelled when something interrupted it. */
+    private suspend fun dispatch(stroke: Stroke): Gesture = withContext(Dispatchers.Main) {
         val path = Path().apply {
             moveTo(stroke.fromX, stroke.fromY)
             lineTo(stroke.toX, stroke.toY)
@@ -297,24 +434,32 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         suspendCancellableCoroutine { result ->
             val callback = object : AccessibilityService.GestureResultCallback() {
                 override fun onCompleted(description: GestureDescription?) {
-                    if (result.isActive) result.resume(true)
+                    if (result.isActive) result.resume(Gesture.COMPLETED)
                 }
 
                 override fun onCancelled(description: GestureDescription?) {
-                    if (result.isActive) result.resume(false)
+                    if (result.isActive) result.resume(Gesture.CANCELLED)
                 }
             }
             val sent = runCatching { service.dispatchGesture(gesture, callback, null) }.getOrDefault(false)
-            if (!sent && result.isActive) result.resume(false)
+            if (!sent && result.isActive) result.resume(Gesture.REFUSED)
         }
     }
+
+    /** For Diagnostics: the node's class and where it is - nothing it shows. */
+    private fun Scrollable.describe(node: AccessibilityNodeInfo): String =
+        (node.className?.toString()?.substringAfterLast('.') ?: "unnamed node") +
+            (if (vertical) ", vertical" else ", horizontal") +
+            (if (activeWindow) ", in the window in use" else ", in another window")
 
     /** What can scroll on the screen, each with its node. */
     private class Screen(val scrollables: List<Pair<Scrollable, AccessibilityNodeInfo>>) {
         val nodes: List<Scrollable> get() = scrollables.map { it.first }
     }
 
-    private suspend fun look(): Screen = withContext(Dispatchers.Default) { screen() }
+    private suspend fun look(trace: CommandTrace): Screen = withContext(Dispatchers.Default) { screen() }.also { screen ->
+        trace.note("scrollable nodes: ${screen.scrollables.size}")
+    }
 
     /**
      * Every node that can scroll in the apps' windows - not Amber's own overlays, not the
@@ -428,11 +573,14 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
 
     // ---- Media and volume ----
 
-    private suspend fun volume(change: VolumeChange, times: Int): CommandOutcome {
-        if (change == VolumeChange.MUTE || change == VolumeChange.UNMUTE) return device.mute(change == VolumeChange.MUTE)
-        device.volumeProblem()?.let { return CommandOutcome.Failed(it) }
+    private suspend fun volume(change: VolumeChange, times: Int, trace: CommandTrace): CommandOutcome {
+        if (change == VolumeChange.MUTE || change == VolumeChange.UNMUTE) return device.mute(change == VolumeChange.MUTE, trace)
+        device.volumeProblem()?.let {
+            trace.note("media volume: $it")
+            return CommandOutcome.Failed(it)
+        }
         val louder = change == VolumeChange.LOUDER
-        val run = steps(times) { device.volumeStep(louder) }
+        val run = steps(times, trace) { device.volumeStep(louder, trace) }
         if (run.stop == Step.Unchanged && run.done == 0) {
             return CommandOutcome.Done(if (louder) "Already as loud as it goes" else "Already as quiet as it goes")
         }
@@ -475,6 +623,9 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         /** Like the text field search: enough for any real screen, cheap on a huge one. */
         const val MAX_NODES = 1_500
         const val MAX_NAMED = 3
+
+        /** Diagnostics name a few more of the apps a name could be than the message does. */
+        const val MAX_TRACED = 5
         const val LAUNCH_CHECKS = 15
         const val LAUNCH_CHECK_MS = 100L
 

@@ -126,6 +126,37 @@ class DictationLogTest {
     }
 
     @Test
+    fun `a command keeps its steps for Diagnostics`() {
+        val log = log()
+        val steps = listOf("normalized: \"scroll runter\"", "understood: Scroll DOWN", "stopped at step 1: end of list")
+        log.recordCommand("Scroll runter", CommandOutcome.Failed("Nothing more to scroll"), engineId = "parakeet", details = steps)
+        assertEquals(steps, log.last!!.details)
+    }
+
+    @Test
+    fun `a command that failed before it was read keeps its details too`() {
+        val log = log()
+        log.recordFailure("Nothing heard", engineId = "parakeet", command = true, details = listOf("recording: no speech"))
+        assertEquals(listOf("recording: no speech"), log.last!!.details)
+    }
+
+    @Test
+    fun `a dictation has no details`() {
+        val log = log()
+        log.recordSuccess(transcript(), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        assertTrue(log.last!!.details.isEmpty())
+    }
+
+    @Test
+    fun `commands and dictations share fifty places`() {
+        val log = DictationLog { now }
+        repeat(60) { i -> log.recordCommand("zurück $i", CommandOutcome.Done("Back"), engineId = "parakeet") }
+        assertEquals(50, DictationLog.DEFAULT_CAPACITY)
+        assertEquals(50, log.records.value.size)
+        assertEquals("zurück 59", log.last!!.text)
+    }
+
+    @Test
     fun `clear empties the log`() {
         val log = log()
         log.recordFailure("weg damit")

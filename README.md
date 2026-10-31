@@ -54,7 +54,8 @@ Controls:
   command that is still running. Settings pages only open; it never switches Wi-Fi or
   Bluetooth, never taps buttons or confirms dialogs - but a swipe does what your own swipe would
   do in that app (in a mail list it may archive a mail). Switched off, Amber never acts for
-  you. Android 17's
+  you. Diagnostics keep each command: what was heard, what the rules made of it, every step and
+  why it failed or stopped - "Copy" gives that as text to paste into a chat. Android 17's
   Advanced Protection takes the accessibility service - bubble and commands - away from every
   app that is not an accessibility tool, Amber included.
 

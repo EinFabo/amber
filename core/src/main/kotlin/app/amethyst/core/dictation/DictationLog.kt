@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * What happened on the last few dictations, kept in memory.
+ * What happened on the last few dictations and voice commands, kept in memory.
  *
  * The bubble's own state resets to resting a second after a dictation, which is right for the
  * bubble and useless for diagnosing a first install. This keeps the outcome around - which
@@ -61,7 +61,14 @@ class DictationLog(
         ),
     )
 
-    fun recordFailure(message: String, engineId: String? = null, timing: String? = null, command: Boolean = false) = add(
+    /** [details]: for a command, what happened before it could be read ([DictationRecord.details]). */
+    fun recordFailure(
+        message: String,
+        engineId: String? = null,
+        timing: String? = null,
+        command: Boolean = false,
+        details: List<String> = emptyList(),
+    ) = add(
         DictationRecord(
             text = "",
             engineId = engineId,
@@ -74,11 +81,21 @@ class DictationLog(
             atMillis = clock(),
             timing = timing,
             command = command,
+            details = details,
         ),
     )
 
-    /** A voice command: what was heard and what came of it. Nothing was inserted anywhere. */
-    fun recordCommand(heard: String, outcome: CommandOutcome, engineId: String?, timing: String? = null) = add(
+    /**
+     * A voice command: what was heard and what came of it, with [details] - what the rules made
+     * of the words and what the executor did. Nothing was inserted anywhere.
+     */
+    fun recordCommand(
+        heard: String,
+        outcome: CommandOutcome,
+        engineId: String?,
+        timing: String? = null,
+        details: List<String> = emptyList(),
+    ) = add(
         DictationRecord(
             text = heard,
             engineId = engineId,
@@ -92,6 +109,7 @@ class DictationLog(
             note = outcome.message,
             timing = timing,
             command = true,
+            details = details,
         ),
     )
 
@@ -104,7 +122,8 @@ class DictationLog(
     }
 
     companion object {
-        const val DEFAULT_CAPACITY = 20
+        /** Commands and dictations share it: room for a session of trying commands out. */
+        const val DEFAULT_CAPACITY = 50
     }
 }
 
@@ -122,6 +141,12 @@ data class DictationRecord(
     val timing: String? = null,
     /** A voice command, not a dictation: [text] is what was heard, [note] what came of it. */
     val command: Boolean = false,
+    /**
+     * A command's steps, in order ([app.amethyst.core.commands.CommandTrace]): what the rules
+     * made of the words, what was tried, why it stopped. Shown in Diagnostics, never logged;
+     * never a field's text. Empty for a dictation.
+     */
+    val details: List<String> = emptyList(),
 ) {
     val failed: Boolean get() = error != null
 

@@ -65,15 +65,176 @@ object VoiceCommands : CommandParser {
     /** Without a list of apps, so a bare name is never a command. */
     fun parse(heard: String): Understanding = parse(heard) { emptyList() }
 
-    override fun parse(heard: String, appLabels: () -> List<String>): Understanding {
-        val (times, counted) = Repeats.extract(normalize(heard).split(' ').filter { it.isNotEmpty() })
-        val words = tidy(counted).flatMap(::unglue)
-        val command = when {
-            words.isEmpty() || (times != null && times < 1) -> null
-            // A bare name with a count ("zweimal WhatsApp") is not an app being opened.
-            else -> (rule(words) ?: if (times == null) bareApp(words, appLabels) else null)?.repeated(times)
+    override fun parse(heard: String, appLabels: () -> List<String>): Understanding =
+        command(read(heard), appLabels)?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+
+    /** What was heard as the rules see it: folded, the count taken out, the words kept. */
+    private class Reading(val normalized: String, val times: Int?, val words: List<String>) {
+        /** Every folded word, the count and the fillers still in. */
+        val all: List<String> get() = normalized.split(' ').filter { it.isNotEmpty() }
+    }
+
+    private fun read(heard: String): Reading {
+        val normalized = normalize(heard)
+        val (times, counted) = Repeats.extract(normalized.split(' ').filter { it.isNotEmpty() })
+        return Reading(normalized, times, tidy(counted).flatMap(::unglue))
+    }
+
+    private fun command(reading: Reading, appLabels: () -> List<String>): Command? {
+        val (times, words) = reading.times to reading.words
+        if (words.isEmpty() || (times != null && times < 1)) return null
+        // A bare name with a count ("zweimal WhatsApp") is not an app being opened.
+        return (rule(words) ?: if (times == null) bareApp(words, appLabels) else null)?.repeated(times)
+    }
+
+    // ---- Explaining, for Diagnostics ----
+
+    /**
+     * What the rules made of [heard], line by line, for Diagnostics: the folded text, the count,
+     * the words left without fillers, politeness and Amber's name, then the command - or, when
+     * there is none, the most specific reason the rules can tell. The same reading as [parse].
+     */
+    fun explain(heard: String, appLabels: () -> List<String> = { emptyList() }): List<String> {
+        val reading = read(heard)
+        val command = command(reading, appLabels)
+        return buildList {
+            add("normalized: \"${reading.normalized}\"")
+            reading.times?.let { times ->
+                add(if (times > Repeats.MAX_TIMES) "count: $times, capped at ${Repeats.MAX_TIMES}" else "count: $times")
+            }
+            add("words: " + reading.words.joinToString(" ").ifEmpty { "(none)" })
+            add(
+                when {
+                    command == null -> "not understood: ${reason(reading, appLabels)}"
+                    rule(reading.words) == null -> "understood: ${describe(command)} (a bare name: an installed app)"
+                    else -> "understood: ${describe(command)}"
+                },
+            )
         }
-        return command?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+    }
+
+    /** A command with its parameters, for Diagnostics: `Scroll DOWN ×10`, `OpenApp "whatsapp"`. */
+    fun describe(command: Command): String = when (command) {
+        is Command.Navigate -> "Navigate ${command.action}${times(command.times)}"
+        is Command.OpenApp -> "OpenApp \"${command.name}\""
+        is Command.Scroll -> "Scroll ${command.direction}${times(command.times)}"
+        is Command.ScrollToEnd -> "ScrollToEnd ${command.direction}"
+        is Command.Page -> "Page ${command.direction}${times(command.times)}"
+        is Command.Swipe -> "Swipe ${command.direction}${times(command.times)}"
+        is Command.Media -> "Media ${command.key}"
+        is Command.Volume -> "Volume ${command.change}${times(command.times)}"
+        is Command.Torch -> "Torch " + when (command.on) {
+            true -> "on"
+            false -> "off"
+            null -> "toggle"
+        }
+        is Command.OpenSettings -> "OpenSettings ${command.page}"
+        is Command.Edit -> "Edit ${command.edit}${times(command.times)}"
+    }
+
+    private fun times(n: Int) = if (n > 1) " ×$n" else ""
+
+    /** Words that are "one" as well as an article: never taken for a forgotten count. */
+    private val ARTICLE_NUMBERS = setOf("ein", "eine", "einen")
+
+    /** Shown at most of the words a phrase had that the rules do not know there. */
+    private const val MAX_NAMED_WORDS = 5
+
+    /** Shown at most of the apps a bare name could be. */
+    private const val MAX_NAMED_APPS = 5
+
+    /** Why [reading] is no command: the most specific thing the rules can say, else "no rule matches". */
+    private fun reason(reading: Reading, appLabels: () -> List<String>): String {
+        val (times, words) = reading.times to reading.words
+        if (words.isEmpty()) {
+            return when {
+                times != null -> "only a count was heard, no command"
+                reading.all.isEmpty() -> "nothing left once case and punctuation are gone"
+                else -> "only filler words were heard (fillers, “bitte”, Amber's name)"
+            }
+        }
+        if (times != null && times < 1) return "a count of $times does nothing"
+        countReason(words)?.let { return it }
+        if (times != null) {
+            rule(words)?.let {
+                return "${describe(it)} does not repeat - a count works with back, scroll, page, swipe, louder, quieter and deleting words"
+            }
+            if (bareApp(words, appLabels) != null) return "a bare app name with a count is not opened - say “öffne …” without the count"
+        }
+        return motionReason(words) ?: openReason(words) ?: bareReason(words, appLabels) ?: "no rule matches"
+    }
+
+    /** A count that cannot be read ("dreißigmal"), or a number said without "mal" ("zehn runter"). */
+    private fun countReason(words: List<String>): String? {
+        words.firstOrNull(Repeats::unreadable)?.let {
+            return "a count the rules cannot read: “$it” - counts go from one to twenty in words, any number in digits"
+        }
+        for ((i, word) in words.withIndex()) {
+            if (word in ARTICLE_NUMBERS || Repeats.number(word) == null) continue
+            val rest = words.take(i) + words.drop(i + 1)
+            if (rest.isNotEmpty() && rule(rest) != null) return "the number “$word” has no “mal” or “times” after it"
+        }
+        return null
+    }
+
+    /** Every word a scroll, swipe or page phrase takes. Lazy: the word lists stand further down. */
+    private val MOTION_WORDS by lazy {
+        SCROLL_VERBS + SWIPE_VERBS + DIRECTIONS.keys + MOTION_EXTRAS + ENDS.keys + END_WORDS + PAGES + PAGE_WAYS.keys + PAGE_EXTRAS
+    }
+
+    /** A scroll, swipe or page phrase without one clear direction, or with words it does not take. */
+    private fun motionReason(words: List<String>): String? {
+        val pages = words.count { it in PAGES }
+        val scroll = words.any { it in SCROLL_VERBS }
+        val swipe = words.any { it in SWIPE_VERBS }
+        val toEnd = words.any { it in ENDS || it == "ganz" } || ("all" in words && "way" in words)
+        val directions = words.mapNotNull { DIRECTIONS[it] ?: ENDS[it] ?: PAGE_WAYS[it].takeIf { pages > 0 } }.distinct()
+        if (!scroll && !swipe && pages == 0 && !toEnd && directions.isEmpty()) return null
+        val unknown = words.filterNot { it in MOTION_WORDS }.distinct()
+        val kind = when {
+            swipe -> "a swipe word"
+            pages > 0 -> "a page word"
+            toEnd -> "a scroll to the end"
+            else -> "a scroll word"
+        }
+        return when {
+            scroll && swipe -> "a scroll word and a swipe word at once - say one of them"
+            directions.size > 1 -> "more than one direction (${directions.joinToString { it.name.lowercase() }}) - say one"
+            pages > 1 -> "more than one page word"
+            unknown.isNotEmpty() -> (if (directions.isNotEmpty()) "a direction" else kind) +
+                ", but with words the rules don't know there: " + unknown.take(MAX_NAMED_WORDS).joinToString { "“$it”" }
+            directions.isEmpty() -> "$kind without a direction - say which way"
+            else -> null
+        }
+    }
+
+    /** "Öffne" with nothing after it, or only "die App". */
+    private fun openReason(words: List<String>): String? {
+        val lead = APP_LEADS.firstOrNull { startsWith(words, it) }
+        val (verb, name) = when {
+            lead != null -> lead to words.drop(lead.split(' ').size)
+            words.last() in APP_TRAILS -> words.last() to words.dropLast(1)
+            (words.first() == "mach" || words.first() == "mache") && words.last() == "auf" -> "mach … auf" to words.drop(1).dropLast(1)
+            else -> return null
+        }
+        return if (appName(name) == null) "“$verb” without an app name" else null
+    }
+
+    /** A short phrase that might have been an app's name, and why it is none. */
+    private fun bareReason(words: List<String>, appLabels: () -> List<String>): String? {
+        val rest = BARE_LEADS.firstOrNull { startsWith(words, it) && words.size > it.split(' ').size }
+            ?.let { words.drop(it.split(' ').size) } ?: words
+        if (rest.size > MAX_NAME_WORDS) return null
+        val name = appName(rest) ?: return null
+        val labels = appLabels()
+        if (labels.isEmpty()) return "no rule matches “$name”, and there was no app list to look it up as an app's name"
+        return when (val match = AppMatch.find(name, labels, strict = true) { it }) {
+            is AppMatch.Ambiguous ->
+                "“$name” is the start of more than one app's name (${match.candidates.take(MAX_NAMED_APPS).joinToString()}) - say the full name"
+            is AppMatch.Found -> null
+            AppMatch.NotFound ->
+                "no rule matches, and “$name” is not an installed app - a bare name needs an app's exact name or the unique start of one"
+        }
     }
 
     private fun rule(words: List<String>): Command? =

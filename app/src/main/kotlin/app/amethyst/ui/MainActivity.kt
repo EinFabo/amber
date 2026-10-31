@@ -521,6 +521,7 @@ private fun AmethystScreens(
                         SettingsPage.DIAGNOSTICS -> {
                             val records by graph.dictationLog.records.collectAsStateWithLifecycle()
                             val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+                            val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                             DiagnosticsScreen(
                                 records = records,
                                 keyboardLog = keyboardLog,
@@ -528,6 +529,7 @@ private fun AmethystScreens(
                                     graph.dictationLog.clear()
                                     graph.keyboardLog.value = emptyList()
                                 },
+                                appTitle = "Amber $version".trim(),
                             )
                         }
                     }

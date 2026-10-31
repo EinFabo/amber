@@ -56,6 +56,16 @@ class AppMatchTest {
     }
 
     @Test
+    fun `the tier an app was found in can be named`() {
+        // For Diagnostics: the first tier a label meets is the one that decided.
+        assertEquals(AppMatch.Tier.EXACT, AppMatch.tier("whats app", "WhatsApp"))
+        assertEquals(AppMatch.Tier.START, AppMatch.tier("einst", "Einstellungen"))
+        assertEquals(AppMatch.Tier.INSIDE, AppMatch.tier("maps", "Google Maps"))
+        assertEquals(AppMatch.Tier.CLOSE, AppMatch.tier("telegramm", "Telegram"))
+        assertEquals(AppMatch.Tier.START, AppMatch.tier("tele", assertIs<AppMatch.Ambiguous<String>>(find("tele")).candidates.first()))
+    }
+
+    @Test
     fun `short or unknown names find nothing`() {
         assertIs<AppMatch.NotFound>(find("xyz"))
         assertIs<AppMatch.NotFound>(find("ga"))

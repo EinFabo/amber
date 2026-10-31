@@ -32,6 +32,7 @@ import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.commands.Command
 import app.amethyst.core.commands.CommandOutcome
+import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.GlobalAction
 import app.amethyst.core.commands.CommandTrigger
 import app.amethyst.core.commands.RunMode
@@ -135,6 +136,21 @@ class DictationController(
     /** When a tap last stopped a command (uptime), so the second tap of that double tap starts nothing. */
     private var commandStoppedAt: Long? = null
 
+    /** A tap stopped this run's command: Diagnostics say so instead of nothing. */
+    @Volatile
+    private var stoppedByTap = false
+
+    /** The engine this run recognizes with, for a command's Diagnostics when it fails before it is read. */
+    @Volatile
+    private var runEngineId: String? = null
+
+    /**
+     * The steps of this run's command once its words are there ([runCommand]); null before.
+     * A failure that comes after - the time limit - still shows them.
+     */
+    @Volatile
+    private var commandSteps: CommandTrace? = null
+
     /**
      * What the bubble does on a tap. True when it started a recording rather than stopped one.
      * While a command is being carried out a tap stops it at once - a misheard "zwanzigmal
@@ -149,6 +165,7 @@ class DictationController(
                 CommandTrigger.TapInRun.STOP_RECORDING -> stop()
                 CommandTrigger.TapInRun.CANCEL -> {
                     commandStoppedAt = now
+                    stoppedByTap = true
                     cancel()
                     Log.i(TAG, "command stopped by a tap")
                     mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
@@ -171,6 +188,9 @@ class DictationController(
         }
         if (source != TriggerSource.PROXY_ACTIVITY) {
             runSerial++
+            stoppedByTap = false
+            commandSteps = null
+            runEngineId = graph.settings.value.activeEngine?.id
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
@@ -197,7 +217,7 @@ class DictationController(
 
         when (route) {
             MicrophoneRoute.NEEDS_PERMISSION -> {
-                fail("Microphone permission is missing. Please grant it in Amber.")
+                fail("Microphone permission is missing. Please grant it in Amber.", details = listOf("microphone permission missing"))
                 return
             }
 
@@ -244,6 +264,7 @@ class DictationController(
                 fail(
                     "The microphone could not be opened. Open Amber once, " +
                         "then the bubble works directly.",
+                    details = listOf("the invisible microphone activity did not start within $PROXY_HANDOVER_TIMEOUT_MS ms"),
                 )
             }
         }
@@ -293,16 +314,19 @@ class DictationController(
 
     private suspend fun run(source: TriggerSource) {
         _state.value = DictationState.Starting
+        stoppedByTap = false
+        commandSteps = null
 
         val settings = graph.settings.value
         val engineConfig = settings.activeEngine
+        runEngineId = engineConfig?.id
         if (engineConfig == null) {
-            fail("No engine selected. Please pick one in the settings.")
+            fail("No engine selected. Please pick one in the settings.", details = listOf("no engine selected"))
             return
         }
 
         val engine = graph.engineFactory.create(engineConfig).getOrElse { error ->
-            fail(userMessageOf(error), remedy = remedyOf(error))
+            fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
             return
         }
 
@@ -329,15 +353,24 @@ class DictationController(
             }
 
             if (finished == null) {
-                fail("Timed out - the dictation was cancelled.", engineConfig.id)
+                val limit = settings.capture.effectiveTotalTimeoutMs()
+                fail("Timed out - the dictation was cancelled.", engineConfig.id, details = listOf("stopped: the run's time limit of $limit ms ran out"))
             }
         } catch (e: CancellationException) {
+            // A command a tap stopped while it was still being recognized; once its words are
+            // there, runCommand keeps the record.
+            if (stoppedByTap && _mode.value == RunMode.COMMAND && commandSteps == null) {
+                graph.dictationLog.recordFailure(
+                    "Stopped by a tap.", engineConfig.id, trace?.summary(), command = true,
+                    details = listOf("stopped by a tap before the command ran"),
+                )
+            }
             // cancel() already set the state, and a cancelled parent scope is not a dictation
             // error. Rethrow so structured concurrency still sees it.
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
-            fail("Unexpected error: ${e.message ?: e::class.simpleName}")
+            fail("Unexpected error: ${e.message ?: e::class.simpleName}", details = listOf("unexpected ${e::class.java.name}"))
         } finally {
             selfCapturing = null
             stopRequested.set(false)
@@ -369,7 +402,7 @@ class DictationController(
         trace?.transcribingEnds()
         _state.value = DictationState.Transcribing()
         return result.getOrElse { error ->
-            fail(userMessageOf(error), remedy = remedyOf(error))
+            fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
             null
         }
     }
@@ -424,6 +457,12 @@ class DictationController(
                         DiscardReason.TOO_SHORT -> "Too short - please speak a little longer."
                         DiscardReason.NO_SPEECH -> "Nothing heard - try again a little closer to the phone."
                     },
+                    details = listOf(
+                        when (outcome.reason) {
+                            DiscardReason.TOO_SHORT -> "recording discarded: too short"
+                            DiscardReason.NO_SPEECH -> "recording discarded: no speech detected"
+                        },
+                    ),
                 )
                 return null
             }
@@ -436,7 +475,7 @@ class DictationController(
                     Log.i(TAG, "retrying capture via proxy activity")
                     MicProxyActivity.launch(context)
                 } else {
-                    fail(outcome.message)
+                    fail(outcome.message, details = listOf("capture failed: ${outcome.technical}"))
                 }
                 return null
             }
@@ -480,7 +519,7 @@ class DictationController(
                     ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel) }
                     ?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
-                    fail(userMessageOf(error), remedy = remedyOf(error))
+                    fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
                     null
                 }
             }
@@ -577,33 +616,53 @@ class DictationController(
     /**
      * A recognized command: understood by the rules, carried out by the accessibility service
      * (which refuses while commands are off), kept in Diagnostics - never typed anywhere and
-     * not counted in the statistics.
+     * not counted in the statistics. Diagnostics get what the rules made of the words and
+     * every step the executor took ([CommandTrace]); logcat gets neither.
      */
     private suspend fun runCommand(transcript: Transcript) {
         // After the proxy activity, "back" would close the proxy instead of the user's screen.
         awaitFocusReturn()
+        val steps = CommandTrace().also { commandSteps = it }
         val heard = transcript.text.trim()
         if (heard.isEmpty()) {
-            fail("Nothing heard - say the command again.", transcript.engineId)
+            fail("Nothing heard - say the command again.", transcript.engineId, details = listOf("the engine recognized no words"))
             return
         }
         // A bare app name ("WhatsApp") is a command only if it names an installed app. The list
-        // is read only when the rules need it, and not at all while commands are off.
+        // is read only when the rules need it - once for the rules and their explanation - and
+        // not at all while commands are off.
+        val enabled = graph.settings.value.commands.enabled
+        val labels by lazy { if (enabled) Launcher.apps(context).map { it.label } else emptyList() }
         val understanding = withContext(Dispatchers.IO) {
-            VoiceCommands.parse(heard) {
-                if (graph.settings.value.commands.enabled) Launcher.apps(context).map { it.label } else emptyList()
+            VoiceCommands.parse(heard) { labels }.also { steps.addAll(VoiceCommands.explain(heard) { labels }) }
+        }
+        if (!enabled && understanding is Understanding.NotUnderstood) steps.note("voice commands are off: no app list was read for bare names")
+        val outcome = try {
+            when (understanding) {
+                // A text command changes only the field it was started in, checked as a dictation's
+                // text is (EditTarget) - recognition took seconds, the user may be in another chat now.
+                is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command, startedIn = startTarget, steps)
+                    ?: CommandOutcome.Failed("Amber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
+                is Understanding.NotUnderstood -> CommandOutcome.Failed(
+                    "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
+                )
             }
+        } catch (e: CancellationException) {
+            // Between two steps: the trace says how far it got.
+            if (stoppedByTap) {
+                steps.note("stopped by a tap")
+                graph.dictationLog.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(), steps.lines)
+            }
+            throw e
         }
-        val outcome = when (understanding) {
-            // A text command changes only the field it was started in, checked as a dictation's
-            // text is (EditTarget) - recognition took seconds, the user may be in another chat now.
-            is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command, startedIn = startTarget)
-                ?: CommandOutcome.Failed("Amber's accessibility service is off.")
-            is Understanding.NotUnderstood -> CommandOutcome.Failed(
-                "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
-            )
-        }
-        graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary())
+        steps.note(
+            "outcome: " + when (outcome) {
+                is CommandOutcome.Done -> "done"
+                is CommandOutcome.Refused -> "refused"
+                is CommandOutcome.Failed -> "failed"
+            },
+        )
+        graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
             fail(outcome.message, transcript.engineId, record = false, logAs = "command not done")
@@ -629,6 +688,7 @@ class DictationController(
      */
     internal suspend fun commandForTest(text: String) {
         _mode.value = RunMode.COMMAND
+        stoppedByTap = false
         trace = RunTrace("TEST/COMMAND")
         startTarget = graph.accessibilityService?.focusedTarget()
         runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
@@ -828,9 +888,23 @@ class DictationController(
         record: Boolean = true,
         // Logcat never gets a heard command's words, which the message may quote.
         logAs: String = brief,
+        // For a command's Diagnostics: what went wrong before or around it, never logged.
+        details: List<String> = emptyList(),
     ) {
         Log.w(TAG, "dictation failed: $logAs")
-        if (record) graph.dictationLog.recordFailure(message, engineId, trace?.summary(), command = _mode.value == RunMode.COMMAND)
+        if (record) {
+            val command = _mode.value == RunMode.COMMAND
+            if (command) {
+                // The steps so far, if the words were there, then what went wrong.
+                val lines = CommandTrace().apply {
+                    commandSteps?.let { addAll(it.lines) }
+                    addAll(details)
+                }.lines
+                graph.dictationLog.recordFailure(message, engineId ?: runEngineId, trace?.summary(), command = true, details = lines)
+            } else {
+                graph.dictationLog.recordFailure(message, engineId, trace?.summary())
+            }
+        }
         _state.value = DictationState.Failed(message, remedy)
 
         // While dictating into another app the bubble is the only visible surface, and a red
@@ -846,6 +920,9 @@ class DictationController(
     }
 
     private fun remedyOf(error: Throwable): SttFailure.Remedy? = (error as? SttFailure)?.remedy
+
+    /** What an engine said went wrong, for a command's Diagnostics - the technical side. */
+    private fun technicalOf(error: Throwable): String = (error as? SttFailure)?.technical ?: error.toString()
 
     private fun userMessageOf(error: Throwable): String = when (error) {
         is SttFailure -> error.userMessage

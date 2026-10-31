@@ -12,7 +12,26 @@ sealed interface AppMatch<out T> {
     data class Ambiguous<T>(val candidates: List<T>) : AppMatch<T>
     data object NotFound : AppMatch<Nothing>
 
+    /** The tiers of [find], from sure to loose. */
+    enum class Tier { EXACT, START, INSIDE, CLOSE }
+
     companion object {
+
+        /**
+         * Which tier [label] meets for [name], for Diagnostics. The first tier with a hit
+         * decides, so for an app [find] returned this is the tier that found it.
+         */
+        fun tier(name: String, label: String): Tier {
+            val query = key(name)
+            val key = key(label)
+            return when {
+                key == query -> Tier.EXACT
+                query.length >= 3 && key.startsWith(query) -> Tier.START
+                query.length >= 4 && query in key -> Tier.INSIDE
+                else -> Tier.CLOSE
+            }
+        }
+
 
         fun <T> find(name: String, apps: List<T>, strict: Boolean = false, labelOf: (T) -> String): AppMatch<T> {
             val query = key(name)

@@ -25,4 +25,17 @@ object EditTarget {
             TargetCheck.Verdict.MOVED -> "You switched to another app, chat or field meanwhile - nothing was changed."
         }
     }
+
+    /** What the check found, in a few words for Diagnostics - the same order as [refusal]. */
+    fun verdict(start: InputTarget?, now: InputTarget?): String = when {
+        now == null -> if (start == null) "no field, neither at the start nor now" else "no field has the cursor now"
+        now.kind == TextFieldKind.SECRET -> "password field"
+        start == null -> "no field had the cursor at the start"
+        else -> when (TargetCheck.verdict(start, now)) {
+            TargetCheck.Verdict.INSERT -> "same field"
+            TargetCheck.Verdict.SECRET -> "password field"
+            TargetCheck.Verdict.NO_FIELD -> "no field has the cursor now"
+            TargetCheck.Verdict.MOVED -> "moved to another app, window or field"
+        }
+    }
 }

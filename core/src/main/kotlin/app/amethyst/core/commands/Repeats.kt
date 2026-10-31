@@ -61,6 +61,27 @@ object Repeats {
         return Counted(null, words)
     }
 
+    /**
+     * Number words past twenty and their compounds, German and English, folded: a count meant
+     * as one that [number] does not read.
+     */
+    private val BEYOND = listOf(
+        "zwanzig", "dreissig", "dreisig", "vierzig", "funfzig", "fuenfzig", "sechzig", "siebzig", "achtzig", "neunzig",
+        "thirty", "forty", "fourty", "fifty", "sixty", "seventy", "eighty", "ninety",
+    )
+    private val LARGE = listOf("hundert", "tausend", "hundred", "thousand")
+
+    /**
+     * Whether [word] is surely a count - "dreißigmal", "hundert", "fifty", digits too long for a
+     * number - that [extract] cannot read. For Diagnostics' "why not understood".
+     */
+    fun unreadable(word: String): Boolean {
+        if (number(word) != null || glued(word) != null) return false
+        val stem = DIGITS_GLUED.matchEntire(word)?.groupValues?.get(1) ?: word.removeSuffix("mal")
+        if (stem.isNotEmpty() && stem.all(Char::isDigit)) return true
+        return BEYOND.any { stem.endsWith(it) } || LARGE.any { it in stem }
+    }
+
     /** "zehnmal", "einmal", "12mal", "3x" - not "normal" or "manchmal". */
     private fun glued(word: String): Int? {
         DIGITS_GLUED.matchEntire(word)?.let { return it.groupValues[1].toIntOrNull() }

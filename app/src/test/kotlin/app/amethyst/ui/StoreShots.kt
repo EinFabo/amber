@@ -321,6 +321,57 @@ class StoreShots {
     }
 
     /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
+    /** A few commands as Diagnostics shows them, the newest open to its steps. */
+    private val commandLog = app.amethyst.core.dictation.DictationLog { 0L }.apply {
+        val apps = listOf("WhatsApp", "Telegram", "Telefon", "Google Maps", "Spotify")
+        fun explain(heard: String) = app.amethyst.core.commands.VoiceCommands.explain(heard) { apps }
+        val timing = "route BUBBLE/RECORD_NOW · start 0.1 s · recording 1.3 s · recognition 0.4 s, model was loaded"
+        recordSuccess(
+            Transcript("Bin in zehn Minuten da.", engineId = EnginePresets.LOCAL_PARAKEET.id, trustLevel = TrustLevel.ON_DEVICE, latencyMs = 410),
+            InsertionStrategy.SET_TEXT, inserted = true, targetPackage = "com.whatsapp", timing = timing,
+        )
+        recordCommand(
+            "Tele", app.amethyst.core.commands.CommandOutcome.Failed("Not a command: “Tele”. Try “open WhatsApp” or “go back”."),
+            EnginePresets.LOCAL_PARAKEET.id, timing, details = explain("Tele") + "outcome: failed",
+        )
+        recordCommand(
+            "Öffne Kalender", app.amethyst.core.commands.CommandOutcome.Failed("No app called “kalender”."), EnginePresets.LOCAL_PARAKEET.id, timing,
+            details = explain("Öffne Kalender") + listOf(
+                "gate: passed (commands on, phone unlocked)",
+                "app search: “kalender” among 84 launcher apps",
+                "NotFound: no exact name, start, word inside or near miss",
+                "outcome: failed",
+            ),
+        )
+        recordCommand(
+            "Scroll zehnmal nach unten", app.amethyst.core.commands.CommandOutcome.Done("Scrolled down 4 times - nothing more to scroll"),
+            EnginePresets.LOCAL_PARAKEET.id, timing,
+            details = explain("Scroll zehnmal nach unten") + listOf(
+                "gate: passed (commands on, phone unlocked)",
+                "scrollable nodes: 2",
+                "picked: RecyclerView, vertical, in the window in use, node action DOWN",
+                "step 1: moved", "step 2: moved", "step 3: moved", "step 4: moved",
+                "step 5: end of the list - it offers down no more",
+                "stopped at step 5 of 10: end of the list - it offers down no more",
+                "outcome: done",
+            ),
+        )
+    }.records.value
+
+    /** Not part of the listing set: what a voice command leaves in Diagnostics, one opened to its steps. */
+    @Test
+    @Config(qualifiers = "w360dp-h1400dp-xxhdpi")
+    fun diagnosticsCommands() = shoot("x-diagnostics-commands", "Diagnostics") {
+        val newest = 1_793_455_351_000L
+        app.amethyst.ui.screen.DiagnosticsScreen(
+            records = commandLog.mapIndexed { i, record -> record.copy(atMillis = newest - i * 47_000L) },
+            keyboardLog = emptyList(),
+            onClear = {},
+            // The scroll that ran, and "Tele", which the rules did not take.
+            initiallyOpen = setOf(newest, newest - 2 * 47_000L),
+        )
+    }
+
     @Test
     fun fallback() = shoot("x-fallback", "When the server fails") {
         FallbackScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})
