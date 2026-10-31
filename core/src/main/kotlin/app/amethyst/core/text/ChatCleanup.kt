@@ -1,5 +1,6 @@
 package app.amethyst.core.text
 
+import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpRequest
@@ -152,11 +153,8 @@ class ChatCleanup(
             put("content", JsonPrimitive(content))
         }
 
-        fun chatUrl(baseUrl: String): String {
-            val trimmed = baseUrl.trim().trimEnd('/')
-            val versioned = if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
-            return "$versioned/chat/completions"
-        }
+        /** Beside the transcription endpoint, however the address is typed. */
+        fun chatUrl(baseUrl: String): String = OpenAiCompatibleEngine.apiRoot(baseUrl) + "/chat/completions"
 
         private const val REASONING_HEADROOM = 1024
 

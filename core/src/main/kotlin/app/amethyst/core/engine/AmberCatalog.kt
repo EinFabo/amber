@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import java.security.MessageDigest
 
 /**
  * What Amber for Windows ("Amber PC") or Amber Server offers, from its `GET /models`: an
@@ -82,14 +83,21 @@ data class AmberCatalog(
             )
         }
 
+        /** Where the list is: next to the transcription endpoint, however the address is typed. */
+        fun modelsUrl(baseUrl: String): String = OpenAiCompatibleEngine.apiRoot(baseUrl) + "/models"
+
         /**
-         * Where the list is, from the address as typed - with or without /v1, or the full
-         * transcription endpoint. Also how two spellings of one address are told apart.
+         * One address, however it is spelled, as a SHA-256 in hex: what a stored catalog keeps
+         * instead of the address, which carries the server's key in its path.
          */
-        fun modelsUrl(baseUrl: String): String {
-            val trimmed = baseUrl.trim().trimEnd('/').removeSuffix("/audio/transcriptions")
-            val versioned = if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
-            return "$versioned/models"
+        fun fingerprint(baseUrl: String): String {
+            val url = modelsUrl(baseUrl)
+            // Scheme and host ignore case ("Http://" from a keyboard); the path, key and all, does not.
+            val scheme = url.indexOf("://")
+            val path = if (scheme < 0) -1 else url.indexOf('/', scheme + 3)
+            val normalized = if (path < 0 || '@' in url.substring(0, path)) url else url.substring(0, path).lowercase() + url.substring(path)
+            return MessageDigest.getInstance("SHA-256").digest(normalized.encodeToByteArray())
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
         }
 
         /**
@@ -168,9 +176,9 @@ object AmberCatalogs {
     fun apply(settings: AmethystSettings, engineId: String, baseUrl: String, outcome: CatalogFetch): AmethystSettings {
         val engine = settings.engines.firstOrNull { it.id == engineId }
             ?: return if (engineId in settings.serverCatalogs) settings.copy(serverCatalogs = settings.serverCatalogs - engineId) else settings
-        if (engine.baseUrl.isNullOrBlank() || AmberCatalog.modelsUrl(engine.baseUrl) != AmberCatalog.modelsUrl(baseUrl)) return settings
+        if (engine.baseUrl.isNullOrBlank() || AmberCatalog.fingerprint(engine.baseUrl) != AmberCatalog.fingerprint(baseUrl)) return settings
         val catalogs = when (outcome) {
-            is CatalogFetch.Found -> settings.serverCatalogs + (engineId to StoredCatalog.of(baseUrl.trim(), outcome.catalog))
+            is CatalogFetch.Found -> settings.serverCatalogs + (engineId to StoredCatalog.of(baseUrl, outcome.catalog))
             CatalogFetch.NotAmber -> settings.serverCatalogs - engineId
             is CatalogFetch.Failed -> return settings
         }
@@ -181,21 +189,33 @@ object AmberCatalogs {
 /**
  * At most one list a minute per engine and address, so opening a page again and again does not
  * ask each time; [claim] with force (a passed connection test) asks anyway, and a new address
- * is asked at once. A failed fetch counts too: an unreachable server is not hammered.
+ * is asked at once. A failed fetch counts too: an unreachable server is not hammered. While a
+ * fetch runs, until [finished], nothing else is asked of the same engine and address.
  */
 class CatalogThrottle(
     private val intervalMs: Long = 60_000,
     private val clock: () -> Long,
 ) {
     private val last = HashMap<String, Long>()
+    private val running = HashSet<String>()
 
     @Synchronized
     fun claim(engineId: String, baseUrl: String, force: Boolean = false): Boolean {
-        val key = engineId + "\n" + AmberCatalog.modelsUrl(baseUrl)
+        val key = key(engineId, baseUrl)
+        if (key in running) return false
         val now = clock()
         val previous = last[key]
         if (!force && previous != null && now - previous < intervalMs) return false
         last[key] = now
+        running += key
         return true
     }
+
+    /** The fetch [claim] allowed has its answer. */
+    @Synchronized
+    fun finished(engineId: String, baseUrl: String) {
+        running -= key(engineId, baseUrl)
+    }
+
+    private fun key(engineId: String, baseUrl: String) = engineId + "\n" + AmberCatalog.fingerprint(baseUrl)
 }

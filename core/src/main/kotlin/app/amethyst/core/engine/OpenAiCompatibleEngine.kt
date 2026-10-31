@@ -190,6 +190,8 @@ class OpenAiCompatibleEngine(
 
         private val json = Json { ignoreUnknownKeys = true }
 
+        private const val TRANSCRIPTIONS = "/audio/transcriptions"
+
         /**
          * Builds the transcription URL from whatever the user typed. Accepts a bare host,
          * a URL that already ends in /v1, and a full endpoint URL, because all three show up
@@ -197,9 +199,17 @@ class OpenAiCompatibleEngine(
          */
         fun endpointUrl(baseUrl: String): String {
             val trimmed = baseUrl.trim().trimEnd('/')
-            if (trimmed.endsWith("/audio/transcriptions")) return trimmed
-            val versioned = if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
-            return "$versioned/audio/transcriptions"
+            if (trimmed.endsWith(TRANSCRIPTIONS)) return trimmed
+            return apiRoot(trimmed) + TRANSCRIPTIONS
+        }
+
+        /**
+         * The /v1 root of an address as typed - with or without /v1, or the full transcription
+         * endpoint - that the chat endpoint and the model list hang off too.
+         */
+        fun apiRoot(baseUrl: String): String {
+            val trimmed = baseUrl.trim().trimEnd('/').removeSuffix(TRANSCRIPTIONS)
+            return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
         }
     }
 }

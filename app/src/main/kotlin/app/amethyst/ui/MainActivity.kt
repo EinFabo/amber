@@ -589,9 +589,13 @@ private fun AmethystScreens(
                                     else graph.secretStore.put(alias, value)
                                 },
                                 onSave = { updated: EngineConfig ->
-                                    updateSettings { it.withEngine(updated) }
-                                    // A new address is asked at once, the same one once a minute.
-                                    graph.amberCatalogs.refresh(updated)
+                                    scope.launch {
+                                        graph.settingsStore.update { it.withEngine(updated) }
+                                        // Once stored, so the answer finds the engine at its new
+                                        // address. A new address is asked at once, the same one
+                                        // once a minute.
+                                        graph.amberCatalogs.refresh(updated)
+                                    }
                                 },
                                 onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
                                 onDelete = {

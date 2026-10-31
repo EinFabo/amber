@@ -201,15 +201,20 @@ data class AmethystSettings(
      * The list [engine]'s Amber server sent last - only while the engine still points at the
      * address it came from, however that is spelled.
      */
-    fun catalogFor(engine: EngineConfig): AmberCatalog? {
-        val stored = serverCatalogs[engine.id] ?: return null
-        val baseUrl = engine.baseUrl?.takeIf { it.isNotBlank() } ?: return null
-        return if (AmberCatalog.modelsUrl(stored.baseUrl) == AmberCatalog.modelsUrl(baseUrl)) stored.toCatalog() else null
-    }
+    fun catalogFor(engine: EngineConfig): AmberCatalog? =
+        serverCatalogs[engine.id]?.takeIf { it.isFor(engine.baseUrl) }?.toCatalog()
 
+    /**
+     * [config] added or in place of its old self. A model list its server sent for another
+     * address goes: it would only ever be stale.
+     */
     fun withEngine(config: EngineConfig): AmethystSettings {
         val replaced = engines.map { if (it.id == config.id) config else it }
-        return copy(engines = if (replaced.any { it.id == config.id }) replaced else engines + config)
+        val stale = serverCatalogs[config.id]?.takeUnless { it.isFor(config.baseUrl) } != null
+        return copy(
+            engines = if (replaced.any { it.id == config.id }) replaced else engines + config,
+            serverCatalogs = if (stale) serverCatalogs - config.id else serverCatalogs,
+        )
     }
 
     companion object {
@@ -318,12 +323,14 @@ private fun migrateProfile(profile: AppProfile): AppProfile = profile.copy(
 data class CleanupChoice(val engineId: String, val model: String)
 
 /**
- * An [AmberCatalog] as stored, with the [baseUrl] it was fetched from: an engine pointed
- * elsewhere since has no list until its new address sends one.
+ * An [AmberCatalog] as stored, with the [address] it was fetched from as a fingerprint
+ * ([AmberCatalog.fingerprint]) - never the address itself, whose path holds the server's key.
+ * An engine pointed elsewhere since has no list until its new address sends one; an entry
+ * without a fingerprint fits no address.
  */
 @Serializable
 data class StoredCatalog(
-    val baseUrl: String,
+    val address: String = "",
     val service: String,
     val version: String = "",
     val speech: List<StoredModel> = emptyList(),
@@ -331,9 +338,13 @@ data class StoredCatalog(
 ) {
     fun toCatalog(): AmberCatalog = AmberCatalog(service, version, speech.map { it.toChoice() }, cleanup.map { it.toChoice() })
 
+    /** Fetched from [baseUrl], however it is spelled now. */
+    fun isFor(baseUrl: String?): Boolean =
+        address.isNotEmpty() && !baseUrl.isNullOrBlank() && address == AmberCatalog.fingerprint(baseUrl)
+
     companion object {
         fun of(baseUrl: String, catalog: AmberCatalog) = StoredCatalog(
-            baseUrl = baseUrl,
+            address = AmberCatalog.fingerprint(baseUrl),
             service = catalog.service,
             version = catalog.version,
             speech = catalog.speech.map(StoredModel::of),

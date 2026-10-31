@@ -20,6 +20,7 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.StoredCatalog
 import app.amethyst.core.text.ChatCleanup
@@ -305,16 +306,90 @@ class AmberCatalogTest {
     fun `a list is asked for at most once a minute per engine unless forced`() {
         var now = 0L
         val throttle = CatalogThrottle(intervalMs = 60_000) { now }
-        assertTrue(throttle.claim(own.id, own.baseUrl!!))
+        // Each fetch answers at once here.
+        fun claim(id: String, url: String, force: Boolean = false) = throttle.claim(id, url, force).also { throttle.finished(id, url) }
+        assertTrue(claim(own.id, own.baseUrl!!))
         now = 59_999
-        assertFalse(throttle.claim(own.id, own.baseUrl!!))
-        assertTrue(throttle.claim("other", own.baseUrl!!), "per engine")
-        assertTrue(throttle.claim(own.id, "http://192.168.1.30:9000/v1"), "a new address is asked at once")
-        assertTrue(throttle.claim(own.id, own.baseUrl!!, force = true), "a passed connection test asks anyway")
+        assertFalse(claim(own.id, own.baseUrl!!))
+        assertTrue(claim("other", own.baseUrl!!), "per engine")
+        assertTrue(claim(own.id, "http://192.168.1.30:9000/v1"), "a new address is asked at once")
+        assertTrue(claim(own.id, own.baseUrl!!, force = true), "a passed connection test asks anyway")
         now = 119_998
-        assertFalse(throttle.claim(own.id, own.baseUrl!!))
+        assertFalse(claim(own.id, own.baseUrl!!))
         now = 119_999
+        assertTrue(claim(own.id, own.baseUrl!!))
+    }
+
+    @Test
+    fun `the stored catalog carries no part of the address or its key`() {
+        val keyed = "http://192.168.1.20:8765/s3cr3t-k3y-0451/v1"
+        val stored = StoredCatalog.of(keyed, pc)
+        val encoded = Json.encodeToString(StoredCatalog.serializer(), stored)
+        assertFalse("s3cr3t-k3y-0451" in encoded, encoded)
+        assertFalse("192.168.1.20" in encoded, encoded)
+        assertEquals(64, stored.address.length, "a SHA-256 in hex")
+        assertTrue(stored.isFor(keyed))
+    }
+
+    @Test
+    fun `the fingerprint matches across spellings of the same address`() {
+        val fingerprint = AmberCatalog.fingerprint(own.baseUrl!!)
+        for (typed in listOf(
+            " http://192.168.1.20:8765/k3y/v1/ ",
+            "http://192.168.1.20:8765/k3y",
+            "http://192.168.1.20:8765/k3y/v1/audio/transcriptions",
+            "Http://192.168.1.20:8765/k3y/v1",
+        )) {
+            assertEquals(fingerprint, AmberCatalog.fingerprint(typed), typed)
+        }
+        for (other in listOf("http://192.168.1.20:8765/K3Y/v1", "http://192.168.1.20:8765/other/v1", "http://192.168.1.20:8766/k3y/v1", "https://192.168.1.20:8765/k3y/v1")) {
+            assertFalse(fingerprint == AmberCatalog.fingerprint(other), other)
+        }
+    }
+
+    @Test
+    fun `saving an engine at another address drops its catalog`() {
+        val stored = AmberCatalogs.apply(withOwn, own.id, own.baseUrl!!, CatalogFetch.Found(pc))
+        assertTrue(stored.withEngine(own.copy(baseUrl = "http://192.168.1.30:9000/v1")).serverCatalogs.isEmpty())
+        assertTrue(stored.withEngine(own.copy(baseUrl = null)).serverCatalogs.isEmpty())
+        // The same address, another model or spelling: the list stays.
+        assertEquals(stored.serverCatalogs, stored.withEngine(own.copy(modelId = "other")).serverCatalogs)
+        assertEquals(stored.serverCatalogs, stored.withEngine(own.copy(baseUrl = "http://192.168.1.20:8765/k3y/")).serverCatalogs)
+        // Other engines' lists are theirs.
+        val other = own.copy(id = "other")
+        val both = AmberCatalogs.apply(stored.withEngine(other), other.id, other.baseUrl!!, CatalogFetch.Found(pc))
+        assertEquals(setOf(other.id), both.withEngine(own.copy(baseUrl = "http://192.168.1.30:9000/v1")).serverCatalogs.keys)
+    }
+
+    @Test
+    fun `an entry that kept the plain address is stale, not an error`() {
+        val raw = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
+            "displayName":"Own server","baseUrl":"${own.baseUrl}","modelId":"acft-large-v3-turbo-q8_0"}],
+            "serverCatalogs":{"self-hosted":{"baseUrl":"${own.baseUrl}","service":"amber-pc","version":"0.4.2",
+            "speech":[{"id":"acft-large-v3-turbo-q8_0","label":"Large v3 Turbo"}]}},"schemaVersion":10}"""
+        val decoded = SettingsCodec.decode(raw)
+        assertEquals(own.id, decoded.engines.single().id, "the settings themselves survive")
+        assertNull(decoded.catalogFor(decoded.engines.single()))
+        assertSame(ServerProviders.CUSTOM, ServerProviders.forEngine(decoded.engines.single(), decoded))
+        assertTrue(decoded.withEngine(decoded.engines.single()).serverCatalogs.isEmpty(), "dropped on the next save")
+    }
+
+    @Test
+    fun `a forced fetch waits for one already running`() {
+        val throttle = CatalogThrottle(intervalMs = 60_000) { 0L }
         assertTrue(throttle.claim(own.id, own.baseUrl!!))
+        assertFalse(throttle.claim(own.id, own.baseUrl!!, force = true), "the running fetch answers for it")
+        throttle.finished(own.id, " http://192.168.1.20:8765/k3y/ ")
+        assertTrue(throttle.claim(own.id, own.baseUrl!!, force = true))
+    }
+
+    @Test
+    fun `transcription, chat and model list share one root, however the address is typed`() {
+        for (typed in listOf("http://192.168.1.20:8765/k3y", "http://192.168.1.20:8765/k3y/v1/", "http://192.168.1.20:8765/k3y/v1/audio/transcriptions")) {
+            assertEquals("http://192.168.1.20:8765/k3y/v1/audio/transcriptions", OpenAiCompatibleEngine.endpointUrl(typed), typed)
+            assertEquals("http://192.168.1.20:8765/k3y/v1/chat/completions", ChatCleanup.chatUrl(typed), typed)
+            assertEquals("http://192.168.1.20:8765/k3y/v1/models", AmberCatalog.modelsUrl(typed), typed)
+        }
     }
 
     // --- the requests ---

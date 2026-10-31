@@ -249,7 +249,9 @@ fun EngineDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Hint("With or without /v1. http:// only for servers in your own network.")
-                        if (catalog != null && provider.listsItself) {
+                        // Typed only while the server lists no speech model to pick, so an empty
+                        // list never leaves the engine without one.
+                        if (catalog != null && provider.listsItself && provider.speechModels.isNotEmpty()) {
                             Hint(
                                 listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" ") +
                                     " - its models are listed below.",

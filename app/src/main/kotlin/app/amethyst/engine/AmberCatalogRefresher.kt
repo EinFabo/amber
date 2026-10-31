@@ -35,21 +35,26 @@ class AmberCatalogRefresher(
         settings().engines.forEach { refresh(it) }
     }
 
-    /** [engine]'s list, if it is an own server; [force] skips the once-a-minute limit. */
+    /**
+     * [engine]'s list, if it is an own server; [force] skips the once-a-minute limit, but not
+     * a fetch of the same address that is still running.
+     */
     fun refresh(engine: EngineConfig, force: Boolean = false) {
         if (!AmberCatalogs.isCandidate(engine)) return
         val baseUrl = engine.baseUrl?.trim() ?: return
         if (!throttle.claim(engine.id, baseUrl, force)) return
         scope.launch(Dispatchers.IO) {
-            val outcome = AmberCatalog.fetch(transport, baseUrl, keyFor(engine.apiKeyAlias))
-            // Never the address: it carries the server's key.
-            if (outcome is CatalogFetch.Failed) Log.i("Amber", "model list of ${engine.id}: ${outcome.detail}")
             try {
+                val outcome = AmberCatalog.fetch(transport, baseUrl, keyFor(engine.apiKeyAlias))
+                // Never the address: it carries the server's key.
+                if (outcome is CatalogFetch.Failed) Log.i("Amber", "model list of ${engine.id}: ${outcome.detail}")
                 update { AmberCatalogs.apply(it, engine.id, baseUrl, outcome) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w("Amber", "model list of ${engine.id} not stored", e)
+            } finally {
+                throttle.finished(engine.id, baseUrl)
             }
         }
     }
