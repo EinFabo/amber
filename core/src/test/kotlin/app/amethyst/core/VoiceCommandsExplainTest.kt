@@ -223,11 +223,14 @@ class VoiceCommandsExplainTest {
     @Test
     fun `a part that is no command is named with its reason`() {
         val door = explain("Open the door and then go")
-        assertContains(door, "part 1: “open the door” → OpenApp \"door\"")
         val why = door.last()
-        assertTrue(why.startsWith("not understood: “go” is no command"), why)
+        assertTrue(why.startsWith("not understood: “open the door” opens no installed app"), why)
+        assertContains(why, "exact name or the unique start")
         // What the words are as one command comes first.
         assertTrue(door.any { it.startsWith("as one command: ") }, "$door")
+
+        val go = reason("Zurück und go")
+        assertTrue(go.startsWith("“go” is no command"), go)
 
         val home = reason("Ich gehe zurück und dann nach Hause")
         assertContains(home, "“ich gehe zuruck” is no command")
@@ -246,8 +249,33 @@ class VoiceCommandsExplainTest {
         val undo = reason("Hoch und runter")
         assertContains(undo, "Scroll UP, then Scroll DOWN")
         assertContains(undo, "undo each other")
-        assertContains(reason("Zurück, runter, zurück, runter, zurück, runter"), "6 commands - at most 5 in one go")
+        assertContains(reason("Zurück, runter, zurück, runter, zurück, runter"), "more than 5 commands - at most 5 in one go")
+        // Said as six, though one command would read them all.
+        val six = explain("Zurück, zurück, zurück, zurück, zurück, zurück")
+        assertContains(six.last(), "more than 5 commands")
+        assertContains(six, "as one command: would be Navigate BACK")
         assertContains(reason("Zurück und"), "only one command")
+    }
+
+    @Test
+    fun `cutting without a joining word, a count between two and select all then paste say why not`() {
+        // Said as one phrase: its own reason is the verdict, the cut that was refused comes before it.
+        fun cut(heard: String) = explain(heard).single { it.startsWith("as several commands: ") }
+        val back = cut("Zurück kopieren")
+        assertContains(back, "“zuruck” and “kopieren” without a joining word")
+        assertContains(back, "say “und” or “dann” between them")
+        assertContains(cut("Lauter zweimal kopieren"), "a count between “lauter zweimal” and “kopieren”")
+        val paste = reason("Select all, then paste")
+        assertContains(paste, "Edit SELECT_ALL, then Edit PASTE")
+        assertContains(paste, "does not empty or replace a whole field in one go")
+    }
+
+    @Test
+    fun `the same command said again and a direction that goes with the scroll before show as one part`() {
+        assertEquals(
+            listOf("part 1: “zuruck” → Navigate BACK", "understood: Navigate BACK"),
+            explain("Zurück und zurück").takeLast(2),
+        )
     }
 
     @Test
@@ -270,7 +298,8 @@ class VoiceCommandsExplainTest {
             "Home page", "Zweimal Erfner WhatsApp", "Öffnen WhatsApp", "Starten Spotify", "Beende WhatsApp", "Mein Telegram",
             "Quit Spotify", "Öffnen die App", "Select all copy", "alles markieren und kopieren", "zweimal zurück und dann öffne WhatsApp",
             "Hoch und runter", "Open the door and then go", "Öffne WhatsApp und dann zurück", "Open Tom and Jerry", "Zurück und",
-            "Markier alles und WhatsApp", "Runter schnell sofort",
+            "Markier alles und WhatsApp", "Runter schnell sofort", "Zurück, zurück, zurück, zurück, zurück, zurück", "Zurück und zurück",
+            "Scroll, nach unten.", "Zurück kopieren", "Select all, then paste", "Zurück nach oben", "Open the door and then go back",
         ).forEach { heard ->
             val last = verdict(heard)
             when (val understanding = VoiceCommands.parse(heard) { apps }) {

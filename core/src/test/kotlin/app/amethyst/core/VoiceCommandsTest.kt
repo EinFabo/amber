@@ -3,7 +3,9 @@ package app.amethyst.core
 import app.amethyst.core.commands.Command
 import app.amethyst.core.commands.Direction
 import app.amethyst.core.commands.GlobalAction
+import app.amethyst.core.commands.MediaKey
 import app.amethyst.core.commands.TextEdit
+import app.amethyst.core.commands.VolumeChange
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import kotlin.test.Test
@@ -171,7 +173,7 @@ class VoiceCommandsTest {
     fun `several commands run in the order said, each with its own count`() {
         assertEquals(
             listOf(Command.Navigate(GlobalAction.BACK, 2), Command.OpenApp("whatsapp")),
-            commands("zweimal zurück und dann öffne WhatsApp"),
+            commands("zweimal zurück und dann öffne WhatsApp", listOf("WhatsApp")),
         )
         assertEquals(
             listOf(Command.Navigate(GlobalAction.BACK), Command.Scroll(Direction.DOWN, 3)),
@@ -185,11 +187,58 @@ class VoiceCommandsTest {
             listOf(Command.Edit(TextEdit.SELECT_ALL), Command.Edit(TextEdit.COPY)),
             commands("Select all copy"),
         )
-        // A count after a command belongs to it; the rest is read the same way.
+        // A count before the first command is its own.
         assertEquals(
-            listOf(Command.Navigate(GlobalAction.BACK, 2), Command.Edit(TextEdit.COPY)),
-            commands("zurück zweimal kopieren"),
+            listOf(Command.Volume(VolumeChange.LOUDER, 2), Command.Edit(TextEdit.COPY)),
+            commands("zweimal lauter kopieren"),
         )
+    }
+
+    @Test
+    fun `without a joining word nothing that leaves the screen is cut apart, nor a count between two`() {
+        listOf(
+            "Startbildschirm zweimal runter", "zurück kopieren", "Scroll back up kopieren", "Stop scroll", "Startbildschirm öffne Spotify",
+            "lauter zweimal kopieren", "Pause zweimal lauter",
+        ).forEach { assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it) { listOf("Spotify") }, "\"$it\"") }
+        // With a joining word or a comma between them they are several.
+        assertEquals(listOf(Command.Navigate(GlobalAction.BACK), Command.Edit(TextEdit.COPY)), commands("zurück, kopieren"))
+        assertEquals(listOf(Command.Media(MediaKey.PAUSE), Command.Volume(VolumeChange.LOUDER, 2)), commands("Pause, zweimal lauter"))
+    }
+
+    @Test
+    fun `back with a way to scroll is that scroll`() {
+        assertEquals(listOf(Command.Scroll(Direction.UP)), commands("Scroll back up"))
+        assertEquals(listOf(Command.Scroll(Direction.UP)), commands("Zurück nach oben"))
+        assertEquals(listOf(Command.ScrollToEnd(Direction.UP)), commands("Zurück zum Anfang"))
+        assertEquals(listOf(Command.ScrollToEnd(Direction.DOWN)), commands("Zurück zum Ende"))
+        assertEquals(listOf(Command.Scroll(Direction.UP)), commands("Zurück blättern"))
+        // A count goes with the scroll; nothing goes back.
+        assertEquals(listOf(Command.Scroll(Direction.DOWN, 2)), commands("zurück zweimal runter"))
+        // Alone it is still the way back.
+        assertEquals(listOf(Command.Navigate(GlobalAction.BACK)), commands("Zurück"))
+        assertEquals(listOf(Command.Navigate(GlobalAction.BACK)), commands("Go back"))
+    }
+
+    @Test
+    fun `the same command said again runs once, a direction or a count alone goes with the one before`() {
+        listOf("zurück zurück", "Zurück, zurück", "Zurück und zurück").forEach {
+            assertEquals(listOf(Command.Navigate(GlobalAction.BACK)), commands(it), "\"$it\"")
+        }
+        assertEquals(listOf(Command.Scroll(Direction.DOWN)), commands("Scroll, nach unten."))
+        assertEquals(listOf(Command.Swipe(Direction.LEFT)), commands("Wisch nach links, nach links"))
+        assertEquals(listOf(Command.Navigate(GlobalAction.BACK, 2)), commands("Zurück, zweimal"))
+        // After a command that does not scroll, a direction is a scroll of its own.
+        assertEquals(listOf(Command.Navigate(GlobalAction.HOME), Command.Scroll(Direction.DOWN)), commands("Startbildschirm, runter"))
+    }
+
+    @Test
+    fun `select all, then cut or paste is refused - the whole field would be emptied or replaced`() {
+        listOf("alles markieren und ausschneiden", "Select all, then paste", "alles markieren, kopieren und einfügen").forEach {
+            assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it), "\"$it\"")
+        }
+        // Copying, or a new line behind the selection, leaves the text as it is.
+        assertEquals(2, commands("alles markieren und kopieren").size)
+        assertEquals(2, commands("alles markieren und neue Zeile").size)
     }
 
     @Test
@@ -204,10 +253,14 @@ class VoiceCommandsTest {
     }
 
     @Test
-    fun `an app among several commands needs an open word`() {
+    fun `an app among several commands needs an open word and an installed app's name`() {
         val apps = listOf("WhatsApp", "Spotify")
         assertEquals(listOf(Command.Edit(TextEdit.SELECT_ALL), Command.OpenApp("whatsapp")), commands("markier alles und öffne WhatsApp", apps))
-        listOf("markier alles und WhatsApp", "WhatsApp und markier alles", "alles markieren und Erfner WhatsApp").forEach {
+        assertEquals(listOf(Command.OpenApp("spot"), Command.Navigate(GlobalAction.BACK)), commands("öffne Spot und zurück", apps))
+        listOf(
+            "markier alles und WhatsApp", "WhatsApp und markier alles", "alles markieren und Erfner WhatsApp",
+            "Open the door and then go back", "zurück und öffne Kalender",
+        ).forEach {
             assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it) { apps }, "\"$it\"")
         }
     }
@@ -223,6 +276,8 @@ class VoiceCommandsTest {
     fun `at most five commands in one go`() {
         assertEquals(5, commands("zurück, runter, zurück, runter, Startbildschirm").size)
         assertIs<Understanding.NotUnderstood>(VoiceCommands.parse("zurück, runter, zurück, runter, zurück, runter"))
+        // Said as six, it is not taken for the one command the words would also make.
+        assertIs<Understanding.NotUnderstood>(VoiceCommands.parse("Zurück, zurück, zurück, zurück, zurück, zurück"))
     }
 
     @Test
@@ -230,9 +285,8 @@ class VoiceCommandsTest {
         listOf("hoch und runter", "rauf und runter", "up and down", "lauter und leiser", "Ton aus und Ton an", "Taschenlampe an, Taschenlampe aus").forEach {
             assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it), "\"$it\"")
         }
-        // Not next to each other, or the same way twice: no phrase.
+        // Not next to each other: no phrase.
         assertEquals(3, commands("hoch, zurück, runter").size)
-        assertEquals(2, commands("runter und runter").size)
     }
 
     @Test

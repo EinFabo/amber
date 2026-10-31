@@ -48,8 +48,10 @@ Controls:
   commands: "zurück", "öffne WhatsApp", "zehnmal runter", "ganz nach unten", "lauter",
   "Taschenlampe an", "WLAN-Einstellungen", "lösche das letzte Wort", "go home", "swipe left".
   Up to five go in one sentence - "alles markieren und kopieren", "zweimal zurück, dann öffne
-  WhatsApp", "select all copy" - and run in that order; the first that cannot be done stops the
-  rest. Without a text field one tap is enough, and the bubble then shows in every app. Understood by
+  WhatsApp" - and run in that order; the first that cannot be done stops the rest. Without "und"
+  or "dann" between them only text, media, volume and flashlight commands are told apart
+  ("select all copy"), and select all is never followed by cut or paste in one go. Without a text
+  field one tap is enough, and the bubble then shows in every app. Understood by
   fixed rules on the phone; Amber reads which parts of the screen can scroll and, in the one it
   scrolls, where the items sit - to tell whether it moved, never what they show - and for a text
   command the field you started it in, never a password field. A tap on the bubble stops a

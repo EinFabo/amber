@@ -61,6 +61,21 @@ object Repeats {
         return Counted(null, words)
     }
 
+    /**
+     * Whether [words]`[i]` is a count of its own - "zweimal", "twice", "5", "mal", "times" - and
+     * not a number the next word counts ("drei Wörter") or an article ("ein"). Between two
+     * commands said without a joining word such a count could belong to either.
+     */
+    fun loose(words: List<String>, i: Int): Boolean {
+        val word = words.getOrNull(i) ?: return false
+        if (word in ARTICLES) return false
+        if (word in ADVERBS || glued(word) != null || word in MULTIPLIERS) return true
+        return number(word) != null && words.getOrNull(i + 1) !in UNITS
+    }
+
+    /** "Ein", "eine", "einen": a count only before "mal", else an article. */
+    private val ARTICLES = setOf("ein", "eine", "einen")
+
     /** The pieces German and English number words are built of, folded. */
     private val SMALL_PARTS = setOf(
         "ein", "eins", "zwei", "zwo", "drei", "vier", "funf", "fuenf", "sechs", "sieben", "acht", "neun", "zehn", "elf",

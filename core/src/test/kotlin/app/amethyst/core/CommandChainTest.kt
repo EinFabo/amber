@@ -14,7 +14,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 
 /**
  * Several commands said in one go run one after another: a pause between them, longer where the
@@ -48,7 +47,6 @@ class CommandChainTest {
         assertEquals(listOf("executor: Edit"), harness.trace.lines)
         assertEquals(emptyList(), harness.pauses)
         assertEquals("outcome: done", run.line)
-        assertNull(run.stoppedAt)
 
         val refused = Harness(mapOf(copy to CommandOutcome.Refused("Unlock the phone first."))).run(copy)
         assertEquals(CommandOutcome.Refused("Unlock the phone first."), refused.outcome)
@@ -100,7 +98,6 @@ class CommandChainTest {
             CommandOutcome.Failed("Selected all, then step 2 of 3 failed: Nothing is selected - say “select all” first."),
             run.outcome,
         )
-        assertEquals(2, run.stoppedAt)
         assertEquals("outcome: failed at step 2/3 (Edit COPY)", run.line)
         assertEquals(listOf(CommandChain.PAUSE_MS), harness.pauses)
     }

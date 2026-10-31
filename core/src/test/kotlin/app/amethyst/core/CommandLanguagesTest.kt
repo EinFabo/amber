@@ -138,6 +138,38 @@ class CommandLanguagesTest {
     }
 
     @Test
+    fun `prompt phrases in a row inside more words, or with phrases of the prompt left out, are an echo too`() {
+        // Found by the review: the prompt bled into what was heard and ran as several commands.
+        val german = CommandLanguages.promptFor("de")!!
+        listOf(
+            "Kopieren. Zurück. Lauter.",
+            "Kopieren. Startbildschirm. Öffne WhatsApp.",
+            "Zurück. Lauter. Taschenlampe an.",
+            "Zurück, Taschenlampe aus.",
+            "Bitte lauter, Scroll hoch, danke.",
+        ).forEach { assertTrue(CommandLanguages.isEcho(it, german), "\"$it\"") }
+        val english = CommandLanguages.promptFor("en")!!
+        assertTrue(CommandLanguages.isEcho("Copy. Home screen. Open WhatsApp.", english))
+        assertTrue(CommandLanguages.isEcho("Go back. Louder. Flashlight on.", english))
+
+        // What the user says between them, the other way round, or once each: no echo.
+        listOf(
+            "Zurück und dann öffne WhatsApp.", "Startbildschirm und öffne WhatsApp.", "Lauter, zurück.", "Zurück, zurück.",
+            "Alles markieren und kopieren.", "Kopieren. Zurück.",
+        ).forEach { assertFalse(CommandLanguages.isEcho(it, german), "\"$it\"") }
+        assertFalse(CommandLanguages.isEcho("Kopieren. Zurück. Lauter.", null), "no prompt, no echo")
+    }
+
+    @Test
+    fun `a pass that only echoes the prompt in more words is nothing heard, the next language is tried`() = runTest {
+        val engine = FakeEngine(
+            mapOf("de" to Result.success("Kopieren. Zurück. Lauter."), "en" to Result.success("Copy.")),
+            whisperLike,
+        )
+        assertEquals("Copy.", recognize(engine).result.getOrThrow().text)
+    }
+
+    @Test
     fun `no swipe in a prompt, and a direction comes with its opposite or not at all`() {
         val pairs = mapOf(
             "de" to listOf("runter" to "hoch", "lauter" to "leiser", "an" to "aus"),

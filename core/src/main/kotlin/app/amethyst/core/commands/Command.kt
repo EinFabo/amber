@@ -80,7 +80,8 @@ sealed interface Understanding {
 
 /**
  * Turns what was heard into a command. Rules today; a model could answer the same question.
- * [appLabels] are the installed apps' names, asked for only when a bare name might be one.
+ * [appLabels] are the installed apps' names, asked for only when a bare name might be one or
+ * an app is opened among several commands.
  */
 fun interface CommandParser {
     fun parse(heard: String, appLabels: () -> List<String>): Understanding

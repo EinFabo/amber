@@ -14,8 +14,11 @@ import java.text.Normalizer
  *
  * Up to [MAX_STEPS] commands may come in one go, in their order: cut at joining words ("und
  * dann", "then") and sentence marks, a piece without one cut into the longest commands from its
- * start ("select all copy"), each with its own count. Every part must be a command, or nothing
- * runs; a bare name and a misheard "öffne" stay rules for one command alone.
+ * start ("select all copy") - only text, media, volume and flashlight commands, never Back, a
+ * scroll or an app, and no count between two. Each keeps its own count. Every part must be a
+ * command, or nothing runs; the same command said again runs once; an app among several opens
+ * only by an installed app's name; a bare name and a misheard "öffne" stay rules for one command
+ * alone; select all is never followed by cut or paste in one go.
  *
  * Nothing that sends, pays, confirms, deletes items or empties a field has a phrase here.
  */
@@ -89,18 +92,25 @@ object VoiceCommands : CommandParser {
         val single = command(read(heard), appLabels, guessMisheard)
         val pieces = pieces(heard)
         // One piece that is one command reads as it always did, without looking for more.
-        val commands = if (single != null && pieces.size < 2) listOf(single) else decide(single, combo(pieces))
+        val commands = if (single != null && pieces.size < 2) listOf(single) else decide(single, combo(pieces, appLabels)).commands
         return commands?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
     }
+
+    /** What the words were taken for, if anything; [split] when that came from - or was refused as - several commands. */
+    private class Decision(val commands: List<Command>?, val split: Boolean)
 
     /**
      * One command, or several. Where joining words or sentence marks split the words, several
      * commands that read cleanly win over one that would swallow the rest ("öffne WhatsApp und
-     * zurück" is no app called "whatsapp und zuruck"); else the one command stands.
+     * zurück" is no app called "whatsapp und zuruck"). Several said as such but refused together
+     * - more than [MAX_STEPS], two that undo each other, select all and then paste - are not
+     * quietly read as one command instead. Else the one command stands.
      */
-    private fun decide(single: Command?, combo: Combo): List<Command>? = when {
-        single != null && combo.pieces < 2 -> listOf(single)
-        else -> combo.commands ?: single?.let(::listOf)
+    private fun decide(single: Command?, combo: Combo): Decision = when {
+        single != null && combo.pieces < 2 -> Decision(listOf(single), split = false)
+        combo.commands != null -> Decision(combo.commands, split = true)
+        combo.intended && combo.refused -> Decision(null, split = true)
+        else -> Decision(single?.let(::listOf), split = false)
     }
 
     /** What was heard as the rules see it: folded, the count taken out, the words kept. */
@@ -135,25 +145,48 @@ object VoiceCommands : CommandParser {
     /** What a speech engine ends a sentence or a clause with: each mark cuts the commands apart too. */
     private val SENTENCE_MARKS = Regex("[,.;!?]")
 
+    private val SELECT_ALL = Command.Edit(TextEdit.SELECT_ALL)
+
     /** One command among several: the folded words it was read from, and what they mean. */
     private class Part(val words: List<String>, val command: Command)
 
+    /** Why words said as several commands are not - when it is not what the commands are together. */
+    private sealed interface Break {
+        /** No command starts at [words]. */
+        class Stuck(val words: List<String>) : Break
+
+        /** Cut apart without a joining word, though one of the two leaves the screen or opens something. */
+        class Unjoined(val first: Part, val second: Part) : Break
+
+        /** A count between two commands said without a joining word: it could be either's. */
+        class LooseCount(val first: Part, val second: Part) : Break
+    }
+
     /**
      * What reading the words as several commands found. [pieces] is how many pieces the joining
-     * words and sentence marks cut it into, fillers alone not counted; [parts] the commands
-     * found, in order; [stuck] the words at which no command could be found, if any.
+     * words and sentence marks cut it into, fillers alone not counted; [parts] the commands found,
+     * in order, a command said again and a direction that goes with the scroll before it taken
+     * in; [said] how many commands were said, which the limit counts; [broken] why the reading
+     * stopped short, if it did.
      */
-    private class Combo(val pieces: Int, val joined: Boolean, val parts: List<Part>, val stuck: List<String>?) {
+    private class Combo(val pieces: Int, val joined: Boolean, val parts: List<Part>, val said: Int, val broken: Break?) {
 
         /** Said as several - with a joining word or a sentence mark between - rather than read so. */
         val intended: Boolean get() = pieces > 1 || joined
 
+        val tooMany: Boolean get() = said > MAX_STEPS
+
         /** The second of two steps in a row that undo each other ("hoch und runter"), if any. */
         val undoneAt: Int? = (1 until parts.size).firstOrNull { undoes(parts[it - 1].command, parts[it].command) }
 
-        /** Two to [MAX_STEPS] commands, all read cleanly; else null. */
-        val commands: List<Command>?
-            get() = parts.map { it.command }.takeIf { stuck == null && it.size in 2..MAX_STEPS && undoneAt == null }
+        /** A cut or paste after "alles markieren": the whole field emptied or replaced in one go. */
+        val replacedAt: Int? = (1 until parts.size).firstOrNull { i -> replaces(parts[i].command) && parts.take(i).any { it.command == SELECT_ALL } }
+
+        /** Every part a command, but not to be run together. */
+        val refused: Boolean get() = broken == null && (tooMany || undoneAt != null || replacedAt != null)
+
+        /** The commands in order - more than one said, all read cleanly; else null. */
+        val commands: List<Command>? = parts.map { it.command }.takeIf { broken == null && !refused && said >= 2 && it.isNotEmpty() }
     }
 
     /** The pieces of [heard] between sentence marks and joining words, folded, without those that hold only fillers. */
@@ -188,31 +221,84 @@ object VoiceCommands : CommandParser {
     /**
      * Each piece cut into commands from its start: the longest run of words that is a command,
      * then the rest the same way ("select all copy"). Only the fixed rules, each with its own
-     * count: a bare name or a misheard "öffne" is a command only when it is all that was said.
+     * count, an app only by an installed app's name: a bare name or a misheard "öffne" is a
+     * command only when it is all that was said. Without a joining word only commands that stay
+     * on the screen are cut apart, and no count may stand between two. Past [MAX_STEPS] nothing
+     * more is looked for.
      */
-    private fun combo(pieces: Pieces): Combo {
+    private fun combo(pieces: Pieces, appLabels: () -> List<String>): Combo {
         val parts = mutableListOf<Part>()
+        var said = 0
+        fun ended(broken: Break?) = Combo(pieces.size, pieces.joined, parts.toList(), said, broken)
         for (piece in pieces.words) {
+            // "Scroll, nach unten", "zurück, zweimal": a direction or a count alone goes with the command before it.
+            val last = parts.lastOrNull()
+            if (last != null && continues(piece, last.command)) {
+                val words = last.words + piece
+                val merged = step(words, appLabels)
+                if (merged != null) {
+                    parts[parts.lastIndex] = Part(words, merged)
+                    continue
+                }
+            }
+            val found = mutableListOf<Part>()
             var rest = piece
             while (rest.isNotEmpty()) {
-                val part = (rest.size downTo 1).firstNotNullOfOrNull { n -> step(rest.take(n))?.let { Part(rest.take(n), it) } }
-                    ?: return Combo(pieces.size, pieces.joined, parts, stuck = rest)
-                parts += part
+                val part = (rest.size downTo 1).firstNotNullOfOrNull { n -> step(rest.take(n), appLabels)?.let { Part(rest.take(n), it) } }
+                    ?: return ended(Break.Stuck(rest))
+                found += part
                 rest = rest.drop(part.words.size)
+                said++
+                // "Zurück, zurück", "lauter lauter": the same command again is said once more, not run twice.
+                if (parts.lastOrNull()?.command != part.command) parts += part
+                if (said > MAX_STEPS) return ended(null)
+            }
+            for ((first, second) in found.zipWithNext()) {
+                if (!cuttable(first.command) || !cuttable(second.command)) return ended(Break.Unjoined(first, second))
+                if (Repeats.loose(first.words, first.words.lastIndex) || Repeats.loose(second.words, 0)) return ended(Break.LooseCount(first, second))
             }
         }
-        return Combo(pieces.size, pieces.joined, parts, stuck = null)
+        return ended(null)
     }
 
-    private fun combo(heard: String): Combo = combo(pieces(heard))
+    private fun combo(heard: String, appLabels: () -> List<String>): Combo = combo(pieces(heard), appLabels)
 
-    /** One command among several, from its folded [words]: its count, then the rules alone. */
-    private fun step(words: List<String>): Command? {
+    /**
+     * One command among several, from its folded [words]: its count, then the rules alone. An
+     * app only by an installed app's exact name or the unique start of one - "open the door and
+     * then go back" opens nothing.
+     */
+    private fun step(words: List<String>, appLabels: () -> List<String>): Command? {
         val reading = read(words.joinToString(" "))
         val times = reading.times
         if (reading.words.isEmpty() || (times != null && times < 1)) return null
-        return rule(reading.words)?.repeated(times)
+        val command = rule(reading.words)?.repeated(times) ?: return null
+        return command.takeUnless { it is Command.OpenApp && !installed(it.name, appLabels) }
     }
+
+    private fun installed(name: String, appLabels: () -> List<String>): Boolean =
+        AppMatch.find(name, appLabels(), strict = true) { it } is AppMatch.Found
+
+    /**
+     * Commands that may follow each other without a joining word ("select all copy", "Pause
+     * lauter"): none of them leaves the screen. Back, a scroll or an app next to another word
+     * may be one phrase ("scroll back up", "zurück zum Anfang") and needs "und" or "dann".
+     */
+    private fun cuttable(command: Command): Boolean =
+        command is Command.Edit || command is Command.Media || command is Command.Volume || command is Command.Torch
+
+    /** "Nach unten" after a scroll, page or swipe, "zweimal" after any command: words that only finish the one before. */
+    private fun continues(piece: List<String>, previous: Command): Boolean {
+        val reading = read(piece.joinToString(" "))
+        if (reading.words.isEmpty()) return reading.times != null
+        val motion = previous is Command.Scroll || previous is Command.ScrollToEnd || previous is Command.Page || previous is Command.Swipe
+        return motion && reading.times == null && reading.words.any { it in DIRECTIONS || it in ENDS } &&
+            reading.words.all { it in DIRECTIONS || it in ENDS || it in END_WORDS || it in MOTION_EXTRAS }
+    }
+
+    /** A cut or a paste: after "alles markieren" it empties or replaces the whole field. */
+    private fun replaces(command: Command): Boolean =
+        command is Command.Edit && (command.edit == TextEdit.CUT || command.edit == TextEdit.PASTE)
 
     /**
      * "Hoch und runter", "lauter und leiser", "Taschenlampe an und aus": the second of two steps
@@ -245,14 +331,15 @@ object VoiceCommands : CommandParser {
      * What the rules made of [heard], line by line, for Diagnostics: the folded text, the count,
      * the words left without fillers, politeness and Amber's name, then the command - or, when
      * there is none, the most specific reason the rules can tell. Several commands show each
-     * part ("part 2: “kopieren” → Edit COPY") and, when they fail, the part that is none and
-     * why. The same reading as [parse].
+     * part ("part 2: “kopieren” → Edit COPY") and, when they fail, the part that is none, or
+     * why they do not go together. The same reading as [parse].
      */
     fun explain(heard: String, appLabels: () -> List<String> = { emptyList() }): List<String> {
         val reading = read(heard)
         val command = command(reading, appLabels)
-        val combo = combo(heard)
-        val commands = decide(command, combo)
+        val combo = combo(heard, appLabels)
+        val decision = decide(command, combo)
+        val commands = decision.commands
         return buildList {
             add("normalized: \"${reading.normalized}\"")
             reading.times?.let { times ->
@@ -261,11 +348,11 @@ object VoiceCommands : CommandParser {
             add("words: " + reading.words.joinToString(" ").ifEmpty { "(none)" })
             val parts = combo.parts.mapIndexed { i, part -> "part ${i + 1}: “${part.words.joinToString(" ")}” → ${describe(part.command)}" }
             when {
-                commands != null && commands.size > 1 -> {
+                commands != null && decision.split -> {
                     addAll(parts)
                     add("understood: ${describe(commands)}")
                 }
-                command != null -> add(
+                command != null && commands != null -> add(
                     when {
                         rule(reading.words) != null -> "understood: ${describe(command)}"
                         bareApp(reading.words, appLabels) != null -> "understood: ${describe(command)} (a bare name: an installed app)"
@@ -276,8 +363,8 @@ object VoiceCommands : CommandParser {
                 else -> {
                     val split = splitReason(combo, appLabels)
                     if (combo.intended && split != null) {
-                        // Said as several: the part that is none is the reason.
-                        add("as one command: ${reason(reading, appLabels)}")
+                        // Said as several: the part that is none, or why they do not go together, is the reason.
+                        add("as one command: " + (command?.let { "would be ${describe(it)}" } ?: reason(reading, appLabels)))
                         addAll(parts)
                         add("not understood: $split")
                     } else {
@@ -296,24 +383,40 @@ object VoiceCommands : CommandParser {
     /** Why [combo] is not several commands, or null when it is. */
     private fun splitReason(combo: Combo, appLabels: () -> List<String>): String? {
         val parts = combo.parts
-        val stuck = combo.stuck
         val undone = combo.undoneAt
-        return when {
-            stuck != null -> {
-                val words = stuck.joinToString(" ")
-                val reading = read(words)
-                val app = if (reading.times != null || reading.words.isEmpty()) null
-                else (bareApp(reading.words, appLabels) ?: misheardOpen(reading.words, appLabels)) as? Command.OpenApp
-                if (app != null) "“$words” alone opens an app only when it is all that was said - among several commands say “öffne ${app.name}”"
-                else "“$words” is no command: ${reason(reading, appLabels)}"
+        val replaced = combo.replacedAt
+        fun said(part: Part) = "“${part.words.joinToString(" ")}”"
+        return when (val broken = combo.broken) {
+            is Break.Stuck -> stuckReason(broken.words, appLabels)
+            is Break.Unjoined -> "${said(broken.first)} and ${said(broken.second)} without a joining word: only text, media, volume and " +
+                "flashlight commands are told apart so - say “und” or “dann” between them"
+            is Break.LooseCount -> "a count between ${said(broken.first)} and ${said(broken.second)} without a joining word could " +
+                "belong to either - say “und” or “dann” between them"
+            null -> when {
+                combo.tooMany -> "more than $MAX_STEPS commands - at most $MAX_STEPS in one go"
+                undone != null -> "${describe(parts[undone - 1].command)}, then ${describe(parts[undone].command)}: the two undo each other - " +
+                    "taken for a turn of phrase like “hoch und runter”, not two commands"
+                replaced != null -> "${describe(SELECT_ALL)}, then ${describe(parts[replaced].command)}: Amber does not empty or replace a " +
+                    "whole field in one go - say them one at a time"
+                combo.said < 2 -> "only one command (${parts.singleOrNull()?.let { describe(it.command) } ?: "none"}), and a joining word " +
+                    "with no second command - say both, or the one alone"
+                else -> null
             }
-            parts.size > MAX_STEPS -> "${parts.size} commands - at most $MAX_STEPS in one go"
-            undone != null -> "${describe(parts[undone - 1].command)}, then ${describe(parts[undone].command)}: the two undo each other - " +
-                "taken for a turn of phrase like “hoch und runter”, not two commands"
-            parts.size < 2 -> "only one command (${parts.singleOrNull()?.let { describe(it.command) } ?: "none"}), and a joining word " +
-                "with no second command - say both, or the one alone"
-            else -> null
         }
+    }
+
+    /** Why no command starts at [words], one of several. */
+    private fun stuckReason(words: List<String>, appLabels: () -> List<String>): String {
+        val text = words.joinToString(" ")
+        val reading = read(text)
+        val times = reading.times
+        if (reading.words.isNotEmpty() && (times == null || times >= 1) && rule(reading.words)?.repeated(times) is Command.OpenApp) {
+            return "“$text” opens no installed app: among several commands an app opens only by its exact name or the unique start of one"
+        }
+        val app = if (times != null || reading.words.isEmpty()) null
+        else (bareApp(reading.words, appLabels) ?: misheardOpen(reading.words, appLabels)) as? Command.OpenApp
+        return if (app != null) "“$text” alone opens an app only when it is all that was said - among several commands say “öffne ${app.name}”"
+        else "“$text” is no command: ${reason(reading, appLabels)}"
     }
 
     /** A command with its parameters, for Diagnostics: `Scroll DOWN ×10`, `OpenApp "whatsapp"`. */
@@ -639,7 +742,7 @@ object VoiceCommands : CommandParser {
         "ende" to Direction.DOWN, "end" to Direction.DOWN, "bottom" to Direction.DOWN,
         "anfang" to Direction.UP, "beginning" to Direction.UP, "top" to Direction.UP,
     )
-    private val END_WORDS = setOf("ganz", "bis", "zum", "zur", "ans", "an", "den", "das", "to", "the", "all", "way", "back", "very")
+    private val END_WORDS = setOf("ganz", "bis", "zum", "zur", "ans", "an", "den", "das", "to", "the", "all", "way", "back", "zuruck", "very")
 
     private val PAGES = setOf("seite", "seiten", "page", "pages")
     private val PAGE_WAYS = mapOf(
@@ -649,20 +752,26 @@ object VoiceCommands : CommandParser {
     )
     private val PAGE_EXTRAS = setOf("ein", "eine", "einen", "die", "the", "a", "one", "nach")
 
-    /** Bare directions scroll ("runter", "nach oben"); a scroll without one goes down ("scroll weiter"). */
+    /**
+     * Bare directions scroll ("runter", "nach oben"); a scroll without one goes down ("scroll
+     * weiter"). "Zurück" or "back" with a way to scroll is part of the scroll, not Back: "scroll
+     * back up", "zurück nach oben" scroll that way, "zurück zum Anfang" to that end, and a scroll
+     * word with only "zurück" goes back up ("zurück blättern").
+     */
     private fun motion(words: List<String>): Command? {
         if (words.any { it in PAGES }) return page(words)
         if (words.any { it in ENDS || it == "ganz" } || ("all" in words && "way" in words)) return toEnd(words)
         val scroll = words.any { it in SCROLL_VERBS }
         val swipe = words.any { it in SWIPE_VERBS }
-        if (scroll && swipe) return null
+        val back = words.any { it in RETURN_LEADS }
+        if (scroll && swipe || back && swipe) return null
         val directions = words.mapNotNull { DIRECTIONS[it] }.distinct()
         if (directions.size > 1) return null
-        if (!words.all { it in SCROLL_VERBS || it in SWIPE_VERBS || it in DIRECTIONS || it in MOTION_EXTRAS }) return null
+        if (!words.all { it in SCROLL_VERBS || it in SWIPE_VERBS || it in DIRECTIONS || it in MOTION_EXTRAS || it in RETURN_LEADS }) return null
         val direction = directions.singleOrNull()
         return when {
             swipe -> direction?.let { Command.Swipe(it) }
-            scroll -> Command.Scroll(direction ?: Direction.DOWN)
+            scroll -> Command.Scroll(direction ?: if (back) Direction.UP else Direction.DOWN)
             else -> direction?.let { Command.Scroll(it) }
         }
     }

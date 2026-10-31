@@ -336,7 +336,47 @@ class VoiceCommandsCorpusTest {
         "Homepage." to home,
     )
 
-    private val corpus = v1Misses + navigate + openApps + scrolling + media + system + text + polite + probed + misheard
+    /**
+     * "Zurück" or "back" with a way to scroll is part of the scroll (review of the combos,
+     * 2026-10-31): a direction scrolls once, an end scrolls to it, a scroll word alone goes back
+     * up. Never Back, then a scroll - that would leave the screen.
+     */
+    private val backScrolls: List<Pair<String, Command>> = listOf(
+        "Scroll back up" to up,
+        "Go back up" to up,
+        "Back up" to up,
+        "Go back down" to down,
+        "Zurück nach oben" to up,
+        "Geh zurück nach oben" to up,
+        "Zurück nach unten" to down,
+        "Zurück zum Anfang" to Command.ScrollToEnd(Direction.UP),
+        "Zurück an den Anfang" to Command.ScrollToEnd(Direction.UP),
+        "Zurück zum Ende" to Command.ScrollToEnd(Direction.DOWN),
+        "Zurück blättern" to up,
+        "Scroll zurück" to up,
+        "Scroll back" to up,
+        "Zurückscrollen" to up,
+        "Zurück zweimal runter" to scroll(Direction.DOWN, 2),
+    )
+
+    /**
+     * A comma or "und" inside what is one command does not make it two (review of the combos):
+     * the same command again is said once more, not run twice; a direction or a count alone
+     * goes with the command before it.
+     */
+    private val saidAgain: List<Pair<String, Command>> = listOf(
+        "Zurück zurück" to back,
+        "Zurück, zurück" to back,
+        "Zurück und zurück" to back,
+        "Lauter, lauter" to volume(VolumeChange.LOUDER),
+        "Runter, runter" to down,
+        "Scroll, nach unten." to down,
+        "Scroll, nach oben." to up,
+        "Wisch nach links, nach links" to swipe(Direction.LEFT),
+        "Zurück, zweimal" to nav(GlobalAction.BACK, 2),
+    )
+
+    private val corpus = v1Misses + navigate + openApps + scrolling + media + system + text + polite + probed + misheard + backScrolls + saidAgain
 
     /** Ordinary sentences, and what Amber must never do: send, pay, confirm, empty a field. */
     private val notCommands = listOf(
@@ -392,8 +432,27 @@ class VoiceCommandsCorpusTest {
         // A joining word with only one command around it: the rest of what was meant is missing.
         "Zurück und",
         "Und dann zurück",
-        // More than five in one go.
+        // More than five in one go - also when one command would read them all.
         "Zurück, runter, zurück, runter, zurück, runter",
+        "Zurück, zurück, zurück, zurück, zurück, zurück",
+        // Without a joining word only commands that stay on the screen are cut apart: never Back,
+        // a scroll or an app between them, and no count between two.
+        "Go back to the previous page",
+        "Zurück zur nächsten Seite",
+        "Zurück zum vorigen Lied",
+        "Stop scroll",
+        "Startbildschirm zweimal runter",
+        "Zurück kopieren",
+        "Startbildschirm öffne Spotify",
+        "Lauter zweimal kopieren",
+        // Among several, an app opens only by an installed app's exact name or the unique start of one.
+        "Open the door and then go back",
+        "Zurück und dann öffne Kalender",
+        // Select all, then cut or paste: the whole field emptied or replaced in one go.
+        "Markier alles und schneide es aus",
+        "Alles markieren und einfügen",
+        "Select all, then paste",
+        "Alles markieren, kopieren und einfügen",
     )
 
     /** Several commands in one go, each with its own count, in the order said. */
@@ -405,11 +464,10 @@ class VoiceCommandsCorpusTest {
         "Alles markieren. Kopieren." to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
         "Select all, then copy" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
         "Select all and then copy." to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
-        "Markier alles und schneide es aus" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.CUT)),
         "Zweimal zurück und dann öffne WhatsApp" to listOf(nav(GlobalAction.BACK, 2), app("whatsapp")),
         "Zurück und dann dreimal runter" to listOf(back, scroll(Direction.DOWN, 3)),
         "Scroll down twice and then go back" to listOf(scroll(Direction.DOWN, 2), back),
-        "Go back twice, then open Maps" to listOf(nav(GlobalAction.BACK, 2), app("maps")),
+        "Go back twice, then open Google Maps" to listOf(nav(GlobalAction.BACK, 2), app("google maps")),
         "Startbildschirm, danach öffne Spotify" to listOf(home, app("spotify")),
         "Öffne WhatsApp und anschließend ganz nach unten" to listOf(app("whatsapp"), Command.ScrollToEnd(Direction.DOWN)),
         "Go home after that open Chrome" to listOf(home, app("chrome")),
@@ -419,7 +477,11 @@ class VoiceCommandsCorpusTest {
         "Kannst du alles markieren und kopieren?" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
         "Lösche zwei Wörter und neue Zeile" to listOf(edit(TextEdit.DELETE_WORD, 2), edit(TextEdit.NEW_LINE)),
         "Taschenlampe an und dann Startbildschirm" to listOf(Command.Torch(true), home),
-        "Zurück, zurück, runter, runter, Startbildschirm" to listOf(back, back, down, down, home),
+        "Zurück, runter, zurück, runter, Startbildschirm" to listOf(back, down, back, down, home),
+        "Zweimal lauter kopieren" to listOf(volume(VolumeChange.LOUDER, 2), edit(TextEdit.COPY)),
+        "Pause lauter" to listOf(Command.Media(MediaKey.PAUSE), volume(VolumeChange.LOUDER)),
+        "Select all, copy and then new line" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY), edit(TextEdit.NEW_LINE)),
+        "Zurück, runter" to listOf(back, down),
         // A command that would read the rest as an app's name: the joining word ends the name.
         "Öffne WhatsApp und dann zurück" to listOf(app("whatsapp"), back),
         "Zurück und dann WhatsApp öffnen" to listOf(back, app("whatsapp")),

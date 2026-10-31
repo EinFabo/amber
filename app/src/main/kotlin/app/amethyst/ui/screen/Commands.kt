@@ -78,8 +78,11 @@ fun VoiceCommandsScreen(
                 "Add a number for more - “zehnmal runter”, “swipe 5 times left” - up to 20. " +
                 "“Ganz nach unten” scrolls until nothing moves.\n\n" +
                 "Up to five commands fit in one go - “alles markieren und kopieren”, “zweimal zurück, dann öffne " +
-                "WhatsApp” - and run in that order; the first that cannot be done stops the rest. Among several, an " +
-                "app needs “öffne” or “open” before its name.",
+                "WhatsApp” - and run in that order; the first that cannot be done stops the rest. Put “und” or " +
+                "“dann” between them: only text, media, volume and flashlight commands go without (“select all " +
+                "copy”). Among several, an app needs “öffne” or “open” and its name as installed; the same command " +
+                "twice runs once. “Alles markieren” is never followed by cut or paste in one go - Amber does not " +
+                "empty or replace a whole field at once.",
         )
 
         SettingsGroup("What you can say", note = "German and English both work.") {

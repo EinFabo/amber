@@ -32,9 +32,6 @@ object CommandChain {
     class Run(
         /** In words for the user: what each step did, or which one was not done and why. */
         val outcome: CommandOutcome,
-        val steps: Int,
-        /** The step (from 1) that was not done, or null when every one was. */
-        val stoppedAt: Int?,
         /** The Diagnostics line that ends the trace: "outcome: failed at step 2/3 (Edit COPY)". */
         val line: String,
     )
@@ -53,7 +50,7 @@ object CommandChain {
         val n = commands.size
         if (n == 1) {
             val outcome = execute(commands.single())
-            return Run(outcome, 1, stoppedAt = if (outcome is CommandOutcome.Done) null else 1, line = "outcome: ${word(outcome)}")
+            return Run(outcome, line = "outcome: ${word(outcome)}")
         }
         val done = mutableListOf<String>()
         for ((i, command) in commands.withIndex()) {
@@ -70,9 +67,9 @@ object CommandChain {
                 is CommandOutcome.Refused -> CommandOutcome.Refused(message)
                 else -> CommandOutcome.Failed(message)
             }
-            return Run(stopped, n, stoppedAt = i + 1, line = "outcome: ${word(outcome)} at step ${i + 1}/$n (${VoiceCommands.describe(command)})")
+            return Run(stopped, line = "outcome: ${word(outcome)} at step ${i + 1}/$n (${VoiceCommands.describe(command)})")
         }
-        return Run(CommandOutcome.Done(joined(done)), n, stoppedAt = null, line = "outcome: done, all $n steps")
+        return Run(CommandOutcome.Done(joined(done)), line = "outcome: done, all $n steps")
     }
 
     private fun word(outcome: CommandOutcome): String = when (outcome) {

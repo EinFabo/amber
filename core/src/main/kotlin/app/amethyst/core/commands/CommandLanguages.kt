@@ -51,22 +51,33 @@ object CommandLanguages {
         WhisperInput.languageCodes(language).singleOrNull()?.let(PROMPTS::get)
 
     /**
-     * Whether [heard] is only [prompt] read back - Whisper's known answer to audio it hears
-     * nothing in: two or more of the prompt's phrases in its order. One phrase alone is what
-     * the user may well have said ("Zurück"), and so is part of one ("WhatsApp").
+     * Whether [heard] holds [prompt] read back - Whisper's known answer to audio it hears
+     * nothing in, and what bleeds into the words it does hear: all of it a run of the prompt
+     * across two of its phrases, or anywhere in it two or more whole phrases one right after the
+     * other in the prompt's order, some left out between them or not ("Kopieren. Zurück.
+     * Lauter."). Several commands run in one go now, so that must never run them. One phrase
+     * alone is what the user may well have said ("Zurück"), and so is part of one ("WhatsApp");
+     * with "und" between them, or the other way round, they were said.
      */
     fun isEcho(heard: String, prompt: String?): Boolean {
         if (prompt == null) return false
         val words = VoiceCommands.normalize(heard).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty()) return false
+        val phrases = prompt.split('.').map(VoiceCommands::normalize).filter { it.isNotEmpty() }.map { it.split(' ') }
         // Each word of the prompt with the number of the phrase it belongs to.
-        val promptWords = prompt.split('.').map(VoiceCommands::normalize).filter { it.isNotEmpty() }
-            .flatMapIndexed { phrase, text -> text.split(' ').map { it to phrase } }
-        return (0..promptWords.size - words.size).any { start ->
+        val promptWords = phrases.flatMapIndexed { phrase, text -> text.map { it to phrase } }
+        val whole = (0..promptWords.size - words.size).any { start ->
             val run = promptWords.subList(start, start + words.size)
             run.map { it.first } == words && run.first().second != run.last().second
         }
+        return whole || words.indices.any { start -> phrasesInOrder(words, start, phrases, after = -1) >= 2 }
     }
+
+    /** How many whole [phrases] follow each other in [words] from [at] on, each later in the prompt than the one before. */
+    private fun phrasesInOrder(words: List<String>, at: Int, phrases: List<List<String>>, after: Int): Int =
+        phrases.withIndex()
+            .filter { (i, phrase) -> i > after && words.size - at >= phrase.size && words.subList(at, at + phrase.size) == phrase }
+            .maxOfOrNull { (i, phrase) -> 1 + phrasesInOrder(words, at + phrase.size, phrases, i) } ?: 0
 
     /** What came of a command's recognition. */
     class Recognition(
