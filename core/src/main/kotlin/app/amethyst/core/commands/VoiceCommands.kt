@@ -9,7 +9,8 @@ import java.text.Normalizer
  * punctuation, fillers, "bitte", a leading "Amber"), so "Öffne WhatsApp!" and "offne whatsapp"
  * are the same command. A count ("zehnmal runter") is taken out before the rules, compound
  * words ("runterscrollen") are split, and every rule wants all the words it is given: a
- * sentence with one word it does not know is not a command.
+ * sentence with one word it does not know is not a command - save a single unknown word right
+ * before an installed app's exact name, taken for a misheard "öffne" ("Erfner WhatsApp").
  *
  * Nothing that sends, pays, confirms, deletes items or empties a field has a phrase here.
  */
@@ -84,7 +85,7 @@ object VoiceCommands : CommandParser {
         val (times, words) = reading.times to reading.words
         if (words.isEmpty() || (times != null && times < 1)) return null
         // A bare name with a count ("zweimal WhatsApp") is not an app being opened.
-        return (rule(words) ?: if (times == null) bareApp(words, appLabels) else null)?.repeated(times)
+        return (rule(words) ?: if (times == null) bareApp(words, appLabels) ?: misheardOpen(words, appLabels) else null)?.repeated(times)
     }
 
     // ---- Explaining, for Diagnostics ----
@@ -106,8 +107,10 @@ object VoiceCommands : CommandParser {
             add(
                 when {
                     command == null -> "not understood: ${reason(reading, appLabels)}"
-                    rule(reading.words) == null -> "understood: ${describe(command)} (a bare name: an installed app)"
-                    else -> "understood: ${describe(command)}"
+                    rule(reading.words) != null -> "understood: ${describe(command)}"
+                    bareApp(reading.words, appLabels) != null -> "understood: ${describe(command)} (a bare name: an installed app)"
+                    else -> "understood: ${describe(command)} (“${reading.words.first()}” taken for a misheard “öffne”: " +
+                        "an installed app's exact name follows)"
                 },
             )
         }
@@ -160,8 +163,9 @@ object VoiceCommands : CommandParser {
                 return "${describe(it)} does not repeat - a count works with back, scroll, page, swipe, louder, quieter and deleting words"
             }
             if (bareApp(words, appLabels) != null) return "a bare app name with a count is not opened - say “öffne …” without the count"
+            if (misheardOpen(words, appLabels) != null) return "an app with a count is not opened - say “öffne …” without the count"
         }
-        return motionReason(words) ?: openReason(words) ?: bareReason(words, appLabels) ?: "no rule matches"
+        return motionReason(words) ?: openReason(words) ?: misheardReason(words, appLabels) ?: bareReason(words, appLabels) ?: "no rule matches"
     }
 
     /** A count that cannot be read ("dreißigmal"), or a number said without "mal" ("zehn runter"). */
@@ -218,6 +222,30 @@ object VoiceCommands : CommandParser {
             else -> return null
         }
         return if (appName(name) == null) "“$verb” without an app name" else null
+    }
+
+    /**
+     * A phrase that ends in an installed app's name but is no misheard "öffne" ([misheardOpen]):
+     * more than one word before the name, a word the rules know, or only the start of a name.
+     */
+    private fun misheardReason(words: List<String>, appLabels: () -> List<String>): String? {
+        if (words.size < 2) return null
+        val labels = appLabels()
+        if (labels.isEmpty()) return null
+        // The longest end of the phrase that is an app's exact name, with words before it.
+        for (cut in 1 until words.size) {
+            val name = appName(words.drop(cut))?.takeIf { words.size - cut <= MAX_NAME_WORDS } ?: continue
+            if (exactApp(name, labels) == null) continue
+            val before = words.take(cut)
+            return when {
+                before.size > 1 -> "“${before.joinToString(" ")}” before “$name”: only one unknown word before an app's exact name " +
+                    "is taken for a misheard “öffne”"
+                else -> "“${before.single()}” is a word the rules know, so it is not taken for a misheard “öffne” before “$name”"
+            }
+        }
+        val rest = appName(words.drop(1))?.takeIf { words.size - 1 <= MAX_NAME_WORDS } ?: return null
+        if (isKnown(words.first()) || AppMatch.find(rest, labels, strict = true) { it } !is AppMatch.Found) return null
+        return "“$rest” is only the start of an app's name - a misheard “öffne” is only assumed before an app's exact name"
     }
 
     /** A short phrase that might have been an app's name, and why it is none. */
@@ -318,7 +346,7 @@ object VoiceCommands : CommandParser {
         put(
             GlobalAction.HOME,
             "startbildschirm", "start bildschirm", "startseite", "homebildschirm", "home bildschirm", "hauptbildschirm",
-            "homescreen", "home screen", "home",
+            "homescreen", "home screen", "home", "homepage", "home page",
         )
         put(
             GlobalAction.RECENTS,
@@ -573,13 +601,16 @@ object VoiceCommands : CommandParser {
         return edit?.let { Command.Edit(it) }
     }
 
-    /** "Kopieren", "schneide das aus", "füge ein", "paste it" - the object words already gone. */
-    private fun clipboard(words: List<String>): TextEdit? = when (words.toSet()) {
-        setOf("kopieren"), setOf("kopiere"), setOf("kopier"), setOf("copy") -> TextEdit.COPY
-        setOf("ausschneiden"), setOf("schneide", "aus"), setOf("schneid", "aus"), setOf("cut") -> TextEdit.CUT
-        setOf("einfugen"), setOf("einfuegen"), setOf("fuge", "ein"), setOf("fug", "ein"), setOf("fuege", "ein"), setOf("paste") -> TextEdit.PASTE
-        else -> null
+    /** "Kopieren", "schneide das aus", "füge ein", "paste it": the words of each, in any order. */
+    private val CLIPBOARD: Map<Set<String>, TextEdit> = buildMap {
+        fun put(edit: TextEdit, vararg phrases: String) = phrases.forEach { put(it.split(' ').toSet(), edit) }
+        put(TextEdit.COPY, "kopieren", "kopiere", "kopier", "copy")
+        put(TextEdit.CUT, "ausschneiden", "schneide aus", "schneid aus", "cut")
+        put(TextEdit.PASTE, "einfugen", "einfuegen", "fuge ein", "fug ein", "fuege ein", "paste")
     }
+
+    /** The object words already gone. */
+    private fun clipboard(words: List<String>): TextEdit? = CLIPBOARD[words.toSet()]
 
     // ---- Apps ----
 
@@ -611,6 +642,41 @@ object VoiceCommands : CommandParser {
         val name = appName(rest)?.takeIf { rest.size <= MAX_NAME_WORDS } ?: return null
         return Command.OpenApp(name).takeIf { AppMatch.find(name, appLabels(), strict = true) { it } is AppMatch.Found }
     }
+
+    /**
+     * "Erfner WhatsApp": one word no rule knows, then an installed app's exact name - an "öffne"
+     * or "open" the speech engine misheard. Only one word, only an unknown one, and only before
+     * the exact name: "Ich habe kein WhatsApp", "Kein WhatsApp" and "Erfner Whats" open nothing.
+     */
+    private fun misheardOpen(words: List<String>, appLabels: () -> List<String>): Command? {
+        if (words.size < 2 || isKnown(words.first())) return null
+        val name = appName(words.drop(1))?.takeIf { words.size - 1 <= MAX_NAME_WORDS } ?: return null
+        return exactApp(name, appLabels())?.let { Command.OpenApp(name) }
+    }
+
+    /** The one installed app [name] is the exact name of (case and marks aside), else null. */
+    private fun exactApp(name: String, labels: List<String>): String? =
+        (AppMatch.find(name, labels, strict = true) { it } as? AppMatch.Found)?.app
+            ?.takeIf { AppMatch.tier(name, it) == AppMatch.Tier.EXACT }
+
+    /** "Kein WhatsApp", "nicht Spotify": never taken for a misheard "öffne". */
+    private val NEGATIONS = setOf(
+        "kein", "keine", "keinen", "keiner", "nicht", "nie", "niemals", "ohne", "no", "not", "never", "without", "dont", "doesnt",
+        "cant", "wont",
+    )
+
+    /** Every word some rule takes, and negations. Lazy: the word lists stand all over this file. */
+    private val KNOWN_WORDS: Set<String> by lazy {
+        listOf(
+            LEAD_VERBS, TRAIL_VERBS, ARTICLES, RETURN_LEADS, CLOSE_LEADS, CLOSE_TRAILS, NOUNS.keys, LOCK_VERBS, LOCK_OBJECTS,
+            MOTION_WORDS, VOLUME_NOUNS, SONG_NOUNS, MEDIA_FILLERS, LOUDER, QUIETER, RAISE, LOWER, MUTE, ON, OFF, PAUSE, PLAY_PARTS,
+            NEXT, SKIP, PREVIOUS, TORCHES, SWITCH_FILLERS, PAGE_NAMES.keys, PAGE_TOPICS.keys, SETTINGS, SETTINGS_FILLERS,
+            DELETE_VERBS, WORDS, DELETE_EXTRAS, ALL, SELECT_VERBS, OBJECT_WORDS, NEW_LINES, CLIPBOARD.keys.flatten(), APP_LEADS, APP_TRAILS,
+            BARE_LEADS, NEGATIONS, setOf("app", "turn", "unmute", "stummschaltung", "aufheben", "schalten", "ein"),
+        ).flatten().flatMap { it.split(' ') }.toSet()
+    }
+
+    private fun isKnown(word: String): Boolean = word in KNOWN_WORDS || Repeats.number(word) != null || Repeats.unreadable(word)
 
     /** Without articles in front and the word "app" around it: "die App WhatsApp", "the Gmail app". */
     private fun appName(words: List<String>): String? {

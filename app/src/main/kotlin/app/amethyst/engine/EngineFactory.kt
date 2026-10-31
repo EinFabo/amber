@@ -70,6 +70,7 @@ class EngineFactory(
                             chunkable = false,
                             typicalRate = 0.08,
                             overheadMs = 900,
+                            commandLanguageAttempts = OpenAiCompatibleEngine.COMMAND_LANGUAGE_ATTEMPTS,
                         ),
                         // A host Amber can verify gets the verifier, and the engine then
                         // sends only over a connection bound to the attested key. Any other

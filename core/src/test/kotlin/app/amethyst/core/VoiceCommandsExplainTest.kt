@@ -69,6 +69,33 @@ class VoiceCommandsExplainTest {
     }
 
     @Test
+    fun `a misheard open says which word was taken for it`() {
+        assertEquals(
+            "understood: OpenApp \"whatsapp\" (“erfner” taken for a misheard “öffne”: an installed app's exact name follows)",
+            verdict("Erfner WhatsApp."),
+        )
+        assertEquals("understood: Navigate HOME", verdict("Homepage"))
+    }
+
+    @Test
+    fun `an app name after more than one word, a known word or a count is not opened`() {
+        val sentence = reason("Ich habe kein WhatsApp")
+        assertContains(sentence, "“ich habe kein” before “whatsapp”")
+        assertContains(sentence, "only one unknown word")
+        val known = reason("Kein WhatsApp")
+        assertContains(known, "“kein” is a word the rules know")
+        assertContains(known, "misheard “öffne”")
+        assertContains(reason("Zweimal Erfner WhatsApp"), "with a count")
+    }
+
+    @Test
+    fun `a misheard open before only the start of a name says the name must be exact`() {
+        val start = reason("Erfner Whats")
+        assertContains(start, "“whats” is only the start of an app's name")
+        assertContains(start, "exact name")
+    }
+
+    @Test
     fun `each kind of command reads with its parameters`() {
         assertEquals("Navigate BACK ×2", VoiceCommands.describe(Command.Navigate(GlobalAction.BACK, 2)))
         assertEquals("ScrollToEnd UP", VoiceCommands.describe(Command.ScrollToEnd(Direction.UP)))
@@ -169,6 +196,8 @@ class VoiceCommandsExplainTest {
             "Zurück", "zweimal zurück", "Öffne WhatsApp", "WhatsApp", "Tele", "Kalender", "zehnmal runter", "ganz nach unten",
             "nächste Seite", "wisch nach links", "lauter", "dreimal leiser", "Pause", "Taschenlampe an", "WLAN", "lösche 3 Wörter",
             "alles markieren", "neue Zeile", "Äh", "Ich bin gleich zu Hause", "Zweimal Startbildschirm", "", "öffne",
+            "Erfner WhatsApp", "Öffner WhatsApp", "Ich habe kein WhatsApp", "Kein WhatsApp", "Erfner Whats", "Homepage",
+            "Home page", "Zweimal Erfner WhatsApp",
         ).forEach { heard ->
             val last = verdict(heard)
             when (val understanding = VoiceCommands.parse(heard) { apps }) {

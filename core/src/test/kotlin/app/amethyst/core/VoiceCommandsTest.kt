@@ -27,6 +27,7 @@ class VoiceCommandsTest {
     fun `home`() = assertCommand(
         Command.Navigate(GlobalAction.HOME),
         "Startbildschirm", "Geh zum Startbildschirm", "Home", "Go home", "Go to the home screen", "Startseite",
+        "Homepage", "Homepage.", "Home page", "Zur Homepage",
     )
 
     @Test
@@ -65,6 +66,35 @@ class VoiceCommandsTest {
         assertCommand(Command.OpenApp("whatsapp"), "Öffne WhatsApp", "WhatsApp öffnen", "Open WhatsApp.", "Starte WhatsApp", "Launch WhatsApp")
         assertCommand(Command.OpenApp("google maps"), "Öffne Google Maps", "Mach Google Maps auf", "open the Google Maps app")
         assertCommand(Command.OpenApp("whatsapp"), "Öffne die App WhatsApp", "oeffne whatsapp", "offne whatsapp")
+    }
+
+    private val apps = listOf("WhatsApp", "Google Maps", "Spotify", "Telegram", "Telefon")
+
+    @Test
+    fun `one unknown word before an installed app's exact name is a misheard open`() {
+        listOf("Erfner WhatsApp.", "Öffner WhatsApp", "Erfner die App WhatsApp", "Erfner Google Maps", "Uff Spotify").forEach { heard ->
+            val expected = if ("Maps" in heard) "google maps" else if ("Spotify" in heard) "spotify" else "whatsapp"
+            assertEquals(Understanding.Understood(Command.OpenApp(expected)), VoiceCommands.parse(heard) { apps }, "\"$heard\"")
+        }
+    }
+
+    @Test
+    fun `a sentence, a known word, a count or a partial name before an app is no misheard open`() {
+        listOf(
+            "Ich habe kein WhatsApp",
+            "Ich habe WhatsApp",
+            "Kein WhatsApp",
+            "Nicht WhatsApp",
+            "Lauter WhatsApp",
+            "Schließ WhatsApp",
+            "Lösche WhatsApp",
+            "Zweimal Erfner WhatsApp",
+            "Erfner Whats",
+            "Erfner WhatsAp",
+            "Erfner Maps",
+            "Erfner Tele",
+        ).forEach { assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it) { apps }, "\"$it\"") }
+        assertIs<Understanding.NotUnderstood>(VoiceCommands.parse("Erfner WhatsApp"), "no apps known, nothing to open")
     }
 
     @Test

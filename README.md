@@ -54,10 +54,12 @@ Controls:
   command that is still running. Settings pages only open; it never switches Wi-Fi or
   Bluetooth, never taps buttons or confirms dialogs - but a swipe does what your own swipe would
   do in that app (in a mail list it may archive a mail). Switched off, Amber never acts for
-  you. Diagnostics keep each command: what was heard, what the rules made of it, every step and
-  why it failed or stopped - "Copy" gives that as text to paste into a chat. Android 17's
-  Advanced Protection takes the accessibility service - bubble and commands - away from every
-  app that is not an accessibility tool, Amber included.
+  you. A command is too short for Whisper to guess its language, so it is heard in one language
+  at a time - the phone's first. Diagnostics keep each command: what was heard in each language
+  tried, what the rules made of it, every step and why it failed or stopped - "Copy" gives that
+  as text to paste into a chat. Android 17's Advanced Protection takes the accessibility
+  service - bubble and commands - away from every app that is not an accessibility tool, Amber
+  included.
 
 Look: fire, kept minimal. A flat amber disc with one dark glyph - a flame at rest, three level
 bars while listening, with a few sparks rising off the disc as loud as you speak ("Ember").

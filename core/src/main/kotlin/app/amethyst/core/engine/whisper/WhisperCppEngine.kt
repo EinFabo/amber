@@ -72,6 +72,10 @@ class WhisperCppEngine(
         minChunkMs = if (shortContext) SHORT_CONTEXT_MIN_CHUNK_MS else FULL_CONTEXT_MIN_CHUNK_MS,
         typicalRate = typicalRate,
         overheadMs = 150,
+        // A command is heard once per language of the list, never detected: on a second of
+        // audio the detection guesses. A pass needs no detection, so the first is cheaper.
+        commandLanguageAttempts = Int.MAX_VALUE,
+        commandPrompt = true,
     )
 
     override suspend fun warmUp(): Result<Unit> = withContext(compute) {

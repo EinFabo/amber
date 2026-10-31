@@ -99,6 +99,8 @@ class VoiceCommandsCorpusTest {
         "Back to the home screen" to home,
         "Startseite" to home,
         "Homescreen" to home,
+        "Homepage" to home,
+        "Home page." to home,
         "Letzte Apps" to nav(GlobalAction.RECENTS),
         "Zeig die letzten Apps" to nav(GlobalAction.RECENTS),
         "Übersicht" to nav(GlobalAction.RECENTS),
@@ -319,7 +321,18 @@ class VoiceCommandsCorpusTest {
         "Lautstärke erhöhen" to volume(VolumeChange.LOUDER),
     )
 
-    private val corpus = v1Misses + navigate + openApps + scrolling + media + system + text + polite + probed
+    /**
+     * What local Whisper made of German commands on the phone (2026-10-31): a misheard "öffne"
+     * before an exact app name still opens it.
+     */
+    private val misheard: List<Pair<String, Command>> = listOf(
+        "Erfner WhatsApp." to app("whatsapp"),
+        "Öffner WhatsApp" to app("whatsapp"),
+        "Erfner Google Maps." to app("google maps"),
+        "Homepage." to home,
+    )
+
+    private val corpus = v1Misses + navigate + openApps + scrolling + media + system + text + polite + probed + misheard
 
     /** Ordinary sentences, and what Amber must never do: send, pay, confirm, empty a field. */
     private val notCommands = listOf(
@@ -347,6 +360,10 @@ class VoiceCommandsCorpusTest {
         "Seite",
         "Licht an",
         "Bildschirm aus",
+        "Ich habe kein WhatsApp",
+        "Kein WhatsApp",
+        "Erfner Whats",
+        "Homepage schon, oder?",
     )
 
     private fun mismatches(cases: List<Pair<String, Command>>): List<String> = cases.mapNotNull { (heard, expected) ->

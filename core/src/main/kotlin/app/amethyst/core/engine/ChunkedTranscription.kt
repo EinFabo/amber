@@ -4,6 +4,7 @@ import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
@@ -90,6 +91,16 @@ class ChunkedTranscription(
     fun cancel() {
         queue.close()
         worker.cancel()
+    }
+
+    /**
+     * [cancel], and waits until a chunk being recognized has stopped - before the engine gets
+     * other work, e.g. a dictation a double tap turned into a command: an abort meant for the
+     * chunk must not land on the command.
+     */
+    suspend fun cancelAndJoin() {
+        queue.close()
+        worker.cancelAndJoin()
     }
 
     private suspend fun transcribe(chunk: PcmAudio) {

@@ -2,6 +2,7 @@ package app.amethyst.dictation
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -31,6 +32,7 @@ import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.commands.Command
+import app.amethyst.core.commands.CommandLanguages
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.GlobalAction
@@ -145,8 +147,9 @@ class DictationController(
     private var runEngineId: String? = null
 
     /**
-     * The steps of this run's command once its words are there ([runCommand]); null before.
-     * A failure that comes after - the time limit - still shows them.
+     * The steps of this run's command once its recognition began - each language it was heard
+     * in ([recognizeCommand]) - or once its words are there ([runCommand]); null before. A
+     * failure that comes after - the time limit - still shows them.
      */
     @Volatile
     private var commandSteps: CommandTrace? = null
@@ -337,6 +340,7 @@ class DictationController(
         }
 
         val options = TranscribeOptions(languageTag = engineConfig.languageTag)
+        val appLabels = appLabelsOnce()
         if (engine is ParakeetEngine) {
             trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
         }
@@ -352,10 +356,10 @@ class DictationController(
             val finished = withTimeoutOrNull(settings.capture.effectiveTotalTimeoutMs()) {
                 val transcript = when (engine) {
                     is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                    else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}")
+                    else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels)
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
-                if (_mode.value == RunMode.COMMAND) runCommand(transcript) else deliver(cleanUp(transcript), settings, engineConfig.id)
+                if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else deliver(cleanUp(transcript), settings, engineConfig.id)
             }
 
             if (finished == null) {
@@ -423,6 +427,8 @@ class DictationController(
         source: TriggerSource,
         /** Engine and model, for learning how long recognition takes here. */
         estimateKey: String,
+        /** For a command: which language's words the rules understand. */
+        appLabels: () -> List<String>,
     ): Transcript? {
         _state.value = DictationState.Listening()
 
@@ -492,7 +498,13 @@ class DictationController(
 
             is AudioCapture.Outcome.Captured -> {
                 trace?.recordingEnds()
-                val chunking = chunked != null && outcome.chunks > 0
+                // Decided now, not when recording began: a double tap may have turned the
+                // dictation into a command meanwhile. A command is heard whole, a language at
+                // a time, so chunks the dictation began with are dropped - and stopped before
+                // the engine gets the command.
+                val command = _mode.value == RunMode.COMMAND
+                if (command) chunked?.cancelAndJoin()
+                val chunking = !command && chunked != null && outcome.chunks > 0
                 // What is left to recognize after the stop: with chunks, only the unfinished
                 // ones and the tail.
                 val pendingMs = if (chunking) {
@@ -507,14 +519,16 @@ class DictationController(
                 _state.value = DictationState.Transcribing(expectedMs)
                 trace?.transcribingStarts()
                 val startedAt = SystemClock.elapsedRealtime()
-                val result = if (chunking) {
-                    chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
-                } else {
-                    engine.transcribe(outcome.audio, options)
+                var passes = 1
+                val result = when {
+                    chunking -> chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
+                    command -> recognizeCommand(engine, outcome.audio, options, appLabels).also { passes = it.passes }.result
+                    else -> engine.transcribe(outcome.audio, options)
                 }
                 trace?.transcribingEnds()
-                // A cold model's load time would teach the wrong rate.
-                if (result.isSuccess && !coldModel) {
+                // A cold model's load time would teach the wrong rate, and so would a command
+                // heard in several languages.
+                if (result.isSuccess && !coldModel && passes == 1) {
                     graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
                 }
                 if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
@@ -534,6 +548,41 @@ class DictationController(
                 }
             }
         }
+    }
+
+    /**
+     * A command's words: where the engine takes a language per request, heard a language at a
+     * time - the phone's first - until the rules understand them (CommandLanguages). Every pass
+     * goes to Diagnostics as it ends, never to logcat.
+     */
+    private suspend fun recognizeCommand(
+        engine: SttEngine,
+        audio: PcmAudio,
+        options: TranscribeOptions,
+        appLabels: () -> List<String>,
+    ): CommandLanguages.Recognition = CommandLanguages.recognize(
+        engine,
+        audio,
+        options,
+        phoneLanguage = phoneLanguage(),
+        understood = { text -> withContext(Dispatchers.IO) { VoiceCommands.parse(text, appLabels) is Understanding.Understood } },
+        // The trace begins with the first pass: a tap before it still reads "before the command ran".
+        note = { line -> (commandSteps ?: CommandTrace().also { commandSteps = it }).note(line) },
+    )
+
+    /** The language the phone is set to ("de") - not Amber's own, should it have one. */
+    private fun phoneLanguage(): String? =
+        Resources.getSystem().configuration.locales.takeUnless { it.isEmpty }?.get(0)?.language
+
+    /**
+     * The installed apps' launcher labels, for a bare app name: read once per command when the
+     * rules first need them - picking a language, then running the command - and not at all
+     * while commands are off.
+     */
+    private fun appLabelsOnce(): () -> List<String> {
+        val enabled = graph.settings.value.commands.enabled
+        val labels by lazy { if (enabled) Launcher.apps(context).map { it.label } else emptyList() }
+        return { labels }
     }
 
     /**
@@ -629,24 +678,23 @@ class DictationController(
      * not counted in the statistics. Diagnostics get what the rules made of the words and
      * every step the executor took ([CommandTrace]); logcat gets neither.
      */
-    private suspend fun runCommand(transcript: Transcript) {
+    private suspend fun runCommand(transcript: Transcript, appLabels: () -> List<String> = appLabelsOnce()) {
         // After the proxy activity, "back" would close the proxy instead of the user's screen.
         awaitFocusReturn()
-        val steps = CommandTrace().also { commandSteps = it }
+        // Recognition may have begun the trace with the languages the words were heard in.
+        val steps = commandSteps ?: CommandTrace().also { commandSteps = it }
         val heard = transcript.text.trim()
         if (heard.isEmpty()) {
             fail("Nothing heard - say the command again.", transcript.engineId, details = listOf("the engine recognized no words"))
             return
         }
-        // A bare app name ("WhatsApp") is a command only if it names an installed app. The list
-        // is read only when the rules need it - once for the rules and their explanation - and
-        // not at all while commands are off.
+        // A bare app name ("WhatsApp") is a command only if it names an installed app ([appLabels]:
+        // read once, and not while commands are off).
         val enabled = graph.settings.value.commands.enabled
-        val labels by lazy { if (enabled) Launcher.apps(context).map { it.label } else emptyList() }
         // From reading the words to the last step, a tap may stop it: the record then says so.
         val (understanding, outcome) = try {
             val parsed = withContext(Dispatchers.IO) {
-                VoiceCommands.parse(heard) { labels }.also { steps.addAll(VoiceCommands.explain(heard) { labels }) }
+                VoiceCommands.parse(heard, appLabels).also { steps.addAll(VoiceCommands.explain(heard, appLabels)) }
             }
             if (!enabled && parsed is Understanding.NotUnderstood) steps.note("voice commands are off: no app list was read for bare names")
             parsed to when (parsed) {

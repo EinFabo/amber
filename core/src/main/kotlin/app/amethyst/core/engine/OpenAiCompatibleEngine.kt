@@ -39,6 +39,7 @@ class OpenAiCompatibleEngine(
     override val capabilities: EngineCapabilities = EngineCapabilities(
         trustLevel = TrustLevel.CLOUD,
         needsApiKey = true,
+        commandLanguageAttempts = COMMAND_LANGUAGE_ATTEMPTS,
     ),
     private val attestationVerifier: AttestationVerifier? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -174,6 +175,12 @@ class OpenAiCompatibleEngine(
     companion object {
         /** Upload plus recognition: a minute of headroom on top of the audio's own length. */
         fun requestTimeoutMs(audioMs: Long): Long = 60_000 + audioMs
+
+        /**
+         * A voice command's passes, one language each: it takes one code per request, and each
+         * pass is a request (and on some services a charge), so one retry at most.
+         */
+        const val COMMAND_LANGUAGE_ATTEMPTS = 2
 
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"

@@ -10,6 +10,8 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -190,5 +192,35 @@ class ChunkingTest {
         chunked.submit(audio(10))
         val failure = assertIs<SttFailure>(chunked.finish(audio(10), audio(20)).exceptionOrNull())
         assertTrue(failure.nothingRecognized)
+    }
+
+    /** Recognizes nothing; its one call runs until cancelled, then notes that it stopped. */
+    private class EndlessEngine : SttEngine {
+        override val id = "test"
+        override val displayName = "Test"
+        override val capabilities = EngineCapabilities(TrustLevel.ON_DEVICE, chunkable = true)
+        var started = false
+        var stopped = false
+
+        override suspend fun transcribe(audio: PcmAudio, options: TranscribeOptions): Result<Transcript> {
+            started = true
+            try {
+                awaitCancellation()
+            } finally {
+                stopped = true
+            }
+        }
+    }
+
+    @Test
+    fun `a dictation turned into a command waits until the chunk in flight has stopped`() = runTest {
+        val engine = EndlessEngine()
+        val chunked = ChunkedTranscription(engine, TranscribeOptions(), backgroundScope)
+        chunked.submit(audio(10))
+        runCurrent()
+        assertTrue(engine.started)
+
+        chunked.cancelAndJoin()
+        assertTrue(engine.stopped, "the engine is free for the command's own passes")
     }
 }

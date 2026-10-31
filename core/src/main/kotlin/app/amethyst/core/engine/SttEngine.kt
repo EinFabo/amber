@@ -53,6 +53,18 @@ data class EngineCapabilities(
     val typicalRate: Double = 0.15,
     /** Fixed cost per request on top of that: a network round trip, a warm-up. */
     val overheadMs: Long = 200,
+    /**
+     * How many passes a voice command may take, one language each (CommandLanguages): a
+     * command is too short for the engine to detect its language. 1 for an engine that takes no
+     * language per request; on a server every pass is a request, so it gets one retry at most.
+     */
+    val commandLanguageAttempts: Int = 1,
+    /**
+     * A voice command's pass may carry a short command vocabulary as the prompt
+     * ([TranscribeOptions.precedingText]). Not for servers: a model that refuses a prompt costs
+     * a second request.
+     */
+    val commandPrompt: Boolean = false,
 )
 
 data class TranscribeOptions(

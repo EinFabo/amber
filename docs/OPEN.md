@@ -284,12 +284,18 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       the same app in both halves of split screen can take an edit in the other half; small
       copy nits and a false "not taken".
 - [ ] **German voice commands do not work, only English ones** (Fabi, 2026-10-31, 0.21.x debug):
-      both languages must work, whatever the app's or the engine's language. The rules
-      understand German (the corpus test passes), so first look at what the recognizer heard:
-      Diagnostics → Commands → Copy for a failing German command. Suspects: the engine's
-      language (Whisper set to English translates German speech into English, the Android
-      recognizer on en-US, Parakeet's language guess on a two-word command), and how the
-      recognizer writes umlauts and compound words.
+      both languages must work, whatever the app's or the engine's language. Cause, from
+      Diagnostics (local Whisper, "de,en"): Whisper detected one language from about a second
+      of audio, the English "WhatsApp" tipped it to English, and "Öffne WhatsApp" came out as
+      "If now what's up?". Fixed in code, to confirm on the phone: a command is heard one
+      language at a time - the phone's first, then the rest of the list - with a short command
+      vocabulary as the prompt, and the first words the rules understand win
+      (`CommandLanguages`; Diagnostics show "heard as de: …" per pass). A server engine takes one
+      retry at most; Parakeet and the Android recognizer still hear a command once. The rules
+      also take "Homepage" and one unknown word before an app's exact name ("Erfner WhatsApp").
+      Open: does the first pass without detection stay fast on the Pixel, does the prompt help
+      "Öffne", and does a command that falls back from a server to local Whisper need the same
+      (it still detects).
 - [ ] Later: voice commands in more languages (Fabi, 2026-10-31) - German and English for now.
 - [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
       text - its own consent, prompt-injection rules), a model for free phrasing.
