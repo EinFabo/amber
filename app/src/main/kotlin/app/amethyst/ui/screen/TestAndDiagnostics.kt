@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -183,9 +184,12 @@ fun DiagnosticsScreen(
                 },
             ) {
                 shown.forEachIndexed { i, record ->
-                    if (i > 0) RowDivider()
-                    val key = record.atMillis
-                    RecordRow(record, open = key in open) { open = if (key in open) open - key else open + key }
+                    // Keyed by the record, so an entry's fold state stays with it as new ones arrive on top.
+                    key(record.atMillis) {
+                        if (i > 0) RowDivider()
+                        val at = record.atMillis
+                        RecordRow(record, open = at in open) { open = if (at in open) open - at else open + at }
+                    }
                 }
             }
         }

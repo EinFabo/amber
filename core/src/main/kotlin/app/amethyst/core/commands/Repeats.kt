@@ -61,25 +61,51 @@ object Repeats {
         return Counted(null, words)
     }
 
-    /**
-     * Number words past twenty and their compounds, German and English, folded: a count meant
-     * as one that [number] does not read.
-     */
-    private val BEYOND = listOf(
-        "zwanzig", "dreissig", "dreisig", "vierzig", "funfzig", "fuenfzig", "sechzig", "siebzig", "achtzig", "neunzig",
-        "thirty", "forty", "fourty", "fifty", "sixty", "seventy", "eighty", "ninety",
+    /** The pieces German and English number words are built of, folded. */
+    private val SMALL_PARTS = setOf(
+        "ein", "eins", "zwei", "zwo", "drei", "vier", "funf", "fuenf", "sechs", "sieben", "acht", "neun", "zehn", "elf",
+        "zwolf", "zwoelf", "dreizehn", "vierzehn", "funfzehn", "fuenfzehn", "sechzehn", "siebzehn", "achtzehn", "neunzehn",
+        "und",
     )
-    private val LARGE = listOf("hundert", "tausend", "hundred", "thousand")
+
+    /** The pieces that make a number word larger than twenty: tens, hundreds, thousands. */
+    private val LARGE_PARTS = setOf(
+        "zwanzig", "dreissig", "dreisig", "vierzig", "funfzig", "fuenfzig", "sechzig", "siebzig", "achtzig", "neunzig",
+        "hundert", "tausend",
+        "thirty", "forty", "fourty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
+    )
+    private val PARTS = SMALL_PARTS + LARGE_PARTS
 
     /**
-     * Whether [word] is surely a count - "dreißigmal", "hundert", "fifty", digits too long for a
-     * number - that [extract] cannot read. For Diagnostics' "why not understood".
+     * Whether [word] is surely a count - "dreißigmal", "dreihundert", "fifty", digits too long
+     * for a number - that [extract] cannot read: the whole word, "mal" aside, made of number
+     * pieces, one of them past twenty. "Jahrhundert" or "Tausendfüßler" only contain one. For
+     * Diagnostics' "why not understood".
      */
     fun unreadable(word: String): Boolean {
         if (number(word) != null || glued(word) != null) return false
         val stem = DIGITS_GLUED.matchEntire(word)?.groupValues?.get(1) ?: word.removeSuffix("mal")
-        if (stem.isNotEmpty() && stem.all(Char::isDigit)) return true
-        return BEYOND.any { stem.endsWith(it) } || LARGE.any { it in stem }
+        if (stem.isEmpty()) return false
+        if (stem.all(Char::isDigit)) return true
+        return numberPieces(stem)?.any { it in LARGE_PARTS } == true
+    }
+
+    /** [stem] split completely into number pieces, or null where some of it is none. */
+    private fun numberPieces(stem: String): List<String>? {
+        // Pieces ending at each position, found left to right; null where no split reaches it.
+        val reach = arrayOfNulls<List<String>>(stem.length + 1)
+        reach[0] = emptyList()
+        for (end in 1..stem.length) {
+            for (start in 0 until end) {
+                val before = reach[start] ?: continue
+                val piece = stem.substring(start, end)
+                if (piece in PARTS) {
+                    reach[end] = before + piece
+                    break
+                }
+            }
+        }
+        return reach[stem.length]
     }
 
     /** "zehnmal", "einmal", "12mal", "3x" - not "normal" or "manchmal". */

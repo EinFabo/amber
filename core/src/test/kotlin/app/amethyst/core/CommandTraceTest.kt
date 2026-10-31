@@ -61,6 +61,19 @@ class CommandTraceTest {
     }
 
     @Test
+    fun `noting on past the cap keeps the count of left-out lines exact`() {
+        // What fail() relies on: details added to a full trace, not a copy of its lines re-noted.
+        val inTwoGoes = CommandTrace(maxLines = 10)
+        repeat(25) { inTwoGoes.note("step $it") }
+        listOf("detail 1", "detail 2").forEach(inTwoGoes::note)
+        val atOnce = CommandTrace(maxLines = 10)
+        ((0 until 25).map { "step $it" } + listOf("detail 1", "detail 2")).forEach(atOnce::note)
+        assertEquals(atOnce.lines, inTwoGoes.lines)
+        assertEquals("… 18 lines left out", inTwoGoes.lines[5])
+        assertEquals(listOf("step 24", "detail 1", "detail 2"), inTwoGoes.lines.takeLast(3))
+    }
+
+    @Test
     fun `the default bounds are forty lines of at most 160 characters`() {
         val trace = CommandTrace()
         repeat(1_000) { trace.note("y".repeat(400)) }

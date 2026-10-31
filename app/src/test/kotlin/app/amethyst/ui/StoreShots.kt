@@ -320,7 +320,6 @@ class StoreShots {
         app.amethyst.ui.screen.DiagnosticsScreen(records = emptyList(), keyboardLog = emptyList(), onClear = {})
     }
 
-    /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
     /** A few commands as Diagnostics shows them, the newest open to its steps. */
     private val commandLog = app.amethyst.core.dictation.DictationLog { 0L }.apply {
         val apps = listOf("WhatsApp", "Telegram", "Telefon", "Google Maps", "Spotify")
@@ -372,6 +371,7 @@ class StoreShots {
         )
     }
 
+    /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
     @Test
     fun fallback() = shoot("x-fallback", "When the server fails") {
         FallbackScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})

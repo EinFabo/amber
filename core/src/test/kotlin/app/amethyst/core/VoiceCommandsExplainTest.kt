@@ -12,6 +12,7 @@ import app.amethyst.core.commands.VolumeChange
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -132,6 +133,19 @@ class VoiceCommandsExplainTest {
         assertContains(reason("Scroll fifty times down"), "a count the rules cannot read: “fifty”")
         assertContains(reason("Hundertmal lauter"), "“hundertmal”")
         assertContains(reason("99999999999 mal runter"), "“99999999999”")
+    }
+
+    @Test
+    fun `a word that only contains a number word keeps its real reason`() {
+        val century = reason("Jahrhundert runter")
+        assertFalse("count" in century, century)
+        assertContains(century, "“jahrhundert”")
+        val millipede = reason("Tausendfüßler")
+        assertFalse("count" in millipede, millipede)
+        assertContains(millipede, "“tausendfussler” is not an installed app")
+        // Real counts past twenty still say so.
+        assertContains(reason("Dreihundert mal runter"), "a count the rules cannot read: “dreihundert”")
+        assertContains(reason("Scroll down a thousand times"), "a count the rules cannot read: “thousand”")
     }
 
     @Test

@@ -3,7 +3,9 @@ package app.amethyst.core
 import app.amethyst.core.commands.Repeats
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class RepeatsTest {
 
@@ -71,5 +73,17 @@ class RepeatsTest {
     @Test
     fun `a zero count is kept so it can be refused`() {
         assertEquals(Repeats.Counted(0, listOf("runter")), extract("0 mal runter"))
+    }
+
+    @Test
+    fun `a count past twenty is unreadable only when the whole word is a number`() {
+        listOf(
+            "dreissigmal", "einundzwanzigmal", "hundertmal", "dreihundert", "zweihundertfunfzig", "neunzehnhundert",
+            "tausend", "fifty", "thousand", "hundred", "99999999999", "99999999999mal",
+        ).forEach { assertTrue(Repeats.unreadable(it), it) }
+        // Words that merely contain a number word, and counts that are read.
+        listOf(
+            "jahrhundert", "tausendfussler", "hunderte", "witzig", "und", "zwanzig", "zehnmal", "12mal", "normal", "mal", "",
+        ).forEach { assertFalse(Repeats.unreadable(it), it) }
     }
 }

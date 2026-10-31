@@ -151,6 +151,10 @@ class DictationController(
     @Volatile
     private var commandSteps: CommandTrace? = null
 
+    /** This run's command has its record in Diagnostics: a tap after that adds none. */
+    @Volatile
+    private var commandRecorded = false
+
     /**
      * What the bubble does on a tap. True when it started a recording rather than stopped one.
      * While a command is being carried out a tap stops it at once - a misheard "zwanzigmal
@@ -190,6 +194,7 @@ class DictationController(
             runSerial++
             stoppedByTap = false
             commandSteps = null
+            commandRecorded = false
             runEngineId = graph.settings.value.activeEngine?.id
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
@@ -316,6 +321,7 @@ class DictationController(
         _state.value = DictationState.Starting
         stoppedByTap = false
         commandSteps = null
+        commandRecorded = false
 
         val settings = graph.settings.value
         val engineConfig = settings.activeEngine
@@ -357,12 +363,16 @@ class DictationController(
                 fail("Timed out - the dictation was cancelled.", engineConfig.id, details = listOf("stopped: the run's time limit of $limit ms ran out"))
             }
         } catch (e: CancellationException) {
-            // A command a tap stopped while it was still being recognized; once its words are
-            // there, runCommand keeps the record.
-            if (stoppedByTap && _mode.value == RunMode.COMMAND && commandSteps == null) {
+            // A command a tap stopped that has no record yet - while it was still being
+            // recognized, or anywhere runCommand did not keep one: exactly one record, with
+            // the steps so far.
+            if (stoppedByTap && _mode.value == RunMode.COMMAND && !commandRecorded) {
+                commandRecorded = true
+                val steps = commandSteps
                 graph.dictationLog.recordFailure(
                     "Stopped by a tap.", engineConfig.id, trace?.summary(), command = true,
-                    details = listOf("stopped by a tap before the command ran"),
+                    details = if (steps == null) listOf("stopped by a tap before the command ran")
+                    else steps.apply { note("stopped by a tap") }.lines,
                 )
             }
             // cancel() already set the state, and a cancelled parent scope is not a dictation
@@ -633,23 +643,25 @@ class DictationController(
         // not at all while commands are off.
         val enabled = graph.settings.value.commands.enabled
         val labels by lazy { if (enabled) Launcher.apps(context).map { it.label } else emptyList() }
-        val understanding = withContext(Dispatchers.IO) {
-            VoiceCommands.parse(heard) { labels }.also { steps.addAll(VoiceCommands.explain(heard) { labels }) }
-        }
-        if (!enabled && understanding is Understanding.NotUnderstood) steps.note("voice commands are off: no app list was read for bare names")
-        val outcome = try {
-            when (understanding) {
+        // From reading the words to the last step, a tap may stop it: the record then says so.
+        val (understanding, outcome) = try {
+            val parsed = withContext(Dispatchers.IO) {
+                VoiceCommands.parse(heard) { labels }.also { steps.addAll(VoiceCommands.explain(heard) { labels }) }
+            }
+            if (!enabled && parsed is Understanding.NotUnderstood) steps.note("voice commands are off: no app list was read for bare names")
+            parsed to when (parsed) {
                 // A text command changes only the field it was started in, checked as a dictation's
                 // text is (EditTarget) - recognition took seconds, the user may be in another chat now.
-                is Understanding.Understood -> graph.accessibilityService?.commands?.execute(understanding.command, startedIn = startTarget, steps)
+                is Understanding.Understood -> graph.accessibilityService?.commands?.execute(parsed.command, startedIn = startTarget, steps)
                     ?: CommandOutcome.Failed("Amber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
                 is Understanding.NotUnderstood -> CommandOutcome.Failed(
                     "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
                 )
             }
         } catch (e: CancellationException) {
-            // Between two steps: the trace says how far it got.
-            if (stoppedByTap) {
+            // The trace says how far it got.
+            if (stoppedByTap && !commandRecorded) {
+                commandRecorded = true
                 steps.note("stopped by a tap")
                 graph.dictationLog.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(), steps.lines)
             }
@@ -662,6 +674,7 @@ class DictationController(
                 is CommandOutcome.Failed -> "failed"
             },
         )
+        commandRecorded = true
         graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
@@ -689,6 +702,8 @@ class DictationController(
     internal suspend fun commandForTest(text: String) {
         _mode.value = RunMode.COMMAND
         stoppedByTap = false
+        commandSteps = null
+        commandRecorded = false
         trace = RunTrace("TEST/COMMAND")
         startTarget = graph.accessibilityService?.focusedTarget()
         runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
@@ -895,12 +910,12 @@ class DictationController(
         if (record) {
             val command = _mode.value == RunMode.COMMAND
             if (command) {
-                // The steps so far, if the words were there, then what went wrong.
-                val lines = CommandTrace().apply {
-                    commandSteps?.let { addAll(it.lines) }
-                    addAll(details)
-                }.lines
-                graph.dictationLog.recordFailure(message, engineId ?: runEngineId, trace?.summary(), command = true, details = lines)
+                // The steps so far, if the words were there, then what went wrong - noted on in
+                // the same trace, so its bounds and its count of left-out lines stay exact.
+                val steps = commandSteps ?: CommandTrace()
+                details.forEach(steps::note)
+                commandRecorded = true
+                graph.dictationLog.recordFailure(message, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
             } else {
                 graph.dictationLog.recordFailure(message, engineId, trace?.summary())
             }
