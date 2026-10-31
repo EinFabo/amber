@@ -19,6 +19,7 @@ import app.amethyst.engine.AmberCatalogRefresher
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.NativeWhisperRuntime
+import app.amethyst.engine.OpusEncoder
 import app.amethyst.engine.ParakeetModelStore
 import app.amethyst.engine.SherpaRuntime
 import app.amethyst.engine.TinfoilVerifier
@@ -127,7 +128,12 @@ class Graph(app: Application) {
 
     // Lazy too, so that merely building the graph does not force the secret store open.
     val engineFactory: EngineFactory by lazy {
-        EngineFactory(app, httpTransport, secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime)
+        EngineFactory(
+            app, httpTransport, secretStore, whisperModels, whisperRuntime, tinfoilVerifier, parakeetModels, sherpaRuntime,
+            encoder = OpusEncoder(app),
+            settings = { settings.value },
+            compressionRefused = { engineId, baseUrl -> amberCatalogs.compressionRefused(engineId, baseUrl) },
+        )
     }
 
     /** The model lists of Amber PCs and Amber Servers, fetched in the background. */

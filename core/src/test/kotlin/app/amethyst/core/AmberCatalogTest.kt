@@ -122,6 +122,30 @@ class AmberCatalogTest {
         }
     }
 
+    private fun withAudio(audio: String) = """{"data":[],"amber":{"service":"amber-pc","version":"0.5.0","audio":$audio}}"""
+
+    @Test
+    fun `the upload formats an amber takes come with its list`() {
+        val catalog = assertNotNull(AmberCatalog.parse(withAudio("""["wav","opus"]""")))
+        assertEquals(listOf("wav", "opus"), catalog.audio)
+        assertTrue(catalog.takesOpus)
+    }
+
+    @Test
+    fun `an amber that names no upload formats takes wav`() {
+        assertEquals(listOf("wav"), pc.audio)
+        assertFalse(pc.takesOpus)
+        for (audio in listOf("[]", "null", "\"opus\"", """{"opus":true}""")) {
+            assertEquals(listOf("wav"), assertNotNull(AmberCatalog.parse(withAudio(audio)), audio).audio, audio)
+        }
+    }
+
+    @Test
+    fun `upload formats this app does not know are ignored`() {
+        assertEquals(listOf("opus", "wav"), assertNotNull(AmberCatalog.parse(withAudio("""["flac","opus",3,null,"wav","opus"]"""))).audio)
+        assertEquals(listOf("wav"), assertNotNull(AmberCatalog.parse(withAudio("""["flac","mp3"]"""))).audio)
+    }
+
     @Test
     fun `the list is asked for next to the transcription endpoint`() {
         val expected = "http://192.168.1.20:8765/k3y/v1/models"

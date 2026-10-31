@@ -222,6 +222,32 @@ class CaptureTimeoutTest {
     }
 
     @Test
+    fun `a catalog stored before upload formats takes wav, with nothing to migrate`() {
+        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
+        val baseUrl = "http://192.168.1.20:8765/k3y/v1"
+        val raw = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
+            "displayName":"Own server","baseUrl":"$baseUrl","modelId":"acft-large-v3-turbo-q8_0"}],
+            "serverCatalogs":{"self-hosted":{"address":"${AmberCatalog.fingerprint(baseUrl)}","service":"amber-pc",
+            "version":"0.4.2","speech":[{"id":"acft-large-v3-turbo-q8_0","label":"Large v3 Turbo","recommended":true}]}},
+            "schemaVersion":10}"""
+        val decoded = SettingsCodec.decode(raw)
+        val catalog = assertNotNull(decoded.catalogFor(decoded.engines.single()))
+        assertEquals(listOf("wav"), catalog.audio)
+        assertFalse(catalog.takesOpus)
+        assertEquals("acft-large-v3-turbo-q8_0", catalog.speech.single().id)
+    }
+
+    @Test
+    fun `the upload formats a server takes survive a round trip`() {
+        val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = "http://192.168.1.20:8765/k3y/v1")
+        val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS)).copy(audio = listOf("wav", "opus"))
+        val settings = AmethystSettings.defaults().withEngine(own)
+            .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        assertEquals(listOf("wav", "opus"), assertNotNull(decoded.catalogFor(own)).audio)
+    }
+
+    @Test
     fun `a per-app cleanup model survives a round trip`() {
         val choice = CleanupChoice("tinfoil", "gemma4-31b")
         val settings = AmethystSettings.defaults().copy(

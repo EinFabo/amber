@@ -1,5 +1,6 @@
 package app.amethyst.core.engine
 
+import app.amethyst.core.audio.AudioEncoder
 import app.amethyst.core.engine.EnginePresets.ModelChoice
 import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpTransport
@@ -27,7 +28,15 @@ data class AmberCatalog(
     val version: String,
     val speech: List<ModelChoice>,
     val cleanup: List<ModelChoice>,
+    /**
+     * The upload formats it takes, of those this app knows ([AUDIO_WAV], [AUDIO_OPUS]) - WAV
+     * alone for an Amber that names none.
+     */
+    val audio: List<String> = listOf(AUDIO_WAV),
 ) {
+    /** Whether a recording may go up as Ogg Opus instead of WAV. */
+    val takesOpus: Boolean get() = AUDIO_OPUS in audio
+
     /** "Amber PC" or "Amber Server"; a service only a later Amber knows is plain "Amber". */
     val name: String
         get() = when (service) {
@@ -43,6 +52,11 @@ data class AmberCatalog(
         const val SERVICE_PC = "amber-pc"
         const val SERVICE_SERVER = "amber-server"
 
+        /** The upload formats of `amber.audio`: WAV, and Opus in an Ogg container. */
+        const val AUDIO_WAV = "wav"
+        const val AUDIO_OPUS = "opus"
+        private val KNOWN_AUDIO = setOf(AUDIO_WAV, AUDIO_OPUS)
+
         /** A list is a small answer from a machine nearby; a slow one is not worth waiting for. */
         const val TIMEOUT_MS = 5_000L
 
@@ -55,7 +69,8 @@ data class AmberCatalog(
          * The catalog in [body], or null for anything that is not Amber's list: another
          * server's model list (no top-level `amber` object) as much as an error page. Entries
          * of a kind this app does not know, or without an id, are skipped; extra fields are
-         * ignored. The first `default` of a kind becomes its recommended model.
+         * ignored. The first `default` of a kind becomes its recommended model. Of the upload
+         * formats in `amber.audio` only those this app knows count; none at all means WAV.
          */
         fun parse(body: String): AmberCatalog? {
             val root = parseObject(body) ?: return null
@@ -80,7 +95,16 @@ data class AmberCatalog(
                 version = amber.string("version").orEmpty(),
                 speech = byKind.getValue(SPEECH),
                 cleanup = byKind.getValue(CLEANUP),
+                audio = audioFormats(amber),
             )
+        }
+
+        private fun audioFormats(amber: JsonObject): List<String> {
+            val named = (amber["audio"] as? JsonArray).orEmpty()
+                .mapNotNull { (it as? JsonPrimitive)?.takeIf { value -> value.isString }?.content }
+                .filter { it in KNOWN_AUDIO }
+                .distinct()
+            return named.ifEmpty { listOf(AUDIO_WAV) }
         }
 
         /** Where the list is: next to the transcription endpoint, however the address is typed. */
@@ -183,6 +207,32 @@ object AmberCatalogs {
             is CatalogFetch.Failed -> return settings
         }
         return if (catalogs == settings.serverCatalogs) settings else settings.copy(serverCatalogs = catalogs)
+    }
+
+    /**
+     * How [engine] may compress its recordings: with [encoder], when it is an own server whose
+     * stored list (from the address it points at now) takes Ogg Opus. Null - WAV as always -
+     * for every other engine: Groq, OpenAI, Tinfoil and plain own servers have no list, and
+     * an enclave engine is never a candidate. [onRefused] runs when the server answers a
+     * compressed upload with 400 anyway; it should record [compressionRefused].
+     */
+    fun compressedUpload(settings: AmethystSettings, engine: EngineConfig, encoder: AudioEncoder?, onRefused: () -> Unit): CompressedUpload? {
+        if (encoder == null || !isCandidate(engine)) return null
+        if (settings.catalogFor(engine)?.takesOpus != true) return null
+        return CompressedUpload(encoder, onRefused)
+    }
+
+    /**
+     * [engineId]'s server at [baseUrl] answered a compressed upload with 400 although its list
+     * offered it: its stored list keeps everything but Opus, so recordings go up as WAV until
+     * the list is fetched again and replaces it. Returns [settings] itself when there is
+     * nothing to change - an address the engine has left, a list without Opus.
+     */
+    fun compressionRefused(settings: AmethystSettings, engineId: String, baseUrl: String): AmethystSettings {
+        val stored = settings.serverCatalogs[engineId] ?: return settings
+        if (!stored.isFor(baseUrl) || AmberCatalog.AUDIO_OPUS !in stored.audio) return settings
+        val audio = (stored.audio - AmberCatalog.AUDIO_OPUS).ifEmpty { listOf(AmberCatalog.AUDIO_WAV) }
+        return settings.copy(serverCatalogs = settings.serverCatalogs + (engineId to stored.copy(audio = audio)))
     }
 }
 

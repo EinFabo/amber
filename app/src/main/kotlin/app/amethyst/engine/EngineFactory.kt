@@ -1,6 +1,8 @@
 package app.amethyst.engine
 
 import android.content.Context
+import app.amethyst.core.audio.AudioEncoder
+import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
@@ -38,6 +40,11 @@ class EngineFactory(
     private val tinfoil: TinfoilVerifier,
     private val parakeetModels: ParakeetModelStore,
     private val sherpaRuntime: SherpaRuntime,
+    /** Compresses recordings for an Amber server whose list takes it; null where it cannot. */
+    private val encoder: AudioEncoder?,
+    private val settings: () -> AmethystSettings,
+    /** An engine's server answered a compressed upload with 400: (engine id, address). */
+    private val compressionRefused: (String, String) -> Unit,
 ) {
 
     fun create(config: EngineConfig): Result<SttEngine> = when (config.kind) {
@@ -76,6 +83,11 @@ class EngineFactory(
                         // sends only over a connection bound to the attested key. Any other
                         // host stays plain CLOUD.
                         attestationVerifier = tinfoil.takeIf { EnginePresets.enclaveRepoFor(baseUrl) != null },
+                        // Ogg Opus only for an own server whose stored list takes it; every
+                        // other server - Groq, OpenAI, Tinfoil, any plain own one - gets WAV.
+                        compressedUpload = AmberCatalogs.compressedUpload(settings(), config, encoder) {
+                            compressionRefused(config.id, baseUrl)
+                        },
                     ),
                 )
             }

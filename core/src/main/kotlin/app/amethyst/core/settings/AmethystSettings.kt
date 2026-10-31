@@ -335,8 +335,14 @@ data class StoredCatalog(
     val version: String = "",
     val speech: List<StoredModel> = emptyList(),
     val cleanup: List<StoredModel> = emptyList(),
+    /**
+     * The upload formats the server takes; a list stored before they existed takes WAV. Opus
+     * goes once the server refused it ([app.amethyst.core.engine.AmberCatalogs.compressionRefused]),
+     * until the next fetch replaces the list.
+     */
+    val audio: List<String> = listOf(AmberCatalog.AUDIO_WAV),
 ) {
-    fun toCatalog(): AmberCatalog = AmberCatalog(service, version, speech.map { it.toChoice() }, cleanup.map { it.toChoice() })
+    fun toCatalog(): AmberCatalog = AmberCatalog(service, version, speech.map { it.toChoice() }, cleanup.map { it.toChoice() }, audio)
 
     /** Fetched from [baseUrl], however it is spelled now. */
     fun isFor(baseUrl: String?): Boolean =
@@ -349,6 +355,7 @@ data class StoredCatalog(
             version = catalog.version,
             speech = catalog.speech.map(StoredModel::of),
             cleanup = catalog.cleanup.map(StoredModel::of),
+            audio = catalog.audio,
         )
     }
 }

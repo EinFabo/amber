@@ -11,10 +11,13 @@ import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.coroutines.CoroutineContext
 
 /**
  * One driver for every service that implements POST /v1/audio/transcriptions.
@@ -28,6 +31,10 @@ import kotlinx.serialization.json.jsonPrimitive
  * the enclave cannot be verified, nothing is sent - someone who picked an enclave engine did
  * so to keep their voice off ordinary servers, and quietly downgrading to plain HTTPS would
  * break exactly that.
+ *
+ * With a [CompressedUpload] (only an Amber server whose list takes it) the recording goes up as
+ * Ogg Opus instead of WAV; without one, or when the encoder cannot, the request is the WAV one
+ * every other service gets.
  */
 class OpenAiCompatibleEngine(
     override val id: String,
@@ -43,6 +50,9 @@ class OpenAiCompatibleEngine(
     ),
     private val attestationVerifier: AttestationVerifier? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val compressedUpload: CompressedUpload? = null,
+    /** Where the recording is compressed: off the caller's thread, which may be the main one. */
+    private val encodeContext: CoroutineContext = Dispatchers.Default,
 ) : SttEngine {
 
     private val channel = SecureChannel(baseUrl, displayName, transport, attestationVerifier, capabilities.trustLevel)
@@ -68,6 +78,8 @@ class OpenAiCompatibleEngine(
             .joinToString(" ")
             .takeIf { it.isNotEmpty() }
 
+        var compressed = compressedUpload?.let { upload -> withContext(encodeContext) { upload.encode(audio) } }
+
         fun request(withPrompt: Boolean) = HttpRequest(
             method = "POST",
             url = endpointUrl(baseUrl),
@@ -78,7 +90,10 @@ class OpenAiCompatibleEngine(
             },
             body = HttpBody.Multipart(
                 buildList {
-                    add(MultipartPart.FilePart("file", "dictation.wav", "audio/wav", audio.toWav()))
+                    add(
+                        compressed?.let { MultipartPart.FilePart("file", it.fileName, it.mimeType, it.bytes) }
+                            ?: MultipartPart.FilePart("file", "dictation.wav", "audio/wav", audio.toWav()),
+                    )
                     add(MultipartPart.Field("model", modelId))
                     add(MultipartPart.Field("response_format", "json"))
                     // Whisper-family endpoints want a bare ISO-639-1 code, not a full BCP-47 tag.
@@ -93,6 +108,13 @@ class OpenAiCompatibleEngine(
         )
 
         var sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
+        // A server that announced more than it takes: the same request once more as WAV, and
+        // WAV from then on, until its list is fetched again.
+        if (compressed != null && sent.response.code == COMPRESSION_REFUSED) {
+            compressed = null
+            compressedUpload?.refused()
+            sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
+        }
         // Not every model takes a prompt (Voxtral may refuse one); the text matters more.
         if (prompt != null && sent.response.code in PROMPT_REJECTED) {
             sent = channel.send(request(withPrompt = false)).getOrElse { return Result.failure(it) }
@@ -184,6 +206,9 @@ class OpenAiCompatibleEngine(
 
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"
+
+        /** What an Amber server answers a compressed upload it does not take with. */
+        private const val COMPRESSION_REFUSED = 400
 
         /** Answers that may mean "this model takes no prompt" - worth one retry without it. */
         private val PROMPT_REJECTED = setOf(400, 422)
