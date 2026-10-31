@@ -270,7 +270,11 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       times; command icons are keyed on group titles; `volumeStep` is not wrapped like
       `mute`; select all and the clipboard actions through the input connection say "Done"
       unchecked; no emoji case in `TextEditsTest`; the Home and MusicNote icon paths were
-      written from memory, not checked against Material Symbols.
+      written from memory, not checked against Material Symbols. From the re-review of the
+      final fixes: a quick double tap meant to end a command's recording cancels it (one tap
+      ends it); a tap just as a command finishes says "Command stopped." although it was done;
+      the same app in both halves of split screen can take an edit in the other half; small
+      copy nits and a false "not taken".
 - [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
       text - its own consent, prompt-injection rules), a model for free phrasing.
 
