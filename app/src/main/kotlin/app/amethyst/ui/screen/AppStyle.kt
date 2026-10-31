@@ -3,6 +3,7 @@ package app.amethyst.ui.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -27,7 +28,7 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
-import app.amethyst.ui.GhostButton
+import app.amethyst.ui.DangerAction
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
@@ -69,7 +70,11 @@ fun AppStyleScreen(
     }
 
     SubPage(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
+            Modifier.padding(start = 16.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             AppIcon(profile.packageName, apps, size = 44.dp)
             Text(profile.label, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         }
@@ -110,21 +115,20 @@ fun AppStyleScreen(
             CleanupModelChoices(settings, ready, selected = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }) { choice ->
                 edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.MODEL, choice)) }
             }
+            decision.note?.takeIf { own.mode == AppCleanupMode.MODEL }?.let { Hint(it, AmberPalette.Error) }
+            if (decision.choice == null && profile.style != WritingStyle.AS_SPOKEN) {
+                Hint("Without a cleanup the style is not applied - the text goes in as recognized.", AmberPalette.Primary)
+            }
+            CleanupLeavesPhoneHint(
+                settings.activeEngine?.trustLevelForDisplay(),
+                settings.cleanupEngine(decision.choice)?.trustLevelForDisplay(),
+            )
         }
 
-        decision.note?.takeIf { own.mode == AppCleanupMode.MODEL }?.let { Hint(it, AmberPalette.Error) }
-        if (decision.choice == null && profile.style != WritingStyle.AS_SPOKEN) {
-            Hint("Without a cleanup the style is not applied - the text goes in as recognized.", AmberPalette.Primary)
-        }
-        CleanupLeavesPhoneHint(
-            settings.activeEngine?.trustLevelForDisplay(),
-            settings.cleanupEngine(decision.choice)?.trustLevelForDisplay(),
-        )
-
-        GhostButton("Remove ${profile.label}", {
+        DangerAction("Remove ${profile.label}") {
             onUpdateSettings { it.copy(profiles = it.profiles.filterNot { p -> p.packageName == profile.packageName }) }
             onRemoved()
-        }, color = AmberPalette.Error)
+        }
     }
 
     // Saved a moment after typing stops: Home and a dictation right away, or a rotation, must

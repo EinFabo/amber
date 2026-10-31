@@ -277,7 +277,7 @@ private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
 fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
     StatusRow(
         label = "Microphone service",
-        description = "Keeps the microphone ready while you are in other apps.",
+        description = "Keeps the microphone ready in other apps.",
         done = setup.micServiceRunning,
         actionLabel = "Start",
         onAction = actions.startMicService,
@@ -291,7 +291,7 @@ fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
     )
     StatusRow(
         label = "Unrestricted battery",
-        description = "Otherwise some manufacturers kill the service in the background.",
+        description = "So the phone does not stop the service.",
         done = setup.batteryUnrestricted,
         actionLabel = "Open",
         onAction = actions.openBattery,

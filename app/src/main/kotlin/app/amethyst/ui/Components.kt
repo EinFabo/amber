@@ -4,19 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -37,14 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -62,7 +53,7 @@ import app.amethyst.ui.theme.badgeColor
 import app.amethyst.ui.theme.badgeLabel
 
 /** Quick, plain transitions everywhere: nothing on screen bounces or overshoots. */
-private const val FAST_MS = 150
+internal const val FAST_MS = 150
 
 /** A filled area for the few things that are one tappable unit. No border, no shadow. */
 @Composable
@@ -77,90 +68,6 @@ fun Panel(
             .background(AmberPalette.Surface),
         content = content,
     )
-}
-
-/**
- * A section of a screen: a hairline, a title in plain words and its content - a list, not a
- * stack of cards. Collapsible sections keep the rarely needed parts one tap away.
- */
-@Composable
-fun SectionCard(
-    title: String,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    collapsible: Boolean = false,
-    initiallyExpanded: Boolean = true,
-    trailing: (@Composable RowScope.() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded || !collapsible) }
-
-    Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(thickness = 1.dp, color = AmberPalette.Outline)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (collapsible) {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { expanded = !expanded }
-                    } else {
-                        Modifier
-                    },
-                )
-                .padding(top = 20.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = AmberPalette.Text,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AmberPalette.Muted,
-                    )
-                }
-            }
-            trailing?.invoke(this)
-            if (collapsible) Chevron(expanded)
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(FAST_MS)) + expandVertically(tween(FAST_MS)),
-            exit = fadeOut(tween(FAST_MS)) + shrinkVertically(tween(FAST_MS)),
-        ) {
-            Column(
-                Modifier.padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                content = content,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Chevron(expanded: Boolean) {
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, tween(FAST_MS), label = "chevron")
-    Canvas(
-        Modifier
-            .size(24.dp)
-            .padding(7.dp)
-            .rotate(rotation),
-    ) {
-        val path = Path().apply {
-            moveTo(0f, size.height * 0.3f)
-            lineTo(size.width / 2, size.height * 0.75f)
-            lineTo(size.width, size.height * 0.3f)
-        }
-        drawPath(path, AmberPalette.Muted, style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
-    }
 }
 
 @Composable
@@ -314,9 +221,12 @@ val BackGlyph: androidx.compose.ui.graphics.drawscope.DrawScope.(Color) -> Unit 
     drawPath(path, color, style = Stroke(stroke, cap = StrokeCap.Round))
 }
 
-/** Where a dictation was processed: a coloured dot and the words, nothing around them. */
+/**
+ * Where a dictation was processed: a coloured dot and the words, nothing around them. [detail]
+ * follows on the same line.
+ */
 @Composable
-fun TrustBadge(level: TrustLevel, modifier: Modifier = Modifier) {
+fun TrustBadge(level: TrustLevel, modifier: Modifier = Modifier, detail: String? = null) {
     val color = level.badgeColor()
     Row(
         modifier = modifier,
@@ -329,7 +239,7 @@ fun TrustBadge(level: TrustLevel, modifier: Modifier = Modifier) {
                 .background(color, CircleShape),
         )
         Text(
-            text = level.badgeLabel(),
+            text = listOfNotNull(level.badgeLabel(), detail).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
             color = AmberPalette.Muted,
         )
@@ -337,8 +247,8 @@ fun TrustBadge(level: TrustLevel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun Hint(text: String, color: Color = AmberPalette.Muted) {
-    Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+fun Hint(text: String, color: Color = AmberPalette.Muted, modifier: Modifier = Modifier) {
+    Text(text = text, style = MaterialTheme.typography.bodySmall, color = color, modifier = modifier)
 }
 
 /** A thin progress line. */
@@ -435,41 +345,6 @@ fun GroupLabel(text: String, modifier: Modifier = Modifier, trailing: (@Composab
     ) {
         Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = AmberPalette.Muted)
         trailing?.invoke(this)
-    }
-}
-
-/** One row of a list that leads to a sub-screen: a label, its current value, a chevron. */
-@Composable
-fun NavRow(label: String, value: String?, valueColor: Color = AmberPalette.Muted, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-            if (value != null) Text(value, style = MaterialTheme.typography.bodySmall, color = valueColor)
-        }
-        ChevronRight()
-    }
-}
-
-@Composable
-fun ChevronRight() {
-    Canvas(
-        Modifier
-            .size(24.dp)
-            .padding(7.dp),
-    ) {
-        val path = Path().apply {
-            moveTo(size.width * 0.3f, 0f)
-            lineTo(size.width * 0.75f, size.height / 2)
-            lineTo(size.width * 0.3f, size.height)
-        }
-        drawPath(path, AmberPalette.Muted, style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
     }
 }
 

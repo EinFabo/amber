@@ -20,6 +20,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.dictation.DictationRecord
+import app.amethyst.ui.DangerAction
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
@@ -65,11 +66,14 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
     }
 }
 
-/** Filled fields without a frame; only the focused one gets a thin amber edge. */
+/**
+ * Filled fields without a frame; only the focused one gets a thin amber edge. Raised a step
+ * above the group surface they mostly sit on.
+ */
 @Composable
 fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = AmberPalette.Surface,
-    unfocusedContainerColor = AmberPalette.Surface,
+    focusedContainerColor = AmberPalette.Elevated,
+    unfocusedContainerColor = AmberPalette.Elevated,
     focusedBorderColor = AmberPalette.Primary,
     unfocusedBorderColor = Color.Transparent,
     cursorColor = AmberPalette.Primary,
@@ -83,55 +87,55 @@ fun fieldColors() = OutlinedTextFieldDefaults.colors(
  * What actually happened on the last dictations, so a bug report can be precise.
  */
 @Composable
-fun DiagnosticsCard(
+fun DiagnosticsScreen(
     records: List<DictationRecord>,
     keyboardLog: List<String>,
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    SectionCard(
-        title = "Diagnostics",
-        subtitle = if (records.isEmpty()) "Nothing dictated yet." else "The last ${minOf(records.size, MAX_SHOWN)} dictations.",
-        modifier = modifier,
-    ) {
-        if (keyboardLog.isNotEmpty()) {
-            // What the bubble saw of the keyboard, newest first: the evidence when it misbehaves.
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Keyboard", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
-                keyboardLog.forEach { Hint(it) }
+    SubPage(modifier) {
+        SectionCard(
+            title = if (records.isEmpty()) null else "The last ${minOf(records.size, MAX_SHOWN)} dictations",
+        ) {
+            if (keyboardLog.isNotEmpty()) {
+                // What the bubble saw of the keyboard, newest first: the evidence when it misbehaves.
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Keyboard", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
+                    keyboardLog.forEach { Hint(it) }
+                }
+            }
+
+            if (records.isEmpty()) {
+                Text("Nothing dictated yet", style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
+                Hint("After the first dictation, engine, duration and insertion method show up here.")
+            }
+
+            records.take(MAX_SHOWN).forEach { record ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        record.trustLevel?.let { TrustBadge(it) }
+                        Hint(
+                            text = record.summary(),
+                            color = if (record.failed) AmberPalette.Error else AmberPalette.Muted,
+                        )
+                    }
+                    record.timing?.let { Hint(it) }
+                    if (record.text.isNotBlank()) {
+                        Text(
+                            text = record.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AmberPalette.Text,
+                        )
+                    }
+                }
             }
         }
 
-        if (records.isEmpty()) {
-            Hint("After the first dictation, engine, duration and insertion method show up here.")
-            return@SectionCard
-        }
-
-        records.take(MAX_SHOWN).forEach { record ->
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    record.trustLevel?.let { TrustBadge(it) }
-                    Hint(
-                        text = record.summary(),
-                        color = if (record.failed) AmberPalette.Error else AmberPalette.Muted,
-                    )
-                }
-                record.timing?.let { Hint(it) }
-                if (record.text.isNotBlank()) {
-                    Text(
-                        text = record.text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AmberPalette.Text,
-                    )
-                }
-            }
-        }
-
-        GhostButton("Clear diagnostics", onClear)
+        if (records.isNotEmpty() || keyboardLog.isNotEmpty()) DangerAction("Clear diagnostics", onClear)
     }
 }
 

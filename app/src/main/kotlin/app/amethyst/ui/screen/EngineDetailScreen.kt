@@ -76,6 +76,7 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.ProgressLine
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.Hint
+import app.amethyst.ui.PageGutter
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.TrustBadge
@@ -143,7 +144,7 @@ fun EngineDetailScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = PageGutter)
             .padding(bottom = 32.dp),
     ) {
         val problems = EngineConfigValidator.validate(edited(), hasApiKey = apiKey.isNotBlank())

@@ -35,9 +35,9 @@ import app.amethyst.ui.ProgressLine
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
+import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.screen.BubbleSizeRow
 import app.amethyst.ui.screen.ReliabilityRows
-import app.amethyst.ui.screen.ToggleRow
 import app.amethyst.ui.screen.cleanupSummary
 import app.amethyst.ui.screen.fieldColors
 import app.amethyst.ui.screen.label

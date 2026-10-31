@@ -173,7 +173,7 @@ data class AmethystSettings(
     val capture: CaptureSettings = CaptureSettings(),
     val bubble: BubbleSettings = BubbleSettings(),
     val insertion: InsertionSettings = InsertionSettings(),
-    /** Per-app writing style and cleanup, edited under In your apps -> App styles. */
+    /** Per-app writing style and cleanup, edited under Settings -> App styles. */
     val profiles: List<AppProfile> = AppProfiles.DEFAULTS,
     val stats: StatsSettings = StatsSettings(),
     /**

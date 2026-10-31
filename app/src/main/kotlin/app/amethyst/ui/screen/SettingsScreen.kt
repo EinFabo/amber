@@ -1,29 +1,27 @@
 package app.amethyst.ui.screen
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import app.amethyst.core.settings.BubbleSettings
-import androidx.compose.ui.draw.alpha
-import androidx.compose.foundation.background
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,42 +31,53 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EnginePresets
-import app.amethyst.core.settings.EngineConfig
-import app.amethyst.core.settings.AmethystSettings
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.BubbleSettings
+import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
-import app.amethyst.ui.GroupLabel
-import app.amethyst.ui.Hairline
-import app.amethyst.ui.RadioRow
-import app.amethyst.ui.NavRow
-import app.amethyst.ui.SetupActions
-import app.amethyst.ui.SetupState
-import app.amethyst.ui.theme.badgeLabel
-import app.amethyst.ui.theme.placeExplanation
+import app.amethyst.ui.ExpandChevron
+import app.amethyst.ui.foldState
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LearnMore
+import app.amethyst.ui.MainSwitch
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.PageGutter
+import app.amethyst.ui.RadioRow
+import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.SetupActions
+import app.amethyst.ui.SetupState
+import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
+import app.amethyst.ui.Unfold
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.theme.placeExplanation
+import kotlin.math.roundToInt
 
 /** Where a settings row leads. */
 enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS }
 
+/** How many rows the folded "Advanced" group holds. */
+private const val ADVANCED_ROWS = 4
+
 /**
- * Hearth's settings: three short groups - how speech becomes text, how it lands in the apps,
- * and Amber itself. Each row shows its current value and leads to one sub-screen with one
- * decision. Nothing collapses, nothing is "advanced" - the rarer options sit lower on the
- * page they belong to.
+ * Amber's settings in four groups: the four most used, the per-app styles, an "Advanced" group
+ * folded to one row, and Amber itself. Each row is an icon, its name and its state in a few
+ * words; the page behind it explains. [advancedOpen] lives with the caller, so coming back from
+ * a page finds the group as it was left.
  */
 @Composable
 fun SettingsScreen(
@@ -76,83 +85,80 @@ fun SettingsScreen(
     setup: SetupState,
     diagnosticsCount: Int,
     version: String,
+    advancedOpen: Boolean,
+    onToggleAdvanced: () -> Unit,
     onOpen: (SettingsPage) -> Unit,
     onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val capture = settings.capture
-    val insertion = settings.insertion
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
-    ) {
-        SettingsGroup("Speech to text")
-        NavRow(
-            "Recognition",
-            settings.activeEngine?.let { "${it.displayName} · ${it.trustLevelForDisplay().badgeLabel()}" } ?: "None selected",
-            valueColor = if (settings.activeEngine == null) AmberPalette.Error else AmberPalette.Muted,
-        ) { onOpen(SettingsPage.RECOGNITION) }
-        NavRow("Cleanup", settings.cleanupSummary() ?: "Off - text goes in as recognized") { onOpen(SettingsPage.CLEANUP) }
-        NavRow("When the server fails", settings.fallbackSummary()) { onOpen(SettingsPage.FALLBACK) }
-        NavRow(
-            "Recording",
-            if (capture.autoStopOnSilence) "Stops after %.1f s of silence".format(java.util.Locale.US, capture.silenceTimeoutMs / 1000.0)
-            else "Runs until you tap",
-        ) { onOpen(SettingsPage.RECORDING) }
+    val engine = settings.activeEngine
+    val trust = engine?.trustLevelForDisplay()
+    val reliabilityOpen = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
+    val commandsWithoutBubble = settings.commands.enabled && !settings.bubble.enabled
 
-        SettingsGroup("In your apps")
-        NavRow(
-            "Inserting",
-            listOfNotNull(
-                "spaces".takeIf { insertion.autoSpace },
-                "capitals".takeIf { insertion.autoCapitalize },
-                "clipboard fallback".takeIf { insertion.allowClipboard },
-            ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "As recognized" },
-        ) { onOpen(SettingsPage.INSERTING) }
-        NavRow("App styles", "${settings.profiles.size} ${if (settings.profiles.size == 1) "app" else "apps"} with their own style") { onOpen(SettingsPage.APP_STYLES) }
-        NavRow(
-            "Bubble",
-            if (!settings.bubble.enabled) "Off"
-            else listOfNotNull(
-                "On",
-                "${settings.bubble.sizeDp} dp",
-                "${(settings.bubble.restingOpacity * 100).roundToInt()} % at rest".takeIf { settings.bubble.restingOpacity < 1f },
-                "hidden in ${settings.bubble.hiddenIn.size} ${if (settings.bubble.hiddenIn.size == 1) "app" else "apps"}".takeIf { settings.bubble.hiddenIn.isNotEmpty() },
-            ).joinToString(" · "),
-        ) { onOpen(SettingsPage.BUBBLE) }
-        NavRow(
-            "Voice commands",
-            when {
-                !settings.commands.enabled -> "Off"
-                !settings.bubble.enabled -> "On - but the bubble is off"
-                else -> "On · double-tap the bubble"
-            },
-        ) { onOpen(SettingsPage.COMMANDS) }
+    SubPage(modifier) {
+        SettingsGroup(label = null) {
+            NavRow(
+                "Recognition", SettingsSummaries.recognition(engine, trust), icon = AmberIcons.Mic,
+                summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
+            ) { onOpen(SettingsPage.RECOGNITION) }
+            RowDivider()
+            NavRow("Cleanup", SettingsSummaries.cleanup(settings), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
+            RowDivider()
+            NavRow("Bubble", SettingsSummaries.onOff(settings.bubble.enabled), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
+            RowDivider()
+            NavRow(
+                "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
+                summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
+            ) { onOpen(SettingsPage.COMMANDS) }
+        }
 
-        SettingsGroup("Amber")
-        NavRow("Statistics", if (settings.stats.keep) "Kept on this phone" else "Off") { onOpen(SettingsPage.STATS) }
-        val open = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
-        NavRow(
-            "Reliability",
-            if (open == 0) "All set" else "$open ${if (open == 1) "thing" else "things"} open",
-            valueColor = if (open == 0) AmberPalette.Muted else AmberPalette.Primary,
-        ) { onOpen(SettingsPage.RELIABILITY) }
-        NavRow("Diagnostics", if (diagnosticsCount == 0) "Nothing dictated yet" else "The last $diagnosticsCount dictations") { onOpen(SettingsPage.DIAGNOSTICS) }
-        NavRow("Show the introduction again", "The setup steps, with your current choices", onClick = onReplayIntroduction)
-        Hairline()
-        Spacer(Modifier.height(16.dp))
-        Hint("Amber $version", AmberPalette.Muted)
+        SettingsGroup("Per app") {
+            NavRow("App styles", SettingsSummaries.appStyles(settings.profiles.size), icon = AmberIcons.Palette) { onOpen(SettingsPage.APP_STYLES) }
+        }
+
+        SettingsGroup(label = null) {
+            NavRow(
+                "Advanced", SettingsSummaries.advanced(ADVANCED_ROWS, reliabilityOpen), Modifier.foldState(advancedOpen), icon = AmberIcons.Tune,
+                summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
+                trailing = { ExpandChevron(advancedOpen) },
+                onClick = onToggleAdvanced,
+            )
+            Unfold(advancedOpen) {
+                Column {
+                    RowDivider()
+                    NavRow("When the server fails", SettingsSummaries.fallback(settings, trust), icon = AmberIcons.CloudOff) {
+                        onOpen(SettingsPage.FALLBACK)
+                    }
+                    RowDivider()
+                    NavRow("Recording", SettingsSummaries.recording(settings.capture), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
+                    RowDivider()
+                    NavRow("Inserting", SettingsSummaries.inserting(settings.insertion), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
+                    RowDivider()
+                    NavRow(
+                        "Reliability", SettingsSummaries.reliability(reliabilityOpen), icon = AmberIcons.Battery,
+                        summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
+                    ) { onOpen(SettingsPage.RELIABILITY) }
+                }
+            }
+        }
+
+        SettingsGroup("Amber") {
+            NavRow("Statistics", SettingsSummaries.onOff(settings.stats.keep), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
+            RowDivider()
+            NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
+            RowDivider()
+            NavRow("Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction)
+        }
+
+        Text(
+            "Amber $version",
+            style = MaterialTheme.typography.labelSmall,
+            color = AmberPalette.Muted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        )
     }
-}
-
-/** A hairline and a small heading over one group of the settings list. */
-@Composable
-private fun SettingsGroup(title: String) {
-    Hairline()
-    GroupLabel(title, Modifier.padding(top = 20.dp, bottom = 2.dp))
 }
 
 /**
@@ -182,13 +188,7 @@ fun RecognitionScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
-    ) {
+    SubPage(modifier) {
         val groups = settings.engines.groupBy { it.trustLevelForDisplay() }
         listOf(
             TrustLevel.ON_DEVICE to "On this phone",
@@ -211,8 +211,9 @@ fun RecognitionScreen(
                 }
             }
         }
-        Hairline()
-        GhostButton("Add engine", { showPresets = true })
+        SettingsGroup(label = null) {
+            NavRow("Add engine", summary = null, icon = AmberIcons.Add, trailing = null) { showPresets = true }
+        }
     }
 
     if (showPresets) {
@@ -249,11 +250,15 @@ fun RecordingScreen(
             )
             RecordingLimits(settings, onUpdateSettings)
         }
-        SectionCard(title = "Text") {
+        SectionCard(
+            title = "Text",
+            learnMore = "Both work by rules, without a language model, so nothing is made up. The commas go before " +
+                "\"dass\", \"weil\", \"wenn\" or \"um ... zu\", where recognition often leaves them out - " +
+                "they never change a word.",
+        ) {
             ToggleRow(
                 label = "Remove filler words",
-                description = "Drops \"ähm\", \"äh\", \"um\" and the like. " +
-                    "Purely rule-based, no LLM, so no risk of hallucination.",
+                description = "\"ähm\", \"äh\", \"um\" and the like",
                 checked = settings.capture.stripFillers,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(stripFillers = value)) }
@@ -261,15 +266,18 @@ fun RecordingScreen(
             )
             ToggleRow(
                 label = "Add missing commas",
-                description = "German only: the comma before \"dass\", \"weil\", \"wenn\" or \"um ... zu\" " +
-                    "that recognition often leaves out. Rules, no LLM - it never changes a word.",
+                description = "German only",
                 checked = settings.capture.germanCommas,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(germanCommas = value)) }
                 },
             )
         }
-        SectionCard(title = "Recognize while speaking") {
+        SectionCard(
+            title = "Recognize while speaking",
+            learnMore = "Longer dictations are cut at pauses and recognized while you keep talking, " +
+                "so stopping only waits for the last part.",
+        ) {
             ChunkingSettings(settings, onUpdateSettings)
         }
     }
@@ -283,10 +291,16 @@ fun InsertingScreen(
     modifier: Modifier = Modifier,
 ) {
     SubPage(modifier) {
-        SectionCard(title = "Inserting", subtitle = "How the text arrives at the cursor.") {
+        SectionCard(
+            title = null,
+            subtitle = "How the text arrives at the cursor.",
+            learnMore = "Off, text is only typed straight into the field and the clipboard stays untouched - a " +
+                "dictation that cannot be typed is reported. On, it is pasted instead, or copied as a last " +
+                "resort, and then shows up in the clipboard history.",
+        ) {
             ToggleRow(
                 label = "Add spaces",
-                description = "Separates from the previous word automatically.",
+                description = "Apart from the word before",
                 checked = settings.insertion.autoSpace,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoSpace = value)) }
@@ -294,7 +308,7 @@ fun InsertingScreen(
             )
             ToggleRow(
                 label = "Capitalize sentence starts",
-                description = "Only at the start of the field and after . ! ?",
+                description = "At the start of a field and after . ! ?",
                 checked = settings.insertion.autoCapitalize,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoCapitalize = value)) }
@@ -302,7 +316,7 @@ fun InsertingScreen(
             )
             ToggleRow(
                 label = "Attach punctuation",
-                description = "Turns \"Hello , world\" into \"Hello, world\".",
+                description = "\"Hello , world\" becomes \"Hello, world\"",
                 checked = settings.insertion.gluePunctuation,
                 onChange = { value ->
                     onUpdateSettings {
@@ -312,8 +326,7 @@ fun InsertingScreen(
             )
             ToggleRow(
                 label = "Clipboard as a fallback",
-                description = "Off: text is only typed straight into the field, the clipboard " +
-                    "stays untouched. On: if that fails, it is pasted or copied.",
+                description = "When typing into the field fails",
                 checked = settings.insertion.allowClipboard,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
@@ -334,45 +347,24 @@ fun BubbleScreen(
     var picking by remember { mutableStateOf(false) }
     val bubble = settings.bubble
     SubPage(modifier) {
-        SectionCard(title = "Bubble", subtitle = "Tap to dictate, hold to talk, drag to move.") {
-            ToggleRow(
-                label = "Show bubble",
-                description = "Off hides the bubble without turning off the accessibility " +
-                    "service - dictating in the test field keeps working.",
-                checked = settings.bubble.enabled,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) }
-                },
-            )
+        MainSwitch(
+            label = "Use the bubble",
+            summary = "Tap to dictate, hold to talk.",
+            checked = bubble.enabled,
+            onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) } },
+        )
+        LearnMore(
+            "Off hides the bubble without turning off the accessibility service - dictating in the test " +
+                "field keeps working. While you dictate, the bubble is always fully visible.",
+        )
+
+        SectionCard(title = "Look") {
             BubbleSizeRow(
-                sizeDp = settings.bubble.sizeDp,
+                sizeDp = bubble.sizeDp,
                 onChange = { value ->
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(sizeDp = value)) }
                 },
             )
-            ToggleRow(
-                label = "Only with a text field",
-                description = "The bubble appears as soon as you tap into an input field, " +
-                    "and disappears again afterwards." +
-                    if (settings.commands.enabled) " While voice commands are on, it shows in every app." else "",
-                checked = settings.bubble.onlyWithTextField,
-                onChange = { value ->
-                    onUpdateSettings {
-                        it.copy(bubble = it.bubble.copy(onlyWithTextField = value))
-                    }
-                },
-            )
-            ToggleRow(
-                label = "Vibrate",
-                description = "Short feedback on start, success and failure.",
-                checked = settings.bubble.haptics,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
-                },
-            )
-        }
-
-        SectionCard(title = "Look") {
             StepSlider(
                 label = "Opacity at rest",
                 valueText = "${(bubble.restingOpacity * 100).roundToInt()} %",
@@ -381,40 +373,63 @@ fun BubbleScreen(
                 step = 10,
                 onChange = { percent -> onUpdateSettings { it.copy(bubble = it.bubble.copy(restingOpacity = percent / 100f)) } },
             )
-            Hint("While you dictate, the bubble is always fully visible.")
             BubbleOpacityPreview(bubble.restingOpacity)
         }
 
-        SectionCard(title = "Hidden in", subtitle = "Apps the bubble stays out of - games, or apps with their own voice input.") {
-            if (bubble.hiddenIn.isEmpty()) Hint("Shown in every app.")
-            bubble.hiddenIn.forEach { pkg ->
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    AppIcon(pkg, apps)
-                    Text(apps.label(pkg), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
-                    GhostButton("Show again", {
-                        onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
-                    })
+        SectionCard(title = "Behavior") {
+            ToggleRow(
+                label = "Only with a text field",
+                description = if (settings.commands.enabled) "Voice commands show it in every app" else "Appears when you tap into a field",
+                checked = bubble.onlyWithTextField,
+                onChange = { value ->
+                    onUpdateSettings {
+                        it.copy(bubble = it.bubble.copy(onlyWithTextField = value))
+                    }
+                },
+            )
+            ToggleRow(
+                label = "Vibrate",
+                description = "On start, success and failure",
+                checked = bubble.haptics,
+                onChange = { value ->
+                    onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
+                },
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Position", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+                    Hint("Stays where you drag it")
                 }
+                GhostButton("Reset", {
+                    onUpdateSettings {
+                        it.copy(
+                            bubble = it.bubble.copy(
+                                horizontalBias = BubbleSettings.DEFAULT_HORIZONTAL_BIAS,
+                                verticalBias = BubbleSettings.DEFAULT_VERTICAL_BIAS,
+                            ),
+                        )
+                    }
+                })
             }
-            GhostButton("Add apps", { picking = true })
         }
 
-        SectionCard(title = "Position") {
-            Hint("Drag the bubble anywhere; it stays where you drop it.")
-            GhostButton("Put it back in the corner", {
-                onUpdateSettings {
-                    it.copy(
-                        bubble = it.bubble.copy(
-                            horizontalBias = BubbleSettings.DEFAULT_HORIZONTAL_BIAS,
-                            verticalBias = BubbleSettings.DEFAULT_VERTICAL_BIAS,
-                        ),
-                    )
-                }
-            })
+        SettingsGroup("Hidden in", note = "Games, or apps with their own voice input.") {
+            bubble.hiddenIn.forEach { pkg ->
+                NavRow(
+                    apps.label(pkg), summary = null,
+                    leading = { AppIcon(pkg, apps) },
+                    trailing = {
+                        GhostButton("Show again", {
+                            onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
+                        })
+                    },
+                    onClick = null,
+                )
+                RowDivider()
+            }
+            NavRow("Add apps", summary = if (bubble.hiddenIn.isEmpty()) "None hidden yet" else null, icon = AmberIcons.Add, trailing = null) {
+                picking = true
+            }
         }
     }
 
@@ -443,7 +458,7 @@ private fun BubbleOpacityPreview(opacity: Float) {
         Modifier
             .fillMaxWidth()
             .height(84.dp)
-            .background(AmberPalette.Surface, AmberShapes.Inner)
+            .background(AmberPalette.Background, AmberShapes.Inner)
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterEnd,
     ) {
@@ -464,20 +479,26 @@ private fun BubbleOpacityPreview(opacity: Float) {
 @Composable
 fun ReliabilityScreen(setup: SetupState, actions: SetupActions, modifier: Modifier = Modifier) {
     SubPage(modifier) {
-        SectionCard(title = "Reliability", subtitle = "Optional. Keeps Android from cutting off the microphone.") {
+        SectionCard(
+            title = null,
+            subtitle = "Optional. Keeps Android from cutting off the microphone.",
+            learnMore = "Android may cut off the microphone of an app in the background. The microphone service " +
+                "keeps it ready while you are in other apps, its silent notification says so, and unrestricted " +
+                "battery stops some manufacturers from killing the service.",
+        ) {
             ReliabilityRows(setup, actions)
         }
     }
 }
 
-/** A scrolling page of sections, the frame every sub-screen shares. */
+/** A scrolling page of groups, the frame every settings page shares. */
 @Composable
 internal fun SubPage(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = PageGutter)
             .padding(bottom = 32.dp),
         content = content,
     )
@@ -559,43 +580,6 @@ private fun BubblePreview(size: androidx.compose.ui.unit.Dp) {
 
 internal const val MIN_BUBBLE_DP = 44
 internal const val MAX_BUBBLE_DP = 96
-
-@Composable
-internal fun ToggleRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        leading?.invoke()
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = AmberPalette.Text,
-            )
-            Hint(description)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = AmberPalette.Background,
-                checkedTrackColor = AmberPalette.Primary,
-                checkedBorderColor = Color.Transparent,
-                uncheckedThumbColor = AmberPalette.Muted,
-                uncheckedTrackColor = AmberPalette.Elevated,
-                uncheckedBorderColor = Color.Transparent,
-            ),
-        )
-    }
-}
 
 @Composable
 private fun PresetDialog(

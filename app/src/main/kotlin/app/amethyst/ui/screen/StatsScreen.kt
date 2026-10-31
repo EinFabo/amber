@@ -1,15 +1,9 @@
 package app.amethyst.ui.screen
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,10 +19,12 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.stats.StatsSummary
+import app.amethyst.ui.DangerAction
 import app.amethyst.ui.DayBars
 import app.amethyst.ui.Figure
-import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LearnMore
+import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.ShareBar
 import app.amethyst.ui.theme.AmberPalette
@@ -56,34 +52,38 @@ fun StatsScreen(
 ) {
     var confirmClear by remember { mutableStateOf(false) }
 
-    Column(
-        modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
-    ) {
+    SubPage(modifier) {
+        MainSwitch(
+            label = "Use statistics",
+            summary = "Counts only, never what you said.",
+            checked = settings.stats.keep,
+            onChange = { on -> onUpdateSettings { it.copy(stats = it.stats.copy(keep = on)) } },
+        )
+        LearnMore(
+            "Counts and timings are kept on this phone and not backed up. Off, nothing new is counted; " +
+                "what is there stays until you clear it.",
+        )
+
         if (stats == null || stats.isEmpty) {
-            Column(Modifier.padding(vertical = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Nothing counted yet", style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+            SectionCard(title = null) {
+                Text("Nothing counted yet", style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
                 Hint(
                     if (settings.stats.keep) "Dictate once and your words, time saved and the apps you dictate into show up here."
-                    else "Statistics are off. Turn them on below to start counting.",
+                    else "Statistics are off. Turn them on above to start counting.",
                 )
             }
         } else {
-            Row(Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
-                Figure(formatCount(stats.wordsToday), "words today", Modifier.weight(1f))
-                Figure(formatCount(stats.lastDays.sum()), "this week", Modifier.weight(1f))
-                Figure(formatMinutes(stats.minutesSavedTotal), "saved so far", Modifier.weight(1f))
+            SectionCard(title = "This week") {
+                Row(Modifier.fillMaxWidth()) {
+                    Figure(formatCount(stats.wordsToday), "words today", Modifier.weight(1f))
+                    Figure(formatCount(stats.lastDays.sum()), "this week", Modifier.weight(1f))
+                    Figure(formatMinutes(stats.minutesSavedTotal), "saved so far", Modifier.weight(1f))
+                }
+                Column {
+                    DayBars(stats.lastDays)
+                    WeekdayLabels(today, stats.lastDays.size)
+                }
             }
-            DayBars(stats.lastDays)
-            WeekdayLabels(today, stats.lastDays.size)
-            Hint(
-                "Time saved compares typing at ${settings.stats.typingWpm} words a minute with the " +
-                    "time you spoke and waited.",
-            )
-            Spacer(Modifier.height(16.dp))
 
             SectionCard(title = "Where your voice went") {
                 val total = stats.totalDictations.toFloat()
@@ -121,13 +121,7 @@ fun StatsScreen(
             }
         }
 
-        SectionCard(title = "Statistics", subtitle = "Counts and timings only - never what you said. Not backed up.") {
-            ToggleRow(
-                label = "Keep statistics",
-                description = "Off: nothing new is counted. What is there stays until you clear it.",
-                checked = settings.stats.keep,
-                onChange = { on -> onUpdateSettings { it.copy(stats = it.stats.copy(keep = on)) } },
-            )
+        SectionCard(title = "Time saved", subtitle = "Typing at your speed, against the time you spoke and waited.") {
             StepSlider(
                 label = "Your typing speed",
                 valueText = "${settings.stats.typingWpm} words a minute",
@@ -136,8 +130,9 @@ fun StatsScreen(
                 step = 5,
                 onChange = { wpm -> onUpdateSettings { it.copy(stats = it.stats.copy(typingWpm = wpm)) } },
             )
-            if (stats != null && !stats.isEmpty) GhostButton("Clear statistics", { confirmClear = true })
         }
+
+        if (stats != null && !stats.isEmpty) DangerAction("Clear statistics") { confirmClear = true }
     }
 
     if (confirmClear) {
@@ -162,7 +157,7 @@ fun StatsScreen(
 
 @Composable
 private fun WeekdayLabels(today: Long, days: Int) {
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 16.dp)) {
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         (today - days + 1..today).forEach { day ->
             Text(
                 LocalDate.ofEpochDay(day).dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
@@ -194,8 +189,9 @@ private const val MAX_APPS = 5
 internal fun formatCount(n: Int): String = "%,d".format(Locale.US, n)
 
 internal fun formatSeconds(ms: Long): String = when {
-    ms < 1_000 -> "$ms ms"
-    ms < 60_000 -> "%.1f s".format(Locale.US, ms / 1000.0)
+    // A no-break space keeps the number and its unit on one line.
+    ms < 1_000 -> "$ms\u00A0ms"
+    ms < 60_000 -> "%.1f\u00A0s".format(Locale.US, ms / 1000.0)
     else -> "${ms / 60_000} min ${ms / 1000 % 60} s"
 }
 

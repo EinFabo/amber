@@ -37,9 +37,13 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
 import app.amethyst.apps.InstalledApp
-import app.amethyst.ui.GhostButton
+import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.Hint
-import app.amethyst.ui.SectionCard
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.RowDivider
+import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import kotlin.math.roundToInt
@@ -79,8 +83,7 @@ fun ChunkingSettings(
     val capture = settings.capture
     ToggleRow(
         label = "Recognize in parts",
-        description = "Longer dictations are cut at pauses and recognized while you keep " +
-            "talking, so stopping only waits for the last part. Local engines only.",
+        description = "Local engines only",
         checked = capture.chunking,
         onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
     )
@@ -111,25 +114,32 @@ fun AppStylesScreen(
     val ownModels = settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL }
 
     SubPage(modifier) {
-        SectionCard(
-            title = "Your apps",
-            subtitle = "How the text is phrased depends on the app it goes into.",
+        val styled = settings.cleanup != null || ownModels
+        SettingsGroup(
+            "Your apps",
+            note = when {
+                settings.cleanup != null -> "Each app gets the text in its own style."
+                ownModels -> "Only apps with a model of their own are tidied."
+                else -> "Styles need a cleanup model."
+            },
+            noteColor = if (styled) AmberPalette.Muted else AmberPalette.Primary,
+            learnMore = when {
+                settings.cleanup != null -> "The cleanup chosen under Settings → Cleanup writes in each app's style, " +
+                    "unless an app has a model of its own. Apps without a style get the text tidied as spoken."
+                ownModels -> "For the other apps, pick a cleanup under Settings → Cleanup."
+                else -> "Pick one under Settings → Cleanup - a model on Tinfoil, Groq, OpenAI or your own server - " +
+                    "or one for a single app on its page. Until then the text goes in as recognized."
+            },
         ) {
-            Hint(
-                when {
-                    settings.cleanup != null -> "Applied by the cleanup chosen under Settings → Cleanup, or by an app's own model. " +
-                        "Apps without a style get the text tidied as spoken."
-                    ownModels -> "Only apps with a cleanup model of their own are tidied. For the others, pick one under " +
-                        "Settings → Cleanup."
-                    else -> "Styles need a cleanup model: pick one under Settings → Cleanup (a model on Tinfoil, Groq, " +
-                        "OpenAI or your own server), or one for a single app on its page. Until then the text goes in as recognized."
-                },
-                if (settings.cleanup != null || ownModels) AmberPalette.Muted else AmberPalette.Primary,
-            )
             settings.profiles.forEach { profile ->
-                ProfileRow(profile, settings, apps) { onOpenApp(profile.packageName) }
+                NavRow(
+                    profile.label,
+                    profile.summary(settings),
+                    leading = { AppIcon(profile.packageName, apps) },
+                ) { onOpenApp(profile.packageName) }
+                RowDivider()
             }
-            GhostButton("Add app", { picking = true })
+            NavRow("Add app", summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
         }
     }
 
@@ -201,33 +211,17 @@ internal fun WritingStyle.note(): String = when (this) {
     WritingStyle.CONCISE -> "short notes"
 }
 
-@Composable
-private fun ProfileRow(profile: AppProfile, settings: AmethystSettings, apps: AppSource, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        AppIcon(profile.packageName, apps)
-        Column(Modifier.weight(1f)) {
-            Text(profile.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-            val own = profile.appCleanup
-            val extra = listOfNotNull(
-                profile.instruction?.takeIf { it.isNotBlank() }?.let { "own instruction" },
-                when (own.mode) {
-                    AppCleanupMode.OFF -> "cleanup off"
-                    AppCleanupMode.MODEL -> own.choice?.let { settings.cleanupSummary(it) ?: it.model }
-                    AppCleanupMode.DEFAULT -> null
-                },
-            )
-            Hint((listOf(profile.style.label()) + extra).joinToString(" · "))
-        }
-        Text("Edit", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
-    }
-}
+/** An app's style and what it has of its own: "Concise · own instruction · Gemma 4 31B". */
+private fun AppProfile.summary(settings: AmethystSettings): String =
+    listOfNotNull(
+        style.label(),
+        instruction?.takeIf { it.isNotBlank() }?.let { "own instruction" },
+        when (appCleanup.mode) {
+            AppCleanupMode.OFF -> "cleanup off"
+            AppCleanupMode.MODEL -> appCleanup.choice?.let { SettingsSummaries.cleanup(settings, it) }
+            AppCleanupMode.DEFAULT -> null
+        },
+    ).joinToString(" · ")
 
 /**
  * Picks apps from those with a launcher icon. The ones the user dictates in come first; the

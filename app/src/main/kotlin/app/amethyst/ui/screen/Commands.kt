@@ -9,10 +9,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LearnMore
+import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -32,35 +36,32 @@ fun VoiceCommandsScreen(
     fun switch(on: Boolean) = onUpdateSettings { it.copy(commands = it.commands.copy(enabled = on)) }
 
     SubPage(modifier) {
-        SectionCard(
-            title = "Voice commands",
-            subtitle = "Double-tap the bubble and say what to do. Where no text field is, one tap is enough.",
-        ) {
-            ToggleRow(
-                label = "Use voice commands",
-                description = "Off: Amber never taps, swipes or acts for you.",
-                checked = settings.commands.enabled,
-                onChange = { on -> if (on) asking = true else switch(false) },
+        MainSwitch(
+            label = "Use voice commands",
+            summary = "Double-tap the bubble and speak.",
+            checked = settings.commands.enabled,
+            onChange = { on -> if (on) asking = true else switch(false) },
+        )
+        if (settings.commands.enabled && !settings.bubble.enabled) {
+            Hint(
+                "The bubble is off - switch it on under Bubble to give commands.",
+                AmberPalette.Primary,
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
             )
-            if (settings.commands.enabled && !settings.bubble.enabled) {
-                Hint("The bubble is off - switch it on under Bubble to give commands.", AmberPalette.Primary)
-            }
         }
+        LearnMore(
+            "Where no text field is, one tap on the bubble is enough. While voice commands are on, the bubble " +
+                "shows in every app, also without a text field.\n\n" +
+                "Nothing is read from the screen and nothing is tapped: Amber only looks for what can scroll. " +
+                "A command opens, goes back or scrolls. It never sends, deletes, pays or confirms anything.\n\n" +
+                "Your engine under Recognition hears the command like a dictation - a server engine gets the " +
+                "recording and may bill it.",
+        )
 
         SectionCard(title = "What you can say", subtitle = "German and English both work.") {
             VoiceCommands.EXAMPLES.forEach { example ->
                 Text(example, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Text)
             }
-        }
-
-        SectionCard(title = "Good to know") {
-            Hint("Nothing is read from the screen and nothing is tapped: Amber only looks for what can scroll.")
-            Hint("A command opens, goes back or scrolls. It never sends, deletes, pays or confirms anything.")
-            Hint(
-                "Your engine under Recognition hears the command like a dictation - a server engine " +
-                    "gets the recording and may bill it.",
-            )
-            Hint("While voice commands are on, the bubble shows in every app, also without a text field.")
         }
     }
 

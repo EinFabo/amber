@@ -155,7 +155,21 @@ class StoreShots {
 
     @Test
     fun settingsList() = shoot("5-settings", "Settings") {
-        SettingsScreen(settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", onOpen = {}, onReplayIntroduction = {})
+        SettingsScreen(
+            settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0",
+            advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+        )
+    }
+
+    /** Not part of the listing set: the whole settings list in one picture, "Advanced" unfolded. */
+    @Test
+    @Config(qualifiers = "w360dp-h1160dp-xxhdpi")
+    fun settingsTall() = shoot("x-settings-tall", "Settings") {
+        SettingsScreen(
+            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready.copy(batteryUnrestricted = false),
+            diagnosticsCount = 12, version = "0.20.0",
+            advancedOpen = true, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+        )
     }
 
     @Test
@@ -233,22 +247,29 @@ class StoreShots {
         CleanupScreen(settings = pipeline, hasKeyFor = { true }, onUpdateSettings = {})
     }
 
+    /** Keep with a cleanup model of its own. */
+    private val keep = app.amethyst.core.settings.AppProfile(
+        "com.google.android.keep", "Keep", app.amethyst.core.settings.WritingStyle.CONCISE,
+        appCleanup = app.amethyst.core.settings.AppCleanup(
+            app.amethyst.core.settings.AppCleanupMode.MODEL,
+            app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "gemma4-31b"),
+        ),
+    )
+
+    @Composable
+    private fun KeepStyle() = app.amethyst.ui.screen.AppStyleScreen(
+        profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, hasKeyFor = { true },
+        onUpdateSettings = {}, onRemoved = {},
+    )
+
     /** Not part of the listing set: one app's page with a cleanup model of its own. */
     @Test
-    fun appStyle() = shoot("x-app-style", "App style") {
-        val keep = app.amethyst.core.settings.AppProfile(
-            "com.google.android.keep", "Keep", app.amethyst.core.settings.WritingStyle.CONCISE,
-            appCleanup = app.amethyst.core.settings.AppCleanup(
-                app.amethyst.core.settings.AppCleanupMode.MODEL,
-                app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "gemma4-31b"),
-            ),
-        )
-        val withKeep = pipeline.copy(profiles = listOf(keep))
-        app.amethyst.ui.screen.AppStyleScreen(
-            profile = keep, settings = withKeep, apps = FakeApps, hasKeyFor = { true },
-            onUpdateSettings = {}, onRemoved = {},
-        )
-    }
+    fun appStyle() = shoot("x-app-style", "App style") { KeepStyle() }
+
+    /** Not part of the listing set: the same page in one picture, down to removing the app. */
+    @Test
+    @Config(qualifiers = "w360dp-h1480dp-xxhdpi")
+    fun appStyleTall() = shoot("x-app-style-tall", "App style") { KeepStyle() }
 
     /** Not part of the listing set: the voice commands page, switched on. */
     @Test
@@ -257,6 +278,30 @@ class StoreShots {
             settings = settings.copy(commands = app.amethyst.core.settings.CommandSettings(enabled = true)),
             onUpdateSettings = {},
         )
+    }
+
+    /** Not part of the listing set: the recording page. */
+    @Test
+    fun recording() = shoot("x-recording", "Recording") {
+        app.amethyst.ui.screen.RecordingScreen(settings = settings, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the inserting page. */
+    @Test
+    fun inserting() = shoot("x-inserting", "Inserting") {
+        app.amethyst.ui.screen.InsertingScreen(settings = settings, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the reliability page with the battery still restricted. */
+    @Test
+    fun reliability() = shoot("x-reliability", "Reliability") {
+        app.amethyst.ui.screen.ReliabilityScreen(setup = ready.copy(batteryUnrestricted = false), actions = actions)
+    }
+
+    /** Not part of the listing set: the diagnostics page before the first dictation. */
+    @Test
+    fun diagnostics() = shoot("x-diagnostics", "Diagnostics") {
+        app.amethyst.ui.screen.DiagnosticsScreen(records = emptyList(), keyboardLog = emptyList(), onClear = {})
     }
 
     /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
@@ -268,7 +313,10 @@ class StoreShots {
     /** Not part of the listing set: the settings list with the whole pipeline in use. */
     @Test
     fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
-        SettingsScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1", onOpen = {}, onReplayIntroduction = {})
+        SettingsScreen(
+            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
+            advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+        )
     }
 
     /** Not part of the listing set: home with a cleanup in use. */

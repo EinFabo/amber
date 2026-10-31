@@ -59,9 +59,11 @@ short burst of sparks ("Fuse"). Failure turns the disc red and puts the sparks o
 moves at rest. The sparks fly in a second overlay window that takes no touches.
 
 The app itself ("Hearth"): the engine and where it sends your voice, the flame, one line of
-today's numbers and a test field. Settings are a short list of pages, each showing its value:
-engine (grouped by where the voice goes), recording, inserting, app styles, bubble,
-statistics, reliability, diagnostics.
+today's numbers and a test field. Settings are a short grouped list, each row an icon and its
+state in a few words: recognition, cleanup, bubble and voice commands first, then the app
+styles, the rarer pages folded under Advanced (when the server fails, recording, inserting,
+reliability), and statistics and diagnostics. Each page starts with what matters; longer
+explanations wait behind "Learn more".
 
 **Statistics** are counted on the phone only - words, dictations per app, where the voice
 went, the wait after stopping per engine, days in a row, an estimate of the server bill - from

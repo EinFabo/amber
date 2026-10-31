@@ -63,7 +63,6 @@ import app.amethyst.ui.onboarding.OnboardingScreen
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsScreen
-import app.amethyst.ui.screen.SubPage
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.ReliabilityScreen
@@ -72,7 +71,7 @@ import app.amethyst.ui.screen.InsertingScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.FallbackScreen
-import app.amethyst.ui.screen.DiagnosticsCard
+import app.amethyst.ui.screen.DiagnosticsScreen
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.screen.AppStyleScreen
@@ -266,6 +265,8 @@ private fun AmethystScreens(
     val screen = stack.last()
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
+    // Kept beside the stack, so coming back from one of its pages finds "Advanced" as it was left.
+    var advancedOpen by rememberSaveable { mutableStateOf(false) }
     val tester = remember(graph) { ConnectionTester(graph) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
@@ -427,6 +428,8 @@ private fun AmethystScreens(
                             setup = setup,
                             diagnosticsCount = records.size,
                             version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() },
+                            advancedOpen = advancedOpen,
+                            onToggleAdvanced = { advancedOpen = !advancedOpen },
                             onOpen = { page -> open(Screen.Page(page)) },
                             onReplayIntroduction = {
                                 // On top of Settings, the flag left alone: Back on the first step
@@ -478,16 +481,14 @@ private fun AmethystScreens(
                         SettingsPage.DIAGNOSTICS -> {
                             val records by graph.dictationLog.records.collectAsStateWithLifecycle()
                             val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
-                            SubPage {
-                                DiagnosticsCard(
-                                    records = records,
-                                    keyboardLog = keyboardLog,
-                                    onClear = {
-                                        graph.dictationLog.clear()
-                                        graph.keyboardLog.value = emptyList()
-                                    },
-                                )
-                            }
+                            DiagnosticsScreen(
+                                records = records,
+                                keyboardLog = keyboardLog,
+                                onClear = {
+                                    graph.dictationLog.clear()
+                                    graph.keyboardLog.value = emptyList()
+                                },
+                            )
                         }
                     }
 
