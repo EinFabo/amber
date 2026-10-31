@@ -76,7 +76,10 @@ fun VoiceCommandsScreen(
                 "deletes only the words you name - but a swipe does what your own swipe would do in that app: in a " +
                 "mail list it may archive a mail.\n\n" +
                 "Add a number for more - “zehnmal runter”, “swipe 5 times left” - up to 20. " +
-                "“Ganz nach unten” scrolls until nothing moves.",
+                "“Ganz nach unten” scrolls until nothing moves.\n\n" +
+                "Up to five commands fit in one go - “alles markieren und kopieren”, “zweimal zurück, dann öffne " +
+                "WhatsApp” - and run in that order; the first that cannot be done stops the rest. Among several, an " +
+                "app needs “öffne” or “open” before its name.",
         )
 
         SettingsGroup("What you can say", note = "German and English both work.") {

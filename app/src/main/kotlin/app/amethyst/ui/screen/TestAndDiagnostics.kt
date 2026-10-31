@@ -241,7 +241,8 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
             onClick = if (foldable) onToggle else null,
         )
         Unfold(open && foldable) {
-            val lines = record.details + listOfNotNull(record.timing?.let { "timing: $it" })
+            // Each of several commands' lines under its step, as the copied text has them.
+            val lines = DiagnosticsReport.nested(record.details) + listOfNotNull(record.timing?.let { "timing: $it" })
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -263,8 +264,13 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
     }
 }
 
-/** The line that says why a failed command was not done: the rules' verdict, or where a run stopped. */
-private fun String.isWhyNot(): Boolean = startsWith("not understood") || startsWith("stopped")
+/**
+ * The line that says why a failed command was not done: the rules' verdict, where a run stopped -
+ * also inside a step - or which of several commands was not done.
+ */
+private fun String.isWhyNot(): Boolean = trimStart().let {
+    it.startsWith("not understood") || it.startsWith("stopped") || (it.startsWith("outcome: ") && " at step " in it)
+}
 
 private fun emptyTitle(filter: DiagnosticsReport.Filter, nothingAtAll: Boolean): String = when {
     nothingAtAll -> "Nothing dictated yet"

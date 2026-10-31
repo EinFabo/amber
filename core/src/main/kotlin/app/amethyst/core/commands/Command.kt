@@ -63,7 +63,18 @@ sealed interface Command {
 }
 
 sealed interface Understanding {
-    data class Understood(val command: Command) : Understanding
+    /**
+     * One command, or several said in one go ("alles markieren und kopieren"), in the order
+     * said - at most [VoiceCommands.MAX_STEPS].
+     */
+    data class Understood(val commands: List<Command>) : Understanding {
+        constructor(command: Command) : this(listOf(command))
+
+        init {
+            require(commands.isNotEmpty()) { "an understood phrase has at least one command" }
+        }
+    }
+
     data class NotUnderstood(val heard: String) : Understanding
 }
 

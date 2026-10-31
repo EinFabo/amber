@@ -371,6 +371,59 @@ class VoiceCommandsCorpusTest {
         "Beende WhatsApp",
         "Quit Spotify",
         "Mein Telegram",
+        // Ordinary sentences with a joining word: every part must be a command, or none runs.
+        "Ich gehe zurück und dann nach Hause",
+        "Open the door and then go",
+        "Zurück und dann nach Hause",
+        "Kopieren und einfügen ist ganz einfach",
+        "Back to work and then home",
+        "Ich scrolle runter und dann lese ich",
+        "Lauter und deutlicher bitte",
+        // Two steps that undo each other are a phrase, not two commands.
+        "Rauf und runter",
+        "Up and down",
+        "Lauter und leiser",
+        "Ganz nach oben und ganz nach unten",
+        "Taschenlampe an und Taschenlampe aus",
+        "Wisch nach links und wisch nach rechts",
+        // A bare name or a misheard "öffne" is a rule for one command alone, never one of several.
+        "Markier alles und WhatsApp",
+        "Alles markieren und Erfner WhatsApp",
+        // A joining word with only one command around it: the rest of what was meant is missing.
+        "Zurück und",
+        "Und dann zurück",
+        // More than five in one go.
+        "Zurück, runter, zurück, runter, zurück, runter",
+    )
+
+    /** Several commands in one go, each with its own count, in the order said. */
+    private val combos: List<Pair<String, List<Command>>> = listOf(
+        "Select all copy" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Alles markieren kopieren" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Alles markieren und kopieren" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Alles markieren und dann kopieren." to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Alles markieren. Kopieren." to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Select all, then copy" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Select all and then copy." to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Markier alles und schneide es aus" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.CUT)),
+        "Zweimal zurück und dann öffne WhatsApp" to listOf(nav(GlobalAction.BACK, 2), app("whatsapp")),
+        "Zurück und dann dreimal runter" to listOf(back, scroll(Direction.DOWN, 3)),
+        "Scroll down twice and then go back" to listOf(scroll(Direction.DOWN, 2), back),
+        "Go back twice, then open Maps" to listOf(nav(GlobalAction.BACK, 2), app("maps")),
+        "Startbildschirm, danach öffne Spotify" to listOf(home, app("spotify")),
+        "Öffne WhatsApp und anschließend ganz nach unten" to listOf(app("whatsapp"), Command.ScrollToEnd(Direction.DOWN)),
+        "Go home after that open Chrome" to listOf(home, app("chrome")),
+        "Pause; lauter" to listOf(Command.Media(MediaKey.PAUSE), volume(VolumeChange.LOUDER)),
+        "Markier alles und öffne WhatsApp" to listOf(edit(TextEdit.SELECT_ALL), app("whatsapp")),
+        "Amber, alles markieren und äh kopieren bitte" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Kannst du alles markieren und kopieren?" to listOf(edit(TextEdit.SELECT_ALL), edit(TextEdit.COPY)),
+        "Lösche zwei Wörter und neue Zeile" to listOf(edit(TextEdit.DELETE_WORD, 2), edit(TextEdit.NEW_LINE)),
+        "Taschenlampe an und dann Startbildschirm" to listOf(Command.Torch(true), home),
+        "Zurück, zurück, runter, runter, Startbildschirm" to listOf(back, back, down, down, home),
+        // A command that would read the rest as an app's name: the joining word ends the name.
+        "Öffne WhatsApp und dann zurück" to listOf(app("whatsapp"), back),
+        "Zurück und dann WhatsApp öffnen" to listOf(back, app("whatsapp")),
+        "Öffnen Benachrichtigungen, dann zurück" to listOf(nav(GlobalAction.NOTIFICATIONS), back),
     )
 
     private fun mismatches(cases: List<Pair<String, Command>>): List<String> = cases.mapNotNull { (heard, expected) ->
@@ -400,12 +453,43 @@ class VoiceCommandsCorpusTest {
     }
 
     @Test
+    fun `several commands in one go are understood in their order`() {
+        val wrong = combos.mapNotNull { (heard, expected) ->
+            val got = parse(heard)
+            if (got == Understanding.Understood(expected)) null else "\"$heard\": expected $expected, got $got"
+        }
+        assertTrue(wrong.isEmpty(), "${wrong.size} of ${combos.size} wrong:\n" + wrong.joinToString("\n"))
+    }
+
+    @Test
+    fun `the strict reading that picks a language pass understands the same commands`() {
+        val wrong = (corpus.map { it.first } + combos.map { it.first } + notCommands).mapNotNull { heard ->
+            val loose = parse(heard)
+            val strict = VoiceCommands.parseStrict(heard) { apps }
+            // Only the guess of a misheard "öffne" is left out of the strict reading.
+            if (strict == loose || (strict is Understanding.NotUnderstood && heard in misheard.map { it.first })) null
+            else "\"$heard\": parse $loose, strict $strict"
+        }
+        assertTrue(wrong.isEmpty(), wrong.joinToString("\n"))
+    }
+
+    @Test
     fun `a bare name opens only an exact or uniquely started app`() {
         assertIs<Understanding.Understood>(parse("Whats"))
         listOf("Maps", "Tele", "Telegramm", "Gmial").forEach { heard ->
             assertIs<Understanding.NotUnderstood>(parse(heard), "\"$heard\"")
         }
         assertIs<Understanding.NotUnderstood>(VoiceCommands.parse("WhatsApp"), "no apps known, no bare name")
+    }
+
+    @Test
+    fun `the settings page shows several commands in one go in both languages`() {
+        val combo = VoiceCommands.GROUPS.single { it.title == "Several at once" }.examples.flatMap { it.split(" · ") }
+        assertTrue(combo.size >= 2, "$combo")
+        combo.forEach { heard ->
+            val got = parse(heard)
+            assertTrue(got is Understanding.Understood && got.commands.size > 1, "\"$heard\" -> $got")
+        }
     }
 
     @Test
@@ -418,7 +502,7 @@ class VoiceCommandsCorpusTest {
     @Test
     fun `the settings page groups commands by kind`() {
         assertTrue(
-            VoiceCommands.GROUPS.map { it.title } == listOf("Navigate", "Apps", "Scroll & swipe", "Media", "System", "Text"),
+            VoiceCommands.GROUPS.map { it.title } == listOf("Navigate", "Apps", "Scroll & swipe", "Media", "System", "Text", "Several at once"),
             VoiceCommands.GROUPS.map { it.title }.toString(),
         )
     }

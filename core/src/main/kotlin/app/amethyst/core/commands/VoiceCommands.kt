@@ -12,9 +12,17 @@ import java.text.Normalizer
  * sentence with one word it does not know is not a command - save a single unknown word right
  * before an installed app's exact name, taken for a misheard "öffne" ("Erfner WhatsApp").
  *
+ * Up to [MAX_STEPS] commands may come in one go, in their order: cut at joining words ("und
+ * dann", "then") and sentence marks, a piece without one cut into the longest commands from its
+ * start ("select all copy"), each with its own count. Every part must be a command, or nothing
+ * runs; a bare name and a misheard "öffne" stay rules for one command alone.
+ *
  * Nothing that sends, pays, confirms, deletes items or empties a field has a phrase here.
  */
 object VoiceCommands : CommandParser {
+
+    /** At most this many commands in one go ("alles markieren und kopieren"). */
+    const val MAX_STEPS = 5
 
     /** What the settings page shows as things to say, by kind; each line German · English. */
     val GROUPS = listOf(
@@ -51,6 +59,7 @@ object VoiceCommands : CommandParser {
             "Text",
             listOf("lösche das letzte Wort · delete 3 words", "alles markieren · copy", "ausschneiden · paste", "neue Zeile · new line"),
         ),
+        CommandGroup("Several at once", listOf("alles markieren und kopieren · select all, then copy")),
     )
 
     private val MARKS = Regex("\\p{Mn}+")
@@ -66,16 +75,33 @@ object VoiceCommands : CommandParser {
     /** Without a list of apps, so a bare name is never a command. */
     fun parse(heard: String): Understanding = parse(heard) { emptyList() }
 
-    override fun parse(heard: String, appLabels: () -> List<String>): Understanding =
-        command(read(heard), appLabels)?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+    override fun parse(heard: String, appLabels: () -> List<String>): Understanding = understand(heard, appLabels, guessMisheard = true)
 
     /**
      * [parse] without the guess that one unknown word before an app's name is a misheard
      * "öffne" ([misheardOpen]) - for choosing among a command's language passes
      * ([CommandLanguages]), where a later pass must not turn a refused phrase into an open.
+     * Several commands in one go never take that guess, so they read the same in both.
      */
-    fun parseStrict(heard: String, appLabels: () -> List<String>): Understanding =
-        command(read(heard), appLabels, guessMisheard = false)?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+    fun parseStrict(heard: String, appLabels: () -> List<String>): Understanding = understand(heard, appLabels, guessMisheard = false)
+
+    private fun understand(heard: String, appLabels: () -> List<String>, guessMisheard: Boolean): Understanding {
+        val single = command(read(heard), appLabels, guessMisheard)
+        val pieces = pieces(heard)
+        // One piece that is one command reads as it always did, without looking for more.
+        val commands = if (single != null && pieces.size < 2) listOf(single) else decide(single, combo(pieces))
+        return commands?.let { Understanding.Understood(it) } ?: Understanding.NotUnderstood(heard)
+    }
+
+    /**
+     * One command, or several. Where joining words or sentence marks split the words, several
+     * commands that read cleanly win over one that would swallow the rest ("öffne WhatsApp und
+     * zurück" is no app called "whatsapp und zuruck"); else the one command stands.
+     */
+    private fun decide(single: Command?, combo: Combo): List<Command>? = when {
+        single != null && combo.pieces < 2 -> listOf(single)
+        else -> combo.commands ?: single?.let(::listOf)
+    }
 
     /** What was heard as the rules see it: folded, the count taken out, the words kept. */
     private class Reading(val normalized: String, val times: Int?, val words: List<String>) {
@@ -97,31 +123,196 @@ object VoiceCommands : CommandParser {
         return (rule(words) ?: app)?.repeated(times)
     }
 
+    // ---- Several commands in one go ----
+
+    /**
+     * Words that join commands, longest first: "und dann" before "und". Whatever is said, the
+     * pieces between them must each be commands, or none of them runs.
+     */
+    private val JOINERS = listOf("und dann", "and then", "after that", "und", "dann", "danach", "anschliessend", "and", "then")
+        .map { it.split(' ') }
+
+    /** What a speech engine ends a sentence or a clause with: each mark cuts the commands apart too. */
+    private val SENTENCE_MARKS = Regex("[,.;!?]")
+
+    /** One command among several: the folded words it was read from, and what they mean. */
+    private class Part(val words: List<String>, val command: Command)
+
+    /**
+     * What reading the words as several commands found. [pieces] is how many pieces the joining
+     * words and sentence marks cut it into, fillers alone not counted; [parts] the commands
+     * found, in order; [stuck] the words at which no command could be found, if any.
+     */
+    private class Combo(val pieces: Int, val joined: Boolean, val parts: List<Part>, val stuck: List<String>?) {
+
+        /** Said as several - with a joining word or a sentence mark between - rather than read so. */
+        val intended: Boolean get() = pieces > 1 || joined
+
+        /** The second of two steps in a row that undo each other ("hoch und runter"), if any. */
+        val undoneAt: Int? = (1 until parts.size).firstOrNull { undoes(parts[it - 1].command, parts[it].command) }
+
+        /** Two to [MAX_STEPS] commands, all read cleanly; else null. */
+        val commands: List<Command>?
+            get() = parts.map { it.command }.takeIf { stuck == null && it.size in 2..MAX_STEPS && undoneAt == null }
+    }
+
+    /** The pieces of [heard] between sentence marks and joining words, folded, without those that hold only fillers. */
+    private class Pieces(val words: List<List<String>>, val joined: Boolean) {
+        val size: Int get() = words.size
+    }
+
+    private fun pieces(heard: String): Pieces {
+        var joined = false
+        val pieces = SENTENCE_MARKS.split(heard).flatMap { chunk ->
+            val words = normalize(chunk).split(' ').filter { it.isNotEmpty() }
+            val cut = mutableListOf<List<String>>()
+            var start = 0
+            var i = 0
+            while (i < words.size) {
+                val joiner = JOINERS.firstOrNull { words.size - i >= it.size && words.subList(i, i + it.size) == it }
+                if (joiner == null) {
+                    i++
+                    continue
+                }
+                joined = true
+                cut += words.subList(start, i)
+                i += joiner.size
+                start = i
+            }
+            cut + listOf(words.subList(start, words.size))
+        }
+        // "Amber, …", "äh, …": a piece of fillers alone is no command, and no missing one either.
+        return Pieces(pieces.filter { piece -> read(piece.joinToString(" ")).let { it.words.isNotEmpty() || it.times != null } }, joined)
+    }
+
+    /**
+     * Each piece cut into commands from its start: the longest run of words that is a command,
+     * then the rest the same way ("select all copy"). Only the fixed rules, each with its own
+     * count: a bare name or a misheard "öffne" is a command only when it is all that was said.
+     */
+    private fun combo(pieces: Pieces): Combo {
+        val parts = mutableListOf<Part>()
+        for (piece in pieces.words) {
+            var rest = piece
+            while (rest.isNotEmpty()) {
+                val part = (rest.size downTo 1).firstNotNullOfOrNull { n -> step(rest.take(n))?.let { Part(rest.take(n), it) } }
+                    ?: return Combo(pieces.size, pieces.joined, parts, stuck = rest)
+                parts += part
+                rest = rest.drop(part.words.size)
+            }
+        }
+        return Combo(pieces.size, pieces.joined, parts, stuck = null)
+    }
+
+    private fun combo(heard: String): Combo = combo(pieces(heard))
+
+    /** One command among several, from its folded [words]: its count, then the rules alone. */
+    private fun step(words: List<String>): Command? {
+        val reading = read(words.joinToString(" "))
+        val times = reading.times
+        if (reading.words.isEmpty() || (times != null && times < 1)) return null
+        return rule(reading.words)?.repeated(times)
+    }
+
+    /**
+     * "Hoch und runter", "lauter und leiser", "Taschenlampe an und aus": the second of two steps
+     * takes the first back - a turn of phrase, not two commands.
+     */
+    private fun undoes(first: Command, second: Command): Boolean {
+        fun way(command: Command): Direction? = when (command) {
+            is Command.Scroll -> command.direction
+            is Command.ScrollToEnd -> command.direction
+            is Command.Page -> command.direction
+            else -> null
+        }
+        fun opposite(a: Direction, b: Direction) = setOf(a, b).let { it == setOf(Direction.UP, Direction.DOWN) || it == setOf(Direction.LEFT, Direction.RIGHT) }
+        val a = way(first)
+        val b = way(second)
+        return when {
+            a != null && b != null -> opposite(a, b)
+            first is Command.Swipe && second is Command.Swipe -> opposite(first.direction, second.direction)
+            first is Command.Volume && second is Command.Volume -> setOf(first.change, second.change).let {
+                it == setOf(VolumeChange.LOUDER, VolumeChange.QUIETER) || it == setOf(VolumeChange.MUTE, VolumeChange.UNMUTE)
+            }
+            first is Command.Torch && second is Command.Torch -> first.on != null && second.on != null && first.on != second.on
+            else -> false
+        }
+    }
+
     // ---- Explaining, for Diagnostics ----
 
     /**
      * What the rules made of [heard], line by line, for Diagnostics: the folded text, the count,
      * the words left without fillers, politeness and Amber's name, then the command - or, when
-     * there is none, the most specific reason the rules can tell. The same reading as [parse].
+     * there is none, the most specific reason the rules can tell. Several commands show each
+     * part ("part 2: “kopieren” → Edit COPY") and, when they fail, the part that is none and
+     * why. The same reading as [parse].
      */
     fun explain(heard: String, appLabels: () -> List<String> = { emptyList() }): List<String> {
         val reading = read(heard)
         val command = command(reading, appLabels)
+        val combo = combo(heard)
+        val commands = decide(command, combo)
         return buildList {
             add("normalized: \"${reading.normalized}\"")
             reading.times?.let { times ->
                 add(if (times > Repeats.MAX_TIMES) "count: $times, capped at ${Repeats.MAX_TIMES}" else "count: $times")
             }
             add("words: " + reading.words.joinToString(" ").ifEmpty { "(none)" })
-            add(
-                when {
-                    command == null -> "not understood: ${reason(reading, appLabels)}"
-                    rule(reading.words) != null -> "understood: ${describe(command)}"
-                    bareApp(reading.words, appLabels) != null -> "understood: ${describe(command)} (a bare name: an installed app)"
-                    else -> "understood: ${describe(command)} (“${reading.words.first()}” taken for a misheard “öffne”: " +
-                        "an installed app's exact name follows)"
-                },
-            )
+            val parts = combo.parts.mapIndexed { i, part -> "part ${i + 1}: “${part.words.joinToString(" ")}” → ${describe(part.command)}" }
+            when {
+                commands != null && commands.size > 1 -> {
+                    addAll(parts)
+                    add("understood: ${describe(commands)}")
+                }
+                command != null -> add(
+                    when {
+                        rule(reading.words) != null -> "understood: ${describe(command)}"
+                        bareApp(reading.words, appLabels) != null -> "understood: ${describe(command)} (a bare name: an installed app)"
+                        else -> "understood: ${describe(command)} (“${reading.words.first()}” taken for a misheard “öffne”: " +
+                            "an installed app's exact name follows)"
+                    },
+                )
+                else -> {
+                    val split = splitReason(combo, appLabels)
+                    if (combo.intended && split != null) {
+                        // Said as several: the part that is none is the reason.
+                        add("as one command: ${reason(reading, appLabels)}")
+                        addAll(parts)
+                        add("not understood: $split")
+                    } else {
+                        // One phrase: its own reason stands, the split that was tried noted before it.
+                        if (parts.isNotEmpty() && split != null) {
+                            addAll(parts)
+                            add("as several commands: $split")
+                        }
+                        add("not understood: ${reason(reading, appLabels)}")
+                    }
+                }
+            }
+        }
+    }
+
+    /** Why [combo] is not several commands, or null when it is. */
+    private fun splitReason(combo: Combo, appLabels: () -> List<String>): String? {
+        val parts = combo.parts
+        val stuck = combo.stuck
+        val undone = combo.undoneAt
+        return when {
+            stuck != null -> {
+                val words = stuck.joinToString(" ")
+                val reading = read(words)
+                val app = if (reading.times != null || reading.words.isEmpty()) null
+                else (bareApp(reading.words, appLabels) ?: misheardOpen(reading.words, appLabels)) as? Command.OpenApp
+                if (app != null) "“$words” alone opens an app only when it is all that was said - among several commands say “öffne ${app.name}”"
+                else "“$words” is no command: ${reason(reading, appLabels)}"
+            }
+            parts.size > MAX_STEPS -> "${parts.size} commands - at most $MAX_STEPS in one go"
+            undone != null -> "${describe(parts[undone - 1].command)}, then ${describe(parts[undone].command)}: the two undo each other - " +
+                "taken for a turn of phrase like “hoch und runter”, not two commands"
+            parts.size < 2 -> "only one command (${parts.singleOrNull()?.let { describe(it.command) } ?: "none"}), and a joining word " +
+                "with no second command - say both, or the one alone"
+            else -> null
         }
     }
 
@@ -143,6 +334,9 @@ object VoiceCommands : CommandParser {
         is Command.OpenSettings -> "OpenSettings ${command.page}"
         is Command.Edit -> "Edit ${command.edit}${times(command.times)}"
     }
+
+    /** Several commands in their order, for Diagnostics: `Edit SELECT_ALL → Edit COPY`. */
+    fun describe(commands: List<Command>): String = commands.joinToString(" → ", transform = ::describe)
 
     private fun times(n: Int) = if (n > 1) " ×$n" else ""
 
@@ -231,7 +425,11 @@ object VoiceCommands : CommandParser {
             (words.first() == "mach" || words.first() == "mache") && words.last() == "auf" -> "mach … auf" to words.drop(1).dropLast(1)
             else -> return null
         }
-        return if (appName(name) == null) "“$verb” without an app name" else null
+        return when {
+            appName(name) == null -> "“$verb” without an app name"
+            sequenced(name) -> "“$verb” before words that put commands in a row (“dann”, “then”) - never part of an app's name"
+            else -> null
+        }
     }
 
     /**
@@ -644,8 +842,19 @@ object VoiceCommands : CommandParser {
             words.size > 1 && words.first() in APP_TRAILS -> words.drop(1)
             else -> APP_LEADS.firstOrNull { startsWith(words, it) }?.let { words.drop(it.split(' ').size) } ?: return null
         }
+        if (sequenced(name)) return null
         return appName(name)?.let { Command.OpenApp(it) }
     }
+
+    /**
+     * "Dann", "then", "after that": words that put commands in a row, so never part of an app's
+     * name - "open the door and then go" opens nothing. A plain "und" or "and" may be ("Tom and
+     * Jerry"), unless what it joins are commands.
+     */
+    private val SEQUENCE_WORDS = setOf("dann", "danach", "anschliessend", "then")
+
+    private fun sequenced(words: List<String>): Boolean =
+        words.any { it in SEQUENCE_WORDS } || words.windowed(2).any { it == listOf("after", "that") }
 
     /**
      * A name said without "open" ("WhatsApp", "zu WhatsApp") opens an app only when it is one's

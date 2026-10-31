@@ -355,6 +355,21 @@ class Screenshots {
                 "outcome: done",
             ),
         )
+        recordCommand(
+            "Alles markieren und kopieren", app.amethyst.core.commands.CommandOutcome.Done("Selected all, copied"),
+            EnginePresets.LOCAL_PARAKEET.id, timing,
+            details = explain("Alles markieren und kopieren") + listOf(
+                "step 1/2: Edit SELECT_ALL",
+                "gate: passed (commands on, phone unlocked)",
+                "target check: same field",
+                "field: the input-focus node (EditText) in com.whatsapp",
+                "step 2/2: Edit COPY",
+                "gate: passed (commands on, phone unlocked)",
+                "target check: same field",
+                "field: the input-focus node (EditText) in com.whatsapp",
+                "outcome: done, all 2 steps",
+            ),
+        )
     }.records.value
 
     /** Not part of the listing set: what a voice command leaves in Diagnostics, one opened to its steps. */
@@ -366,8 +381,8 @@ class Screenshots {
             records = commandLog.mapIndexed { i, record -> record.copy(atMillis = newest - i * 47_000L) },
             keyboardLog = emptyList(),
             onClear = {},
-            // The scroll that ran, and "Tele", which the rules did not take.
-            initiallyOpen = setOf(newest, newest - 2 * 47_000L),
+            // Two commands in one go, and "Tele", which the rules did not take.
+            initiallyOpen = setOf(newest, newest - 3 * 47_000L),
         )
     }
 

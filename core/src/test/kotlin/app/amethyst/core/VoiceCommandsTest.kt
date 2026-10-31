@@ -3,6 +3,7 @@ package app.amethyst.core
 import app.amethyst.core.commands.Command
 import app.amethyst.core.commands.Direction
 import app.amethyst.core.commands.GlobalAction
+import app.amethyst.core.commands.TextEdit
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import kotlin.test.Test
@@ -12,7 +13,7 @@ import kotlin.test.assertIs
 class VoiceCommandsTest {
 
     private fun understood(heard: String): Command =
-        assertIs<Understanding.Understood>(VoiceCommands.parse(heard), "\"$heard\"").command
+        assertIs<Understanding.Understood>(VoiceCommands.parse(heard), "\"$heard\"").commands.single()
 
     private fun assertCommand(expected: Command, vararg heard: String) =
         heard.forEach { assertEquals(expected, understood(it), "\"$it\"") }
@@ -161,6 +162,77 @@ class VoiceCommandsTest {
             "",
             "Zurück zum Thema: die Lieferung kommt morgen",
         ).forEach { assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it), "\"$it\"") }
+    }
+
+    private fun commands(heard: String, labels: List<String> = emptyList()): List<Command> =
+        assertIs<Understanding.Understood>(VoiceCommands.parse(heard) { labels }, "\"$heard\"").commands
+
+    @Test
+    fun `several commands run in the order said, each with its own count`() {
+        assertEquals(
+            listOf(Command.Navigate(GlobalAction.BACK, 2), Command.OpenApp("whatsapp")),
+            commands("zweimal zurück und dann öffne WhatsApp"),
+        )
+        assertEquals(
+            listOf(Command.Navigate(GlobalAction.BACK), Command.Scroll(Direction.DOWN, 3)),
+            commands("zurück und dann dreimal runter"),
+        )
+    }
+
+    @Test
+    fun `without a joining word the longest command comes first`() {
+        assertEquals(
+            listOf(Command.Edit(TextEdit.SELECT_ALL), Command.Edit(TextEdit.COPY)),
+            commands("Select all copy"),
+        )
+        // A count after a command belongs to it; the rest is read the same way.
+        assertEquals(
+            listOf(Command.Navigate(GlobalAction.BACK, 2), Command.Edit(TextEdit.COPY)),
+            commands("zurück zweimal kopieren"),
+        )
+    }
+
+    @Test
+    fun `one command reads as it always did`() {
+        // "Zurück zum Startbildschirm" names where to; the same rule makes a doubled "zurück" one step back.
+        assertEquals(listOf(Command.Navigate(GlobalAction.HOME)), commands("Zurück zum Startbildschirm"))
+        assertEquals(listOf(Command.Navigate(GlobalAction.BACK)), commands("zurück zurück"))
+        // A name with a joining word in it still opens when the rest is no command.
+        assertEquals(listOf(Command.OpenApp("tom and jerry")), commands("Open Tom and Jerry"))
+        assertEquals(listOf(Command.OpenApp("booking com")), commands("Öffne Booking.com"))
+        assertEquals(listOf(Command.OpenApp("whatsapp")), commands("Hey Amber, öffne WhatsApp."))
+    }
+
+    @Test
+    fun `an app among several commands needs an open word`() {
+        val apps = listOf("WhatsApp", "Spotify")
+        assertEquals(listOf(Command.Edit(TextEdit.SELECT_ALL), Command.OpenApp("whatsapp")), commands("markier alles und öffne WhatsApp", apps))
+        listOf("markier alles und WhatsApp", "WhatsApp und markier alles", "alles markieren und Erfner WhatsApp").forEach {
+            assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it) { apps }, "\"$it\"")
+        }
+    }
+
+    @Test
+    fun `a part that is no command stops the whole phrase - nothing runs halfway`() {
+        listOf("alles markieren und blabla", "Ich gehe zurück und dann nach Hause", "Open the door and then go", "zurück und").forEach {
+            assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it), "\"$it\"")
+        }
+    }
+
+    @Test
+    fun `at most five commands in one go`() {
+        assertEquals(5, commands("zurück, runter, zurück, runter, Startbildschirm").size)
+        assertIs<Understanding.NotUnderstood>(VoiceCommands.parse("zurück, runter, zurück, runter, zurück, runter"))
+    }
+
+    @Test
+    fun `two steps that undo each other are a phrase`() {
+        listOf("hoch und runter", "rauf und runter", "up and down", "lauter und leiser", "Ton aus und Ton an", "Taschenlampe an, Taschenlampe aus").forEach {
+            assertIs<Understanding.NotUnderstood>(VoiceCommands.parse(it), "\"$it\"")
+        }
+        // Not next to each other, or the same way twice: no phrase.
+        assertEquals(3, commands("hoch, zurück, runter").size)
+        assertEquals(2, commands("runter und runter").size)
     }
 
     @Test

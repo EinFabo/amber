@@ -65,7 +65,10 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
 
     /**
      * [startedIn]: the field that had the cursor when the command's recording began, if any.
-     * [trace] gets a line for every decision and step.
+     * [trace] gets a line for every decision and step. Called once for each of several commands
+     * said in one go ([app.amethyst.core.commands.CommandChain]), so each passes the gate again -
+     * a step that locked the phone stops the next - and each text command is checked against the
+     * field the recording began in, not the one an earlier step left.
      */
     suspend fun execute(command: Command, startedIn: InputTarget?, trace: CommandTrace): CommandOutcome {
         if (!graph.settings.value.commands.enabled) {

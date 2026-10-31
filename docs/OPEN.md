@@ -296,6 +296,20 @@ The full task prompt, with causes, code pointers and acceptance criteria:
       Open: does the first pass without detection stay fast on the Pixel, does the prompt help
       "Öffne", and does a command that falls back from a server to local Whisper need the same
       (it still detects).
+- [ ] **Several voice commands in one go** (Fabi, 2026-10-31: "Combos like 'Select all copy'
+      should work too"). Fixed in code, to confirm on the phone: up to five commands per
+      sentence, cut at joining words ("und dann", "then", ...) and sentence marks, a piece without
+      one into the longest commands from its start; each with its own count; every part must be
+      a command or none runs; two steps that undo each other ("hoch und runter") are a phrase.
+      They run one after another (`CommandChain`: 250 ms between, 600 ms after navigating, 1 s
+      after opening an app), each through the gate and the start field's check, and the first
+      not done stops the rest; Diagnostics show each step under its heading. Open: do "alles
+      markieren und kopieren" and "zweimal zurück und dann öffne WhatsApp" run on the Pixel, is
+      1 s enough for an app to settle, and does select all leave the field "the same" for the
+      copy. Known: a text command after opening an app is refused (it is another field); a
+      pair of commands that is two phrases of the command prompt in a row ("Zurück. Lauter.")
+      is taken for the prompt read back - "und" between them works; without a joining word
+      "zurück nach oben" is back, then scroll up.
 - [ ] Later: voice commands in more languages (Fabi, 2026-10-31) - German and English for now.
 - [ ] Later for voice commands: "tap <label>" with numbers like Voice Access (reads screen
       text - its own consent, prompt-injection rules), a model for free phrasing.

@@ -107,7 +107,7 @@ class CommandLanguagesTest {
         .flatMapIndexed { phrase, text -> text.split(' ').map { it to phrase } }
 
     @Test
-    fun `no run of words across two prompt phrases is a command - an echo there would swallow it`() {
+    fun `no run of words across two prompt phrases is one command - an echo there would swallow it`() {
         listOf("de", "en").forEach { language ->
             val words = promptWords(CommandLanguages.promptFor(language)!!)
             val commands = buildList {
@@ -115,7 +115,8 @@ class CommandLanguagesTest {
                     val run = words.subList(start, end)
                     if (run.first().second == run.last().second) continue
                     val text = run.joinToString(" ") { it.first }
-                    if (VoiceCommands.parse(text) { listOf("WhatsApp") } is Understanding.Understood) add(text)
+                    val understood = VoiceCommands.parse(text) { listOf("WhatsApp") } as? Understanding.Understood
+                    if (understood?.commands?.size == 1) add(text)
                 }
             }
             assertTrue(commands.isEmpty(), "$language: $commands")
@@ -124,6 +125,16 @@ class CommandLanguagesTest {
         val english = CommandLanguages.promptFor("en")
         assertFalse(CommandLanguages.isEcho("Go back home", english))
         assertFalse(CommandLanguages.isEcho("Back home", english))
+    }
+
+    @Test
+    fun `two prompt phrases in a row stay an echo though they are two commands - a joining word tells them apart`() {
+        // Silence must never run "Zurück. Lauter."; the user says "zurück und lauter" instead.
+        val german = CommandLanguages.promptFor("de")!!
+        assertTrue(VoiceCommands.parse("Zurück. Lauter.") is Understanding.Understood)
+        assertTrue(CommandLanguages.isEcho("Zurück. Lauter.", german))
+        assertFalse(CommandLanguages.isEcho("Zurück und lauter.", german))
+        assertFalse(CommandLanguages.isEcho("Lauter, zurück.", german), "not in the prompt's order")
     }
 
     @Test
@@ -311,6 +322,22 @@ class CommandLanguagesTest {
         val prompt = CommandLanguages.promptFor("de")!!
         recognize(FakeEngine(mapOf("de" to Result.success(prompt)), whisperLike), tag = "de", lines = echo)
         assertEquals(listOf("heard as de: \"$prompt\" - the prompt read back, taken as nothing heard"), echo)
+    }
+
+    @Test
+    fun `several commands in one go are understood, so their language is taken`() = runTest {
+        val engine = FakeEngine(
+            mapOf("en" to Result.success("Alice marking and copy."), "de" to Result.success("Alles markieren und kopieren.")),
+            whisperLike,
+        )
+        val lines = mutableListOf<String>()
+        val recognition = recognize(engine, phone = "en", lines = lines)
+        assertEquals("Alles markieren und kopieren.", recognition.result.getOrThrow().text)
+        assertEquals("heard as de: \"Alles markieren und kopieren.\" - understood", lines[1])
+
+        // And the first pass wins at once when it holds them.
+        val first = FakeEngine(mapOf("de" to Result.success("Zweimal zurück und dann öffne WhatsApp.")), whisperLike)
+        assertEquals(1, recognize(first).passes)
     }
 
     @Test

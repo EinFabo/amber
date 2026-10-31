@@ -32,6 +32,7 @@ import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.commands.Command
+import app.amethyst.core.commands.CommandChain
 import app.amethyst.core.commands.CommandLanguages
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
@@ -676,8 +677,10 @@ class DictationController(
     /**
      * A recognized command: understood by the rules, carried out by the accessibility service
      * (which refuses while commands are off), kept in Diagnostics - never typed anywhere and
-     * not counted in the statistics. Diagnostics get what the rules made of the words and
-     * every step the executor took ([CommandTrace]); logcat gets neither.
+     * not counted in the statistics. Several commands said in one go run one after another
+     * ([CommandChain]), each through the service's gate and field check, until one is not done.
+     * Diagnostics get what the rules made of the words and every step the executor took
+     * ([CommandTrace]); logcat gets neither.
      */
     private suspend fun runCommand(transcript: Transcript, appLabels: () -> List<String> = appLabelsOnce()) {
         // After the proxy activity, "back" would close the proxy instead of the user's screen.
@@ -693,19 +696,29 @@ class DictationController(
         // read once, and not while commands are off).
         val enabled = graph.settings.value.commands.enabled
         // From reading the words to the last step, a tap may stop it: the record then says so.
+        var chain: CommandChain.Run? = null
         val (understanding, outcome) = try {
             val parsed = withContext(Dispatchers.IO) {
                 VoiceCommands.parse(heard, appLabels).also { steps.addAll(VoiceCommands.explain(heard, appLabels)) }
             }
             if (!enabled && parsed is Understanding.NotUnderstood) steps.note("voice commands are off: no app list was read for bare names")
             parsed to when (parsed) {
-                // A text command changes only the field it was started in, checked as a dictation's
-                // text is (EditTarget) - recognition took seconds, the user may be in another chat now.
-                is Understanding.Understood -> graph.accessibilityService?.commands?.execute(parsed.command, startedIn = startTarget, steps)
-                    ?: CommandOutcome.Failed("Amber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
                 is Understanding.NotUnderstood -> CommandOutcome.Failed(
                     "Not a command: \u201C${heard.take(SHOWN_CHARS)}\u201D. Try \u201Copen WhatsApp\u201D or \u201Cgo back\u201D.",
                 )
+                is Understanding.Understood -> {
+                    val executor = graph.accessibilityService?.commands
+                    if (executor == null) {
+                        CommandOutcome.Failed("Amber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
+                    } else {
+                        // A text command changes only the field it was started in, checked as a dictation's
+                        // text is (EditTarget) - recognition took seconds, the user may be in another chat
+                        // now. Each of several commands is checked against that same field.
+                        CommandChain.run(parsed.commands, steps, pause = { delay(it) }) { command ->
+                            executor.execute(command, startedIn = startTarget, steps)
+                        }.also { chain = it }.outcome
+                    }
+                }
             }
         } catch (e: CancellationException) {
             // The trace says how far it got.
@@ -717,11 +730,11 @@ class DictationController(
             throw e
         }
         steps.note(
-            "outcome: " + when (outcome) {
+            chain?.line ?: ("outcome: " + when (outcome) {
                 is CommandOutcome.Done -> "done"
                 is CommandOutcome.Refused -> "refused"
                 is CommandOutcome.Failed -> "failed"
-            },
+            }),
         )
         commandRecorded = true
         graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
@@ -731,9 +744,10 @@ class DictationController(
             return
         }
         _state.value = DictationState.Commanded(heard, outcome.message)
-        // A toast would end up in the screenshot, and on the lock screen it says nothing new.
-        val action = ((understanding as? Understanding.Understood)?.command as? Command.Navigate)?.action
-        if (action != GlobalAction.SCREENSHOT && action != GlobalAction.LOCK_SCREEN) {
+        // A toast would end up in the screenshot, and on the lock screen it says nothing new -
+        // also when that was one of several commands.
+        val actions = (understanding as? Understanding.Understood)?.commands.orEmpty().mapNotNull { (it as? Command.Navigate)?.action }
+        if (GlobalAction.SCREENSHOT !in actions && GlobalAction.LOCK_SCREEN !in actions) {
             mainHandler.post {
                 Toast.makeText(context, "\u201C${heard.take(SHOWN_CHARS)}\u201D \u2192 ${outcome.message}", Toast.LENGTH_SHORT).show()
             }

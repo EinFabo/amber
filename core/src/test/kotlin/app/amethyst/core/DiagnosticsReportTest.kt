@@ -81,6 +81,44 @@ class DiagnosticsReportTest {
     }
 
     @Test
+    fun `several commands in one go show each step's lines under its heading`() {
+        now = at
+        log.recordCommand(
+            "Alles markieren und kopieren", CommandOutcome.Done("Selected all, copied"), engineId = "parakeet",
+            details = listOf(
+                "understood: Edit SELECT_ALL → Edit COPY",
+                "step 1/2: Edit SELECT_ALL",
+                "gate: passed (commands on, phone unlocked)",
+                "target check: same field",
+                "step 2/2: Edit COPY",
+                "gate: passed (commands on, phone unlocked)",
+                "outcome: done, all 2 steps",
+            ),
+        )
+        val text = report(log.records.value)
+        val expected = """
+            |  heard: Alles markieren und kopieren
+            |  understood: Edit SELECT_ALL → Edit COPY
+            |  step 1/2: Edit SELECT_ALL
+            |    gate: passed (commands on, phone unlocked)
+            |    target check: same field
+            |  step 2/2: Edit COPY
+            |    gate: passed (commands on, phone unlocked)
+            |  outcome: done, all 2 steps
+            |""".trimMargin()
+        assertTrue(expected in text, text)
+    }
+
+    @Test
+    fun `a step's lines end where the chain was stopped`() {
+        val lines = DiagnosticsReport.nested(listOf("step 1/2: Navigate BACK", "global action BACK", "stopped by a tap"))
+        assertEquals(listOf("step 1/2: Navigate BACK", "  global action BACK", "stopped by a tap"), lines)
+        // One command, or a repeated one's own "step 3: done", stays flat.
+        val single = listOf("understood: Scroll DOWN ×2", "step 1: done", "step 2: done", "outcome: done")
+        assertEquals(single, DiagnosticsReport.nested(single))
+    }
+
+    @Test
     fun `the filter shows dictations, commands or both`() {
         val all = records()
         assertEquals(all, DiagnosticsReport.Filter.ALL.apply(all))

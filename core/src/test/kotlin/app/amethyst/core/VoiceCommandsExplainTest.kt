@@ -126,7 +126,8 @@ class VoiceCommandsExplainTest {
         val several = reason("Scroll hoch runter")
         assertContains(several, "more than one direction")
         assertContains(several, "up, down")
-        assertContains(reason("Scroll und wisch nach unten"), "a scroll word and a swipe word")
+        // "Scroll und wisch nach unten" is two commands now: scroll (down), then swipe down.
+        assertContains(reason("Wisch scroll nach unten"), "a scroll word and a swipe word")
     }
 
     @Test
@@ -202,6 +203,64 @@ class VoiceCommandsExplainTest {
     }
 
     @Test
+    fun `several commands show each part and then all of them in order`() {
+        assertEquals(
+            listOf(
+                "normalized: \"alles markieren und dann kopieren\"",
+                "words: alles markieren und dann kopieren",
+                "part 1: “alles markieren” → Edit SELECT_ALL",
+                "part 2: “kopieren” → Edit COPY",
+                "understood: Edit SELECT_ALL → Edit COPY",
+            ),
+            explain("Alles markieren und dann kopieren."),
+        )
+        val counted = explain("Zweimal zurück und dann öffne WhatsApp")
+        assertContains(counted, "part 1: “zweimal zuruck” → Navigate BACK ×2")
+        assertEquals("understood: Navigate BACK ×2 → OpenApp \"whatsapp\"", counted.last())
+        assertEquals("understood: Edit SELECT_ALL → Edit COPY", verdict("Select all copy"))
+    }
+
+    @Test
+    fun `a part that is no command is named with its reason`() {
+        val door = explain("Open the door and then go")
+        assertContains(door, "part 1: “open the door” → OpenApp \"door\"")
+        val why = door.last()
+        assertTrue(why.startsWith("not understood: “go” is no command"), why)
+        // What the words are as one command comes first.
+        assertTrue(door.any { it.startsWith("as one command: ") }, "$door")
+
+        val home = reason("Ich gehe zurück und dann nach Hause")
+        assertContains(home, "“ich gehe zuruck” is no command")
+        assertContains(home, "no rule matches")
+    }
+
+    @Test
+    fun `a bare app name among several commands says it needs an open word`() {
+        val bare = reason("Markier alles und WhatsApp")
+        assertContains(bare, "“whatsapp”")
+        assertContains(bare, "say “öffne whatsapp”")
+    }
+
+    @Test
+    fun `steps that undo each other, too many steps and a lone joining word say so`() {
+        val undo = reason("Hoch und runter")
+        assertContains(undo, "Scroll UP, then Scroll DOWN")
+        assertContains(undo, "undo each other")
+        assertContains(reason("Zurück, runter, zurück, runter, zurück, runter"), "6 commands - at most 5 in one go")
+        assertContains(reason("Zurück und"), "only one command")
+    }
+
+    @Test
+    fun `one phrase that does not split keeps its own reason, the split noted before it`() {
+        val lines = explain("Runter schnell sofort")
+        assertContains(lines, "part 1: “runter” → Scroll DOWN")
+        assertTrue(lines.any { it.startsWith("as several commands: “schnell sofort” is no command: no rule matches") }, "$lines")
+        assertContains(lines.last(), "a direction, but with words the rules don't know there")
+        // Nothing found at all: only the reason, as before.
+        assertEquals(listOf("normalized: \"tele\"", "words: tele"), explain("Tele").dropLast(1))
+    }
+
+    @Test
     fun `the verdict always agrees with parse`() {
         listOf(
             "Zurück", "zweimal zurück", "Öffne WhatsApp", "WhatsApp", "Tele", "Kalender", "zehnmal runter", "ganz nach unten",
@@ -209,12 +268,14 @@ class VoiceCommandsExplainTest {
             "alles markieren", "neue Zeile", "Äh", "Ich bin gleich zu Hause", "Zweimal Startbildschirm", "", "öffne",
             "Erfner WhatsApp", "Öffner WhatsApp", "Ich habe kein WhatsApp", "Kein WhatsApp", "Erfner Whats", "Homepage",
             "Home page", "Zweimal Erfner WhatsApp", "Öffnen WhatsApp", "Starten Spotify", "Beende WhatsApp", "Mein Telegram",
-            "Quit Spotify", "Öffnen die App",
+            "Quit Spotify", "Öffnen die App", "Select all copy", "alles markieren und kopieren", "zweimal zurück und dann öffne WhatsApp",
+            "Hoch und runter", "Open the door and then go", "Öffne WhatsApp und dann zurück", "Open Tom and Jerry", "Zurück und",
+            "Markier alles und WhatsApp", "Runter schnell sofort",
         ).forEach { heard ->
             val last = verdict(heard)
             when (val understanding = VoiceCommands.parse(heard) { apps }) {
                 is Understanding.Understood -> assertTrue(
-                    last.startsWith("understood: ${VoiceCommands.describe(understanding.command)}"),
+                    last.startsWith("understood: ${VoiceCommands.describe(understanding.commands)}"),
                     "\"$heard\" -> $last",
                 )
                 is Understanding.NotUnderstood -> assertTrue(last.startsWith("not understood: "), "\"$heard\" -> $last")
