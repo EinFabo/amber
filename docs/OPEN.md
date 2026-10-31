@@ -80,6 +80,15 @@ with the release key, the enclave path solid. Each finding was checked against t
       (Parakeet, then Whisper, as before), Off, or a chosen engine - only ever one at least as
       private as the recognition (`Fallback.choices`: Tinfoil never falls back to Groq).
       The old on/off switch is migrated.
+- [ ] **Amber PC and Amber Server as own servers** (0.22.0): their model lists fill the speech
+      and cleanup pickers (also per app), stored per engine without the key; Ogg Opus uploads
+      to a server that lists `opus` (about a seventh to a tenth of the WAV), WAV otherwise and
+      on Android 9. Open: the device test - both pickers show the PC's models (needs Amber PC
+      0.4.2+), offline and after a cold start; a new Amber engine preselects the PC's default
+      model; Diagnostics say "upload Ogg Opus N KB" against a PC that lists opus (not yet in
+      the installed PC) and "upload WAV" otherwise. Small leftovers: a forced refresh can undo
+      an Opus refusal for one more try; a platform Ogg muxer that rejects the Opus header
+      silently falls back to WAV (watch Diagnostics).
 - [ ] **A ready local fallback while a server recognizes** (Fabi, 2026-10-31): an option under
       "When the server fails" - while a server engine records, the local fallback model already
       recognizes the recording in parts (as chunked local dictation does), so when the connection
