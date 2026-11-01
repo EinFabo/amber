@@ -12,6 +12,8 @@ import app.amethyst.core.update.UpdatePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -153,9 +155,18 @@ class GithubReleasesTest {
     }
 
     @Test
-    fun `offline, rate limited, a server error or garbage is a failed check`() = runTest {
-        assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.failing(IOException("offline")), "0.23.0"))
+    fun `no answer at all - offline, no name lookup, a timeout - is told apart`() = runTest {
+        for (e in listOf(IOException("offline"), UnknownHostException("api.github.com"), SocketTimeoutException("timeout"))) {
+            assertIs<UpdateFetch.NoAnswer>(GithubReleases.fetch(FakeHttpTransport.failing(e), "0.23.0"), e.javaClass.simpleName)
+        }
+        // Not a network failure: nothing an hour later would change.
+        assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.failing(IllegalArgumentException("bad header")), "0.23.0"))
+    }
+
+    @Test
+    fun `rate limited, no release yet, a server error or garbage is a failed check`() = runTest {
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("""{"message":"API rate limit exceeded"}""", 403), "0.23.0"))
+        assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("""{"message":"Not Found"}""", 404), "0.23.0"))
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("", 502), "0.23.0"))
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("<html></html>"), "0.23.0"))
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("""{"tag_name":"soon"}"""), "0.23.0"))
@@ -212,6 +223,28 @@ class UpdatePolicyTest {
     }
 
     @Test
+    fun `a check that got no answer at all is retried after an hour, an answer keeps the daily rhythm`() {
+        val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now - 2 * day)
+        val offline = UpdatePolicy.afterCheck(seen, UpdateFetch.NoAnswer("UnknownHostException"), now)
+        assertTrue(offline.lastCheckFailed)
+        assertTrue(offline.lastCheckOffline)
+        assertEquals("0.24.0", offline.latestVersion, "what was seen before stays")
+        assertFalse(UpdatePolicy.isDue(github, offline, now + 59 * 60_000))
+        assertTrue(UpdatePolicy.isDue(github, offline, now + hour))
+
+        val answered = UpdatePolicy.afterCheck(offline, UpdateFetch.Failed("HTTP 404"), now + hour)
+        assertTrue(answered.lastCheckFailed)
+        assertFalse(answered.lastCheckOffline)
+        assertFalse(UpdatePolicy.isDue(github, answered, now + 3 * hour))
+        assertTrue(UpdatePolicy.isDue(github, answered, now + hour + day))
+
+        val back = UpdatePolicy.afterCheck(offline, found, now + hour)
+        assertFalse(back.lastCheckFailed)
+        assertFalse(back.lastCheckOffline)
+        assertFalse(UpdatePolicy.isDue(github, back, now + 3 * hour))
+    }
+
+    @Test
     fun `only a strictly newer release is available`() {
         val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now)
         assertEquals(UpdateNotice("0.24.0", "https://github.com/EinFabo/amber/releases/tag/v0.24.0"), UpdatePolicy.available(github, seen, "0.23.0"))
@@ -247,6 +280,26 @@ class UpdatePolicyTest {
     }
 
     @Test
+    fun `a version dismissed on home gets no notification`() {
+        val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now)
+        assertNull(UpdatePolicy.toNotify(github, seen.copy(dismissedVersion = "0.24.0"), "0.23.0"))
+        assertEquals("0.24.0", UpdatePolicy.toNotify(github, seen.copy(dismissedVersion = "0.23.5"), "0.23.0")?.version)
+    }
+
+    @Test
+    fun `a check that finds nothing newer clears a notification left from before`() {
+        val installed = UpdatePolicy.afterCheck(UpdateSettings(notifiedVersion = "0.24.0"), found, now)
+        assertTrue(UpdatePolicy.clearsNotification(found, installed, "0.24.0"), "the notified version is installed now")
+        assertTrue(UpdatePolicy.clearsNotification(found, installed, "0.25.0"))
+        assertFalse(UpdatePolicy.clearsNotification(found, installed, "0.23.0"), "still newer")
+        // A failed check knows nothing new: the notification stays.
+        assertFalse(UpdatePolicy.clearsNotification(UpdateFetch.Failed("HTTP 503"), installed, "0.24.0"))
+        assertFalse(UpdatePolicy.clearsNotification(UpdateFetch.NoAnswer("timeout"), installed, "0.24.0"))
+        // An installed version that cannot be read decides nothing.
+        assertFalse(UpdatePolicy.clearsNotification(found, installed, ""))
+    }
+
+    @Test
     fun `the settings row says what the check does in a few words`() {
         val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now)
         assertEquals("Checks GitHub once a day", UpdatePolicy.summary(github, UpdateSettings(), "0.23.0"))
@@ -265,9 +318,13 @@ class UpdatePolicyTest {
         assertEquals("3 hours ago · up to date", UpdatePolicy.lastCheck(seen, "0.24.0", now))
         val failed = UpdatePolicy.afterCheck(seen, UpdateFetch.Failed("HTTP 503"), now - 2 * hour)
         assertEquals("Failed 2 hours ago · retried within a day", UpdatePolicy.lastCheck(failed, "0.23.0", now))
-        // Switched off, nothing is retried.
+        val offline = UpdatePolicy.afterCheck(seen, UpdateFetch.NoAnswer("UnknownHostException"), now - 20 * 60_000)
+        assertEquals("No connection 20 minutes ago · retried within an hour", UpdatePolicy.lastCheck(offline, "0.23.0", now))
+        // Switched off, nothing is retried and nothing is available.
         assertEquals("Failed 2 hours ago", UpdatePolicy.lastCheck(failed.copy(enabled = false), "0.23.0", now))
-        assertEquals("3 hours ago · up to date", UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.24.0", now))
+        assertEquals("No connection 20 minutes ago", UpdatePolicy.lastCheck(offline.copy(enabled = false), "0.23.0", now))
+        assertEquals("3 hours ago", UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.23.0", now))
+        assertEquals("3 hours ago", UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.24.0", now))
     }
 
     @Test

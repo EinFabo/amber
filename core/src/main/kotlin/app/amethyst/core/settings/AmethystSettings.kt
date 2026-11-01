@@ -390,6 +390,8 @@ data class UpdateSettings(
     val lastCheckedAt: Long = 0,
     /** The last check got no usable answer; retried at the next due time. */
     val lastCheckFailed: Boolean = false,
+    /** ... and no answer at all (offline, no name lookup, a timeout): retried within the hour. */
+    val lastCheckOffline: Boolean = false,
     /** The latest release the last successful check found, and its page. */
     val latestVersion: String? = null,
     val latestUrl: String? = null,

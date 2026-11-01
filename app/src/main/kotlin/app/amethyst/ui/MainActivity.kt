@@ -353,9 +353,9 @@ private fun AmethystScreens(
         scope.launch { graph.settingsStore.update(transform) }
     }
 
-    // Which build this is and its version, for the update notice; the GitHub build alone checks.
-    val releaseChannel = remember(graph) { graph.updates.channel }
-    val installedVersion = remember(graph) { graph.updates.installedVersion }
+    // Which build this is and its version, read on the IO pool at the start; null for the moment
+    // before. The GitHub build alone checks for updates.
+    val build by graph.updates.build.collectAsStateWithLifecycle()
 
     /** A release page, in the browser. */
     fun openUrl(url: String) {
@@ -477,7 +477,7 @@ private fun AmethystScreens(
                             }
                             open(Screen.EngineDetail(preset.id))
                         },
-                        update = UpdatePolicy.forHome(releaseChannel, settings.updates, installedVersion),
+                        update = build?.let { UpdatePolicy.forHome(it.channel, settings.updates, it.version) },
                         onDownloadUpdate = { notice -> openUrl(notice.url) },
                         onDismissUpdate = { notice ->
                             updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
@@ -490,8 +490,8 @@ private fun AmethystScreens(
                             settings = settings,
                             setup = setup,
                             diagnosticsCount = records.size,
-                            version = installedVersion,
-                            releaseChannel = releaseChannel,
+                            version = build?.version.orEmpty(),
+                            releaseChannel = build?.channel,
                             advancedOpen = advancedOpen,
                             onToggleAdvanced = { advancedOpen = !advancedOpen },
                             onOpen = { page -> open(Screen.Page(page)) },
@@ -556,16 +556,18 @@ private fun AmethystScreens(
                                         value = System.currentTimeMillis()
                                     }
                                 }
-                                UpdatesScreen(
-                                    settings = settings,
-                                    channel = releaseChannel,
-                                    installedVersion = installedVersion,
-                                    checking = checking,
-                                    now = now,
-                                    onUpdateSettings = ::updateSettings,
-                                    onCheckNow = { graph.updates.checkNow() },
-                                    onOpenUrl = ::openUrl,
-                                )
+                                build?.let { info ->
+                                    UpdatesScreen(
+                                        settings = settings,
+                                        channel = info.channel,
+                                        installedVersion = info.version,
+                                        checking = checking,
+                                        now = now,
+                                        onUpdateSettings = ::updateSettings,
+                                        onCheckNow = { graph.updates.checkNow() },
+                                        onOpenUrl = ::openUrl,
+                                    )
+                                }
                             }
                             SettingsPage.DIAGNOSTICS -> {
                                 val records by graph.dictationLog.records.collectAsStateWithLifecycle()

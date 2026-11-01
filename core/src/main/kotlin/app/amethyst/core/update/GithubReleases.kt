@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import java.io.IOException
 
 /** The newest published release on GitHub: its version, its page, and its title if it has one. */
 data class LatestRelease(val version: AppVersion, val url: String, val name: String?)
@@ -15,7 +16,10 @@ data class LatestRelease(val version: AppVersion, val url: String, val name: Str
 sealed interface UpdateFetch {
     data class Found(val release: LatestRelease) : UpdateFetch
 
-    /** Offline, rate limited, a server error or an answer without a usable version. */
+    /** No answer at all: offline, no name lookup, no connection, a timeout. Worth another try soon. */
+    data class NoAnswer(val detail: String) : UpdateFetch
+
+    /** GitHub answered, but not with a release: rate limited, none yet, a server error, garbage. */
     data class Failed(val detail: String) : UpdateFetch
 }
 
@@ -59,12 +63,17 @@ object GithubReleases {
         return LatestRelease(version, page, root.string("name")?.takeIf { it.isNotBlank() })
     }
 
-    /** Asks GitHub for the latest release. Never throws, except to cancel. */
+    /**
+     * Asks GitHub for the latest release. Never throws, except to cancel. A network failure
+     * (any IOException - a timeout and a refused TLS handshake are ones too) is [UpdateFetch.NoAnswer].
+     */
     suspend fun fetch(transport: HttpTransport, installedVersion: String): UpdateFetch {
         val response = try {
             transport.execute(request(installedVersion))
         } catch (e: CancellationException) {
             throw e
+        } catch (e: IOException) {
+            return UpdateFetch.NoAnswer(e.javaClass.simpleName)
         } catch (e: Exception) {
             return UpdateFetch.Failed(e.javaClass.simpleName)
         }

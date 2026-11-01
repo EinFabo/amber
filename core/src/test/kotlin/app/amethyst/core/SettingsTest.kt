@@ -282,6 +282,7 @@ class CaptureTimeoutTest {
             assertEquals(UpdateSettings(), updates)
             assertTrue(updates.enabled)
             assertEquals(0L, updates.lastCheckedAt)
+            assertFalse(updates.lastCheckOffline)
             assertNull(updates.latestVersion)
         }
     }
@@ -292,6 +293,7 @@ class CaptureTimeoutTest {
             enabled = false,
             lastCheckedAt = 1_800_000_000_000L,
             lastCheckFailed = true,
+            lastCheckOffline = true,
             latestVersion = "0.24.0",
             latestUrl = "https://github.com/EinFabo/amber/releases/tag/v0.24.0",
             notifiedVersion = "0.24.0",

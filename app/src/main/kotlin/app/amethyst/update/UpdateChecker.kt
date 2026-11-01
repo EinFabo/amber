@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/** Which build this is - from the key it is signed with - and its version name ("0.23.0", "0.23.0-debug"). */
+data class BuildInfo(val channel: ReleaseChannel, val version: String)
+
 /**
  * Asks GitHub for Amber's latest release - on the GitHub build only, while switched on, at most
  * once a day - when Amber's screen opens or the accessibility service connects, and posts one
@@ -37,18 +40,22 @@ class UpdateChecker(
     private val notifier: UpdateNotifier = UpdateNotifier(context),
 ) {
 
-    /** Which build this is, from the key it is signed with; read once. */
-    val channel: ReleaseChannel by lazy { readChannel() }
+    private val identified = MutableStateFlow<BuildInfo?>(null)
 
-    /** This build's version name, "0.23.0" (a debug build adds "-debug"). */
-    val installedVersion: String by lazy {
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-    }
+    /**
+     * Which build this is and its version, read once from the package manager - on the IO pool,
+     * as soon as this is built, so no screen waits on that binder call. Null until then.
+     */
+    val build: StateFlow<BuildInfo?> = identified.asStateFlow()
 
     private val running = MutableStateFlow(false)
 
     /** A check is under way, for the Updates page's "Check now". */
     val checking: StateFlow<Boolean> = running.asStateFlow()
+
+    init {
+        scope.launch(Dispatchers.IO) { identified.value = identify() }
+    }
 
     /** Amber's screen opened or the service connected: a check if one is due. */
     fun checkIfDue() = launch(force = false)
@@ -58,15 +65,15 @@ class UpdateChecker(
 
     private fun launch(force: Boolean) {
         scope.launch(Dispatchers.IO) {
-            // The signature is read here, on the IO pool, the first time.
-            if (!channel.checksForUpdates) return@launch
+            val build = identified.filterNotNull().first()
+            if (!build.channel.checksForUpdates) return@launch
             val settings = loaded.filterNotNull().first()
             if (!settings.updates.enabled) return@launch
-            if (!force && !UpdatePolicy.isDue(channel, settings.updates, System.currentTimeMillis())) return@launch
+            if (!force && !UpdatePolicy.isDue(build.channel, settings.updates, System.currentTimeMillis())) return@launch
             // One at a time: the screen and the service may both ask at the same moment.
             if (!running.compareAndSet(expect = false, update = true)) return@launch
             try {
-                check()
+                check(build)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -77,36 +84,48 @@ class UpdateChecker(
         }
     }
 
-    private suspend fun check() {
-        val outcome = GithubReleases.fetch(transport(), installedVersion)
+    /** Runs only one at a time (see [launch]), so the two writes below cannot interleave with another check. */
+    private suspend fun check(build: BuildInfo) {
+        val outcome = GithubReleases.fetch(transport(), build.version)
         when (outcome) {
             is UpdateFetch.Found -> Log.i(TAG, "update check: latest release ${outcome.release.version}")
+            is UpdateFetch.NoAnswer -> Log.i(TAG, "update check got no answer: ${outcome.detail}")
             is UpdateFetch.Failed -> Log.i(TAG, "update check failed: ${outcome.detail}")
         }
-        val canNotify = notifier.canNotify()
         var notify: UpdateNotice? = null
+        var stale = false
         update { current ->
-            var updates = UpdatePolicy.afterCheck(current.updates, outcome, System.currentTimeMillis())
-            // Marked as notified only when the notification can be posted: without the
-            // permission, a later check - once it is granted - still tells.
-            notify = UpdatePolicy.toNotify(channel, updates, installedVersion)?.takeIf { canNotify }
-            notify?.let { updates = updates.copy(notifiedVersion = it.version) }
+            val updates = UpdatePolicy.afterCheck(current.updates, outcome, System.currentTimeMillis())
+            notify = UpdatePolicy.toNotify(build.channel, updates, build.version)
+            stale = UpdatePolicy.clearsNotification(outcome, updates, build.version)
             current.copy(updates = updates)
         }
-        notify?.let(notifier::post)
+        // Installed since, or withdrawn: the old notice goes.
+        if (stale) notifier.cancel()
+        val notice = notify ?: return
+        // Marked as notified only once it is posted: without the permission, or if posting
+        // fails, a later check still tells.
+        if (notifier.post(notice)) {
+            update { it.copy(updates = it.updates.copy(notifiedVersion = notice.version)) }
+        }
     }
 
     /**
      * The SHA-256 of the certificate this APK is signed with now (minSdk 28, so the signing info
-     * is always there). Anything unreadable is "another build": no checks.
+     * is always there), and the version name. A signature that cannot be read is "another
+     * build": no checks.
      */
-    private fun readChannel(): ReleaseChannel = runCatching {
-        val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        val signers = info.signingInfo?.apkContentsSigners.orEmpty()
-        ReleaseChannel.ofCertificates(signers.map { it.toByteArray() })
-    }.getOrElse {
-        Log.w(TAG, "signature not readable: ${it.javaClass.simpleName}")
-        ReleaseChannel.OTHER
+    private fun identify(): BuildInfo {
+        val pm = context.packageManager
+        val version = runCatching { pm.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+        val channel = runCatching {
+            val info = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+            ReleaseChannel.ofCertificates(info.signingInfo?.apkContentsSigners.orEmpty().map { it.toByteArray() })
+        }.getOrElse {
+            Log.w(TAG, "signature not readable: ${it.javaClass.simpleName}")
+            ReleaseChannel.OTHER
+        }
+        return BuildInfo(channel, version)
     }
 
     private companion object {

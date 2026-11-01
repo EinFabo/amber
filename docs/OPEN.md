@@ -99,9 +99,11 @@ with the release key, the enclave path solid. Each finding was checked against t
       writes `SIGN_OUTPUT` (`amber-github.apk` for this key). Open: the first release with it.
 - [x] **Update check** (Fabi, 2026-11-01): builds signed with the GitHub release key ask
       GitHub's `releases/latest` once a day, when Amber's screen opens or the service connects
-      (no jobs, alarms or wake locks); every other build never checks. A newer version gets one
-      notification (channel "Updates", low importance, only with the notification permission)
-      and a card on Home until dismissed; Settings → Updates has the switch (on by default),
+      (no jobs, alarms or wake locks; no answer at all is retried after an hour); every other
+      build never checks. A newer version gets one notification (channel "Updates", low
+      importance, only with the notification permission, none for a version dismissed on Home,
+      taken back once nothing newer is out) and a card on Home until dismissed;
+      Settings → Updates has the switch (on by default),
       what the check sends, "Check now" and the last result. Logic in `core/update/`, state in
       `AmethystSettings.updates`. Open: the device test with a GitHub-signed build.
 - [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both

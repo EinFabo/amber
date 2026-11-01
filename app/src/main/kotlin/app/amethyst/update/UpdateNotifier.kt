@@ -34,9 +34,10 @@ class UpdateNotifier(private val context: Context) {
         return manager?.areNotificationsEnabled() == true
     }
 
-    fun post(notice: UpdateNotice) {
-        val manager = manager ?: return
-        if (!canNotify()) return
+    /** Posts the notice; false when it could not be - no permission, or the system refused it. */
+    fun post(notice: UpdateNotice): Boolean {
+        val manager = manager ?: return false
+        if (!canNotify()) return false
         createChannel(manager)
         val open = PendingIntent.getActivity(
             context,
@@ -52,8 +53,14 @@ class UpdateNotifier(private val context: Context) {
             .setAutoCancel(true)
             .build()
         // One id: a newer version replaces the notice of an older one.
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        return runCatching { manager.notify(NOTIFICATION_ID, notification) }
             .onFailure { Log.w("Amber", "update notification not posted: ${it.javaClass.simpleName}") }
+            .isSuccess
+    }
+
+    /** Takes back a notice that is out of date; nothing happens when there is none. */
+    fun cancel() {
+        runCatching { manager?.cancel(NOTIFICATION_ID) }
     }
 
     /** Low importance: in the shade and the status bar, without sound or a pop-up. */

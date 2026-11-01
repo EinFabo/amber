@@ -87,8 +87,8 @@ fun SettingsScreen(
     setup: SetupState,
     diagnosticsCount: Int,
     version: String,
-    /** Which build this is: only the GitHub build checks for updates itself. */
-    releaseChannel: ReleaseChannel,
+    /** Which build this is - only the GitHub build checks for updates itself; null until known. */
+    releaseChannel: ReleaseChannel?,
     advancedOpen: Boolean,
     onToggleAdvanced: () -> Unit,
     onOpen: (SettingsPage) -> Unit,
@@ -101,7 +101,7 @@ fun SettingsScreen(
     // Folded, "Advanced" passes on what Reliability needs; open, the Reliability row says it itself.
     val advancedFlags = if (advancedOpen) 0 else reliabilityOpen
     val commandsWithoutBubble = settings.commands.enabled && !settings.bubble.enabled
-    val updateAvailable = UpdatePolicy.available(releaseChannel, settings.updates, version) != null
+    val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
 
     SubPage(modifier) {
         SettingsGroup(label = null) {
@@ -156,7 +156,7 @@ fun SettingsScreen(
             NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
             RowDivider()
             NavRow(
-                "Updates", UpdatePolicy.summary(releaseChannel, settings.updates, version), icon = AmberIcons.Update,
+                "Updates", releaseChannel?.let { UpdatePolicy.summary(it, settings.updates, version) }, icon = AmberIcons.Update,
                 summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
             ) { onOpen(SettingsPage.UPDATES) }
             RowDivider()

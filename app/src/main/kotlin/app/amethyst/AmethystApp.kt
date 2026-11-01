@@ -152,11 +152,10 @@ class Graph(app: Application) {
 
     /**
      * The update check of the GitHub build: at most once a day, when Amber's screen opens or the
-     * service connects. Every other build never asks.
+     * service connects. Every other build never asks. Built with the graph, so which build this
+     * is gets read on the IO pool right at the start, before any screen needs it.
      */
-    val updates: UpdateChecker by lazy {
-        UpdateChecker(app, appScope, { httpTransport }, loadedSettings, settingsStore::update)
-    }
+    val updates = UpdateChecker(app, appScope, { httpTransport }, loadedSettings, settingsStore::update)
 
     /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */
     val launcherList = LauncherList(app)

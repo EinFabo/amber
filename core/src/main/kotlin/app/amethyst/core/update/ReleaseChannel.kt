@@ -16,7 +16,11 @@ enum class ReleaseChannel {
     val checksForUpdates: Boolean get() = this == GITHUB
 
     companion object {
-        /** SHA-256 of the GitHub release key's certificate (CN=Amber), lowercase hex. */
+        /**
+         * SHA-256 of the GitHub release key's certificate (CN=Amber), lowercase hex. A rotation of
+         * that signing key must update this constant (and the README), or the new builds stop
+         * checking for updates.
+         */
         const val GITHUB_SIGNER_SHA256 = "c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11"
 
         /**

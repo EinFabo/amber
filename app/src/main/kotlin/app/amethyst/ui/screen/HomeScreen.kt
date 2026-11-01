@@ -231,7 +231,7 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
     SettingsGroup(label = null) {
         NavRow(
             title = "Amber ${notice.version} is available",
-            summary = "Install it over this one - your settings stay.",
+            summary = INSTALLS_OVER,
             icon = AmberIcons.Download,
             summaryMaxLines = 2,
             trailing = null,

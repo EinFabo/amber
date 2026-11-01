@@ -19,6 +19,9 @@ private const val WHAT_IT_ASKS =
     "Checking asks GitHub which Amber release is the latest, and nothing else: no account, no ID, nothing " +
         "about your dictations. GitHub sees your IP address, that Amber asks, and which version."
 
+/** What installing a newer release does, said the same way on Home and on the Updates page. */
+internal const val INSTALLS_OVER = "Installs over this one; your settings stay."
+
 /**
  * The update check of the GitHub build: the main switch, what it asks, how the last check went
  * and "Check now". Any other build gets its updates from where it was installed and only says so.
@@ -77,7 +80,7 @@ private fun CheckedUpdates(
         RowDivider()
         if (available != null) {
             NavRow(
-                "Amber ${available.version}", "Installs over this one; your settings stay.",
+                "Amber ${available.version}", INSTALLS_OVER,
                 icon = AmberIcons.Download, summaryMaxLines = 2,
                 trailing = { GhostButton("Download", { onOpenUrl(available.url) }) },
                 onClick = { onOpenUrl(available.url) },

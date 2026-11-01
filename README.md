@@ -265,10 +265,11 @@ Amber signed with this one, nor the other way round.
 
 ## Updates
 
-An Amber from a GitHub release asks GitHub once a day, when its screen opens or its
+An Amber from a GitHub release asks GitHub at most once a day, when its screen opens or its
 accessibility service starts, whether a newer release is out: one request for
 `https://api.github.com/repos/EinFabo/amber/releases/latest`, without an account or any ID.
-GitHub sees the IP address, that Amber asks, and its version - nothing else is sent. A newer
+GitHub sees the IP address, that Amber asks, and its version - nothing else is sent. A check
+that got no answer at all (offline, a timeout) is tried again after an hour. A newer
 release shows as one notification and as a card on the home screen, both leading to its
 release page; downloading and installing stay up to you. Switch the check off under
 Settings → Updates. A build signed with any other key never checks: its updates come from
