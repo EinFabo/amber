@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 
 object ContextCompat {
+    const val RECEIVER_EXPORTED: Int = 0x2
     const val RECEIVER_NOT_EXPORTED: Int = 0x4
     fun startForegroundService(context: Context, intent: Intent) = Unit
     fun checkSelfPermission(context: Context, permission: String): Int = 0
