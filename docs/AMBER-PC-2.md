@@ -123,3 +123,47 @@ German + English, and a longer English dictation comes back in English.
 
 No server-side changes (they are in `~/projects/amberPC`), no change for other server engines
 beyond part 1's "no single code for a list", no new cleanup styles.
+
+## Follow-up 2: the cleanup translates short German (found 2026-11-01)
+
+With language `de,en`, "Okay, danke." came back as "Thank you" and "Ich hab kein Wasser." in
+English. Part of it was the PC's recognition (fixed in Amber PC / Amber Server 0.4.6: a short
+dictation now stays in the first chosen language unless another is clearly likelier). The other
+part is **this app's cleanup**, which runs through the PC's chat route on Qwen3 4B.
+
+**Measured** on Fabi's PC, Qwen3 4B Instruct 2507, `ChatCleanup`'s prompt word for word,
+temperature 0:
+
+| Dictation | As spoken | Casual |
+|---|---|---|
+| Okay, danke. | Okay, thanks. | Okay, thanks. |
+| Ich hab kein Wasser. | I have no water. | I have no water. |
+| Bis gleich. | Bis gleich. | Right away. |
+| ähm ich komm dann so um drei nee um vier | I'll come around three, no, four. | I'll be there around three, no, around four. |
+
+"Keep the original language and meaning. Never translate" is not enough for a small model under
+an English prompt. And `plausible` checks the length only, so a translation of the same length
+passes.
+
+**Fix, two parts:**
+
+1. `ChatCleanup.BASE_PROMPT`: after "Never translate, answer, add facts or comment." add, word for
+   word (as Amber PC 0.4.6 has it):
+   `Reply in the language of the dictation: German stays German, English stays English, a mix
+   stays mixed - even if the system prompt is in English.`
+   Measured with it: all four rows above stay German in both styles; the self-correction still
+   resolves ("Ich komm dann um vier."), lists still come back as "- " lines.
+2. `ChatCleanup.plausible`: add the word test of Amber PC (`crates/core/src/cleanup.rs`,
+   `plausible`): the share of the cleaned text's words (lowercase, letters and digits) that
+   occur in the original must be at least 0.7 for AS_SPOKEN and CASUAL, 0.5 for FORMAL, 0.6 for
+   CONCISE; a "- " list marker and line breaks are no words. Also: a question that comes back
+   without its question mark was answered, not tidied - reject it. Rejected means: the text goes
+   in as recognized, as today.
+
+**Tests** (`ChatCleanupTest`): the system prompt contains the sentence above; `plausible` rejects
+("Ich hab kein Wasser.", "I have no water."), ("Okay, danke.", "Okay, thanks."), ("Wie spät ist
+es?", "Es ist drei Uhr."), and still takes ("ähm ich komm dann so um drei nee um vier", "Ich komm
+dann um vier.") and the two list examples of part 3.
+
+**Check:** with the cleanup through the PC, dictate "Okay, danke.", "Bis gleich.", "Ich hab kein
+Wasser." - all come back German; "See you later." stays English.

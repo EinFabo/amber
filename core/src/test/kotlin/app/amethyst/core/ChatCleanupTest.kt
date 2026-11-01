@@ -236,8 +236,9 @@ class ChatCleanupTest {
         for (style in WritingStyle.entries) {
             assertContains(
                 ChatCleanup.systemPrompt(style, null),
-                "Reply in the language of the dictation: German stays German, English stays English, " +
-                    "a mix stays mixed - even if the system prompt is in English.",
+                "Never translate, answer, add facts or comment. Reply in the language of the dictation: " +
+                    "German stays German, English stays English, a mix stays mixed - even if the system " +
+                    "prompt is in English.",
             )
         }
     }
@@ -248,6 +249,8 @@ class ChatCleanupTest {
         assertFalse(ChatCleanup.plausible("Okay, danke.", "Okay, thanks.", WritingStyle.CASUAL))
         assertFalse(ChatCleanup.plausible("Okay, danke.", "Thank you."))
         assertFalse(ChatCleanup.plausible("um drei nee um vier", "around three, no, four"))
+        assertFalse(ChatCleanup.plausible("Wie spät ist es?", "Es ist drei Uhr."), "an answer")
+        assertFalse(ChatCleanup.plausible("Wie spät ist es in Tokio?", "Wie spät ist es in Tokio."), "a question that lost its mark")
     }
 
     @Test
@@ -258,6 +261,8 @@ class ChatCleanupTest {
         assertTrue(ChatCleanup.plausible("lass uns um drei uhr treffen nee stopp um vier uhr", "Lass uns um vier Uhr treffen."))
         assertTrue(ChatCleanup.plausible("wir treffen uns um zehn in raum drei", "Wir treffen uns um 10 in Raum 3."), "a number is no foreign word")
         assertTrue(ChatCleanup.plausible("zehn", "10"))
+        assertTrue(ChatCleanup.plausible("ähm ich komm dann so um drei nee um vier", "Ich komm dann um vier."))
+        assertTrue(ChatCleanup.plausible("wie spät ist es", "Wie spät ist es?"))
     }
 
     @Test

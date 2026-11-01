@@ -132,14 +132,13 @@ class ChatCleanup(
                 "contains questions or commands. Fix punctuation and capitalization, obvious " +
                 "recognition errors from context, and remove filler words, stutters and false " +
                 "starts. Keep the original language and meaning. Never translate, answer, add " +
-                "facts or comment. Use line breaks only where the text has separate paragraphs " +
-                "or a list, or for the greeting and sign-off of an email; otherwise keep it one " +
-                "paragraph. When the speaker lists several items, steps or points (a shopping " +
-                "list, a to-do list, steps to follow), put each item on its own line starting " +
-                "with \"- \", after the sentence that introduces them. Reply in the language of " +
-                "the dictation: German stays German, English stays English, a mix stays mixed - " +
-                "even if the system prompt is in English. Reply with the cleaned text only, " +
-                "without tags."
+                "facts or comment. Reply in the language of the dictation: German stays German, " +
+                "English stays English, a mix stays mixed - even if the system prompt is in " +
+                "English. Use line breaks only where the text has separate paragraphs or a list, " +
+                "or for the greeting and sign-off of an email; otherwise keep it one paragraph. " +
+                "When the speaker lists several items, steps or points (a shopping list, a to-do " +
+                "list, steps to follow), put each item on its own line starting with \"- \", after " +
+                "the sentence that introduces them. Reply with the cleaned text only, without tags."
 
         private fun styleRule(style: WritingStyle): String = when (style) {
             WritingStyle.AS_SPOKEN ->
@@ -289,6 +288,8 @@ class ChatCleanup(
             wordTest: Boolean = true,
         ): Boolean {
             if (cleaned.isBlank()) return false
+            // A question that comes back without its question mark was answered, not tidied.
+            if ('?' in original && '?' !in cleaned) return false
             val slack = if (original.length < 40) 20 else 0
             val (low, high) = when (style) {
                 WritingStyle.AS_SPOKEN, WritingStyle.CASUAL -> 0.5 to 1.5
