@@ -142,8 +142,10 @@ class AmethystAccessibilityService : AccessibilityService() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
         }
-        // System broadcasts only; nothing from other apps.
-        ContextCompat.registerReceiver(this, lockWatch, lockEvents, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // Exported, or the unlock never arrives and the bubble stays away: USER_PRESENT comes from
+        // SystemUI, which has an app's uid, not the system's. All three are protected broadcasts,
+        // so no other app can send them.
+        ContextCompat.registerReceiver(this, lockWatch, lockEvents, ContextCompat.RECEIVER_EXPORTED)
         lockWatchRegistered = true
         bubble?.setLocked(isLocked())
 
