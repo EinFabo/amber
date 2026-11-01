@@ -136,8 +136,7 @@ with the release key, the enclave path solid. Each finding was checked against t
       takes the local text at once, a server slower than twice its learned time (at least 4 s)
       gives way once the local text is there. The progress ring now covers the whole wait -
       upload by bytes sent, recognition, cleanup (streamed where the service takes it) - and the
-      learned rates survive a restart. Open: the device test (Pixel, Amber PC off, flight mode,
-      a slow tunnel).
+      learned rates survive a restart. Device test passed (Fabi, 2026-11-01).
 - [x] Layout (Fabi: "too cluttered"): the Engine page with all three stacked is gone. Settings
       come in three groups - Speech to text (Recognition, Cleanup, When the server fails,
       Recording), In your apps (Inserting, App styles, Bubble), Amber (Statistics, Reliability,
