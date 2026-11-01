@@ -89,6 +89,11 @@ with the release key, the enclave path solid. Each finding was checked against t
       the installed PC) and "upload WAV" otherwise. Small leftovers: a forced refresh can undo
       an Opus refusal for one more try; a platform Ogg muxer that rejects the Opus header
       silently falls back to WAV (watch Diagnostics).
+- [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
+      switched on under Accessibility, both show a bubble and both get the keyboard and field
+      signals - a likely source of rare, random misbehaviour. Amber could notice another Amber
+      variant's service in `ENABLED_ACCESSIBILITY_SERVICES` and say so on Home and in
+      Diagnostics ("Amber (debug) is also on - switch one off").
 - [ ] **A ready local fallback while a server recognizes** (Fabi, 2026-10-31): an option under
       "When the server fails" - while a server engine records, the local fallback model already
       recognizes the recording in parts (as chunked local dictation does), so when the connection
