@@ -220,6 +220,13 @@ object AmberCatalogs {
     }
 
     /**
+     * Whether [engine] talks to an Amber server: an own server with a stored list from the
+     * address it points at now. Such a server takes several languages at once.
+     */
+    fun isAmber(settings: AmethystSettings, engine: EngineConfig): Boolean =
+        isCandidate(engine) && settings.catalogFor(engine) != null
+
+    /**
      * How [engine] may compress its recordings: with [encoder], when it is an own server whose
      * stored list (from the address it points at now) takes Ogg Opus. Null - WAV as always -
      * for every other engine: Groq, OpenAI, Tinfoil and plain own servers have no list, and

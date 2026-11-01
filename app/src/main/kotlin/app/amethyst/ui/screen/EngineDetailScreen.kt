@@ -316,13 +316,30 @@ fun EngineDetailScreen(
                         if (provider.speechModels.isEmpty()) Hint("${provider.name} offers no speech model right now.")
                     }
                 }
-                SectionCard(
-                    title = "Language",
-                    subtitle = "Automatic works for most. One fixed language helps with short dictations.",
-                ) {
-                    ServerLanguagePicker(language.substringBefore('-').lowercase()) { picked ->
-                        language = picked
-                        onSave(edited())
+                // An Amber server takes several languages and picks among them; a plain API
+                // takes one code or none.
+                val amber = catalog?.takeIf { AmberCatalogs.isCandidate(config) }
+                if (amber != null) {
+                    SectionCard(title = "Languages") {
+                        Hint(
+                            "The languages you dictate in. Several: ${amber.machine} picks among them for each " +
+                                "dictation - a short one is not taken for another language or translated. " +
+                                "A single one is forced: anything said in another language is then translated.",
+                        )
+                        WhisperLanguagePicker(language, noneHint = "None picked: ${amber.machine} guesses among all languages.") { picked ->
+                            language = picked
+                            onSave(edited())
+                        }
+                    }
+                } else {
+                    SectionCard(
+                        title = "Language",
+                        subtitle = "Automatic works for most. One fixed language helps with short dictations.",
+                    ) {
+                        ServerLanguagePicker(language.substringBefore('-').lowercase()) { picked ->
+                            language = picked
+                            onSave(edited())
+                        }
                     }
                 }
                 Hint("Cleanup models of this server are picked under Settings → Cleanup, for any recognition engine.")
@@ -637,10 +654,17 @@ private val WHISPER_LANGUAGES = listOf(
     "tr" to "Turkish",
 )
 
-/** Toggles languages in a "de,en" list. None picked means Whisper detects any language. */
+/**
+ * Toggles languages in a "de,en" list, in the order picked. None picked means Whisper detects
+ * any language.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun WhisperLanguagePicker(value: String, onChange: (String) -> Unit) {
+private fun WhisperLanguagePicker(
+    value: String,
+    noneHint: String = "None picked: Whisper guesses among all languages.",
+    onChange: (String) -> Unit,
+) {
     val picked = WhisperInput.languageCodes(value)
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -655,12 +679,12 @@ private fun WhisperLanguagePicker(value: String, onChange: (String) -> Unit) {
                 modifier = Modifier
                     .clip(AmberShapes.Inner)
                     .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
-                    .clickable { onChange((if (on) picked - code else picked + code).joinToString(",")) }
+                    .clickable { onChange(WhisperInput.toggledLanguage(value, code)) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }
-    if (picked.isEmpty()) Hint("None picked: Whisper guesses among all languages.")
+    if (picked.isEmpty()) Hint(noneHint)
 }
 
 /** Automatic or one language, for servers: the API takes a single ISO code or none. */

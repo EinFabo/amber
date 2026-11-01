@@ -1,6 +1,7 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
@@ -35,6 +36,9 @@ import kotlin.coroutines.CoroutineContext
  * With a [CompressedUpload] (only an Amber server whose list takes it) the recording goes up as
  * Ogg Opus instead of WAV; without one, or when the encoder cannot, the request is the WAV one
  * every other service gets.
+ *
+ * An [amberServer] (an own server whose stored list says it is Amber PC or Amber Server) takes
+ * several languages at once and detects among them; any other service takes one code or none.
  */
 class OpenAiCompatibleEngine(
     override val id: String,
@@ -51,6 +55,7 @@ class OpenAiCompatibleEngine(
     private val attestationVerifier: AttestationVerifier? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val compressedUpload: CompressedUpload? = null,
+    private val amberServer: Boolean = false,
     /**
      * Where the recording is compressed: off the caller's thread, which may be the main one.
      * The encoder blocks - codec waits and a scratch file, up to seconds - so the IO pool.
@@ -100,10 +105,7 @@ class OpenAiCompatibleEngine(
                     )
                     add(MultipartPart.Field("model", modelId))
                     add(MultipartPart.Field("response_format", "json"))
-                    // Whisper-family endpoints want a bare ISO-639-1 code, not a full BCP-47 tag.
-                    options.languageTag?.takeIf { it.isNotBlank() }?.let {
-                        add(MultipartPart.Field("language", it.substringBefore('-')))
-                    }
+                    languageField(options.languageTag, amberServer)?.let { add(MultipartPart.Field("language", it)) }
                     // The preceding chunk's text continues the sentence; names and jargon bias
                     // spelling.
                     if (withPrompt && prompt != null) add(MultipartPart.Field("prompt", prompt))
@@ -220,6 +222,22 @@ class OpenAiCompatibleEngine(
          * pass is a request (and on some services a charge), so one retry at most.
          */
         const val COMMAND_LANGUAGE_ATTEMPTS = 2
+
+        /**
+         * The `language` field for [tag]: bare ISO 639-1 codes, as Whisper-family endpoints want
+         * them, not BCP-47 tags. An Amber server gets every code ("de-DE, en" -> "de,en") and
+         * detects among them; any other service takes one code, so a tag with several gets none
+         * and the service detects - forcing the first would translate the others into it. Null
+         * for no tag.
+         */
+        fun languageField(tag: String?, amberServer: Boolean): String? {
+            val codes = WhisperInput.languageCodes(tag)
+            return when {
+                codes.isEmpty() -> null
+                amberServer -> codes.joinToString(",")
+                else -> codes.singleOrNull()
+            }
+        }
 
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"

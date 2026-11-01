@@ -88,6 +88,7 @@ class EngineFactory(
                         compressedUpload = AmberCatalogs.compressedUpload(settings(), config, encoder) {
                             compressionRefused(config.id, baseUrl)
                         },
+                        amberServer = AmberCatalogs.isAmber(settings(), config),
                     ),
                 )
             }
