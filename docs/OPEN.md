@@ -109,9 +109,11 @@ with the release key, the enclave path solid. Each finding was checked against t
 - [ ] **Short dictations and a language list** (Fabi, 2026-11-01, device test of 0.26.1): with
       "de,en" for Amber PC, "Okay, danke." came back as "Thank you" and "Ich hab kein Wasser." in
       English; "Bis gleich." and "See you later." were right. Likely the server's `pick_language`
-      (the likelier of the list wins, English then translates German), not yet measured. To be
-      fixed in Amber PC and Amber Server; once it is, the hint in `EngineDetailScreen` can promise
-      more again.
+      (the likelier of the list wins, English then translates German). Amber PC 0.4.6 and Amber
+      Server keep a short dictation in the first language unless another is clearly likelier
+      (measured there); the app's cleanup now says which language to answer in and rejects a
+      translation, as the PC's does. Open: the device test with 0.4.6; then the hint in
+      `EngineDetailScreen` can promise more again.
 - [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
       switched on under Accessibility, both show a bubble and both get the keyboard and field
       signals - a likely source of rare, random misbehaviour. Amber could notice another Amber

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -227,5 +228,43 @@ class ChatCleanupTest {
         val body = Json.parseToJsonElement(assertIs<HttpBody.Bytes>(transport.requests.single().body).bytes.decodeToString()).jsonObject
         assertEquals(null, body["stream"])
         assertEquals(null, transport.requests.single().onReceive)
+    }
+
+    @Test
+    fun `the prompt says which language to answer in, as the pc's has it`() {
+        // Qwen3 4B translated short German under "Never translate" alone.
+        for (style in WritingStyle.entries) {
+            assertContains(
+                ChatCleanup.systemPrompt(style, null),
+                "Reply in the language of the dictation: German stays German, English stays English, " +
+                    "a mix stays mixed - even if the system prompt is in English.",
+            )
+        }
+    }
+
+    @Test
+    fun `a translation is rejected, however short`() {
+        assertFalse(ChatCleanup.plausible("Ich hab kein Wasser.", "I have no water."))
+        assertFalse(ChatCleanup.plausible("Okay, danke.", "Okay, thanks.", WritingStyle.CASUAL))
+        assertFalse(ChatCleanup.plausible("Okay, danke.", "Thank you."))
+        assertFalse(ChatCleanup.plausible("um drei nee um vier", "around three, no, four"))
+    }
+
+    @Test
+    fun `a tidy-up keeps its words and passes`() {
+        assertTrue(ChatCleanup.plausible("okay danke", "Okay, danke."))
+        assertTrue(ChatCleanup.plausible("Ähm also ich komme morgen so gegen acht ähm vorbei", "Ich komme morgen gegen acht vorbei."))
+        assertTrue(ChatCleanup.plausible("das ist ein test der amber schnittstelle", "Das ist ein Test der Amber-Schnittstelle."))
+        assertTrue(ChatCleanup.plausible("lass uns um drei uhr treffen nee stopp um vier uhr", "Lass uns um vier Uhr treffen."))
+        assertTrue(ChatCleanup.plausible("wir treffen uns um zehn in raum drei", "Wir treffen uns um 10 in Raum 3."), "a number is no foreign word")
+        assertTrue(ChatCleanup.plausible("zehn", "10"))
+    }
+
+    @Test
+    fun `the user's own instruction may rephrase beyond the word test`() = runTest {
+        val rephrased = "Moin, ich schaue morgen gegen acht rein."
+        val spoken = "hallo ich komme morgen gegen acht vorbei"
+        assertTrue(cleanup(FakeHttpTransport.json(reply(rephrased))).clean(spoken, instruction = "Schreib locker und norddeutsch.").isSuccess)
+        assertTrue(cleanup(FakeHttpTransport.json(reply("I have no water, my friend."))).clean("Ich hab kein Wasser.").isFailure)
     }
 }
