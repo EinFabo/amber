@@ -30,6 +30,10 @@ Commits and pull requests carry Fabi's name only:
 ## Where things live
 
 - Open items: `docs/OPEN.md` ("put it on the list" means there).
+- "baue amber PC" means: implement `docs/AMBER-PC.md` (model choice and compressed uploads
+  for Amber PC and Amber Server as own servers).
+- "baue amber PC 2" means: implement `docs/AMBER-PC-2.md` (several languages, the phone's own
+  cleanup only, lists in the cleanup - for Amber servers).
 - Logic that can go wrong belongs in `:core` (pure JVM, unit-tested); `:app` only holds what
   needs an Android API.
 
