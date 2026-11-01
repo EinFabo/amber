@@ -27,6 +27,7 @@ import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
+import app.amethyst.update.UpdateChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -147,6 +148,14 @@ class Graph(app: Application) {
     /** The model lists of Amber PCs and Amber Servers, fetched in the background. */
     val amberCatalogs: AmberCatalogRefresher by lazy {
         AmberCatalogRefresher(appScope, httpTransport, { alias -> secretStore.get(alias) }, { settings.value }, settingsStore::update)
+    }
+
+    /**
+     * The update check of the GitHub build: at most once a day, when Amber's screen opens or the
+     * service connects. Every other build never asks.
+     */
+    val updates: UpdateChecker by lazy {
+        UpdateChecker(app, appScope, { httpTransport }, loadedSettings, settingsStore::update)
     }
 
     /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */

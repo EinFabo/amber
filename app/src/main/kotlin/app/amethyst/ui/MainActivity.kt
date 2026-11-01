@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.amethyst.AmethystApp
@@ -77,6 +78,8 @@ import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
+import app.amethyst.ui.screen.UpdatesScreen
+import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.ui.AndroidAppSource
@@ -150,6 +153,8 @@ class MainActivity : ComponentActivity() {
         // Accessibility and battery state change outside the app, in system settings.
         refreshSetup()
         ensureMicServiceRunning()
+        // Amber's screen is open: the GitHub build asks for a new release, once a day at most.
+        AmethystApp.graph(this).updates.checkIfDue()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -271,6 +276,7 @@ private fun Screen.title(): String = when (this) {
         SettingsPage.STATS -> "Statistics"
         SettingsPage.RELIABILITY -> "Reliability"
         SettingsPage.DIAGNOSTICS -> "Diagnostics"
+        SettingsPage.UPDATES -> "Updates"
     }
 }
 
@@ -345,6 +351,18 @@ private fun AmethystScreens(
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
+    }
+
+    // Which build this is and its version, for the update notice; the GitHub build alone checks.
+    val releaseChannel = remember(graph) { graph.updates.channel }
+    val installedVersion = remember(graph) { graph.updates.installedVersion }
+
+    /** A release page, in the browser. */
+    fun openUrl(url: String) {
+        val opened = runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
+        if (!opened) Toast.makeText(context, "No browser found to open $url", Toast.LENGTH_LONG).show()
     }
 
     fun open(next: Screen) {
@@ -459,6 +477,11 @@ private fun AmethystScreens(
                             }
                             open(Screen.EngineDetail(preset.id))
                         },
+                        update = UpdatePolicy.forHome(releaseChannel, settings.updates, installedVersion),
+                        onDownloadUpdate = { notice -> openUrl(notice.url) },
+                        onDismissUpdate = { notice ->
+                            updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
+                        },
                     )
 
                     Screen.Settings -> {
@@ -467,7 +490,8 @@ private fun AmethystScreens(
                             settings = settings,
                             setup = setup,
                             diagnosticsCount = records.size,
-                            version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() },
+                            version = installedVersion,
+                            releaseChannel = releaseChannel,
                             advancedOpen = advancedOpen,
                             onToggleAdvanced = { advancedOpen = !advancedOpen },
                             onOpen = { page -> open(Screen.Page(page)) },
@@ -523,6 +547,26 @@ private fun AmethystScreens(
                                 onClear = { graph.stats.clear() },
                             )
                             SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
+                            SettingsPage.UPDATES -> {
+                                val checking by graph.updates.checking.collectAsStateWithLifecycle()
+                                // "3 hours ago" moves on while the page is open.
+                                val now by produceState(System.currentTimeMillis()) {
+                                    while (true) {
+                                        delay(UPDATES_CLOCK_MS)
+                                        value = System.currentTimeMillis()
+                                    }
+                                }
+                                UpdatesScreen(
+                                    settings = settings,
+                                    channel = releaseChannel,
+                                    installedVersion = installedVersion,
+                                    checking = checking,
+                                    now = now,
+                                    onUpdateSettings = ::updateSettings,
+                                    onCheckNow = { graph.updates.checkNow() },
+                                    onOpenUrl = ::openUrl,
+                                )
+                            }
                             SettingsPage.DIAGNOSTICS -> {
                                 val records by graph.dictationLog.records.collectAsStateWithLifecycle()
                                 val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
@@ -664,4 +708,6 @@ internal fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
+
+private const val UPDATES_CLOCK_MS = 30_000L
 

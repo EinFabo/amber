@@ -12,6 +12,10 @@ object R {
         const val notification_channel_name = 0
         const val notification_ready_text = 0
         const val notification_ready_title = 0
+        const val update_available_text = 0
+        const val update_available_title = 0
+        const val update_channel_description = 0
+        const val update_channel_name = 0
     }
 
     object drawable {

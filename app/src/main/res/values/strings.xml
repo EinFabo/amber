@@ -10,6 +10,11 @@
     <string name="notification_ready_title">Amber is ready</string>
     <string name="notification_ready_text">Tap the bubble to dictate</string>
 
+    <string name="update_channel_name">Updates</string>
+    <string name="update_channel_description">When a new version of Amber is out on GitHub</string>
+    <string name="update_available_title">Amber %1$s is available</string>
+    <string name="update_available_text">Tap to open the release page on GitHub</string>
+
     <string name="clipboard_fallback">Text is on the clipboard - please paste it</string>
     <string name="clipboard_after_lost_commit">The text may not have arrived - it is on the clipboard, paste it if it is missing</string>
 </resources>

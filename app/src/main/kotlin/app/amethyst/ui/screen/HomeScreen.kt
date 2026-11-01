@@ -37,6 +37,7 @@ import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
+import app.amethyst.core.update.UpdateNotice
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.AccessibilityConsentDialog
 import app.amethyst.ui.AmberIcons
@@ -83,6 +84,10 @@ fun HomeScreen(
     onInstallLanguage: () -> Unit,
     onUseLocalWhisper: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A newer Amber on GitHub, until dismissed; only ever on the GitHub build. */
+    update: UpdateNotice? = null,
+    onDownloadUpdate: (UpdateNotice) -> Unit = {},
+    onDismissUpdate: (UpdateNotice) -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -105,6 +110,8 @@ fun HomeScreen(
                 if (setup.accessibilityTried && setup.restrictedSettings) RestrictedSettingsSteps(actions.openAppInfo)
             }
         }
+
+        if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
 
         EngineGroup(settings, onOpenRecognition, onOpenCleanup)
 
@@ -214,6 +221,31 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
                 below = { TrustBadge(ownWeakest) },
                 onClick = onOpenCleanup,
             )
+        }
+    }
+}
+
+/** A newer Amber is out: where to get it, or away with it until the next version. */
+@Composable
+private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = "Amber ${notice.version} is available",
+            summary = "Install it over this one - your settings stay.",
+            icon = AmberIcons.Download,
+            summaryMaxLines = 2,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GhostButton("Dismiss", onDismiss, color = AmberPalette.Muted)
+            PrimaryButton("Download", onDownload)
         }
     }
 }

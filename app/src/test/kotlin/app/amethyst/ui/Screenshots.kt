@@ -37,6 +37,10 @@ import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
+import app.amethyst.ui.screen.UpdatesScreen
+import app.amethyst.core.settings.UpdateSettings
+import app.amethyst.core.update.ReleaseChannel
+import app.amethyst.core.update.UpdateNotice
 import app.amethyst.ui.theme.AmberTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Test
@@ -156,7 +160,7 @@ class Screenshots {
     @Test
     fun settingsList() = shoot("5-settings", "Settings") {
         SettingsScreen(
-            settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0",
+            settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
             advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
@@ -167,7 +171,7 @@ class Screenshots {
     fun settingsTall() = shoot("x-settings-tall", "Settings") {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready.copy(batteryUnrestricted = false),
-            diagnosticsCount = 12, version = "0.20.0",
+            diagnosticsCount = 12, version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
             advancedOpen = true, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
@@ -441,7 +445,7 @@ class Screenshots {
     fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
-            advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+            releaseChannel = ReleaseChannel.OTHER, advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
@@ -602,6 +606,54 @@ class Screenshots {
         content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)),
     )
 
+    /** What the GitHub build knows after a check three hours ago: 0.24.0 is out. */
+    private val updateSeen = UpdateSettings(
+        lastCheckedAt = NOW - 3 * 3_600_000L,
+        latestVersion = "0.24.0",
+        latestUrl = "https://github.com/EinFabo/amber/releases/tag/v0.24.0",
+        notifiedVersion = "0.24.0",
+    )
+
+    /** Not part of the listing set: the Updates page of the GitHub build, a newer release found. */
+    @Test
+    fun updates() = shoot("x-updates", "Updates") {
+        UpdatesScreen(
+            settings = settings.copy(updates = updateSeen), channel = ReleaseChannel.GITHUB, installedVersion = "0.23.0",
+            checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
+        )
+    }
+
+    /** Not part of the listing set: the Updates page after a failed check, switched off. */
+    @Test
+    fun updatesOff() = shoot("x-updates-off", "Updates") {
+        UpdatesScreen(
+            settings = settings.copy(updates = updateSeen.copy(enabled = false, lastCheckFailed = true, lastCheckedAt = NOW - 26 * 3_600_000L)),
+            channel = ReleaseChannel.GITHUB, installedVersion = "0.24.0",
+            checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
+        )
+    }
+
+    /** Not part of the listing set: the Updates page of a build that does not check. */
+    @Test
+    fun updatesElsewhere() = shoot("x-updates-elsewhere", "Updates") {
+        UpdatesScreen(
+            settings = settings, channel = ReleaseChannel.OTHER, installedVersion = "0.23.0",
+            checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
+        )
+    }
+
+    /** Not part of the listing set: home with a newer release on GitHub. */
+    @Test
+    fun homeUpdate() = shoot("x-home-update", "Amber") {
+        HomeScreen(
+            setup = ready, actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            update = UpdateNotice("0.24.0", "https://github.com/EinFabo/amber/releases/tag/v0.24.0"),
+        )
+    }
+
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */
     @Test
     fun appPicker() = shootDialog("x-app-picker") {
@@ -652,6 +704,9 @@ class Screenshots {
     }
 
     private companion object {
+        /** A fixed "now" for the pages that say how long ago something was. */
+        const val NOW = 1_800_000_000_000L
+
         val APP_NAMES = mapOf(
             "com.whatsapp" to "WhatsApp",
             "com.google.android.gm" to "Gmail",

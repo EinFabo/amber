@@ -19,6 +19,7 @@ import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.StoredCatalog
+import app.amethyst.core.settings.UpdateSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -268,6 +269,36 @@ class CaptureTimeoutTest {
     fun `editing a removed profile does not bring it back`() {
         val removed = AppProfiles.DEFAULTS.filterNot { it.packageName == "com.whatsapp" }
         assertEquals(removed, AppProfiles.edit(removed, "com.whatsapp") { it.copy(instruction = "late save") })
+    }
+
+    @Test
+    fun `settings from before the update check check by default, with nothing to migrate`() {
+        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
+        for (raw in listOf(
+            """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""",
+            """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}""",
+        )) {
+            val updates = SettingsCodec.decode(raw).updates
+            assertEquals(UpdateSettings(), updates)
+            assertTrue(updates.enabled)
+            assertEquals(0L, updates.lastCheckedAt)
+            assertNull(updates.latestVersion)
+        }
+    }
+
+    @Test
+    fun `the update check's state survives a round trip`() {
+        val updates = UpdateSettings(
+            enabled = false,
+            lastCheckedAt = 1_800_000_000_000L,
+            lastCheckFailed = true,
+            latestVersion = "0.24.0",
+            latestUrl = "https://github.com/EinFabo/amber/releases/tag/v0.24.0",
+            notifiedVersion = "0.24.0",
+            dismissedVersion = "0.24.0",
+        )
+        val settings = AmethystSettings.defaults().copy(updates = updates)
+        assertEquals(updates, SettingsCodec.decode(SettingsCodec.encode(settings)).updates)
     }
 
     @Test

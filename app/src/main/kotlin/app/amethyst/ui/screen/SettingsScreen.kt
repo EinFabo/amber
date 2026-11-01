@@ -42,6 +42,8 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.update.ReleaseChannel
+import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
@@ -68,7 +70,7 @@ import app.amethyst.ui.theme.placeExplanation
 import kotlin.math.roundToInt
 
 /** Where a settings row leads. */
-enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS }
+enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES }
 
 /** How many rows the folded "Advanced" group holds. */
 private const val ADVANCED_ROWS = 4
@@ -85,6 +87,8 @@ fun SettingsScreen(
     setup: SetupState,
     diagnosticsCount: Int,
     version: String,
+    /** Which build this is: only the GitHub build checks for updates itself. */
+    releaseChannel: ReleaseChannel,
     advancedOpen: Boolean,
     onToggleAdvanced: () -> Unit,
     onOpen: (SettingsPage) -> Unit,
@@ -97,6 +101,7 @@ fun SettingsScreen(
     // Folded, "Advanced" passes on what Reliability needs; open, the Reliability row says it itself.
     val advancedFlags = if (advancedOpen) 0 else reliabilityOpen
     val commandsWithoutBubble = settings.commands.enabled && !settings.bubble.enabled
+    val updateAvailable = UpdatePolicy.available(releaseChannel, settings.updates, version) != null
 
     SubPage(modifier) {
         SettingsGroup(label = null) {
@@ -149,6 +154,11 @@ fun SettingsScreen(
             NavRow("Statistics", SettingsSummaries.onOff(settings.stats.keep), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
             RowDivider()
             NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
+            RowDivider()
+            NavRow(
+                "Updates", UpdatePolicy.summary(releaseChannel, settings.updates, version), icon = AmberIcons.Update,
+                summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
+            ) { onOpen(SettingsPage.UPDATES) }
             RowDivider()
             NavRow("Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction)
         }

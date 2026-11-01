@@ -192,6 +192,11 @@ data class AmethystSettings(
      * offline and on a cold start. See [app.amethyst.core.engine.AmberCatalogs].
      */
     val serverCatalogs: Map<String, StoredCatalog> = emptyMap(),
+    /**
+     * The update check of builds from GitHub releases, and what it found; see
+     * [app.amethyst.core.update.UpdatePolicy]. Absent in older settings, which check by default.
+     */
+    val updates: UpdateSettings = UpdateSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -228,6 +233,8 @@ data class AmethystSettings(
          * 9: the cleanup per app is a choice (default, off, a model) instead of a switch.
          * 10: the model lists of Amber servers - nothing to migrate, an absent field decodes
          * to none, and the next fetch fills it.
+         * The update check ([updates]) needed no new version: an absent field decodes to its
+         * defaults.
          * See [SettingsCodec.migrate].
          */
         const val SCHEMA_VERSION = 10
@@ -369,6 +376,28 @@ data class StoredModel(val id: String, val label: String, val note: String = "",
         fun of(choice: EnginePresets.ModelChoice) = StoredModel(choice.id, choice.label, choice.note, choice.recommended)
     }
 }
+
+/**
+ * The update check: only builds signed with the GitHub release key ever run it
+ * ([app.amethyst.core.update.ReleaseChannel]), at most once a day. Versions are kept as
+ * "0.24.0", without the tag's "v".
+ */
+@Serializable
+data class UpdateSettings(
+    /** Ask GitHub for the latest release; the user can switch it off under Settings -> Updates. */
+    val enabled: Boolean = true,
+    /** When the last check ran, successful or not (wall clock, ms); 0 for never. */
+    val lastCheckedAt: Long = 0,
+    /** The last check got no usable answer; retried at the next due time. */
+    val lastCheckFailed: Boolean = false,
+    /** The latest release the last successful check found, and its page. */
+    val latestVersion: String? = null,
+    val latestUrl: String? = null,
+    /** The version a notification was posted for, so each version notifies once. */
+    val notifiedVersion: String? = null,
+    /** The version whose card on Home the user dismissed. */
+    val dismissedVersion: String? = null,
+)
 
 /**
  * Voice commands from the bubble ("open WhatsApp", "go back"). Off unless the user switches them
