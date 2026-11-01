@@ -136,6 +136,11 @@ data class BubbleSettings(
      * so it never covers anything when there is nothing to dictate into.
      */
     val onlyWithTextField: Boolean = true,
+    /**
+     * With voice commands on, the bubble shows also where no text field is, so "open WhatsApp"
+     * works from anywhere. Off by default: a bubble that never leaves surprised its user.
+     */
+    val everywhereForCommands: Boolean = false,
     /** How visible the bubble is at rest, 0.2..1; while dictating it is always fully there. */
     val restingOpacity: Float = 1f,
     /** Apps the bubble stays out of (games, apps with their own voice input). */

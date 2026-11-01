@@ -75,6 +75,7 @@ class BubbleController(
     private var hapticsEnabled = true
 
     private var textFieldFocused = false
+    private var locked = false
     private var dictating = false
 
     /** The app in front, as far as the service can tell; the bubble stays out of hidden ones. */
@@ -324,6 +325,13 @@ class BubbleController(
         }
     }
 
+    /** The lock screen is up (or the screen off): no bubble unless a dictation runs. */
+    fun setLocked(on: Boolean) {
+        if (on == locked) return
+        locked = on
+        applyVisibility(immediate = on)
+    }
+
     fun setTextFieldFocused(focused: Boolean) {
         textFieldFocused = focused
         applyVisibility(immediate = false)
@@ -337,7 +345,7 @@ class BubbleController(
     }
 
     private fun wantsVisible(): Boolean =
-        BubbleVisibility.wanted(dictating, currentApp, settings, textFieldFocused, commandsOn)
+        BubbleVisibility.wanted(dictating, currentApp, settings, textFieldFocused, commandsOn, locked)
 
     /** The run in progress is a voice command; see [BubbleView.command]. */
     fun setCommand(on: Boolean) {

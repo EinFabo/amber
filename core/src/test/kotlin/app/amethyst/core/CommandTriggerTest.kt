@@ -72,19 +72,40 @@ class BubbleVisibilityTest {
 
     private val onlyWithField = BubbleSettings(onlyWithTextField = true, hiddenIn = listOf("com.game"))
 
-    private fun wanted(dictating: Boolean = false, app: String? = "com.whatsapp", field: Boolean = false, commands: Boolean = false, settings: BubbleSettings = onlyWithField) =
-        BubbleVisibility.wanted(dictating, app, settings, field, commands)
+    private val forCommands = onlyWithField.copy(everywhereForCommands = true)
+
+    private fun wanted(
+        dictating: Boolean = false,
+        app: String? = "com.whatsapp",
+        field: Boolean = false,
+        commands: Boolean = false,
+        settings: BubbleSettings = onlyWithField,
+        locked: Boolean = false,
+    ) = BubbleVisibility.wanted(dictating, app, settings, field, commands, locked)
 
     @Test
-    fun `only with a text field, unless voice commands are on`() {
+    fun `only with a text field, voice commands or not`() {
         assertFalse(wanted())
         assertTrue(wanted(field = true))
-        assertTrue(wanted(commands = true))
+        assertFalse(wanted(commands = true), "commands alone do not keep it everywhere")
+        assertFalse(BubbleSettings().everywhereForCommands, "off by default")
+    }
+
+    @Test
+    fun `everywhere for commands when the user wants it, and only with commands on`() {
+        assertTrue(wanted(commands = true, settings = forCommands))
+        assertFalse(wanted(commands = false, settings = forCommands))
     }
 
     @Test
     fun `an app on the hidden list stays hidden even with commands on`() {
-        assertFalse(wanted(app = "com.game", field = true, commands = true))
+        assertFalse(wanted(app = "com.game", field = true, commands = true, settings = forCommands))
+    }
+
+    @Test
+    fun `never on the lock screen, unless a dictation runs`() {
+        assertFalse(wanted(locked = true, field = true, commands = true, settings = forCommands.copy(onlyWithTextField = false)))
+        assertTrue(wanted(locked = true, dictating = true))
     }
 
     @Test

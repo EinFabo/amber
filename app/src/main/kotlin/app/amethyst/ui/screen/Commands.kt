@@ -67,8 +67,9 @@ fun VoiceCommandsScreen(
         }
         GroupFootnote(ENGINE_HEARS, AmberIcons.Mic)
         LearnMore(
-            "Where no text field is, one tap on the bubble is enough; in a text field, double-tap. While voice " +
-                "commands are on, the bubble shows in every app, also without a text field.\n\n" +
+            "Where no text field is, one tap on the bubble is enough; in a text field, double-tap. The bubble " +
+                "shows without a text field only if you switch that on under Bubble (\u201CAlso without a text " +
+                "field, for voice commands\u201D).\n\n" +
                 "Amber reads nothing the screen shows except the field a text command changes - the one you " +
                 "started the command in, never a password field. To scroll, it looks only for what can scroll and, " +
                 "in the part it scrolls, where the items sit, to tell whether it moved. Settings pages only open: " +

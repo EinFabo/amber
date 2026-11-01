@@ -2,7 +2,11 @@ package app.amethyst.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -15,6 +19,7 @@ import app.amethyst.core.capture.TriggerSource
 import android.provider.Settings
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import app.amethyst.Graph
 import app.amethyst.AmethystApp
 import app.amethyst.bubble.BubbleController
@@ -130,6 +135,17 @@ class AmethystAccessibilityService : AccessibilityService() {
             // Apps move their fields when the keyboard comes or goes; look once they have.
             fieldCheck.schedule(FIELD_SETTLE_MS)
         }
+
+        // The lock screen gets no bubble: told when the screen goes off, comes on and is unlocked.
+        val lockEvents = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        // System broadcasts only; nothing from other apps.
+        ContextCompat.registerReceiver(this, lockWatch, lockEvents, ContextCompat.RECEIVER_NOT_EXPORTED)
+        lockWatchRegistered = true
+        bubble?.setLocked(isLocked())
 
         graph.accessibilityService = this
         // The first tap after a process start should not wait for the keystore, the HTTP client
@@ -364,7 +380,31 @@ class AmethystAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
+    /**
+     * Screen off counts as locked at once (the lock may follow a moment later); on again it is
+     * whatever the keyguard says; unlocked when the user is present.
+     */
+    private val lockWatch = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            bubble?.setLocked(
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> true
+                    Intent.ACTION_USER_PRESENT -> false
+                    else -> isLocked()
+                },
+            )
+        }
+    }
+    private var lockWatchRegistered = false
+
+    private fun isLocked(): Boolean =
+        getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+
     private fun teardown() {
+        if (lockWatchRegistered) {
+            runCatching { unregisterReceiver(lockWatch) }
+            lockWatchRegistered = false
+        }
         if (::commands.isInitialized) commands.close()
         fieldCheck.stop()
         keyboard?.stop()

@@ -391,7 +391,7 @@ fun BubbleScreen(
         SectionCard(title = "Behavior") {
             ToggleRow(
                 label = "Only with a text field",
-                description = if (settings.commands.enabled) "Voice commands show it in every app" else "Appears when you tap into a field",
+                description = "Appears when you tap into a field",
                 checked = bubble.onlyWithTextField,
                 onChange = { value ->
                     onUpdateSettings {
@@ -399,6 +399,16 @@ fun BubbleScreen(
                     }
                 },
             )
+            if (settings.commands.enabled && bubble.onlyWithTextField) {
+                ToggleRow(
+                    label = "Also without a text field, for voice commands",
+                    description = "So “open WhatsApp” works from anywhere - the bubble then stays on screen",
+                    checked = bubble.everywhereForCommands,
+                    onChange = { value ->
+                        onUpdateSettings { it.copy(bubble = it.bubble.copy(everywhereForCommands = value)) }
+                    },
+                )
+            }
             ToggleRow(
                 label = "Vibrate",
                 description = "On start, success and failure",
