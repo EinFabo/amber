@@ -14,6 +14,9 @@ decide per dictation where your voice goes, and the app tells you.
 3. Open Amber and follow the setup: allow the microphone, turn on the accessibility service.
 4. Tap into any text field - the amber bubble appears. Tap it, speak, tap again.
 
+Before installing, you can [check the APK's signature](#verifying-a-release-apk). Amber tells
+you when a newer release is out; see [Updates](#updates).
+
 Out of the box Amber recognizes speech **on the phone** (Android's own recognizer). Better
 local models (Whisper, Parakeet) can be downloaded inside the app; server engines (Groq,
 OpenAI, Tinfoil, your own server) need an API key you enter under *Engine*.
@@ -212,7 +215,7 @@ tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned a
                                 # into app/build/screenshots - screenshots, layout check
 
 tools/setup-android-sdk.sh      # fetch an SDK and build, if there is none
-tools/sign-release.sh           # release APK, signed with the release key
+tools/sign-release.sh           # release APK, signed on the signing host (see Releases)
 ```
 
 `settings.gradle.kts` only includes `:app` when an SDK is found (`ANDROID_HOME`,
@@ -233,17 +236,21 @@ git config core.hooksPath tools/hooks
 The version lives in `app/build.gradle.kts` (`versionName`, `versionCode`). A release is:
 
 1. Bump both numbers, commit as `Amber <version>: <what changed, in a few words>`.
-2. `tools/sign-release.sh` - builds the release APK and has it signed with the release key.
+2. `tools/sign-release.sh` with the GitHub release key's settings - its `SIGN_PROPERTIES`,
+   `SIGN_CERT_SHA256` set to the fingerprint below and `SIGN_OUTPUT=amber-github.apk` (see the
+   top of the script) - builds the release APK, has it signed on the signing host and checks
+   the signature.
 3. Tag `v<version>` and publish a GitHub release with the APK attached as
    `amber-<version>.apk`; the notes say what changed in plain words, and give the APK's
    SHA-256 and the signer's fingerprint (see below), so a download can be checked.
 
 ## Verifying a release APK
 
-Release APKs are signed with one key. Its certificate's SHA-256 is:
+GitHub releases are signed with the GitHub release key, whose certificate is `CN=Amber`. Its
+SHA-256 is:
 
 ```
-93c826f0c11a444f1c051a82f5cb2b4ec3081e0b43047926afae8c35cdb1bbde
+c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11
 ```
 
 Check an APK before installing it, with `apksigner` from the Android build-tools:
@@ -253,8 +260,19 @@ apksigner verify --print-certs amber.apk | grep "certificate SHA-256"
 ```
 
 It must print exactly this one signer. Android also refuses an update signed with any other
-key. A build from this source signed with your own key works the same, but installs as a
-separate app.
+key: a build from this source signed with another key works the same, but cannot update an
+Amber signed with this one, nor the other way round.
+
+## Updates
+
+An Amber from a GitHub release asks GitHub once a day, when its screen opens or its
+accessibility service starts, whether a newer release is out: one request for
+`https://api.github.com/repos/EinFabo/amber/releases/latest`, without an account or any ID.
+GitHub sees the IP address, that Amber asks, and its version - nothing else is sent. A newer
+release shows as one notification and as a card on the home screen, both leading to its
+release page; downloading and installing stay up to you. Switch the check off under
+Settings → Updates. A build signed with any other key never checks: its updates come from
+where it was installed.
 
 ## Contributing
 

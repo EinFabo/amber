@@ -92,8 +92,18 @@ with the release key, the enclave path solid. Each finding was checked against t
 - [ ] **GitHub releases with their own key** (Fabi, 2026-11-01): public APKs get a new key with
       a neutral certificate, created and used only on the signing host like the current
       release key (`tools/sign-release.sh` with its own settings). GitHub installs and the
-      existing installs then cannot update each other. Due with the first public release
-      after the German UI and the update check.
+      existing installs then cannot update each other. The key exists on the signing host
+      (2026-11-01): certificate `CN=Amber`, SHA-256
+      `c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11` (in the README and
+      `ReleaseChannel`). `tools/sign-release.sh` now needs `SIGN_CERT_SHA256` for every run and
+      writes `SIGN_OUTPUT` (`amber-github.apk` for this key). Open: the first release with it.
+- [x] **Update check** (Fabi, 2026-11-01): builds signed with the GitHub release key ask
+      GitHub's `releases/latest` once a day, when Amber's screen opens or the service connects
+      (no jobs, alarms or wake locks); every other build never checks. A newer version gets one
+      notification (channel "Updates", low importance, only with the notification permission)
+      and a card on Home until dismissed; Settings → Updates has the switch (on by default),
+      what the check sends, "Check now" and the last result. Logic in `core/update/`, state in
+      `AmethystSettings.updates`. Open: the device test with a GitHub-signed build.
 - [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
       switched on under Accessibility, both show a bubble and both get the keyboard and field
       signals - a likely source of rare, random misbehaviour. Amber could notice another Amber
