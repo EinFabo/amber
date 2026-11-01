@@ -95,6 +95,7 @@ class OpenAiCompatibleEngine(
             method = "POST",
             url = endpointUrl(baseUrl),
             timeoutMs = requestTimeoutMs(audio.durationMs),
+            onUpload = options.onUpload,
             headers = buildMap {
                 if (!apiKey.isNullOrBlank()) put("Authorization", "Bearer $apiKey")
                 put("Accept", "application/json")

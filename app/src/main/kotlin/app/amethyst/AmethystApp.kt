@@ -8,6 +8,7 @@ import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.data.EstimateStore
 import app.amethyst.data.SecretStore
 import app.amethyst.data.SettingsStore
 import app.amethyst.data.StatsStore
@@ -160,8 +161,22 @@ class Graph(app: Application) {
     /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */
     val launcherList = LauncherList(app)
 
-    /** How long recognition takes per engine and model on this phone, for the progress ring. */
+    /**
+     * How long recognition, upload and cleanup take per engine and model on this phone, for the
+     * progress ring; kept across restarts, read on the IO pool.
+     */
     val recognitionEstimate = RecognitionEstimate()
+    private val estimateStore = EstimateStore(app)
+
+    init {
+        appScope.launch(Dispatchers.IO) { recognitionEstimate.restore(estimateStore.load()) }
+    }
+
+    /** Keeps what [recognitionEstimate] learned, off the caller's thread. */
+    fun saveEstimates() {
+        val rates = recognitionEstimate.snapshot()
+        appScope.launch(Dispatchers.IO) { estimateStore.save(rates) }
+    }
 
     /** What the keyboard tracker decided lately, newest first, for the diagnostics card. */
     val keyboardLog = MutableStateFlow<List<String>>(emptyList())

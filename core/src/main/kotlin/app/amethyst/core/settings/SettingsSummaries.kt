@@ -1,5 +1,6 @@
 package app.amethyst.core.settings
 
+import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.privacy.TrustLevel
 import java.util.Locale
@@ -42,12 +43,14 @@ object SettingsSummaries {
     /** Who takes over a failed server dictation; with [recognition] on the phone, no server can fail. */
     fun fallback(settings: AmethystSettings, recognition: TrustLevel?): String {
         if (recognition == TrustLevel.ON_DEVICE) return "Not needed"
-        return when (settings.fallback.mode) {
+        val who = when (settings.fallback.mode) {
             FallbackMode.AUTOMATIC -> "Parakeet, then Whisper"
-            FallbackMode.OFF -> OFF
+            FallbackMode.OFF -> return OFF
             FallbackMode.ENGINE -> settings.engines.firstOrNull { it.id == settings.fallback.engineId }
-                ?.let { shortName(it.displayName) } ?: OFF
+                ?.let { shortName(it.displayName) } ?: return OFF
         }
+        val prepared = settings.fallback.prepare && ReadyFallback.preparable(settings.fallback, settings.engines)
+        return if (prepared) "$who · prepared" else who
     }
 
     /** "Stops after 0.9 s silence", or that only a tap ends it. */

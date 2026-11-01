@@ -435,7 +435,7 @@ class BubbleController(
             view.amplitude = state.amplitude
             sparkView.amplitude = state.amplitude
         }
-        if (state is DictationState.Transcribing) view.expectedWorkMs = state.expectedMs
+        if (state is DictationState.Transcribing) view.work = state.progress
         if (state is DictationState.Listening) showSparks()
         sparkView.listening = state is DictationState.Listening
         if (state is DictationState.Failed) sparkView.extinguish()

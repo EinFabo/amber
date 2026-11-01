@@ -80,6 +80,13 @@ class SettingsSummariesTest {
     }
 
     @Test
+    fun `a fallback prepared on the phone says so, one on a server cannot be`() {
+        assertEquals("Parakeet, then Whisper · prepared", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(prepare = true)), TrustLevel.CLOUD))
+        assertEquals("Groq", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, groq.id, prepare = true)), TrustLevel.ENCLAVE_VERIFIED))
+        assertEquals("Off", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.OFF, prepare = true)), TrustLevel.CLOUD))
+    }
+
+    @Test
     fun `recording says when it stops`() {
         assertEquals("Stops after 0.9 s silence", SettingsSummaries.recording(CaptureSettings(silenceTimeoutMs = 900)))
         assertEquals("Stops after 1.5 s silence", SettingsSummaries.recording(CaptureSettings(silenceTimeoutMs = 1_500)))

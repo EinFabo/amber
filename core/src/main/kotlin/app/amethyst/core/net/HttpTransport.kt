@@ -25,6 +25,13 @@ data class HttpRequest(
     val headers: Map<String, String> = emptyMap(),
     val body: HttpBody? = null,
     val timeoutMs: Long = 60_000,
+    /** Told how many bytes of the body have gone out, of how many - for the progress ring. */
+    val onUpload: ((sent: Long, total: Long) -> Unit)? = null,
+    /**
+     * Told each piece of the answer as it arrives - a streamed reply, for the progress ring.
+     * The whole body still comes back in the response.
+     */
+    val onReceive: ((ByteArray) -> Unit)? = null,
 )
 
 sealed interface HttpBody {

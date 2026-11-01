@@ -28,6 +28,13 @@ object Fallback {
     }
 
     /**
+     * The trust of a text recognized elsewhere while the server still had the request - it
+     * was too slow, not gone: the upload may have reached it, so never better than its trust.
+     */
+    fun trustAfterSlowServer(serverTrust: TrustLevel, fallbackTrust: TrustLevel): TrustLevel =
+        listOf(serverTrust, fallbackTrust).maxBy { it.strictness }
+
+    /**
      * The engines the user may pick as the fallback for [primary]: any other engine at least
      * as private. [trustOf] says where an engine sends the voice (the Android recognizer's
      * depends on the phone).

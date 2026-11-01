@@ -22,13 +22,31 @@ class ChatCleanupTest {
     private fun reply(content: String) =
         """{"choices":[{"message":{"role":"assistant","content":${Json.encodeToString(content)}}}]}"""
 
-    private fun cleanup(transport: FakeHttpTransport) = ChatCleanup(
+    private fun cleanup(transport: FakeHttpTransport, stream: Boolean = false) = ChatCleanup(
         baseUrl = "https://inference.tinfoil.sh/v1",
         model = "deepseek-v4-1-flash",
         channel = SecureChannel("https://inference.tinfoil.sh/v1", "Tinfoil", transport, null, TrustLevel.CLOUD),
         apiKeyProvider = { "secret" },
         templateKwargs = mapOf("thinking" to false),
+        stream = stream,
     )
+
+    /** A streamed reply: one event per piece of [parts], the last naming [finish]. */
+    private fun events(parts: List<String>, finish: String? = "stop"): String = buildString {
+        parts.forEachIndexed { i, part ->
+            val reason = if (i == parts.lastIndex && finish != null) "\"$finish\"" else "null"
+            append("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":${Json.encodeToString(part)}},\"finish_reason\":$reason}]}\n\n")
+        }
+        append("data: {\"choices\":[],\"usage\":{\"completion_tokens\":9}}\n\n")
+        append("data: [DONE]\n\n")
+    }
+
+    /** Answers with [body], handed to the request's listener in pieces of [piece] bytes first. */
+    private fun streaming(body: String, piece: Int = 7) = FakeHttpTransport { request ->
+        val bytes = body.encodeToByteArray()
+        bytes.toList().chunked(piece).forEach { request.onReceive?.invoke(it.toByteArray()) }
+        HttpResponse(200, bytes)
+    }
 
     @Test
     fun `sends the dictation fenced off as data to the chat endpoint`() = runTest {
@@ -163,5 +181,51 @@ class ChatCleanupTest {
         val transport = FakeHttpTransport.json(reply("Einkaufsliste:  \n- Tomaten  \n- Gurken  \n- Käse  \n- Milch  \n- Brot"))
         val cleaned = cleanup(transport).clean("Einkaufsliste Tomaten Gurken Käse Milch und Brot").getOrThrow()
         assertEquals("Einkaufsliste:\n- Tomaten\n- Gurken\n- Käse\n- Milch\n- Brot", cleaned.text)
+    }
+
+    @Test
+    fun `a streamed reply is put together and followed as it comes`() = runTest {
+        val transport = streaming(events(listOf("Ich komme ", "morgen, ", "okay?")))
+        val heard = mutableListOf<Float>()
+        val result = cleanup(transport, stream = true).clean("äh ich komme morgen okay", onProgress = { heard += it }).getOrThrow()
+        assertEquals("Ich komme morgen, okay?", result.text)
+        val body = Json.parseToJsonElement(assertIs<HttpBody.Bytes>(transport.requests.single().body).bytes.decodeToString()).jsonObject
+        assertEquals("true", body["stream"]!!.jsonPrimitive.content)
+        assertTrue(heard.size >= 3, "$heard")
+        assertTrue(heard.zipWithNext().all { (a, b) -> b >= a }, "$heard")
+        assertTrue(heard.last() in 0.9f..1f, "about the dictation's length: $heard")
+    }
+
+    @Test
+    fun `umlauts split between pieces are counted whole`() = runTest {
+        val heard = mutableListOf<Float>()
+        val result = cleanup(streaming(events(listOf("Grüße ", "aus Köln.")), piece = 3), stream = true)
+            .clean("grüße aus köln", onProgress = { heard += it }).getOrThrow()
+        assertEquals("Grüße aus Köln.", result.text)
+        assertEquals(1f, heard.last())
+    }
+
+    @Test
+    fun `a streamed reply cut off at the token limit is rejected`() = runTest {
+        val result = cleanup(streaming(events(listOf("Ich komme"), finish = "length")), stream = true).clean("ich komme morgen")
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `a server that ignores stream and answers in one piece still works`() = runTest {
+        var calls = 0
+        val result = cleanup(FakeHttpTransport.json(reply("Ich komme morgen.")), stream = true)
+            .clean("ich komme morgen", onProgress = { calls++ }).getOrThrow()
+        assertEquals("Ich komme morgen.", result.text)
+        assertEquals(0, calls)
+    }
+
+    @Test
+    fun `without streaming nothing asks for it`() = runTest {
+        val transport = FakeHttpTransport.json(reply("Ich komme morgen."))
+        cleanup(transport).clean("ich komme morgen")
+        val body = Json.parseToJsonElement(assertIs<HttpBody.Bytes>(transport.requests.single().body).bytes.decodeToString()).jsonObject
+        assertEquals(null, body["stream"])
+        assertEquals(null, transport.requests.single().onReceive)
     }
 }

@@ -3,7 +3,6 @@ package app.amethyst.core
 import app.amethyst.core.engine.RecognitionEstimate
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class RecognitionEstimateTest {
 
@@ -26,14 +25,5 @@ class RecognitionEstimateTest {
         val estimate = RecognitionEstimate()
         estimate.learn("turbo", audioMs = 10_000, tookMs = 35_000, overheadMs = 0)
         assertEquals(1_200, estimate.expectedMs("futo", 10_000, typicalRate = 0.12, overheadMs = 0))
-    }
-
-    @Test
-    fun `the ring runs linearly, then creeps, and never shows done by itself`() {
-        assertEquals(0.5f, RecognitionEstimate.progress(500f, 1_000f))
-        assertEquals(0.9f, RecognitionEstimate.progress(900f, 1_000f))
-        val late = RecognitionEstimate.progress(5_000f, 1_000f)
-        assertTrue(late > 0.95f && late < 0.98f, "late = $late")
-        assertEquals(0f, RecognitionEstimate.progress(100f, 0f))
     }
 }

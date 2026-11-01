@@ -111,14 +111,15 @@ with the release key, the enclave path solid. Each finding was checked against t
       signals - a likely source of rare, random misbehaviour. Amber could notice another Amber
       variant's service in `ENABLED_ACCESSIBILITY_SERVICES` and say so on Home and in
       Diagnostics ("Amber (debug) is also on - switch one off").
-- [ ] **A ready local fallback while a server recognizes** (Fabi, 2026-10-31): an option under
-      "When the server fails" - while a server engine records, the local fallback model already
-      recognizes the recording in parts (as chunked local dictation does), so when the connection
-      turns out to be gone the text is there at once instead of the whole recording being
-      recognized locally afterwards. Costs CPU, battery and the local model's memory while
-      dictating - so off by default, and only with a ready local model. Questions: start the local
-      chunks at once or only after the first server request hangs; discard them as soon as the
-      server answers; what Diagnostics and the trust label say when the local text is used.
+- [x] **A ready local fallback while a server recognizes** (Fabi, 2026-10-31; built 2026-11-01,
+      `docs/READY-FALLBACK.md`): "Prepare on the phone while you speak" under "When the server
+      fails", off by default. The local model loads and recognizes the chunks while a server engine
+      records; after the stop it races the server (`ReadyFallback.race`): a recoverable failure
+      takes the local text at once, a server slower than twice its learned time (at least 4 s)
+      gives way once the local text is there. The progress ring now covers the whole wait -
+      upload by bytes sent, recognition, cleanup (streamed where the service takes it) - and the
+      learned rates survive a restart. Open: the device test (Pixel, Amber PC off, flight mode,
+      a slow tunnel).
 - [x] Layout (Fabi: "too cluttered"): the Engine page with all three stacked is gone. Settings
       come in three groups - Speech to text (Recognition, Cleanup, When the server fails,
       Recording), In your apps (Inserting, App styles, Bubble), Amber (Statistics, Reliability,

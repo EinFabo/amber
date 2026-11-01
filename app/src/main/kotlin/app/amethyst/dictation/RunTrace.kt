@@ -51,6 +51,9 @@ internal class RunTrace(val route: String) {
     /** Set when a local model took over from an unreachable server. */
     var fallback: String? = null
 
+    /** What the fallback prepared on the phone during the recording came to, if one was. */
+    var prepared: String? = null
+
     /** The cleanup model that changed the text, for the cost estimate. */
     var cleanupModel: String? = null
 
@@ -97,6 +100,7 @@ internal class RunTrace(val route: String) {
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
         fallback?.let(::add)
+        prepared?.let(::add)
         cleanup?.let(::add)
         upload?.let(::add)
         connection?.let(::add)

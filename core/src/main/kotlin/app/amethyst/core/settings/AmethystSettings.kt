@@ -421,7 +421,16 @@ enum class FallbackMode {
 }
 
 @Serializable
-data class FallbackSettings(val mode: FallbackMode = FallbackMode.AUTOMATIC, val engineId: String? = null)
+data class FallbackSettings(
+    val mode: FallbackMode = FallbackMode.AUTOMATIC,
+    val engineId: String? = null,
+    /**
+     * A local fallback recognizes the recording while a server engine records, so its text is
+     * ready the moment the server fails or hangs ([app.amethyst.core.engine.ReadyFallback]).
+     * Off by default: it costs the phone's processor and battery on every dictation.
+     */
+    val prepare: Boolean = false,
+)
 
 /** The statistics: kept on this phone only, without text or audio. */
 @Serializable

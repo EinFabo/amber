@@ -12,7 +12,7 @@ import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
-import app.amethyst.core.engine.RecognitionEstimate
+import app.amethyst.core.engine.WaitProgress
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -66,10 +66,10 @@ class BubbleView(context: Context) : View(context) {
         }
 
     /**
-     * How long the current recognition is expected to take; the rim fills against it. Null
-     * when there is no estimate - the spark then just runs around the rim.
+     * How far the wait after the recording has come; the rim fills with it. Null when there is
+     * nothing to go by - the spark then just runs around the rim.
      */
-    var expectedWorkMs: Long? = null
+    var work: WaitProgress? = null
 
     private var stateEnteredAt = SystemClock.elapsedRealtime()
 
@@ -132,8 +132,8 @@ class BubbleView(context: Context) : View(context) {
 
         when (visual) {
             BubbleVisual.TRANSCRIBING -> {
-                val expected = expectedWorkMs
-                if (expected != null) drawProgress(canvas, r, RecognitionEstimate.progress(elapsed, expected.toFloat()), elapsed)
+                val work = work
+                if (work != null) drawProgress(canvas, r, work.value(), elapsed)
                 else drawFuse(canvas, r, elapsed, still)
             }
             BubbleVisual.DONE -> if (!still) {
@@ -200,7 +200,7 @@ class BubbleView(context: Context) : View(context) {
 
     /** On success the ring stands full for a moment and fades with the burst. */
     private fun drawClosingRing(canvas: Canvas, r: Float, elapsed: Float) {
-        if (elapsed >= Fire.BURST_MS || expectedWorkMs == null) return
+        if (elapsed >= Fire.BURST_MS || work == null) return
         val fr = r * Fire.FUSE_RADIUS
         fuse.strokeCap = Paint.Cap.ROUND
         fuse.alpha = (255 * (1 - elapsed / Fire.BURST_MS)).toInt()
@@ -290,7 +290,7 @@ class BubbleView(context: Context) : View(context) {
         BubbleVisual.LISTENING -> if (elapsed < ENTER_MS) 0L else null
         BubbleVisual.TRANSCRIBING -> when {
             !still -> WORKING_FRAME_MS
-            expectedWorkMs != null -> STILL_PROGRESS_MS
+            work != null -> STILL_PROGRESS_MS
             else -> null
         }
         // Keep drawing until the fade-in, the tick, the burst and the level decay have settled;

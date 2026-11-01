@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.amethyst.bubble.Fire
 import app.amethyst.bubble.SparkField
-import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.theme.AmberPalette
 import kotlin.math.PI
@@ -114,9 +113,9 @@ fun DictateOrb(
 
         when (state) {
             is DictationState.Transcribing -> {
-                val expected = state.expectedMs
-                if (expected != null) {
-                    drawProgress(cx, cy, r, w, RecognitionEstimate.progress(elapsed, expected.toFloat()), elapsed)
+                val work = state.progress
+                if (work != null) {
+                    drawProgress(cx, cy, r, w, work.value(), elapsed)
                 } else {
                     drawFuse(cx, cy, r, w, elapsed, still)
                 }

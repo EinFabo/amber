@@ -27,6 +27,10 @@ class ChunkedTranscription(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
+    /** Told the audio still pending ([pendingAudioMs]) each time a chunk is done - for the progress ring. */
+    @Volatile
+    var onChunkDone: ((pendingMs: Long) -> Unit)? = null
+
     private val queue = Channel<PcmAudio>(Channel.UNLIMITED)
     private val texts = mutableListOf<String>()
     private var lockedLanguage: String? = null
@@ -47,7 +51,8 @@ class ChunkedTranscription(
     private val worker = scope.launch {
         for (chunk in queue) {
             if (failure == null) transcribe(chunk)
-            pendingMs.addAndGet(-chunk.durationMs)
+            val left = pendingMs.addAndGet(-chunk.durationMs)
+            onChunkDone?.invoke(left)
         }
     }
 

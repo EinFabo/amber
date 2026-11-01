@@ -171,7 +171,8 @@ class EngineFactory(
             plainTrust = TrustLevel.CLOUD,
         )
         // The same backend for every server: only the model's own switches differ.
-        val known = ServerProviders.forUrl(baseUrl).cleanupModel(model)
+        val provider = ServerProviders.forUrl(baseUrl)
+        val known = provider.cleanupModel(model)
         return ChatCleanup(
             baseUrl = baseUrl,
             model = model,
@@ -179,6 +180,8 @@ class EngineFactory(
             apiKeyProvider = { secrets.get(config.apiKeyAlias) },
             templateKwargs = known?.noThinking.orEmpty(),
             extraParams = known?.extraParams.orEmpty(),
+            // A streamed reply lets the ring follow the cleanup; Amber PC's answers in one piece.
+            stream = provider.streamsChat,
         )
     }
 

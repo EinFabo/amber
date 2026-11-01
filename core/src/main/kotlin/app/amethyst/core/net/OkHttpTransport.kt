@@ -9,8 +9,13 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okio.Buffer
+import okio.BufferedSink
+import okio.ForwardingSink
+import okio.buffer
 import java.io.IOException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
@@ -88,7 +93,7 @@ class OkHttpTransport(
                             response.use {
                                 HttpResponse(
                                     code = it.code,
-                                    body = it.body?.let(::boundedBytes) ?: ByteArray(0),
+                                    body = it.body?.let { b -> boundedBytes(b, request.onReceive) } ?: ByteArray(0),
                                     headers = it.headers.toMultimap().mapValues { h -> h.value.joinToString(", ") },
                                 )
                             }
@@ -105,13 +110,25 @@ class OkHttpTransport(
      * kilobytes, and an endless answer from a broken or hostile server must not run the
      * process - which also hosts the accessibility service - out of memory.
      */
-    private fun boundedBytes(body: okhttp3.ResponseBody): ByteArray {
+    private fun boundedBytes(body: okhttp3.ResponseBody, onReceive: ((ByteArray) -> Unit)?): ByteArray {
         val source = body.source()
-        if (source.request(MAX_RESPONSE_BYTES + 1)) {
-            throw IOException("response larger than ${MAX_RESPONSE_BYTES shr 20} MiB")
+        if (onReceive == null) {
+            if (source.request(MAX_RESPONSE_BYTES + 1)) throw tooLarge()
+            return source.buffer.readByteArray()
         }
-        return source.buffer.readByteArray()
+        // Piece by piece as it arrives, each passed on: a streamed reply.
+        val whole = Buffer()
+        val piece = Buffer()
+        while (source.read(piece, PIECE_BYTES) != -1L) {
+            if (whole.size + piece.size > MAX_RESPONSE_BYTES) throw tooLarge()
+            val bytes = piece.readByteArray()
+            onReceive(bytes)
+            whole.write(bytes)
+        }
+        return whole.readByteArray()
     }
+
+    private fun tooLarge() = IOException("response larger than ${MAX_RESPONSE_BYTES shr 20} MiB")
 
     private fun toOkRequest(request: HttpRequest): Request {
         val body = when (val b = request.body) {
@@ -134,16 +151,50 @@ class OkHttpTransport(
                 .build()
         }
 
+        val counted = body?.let { b -> request.onUpload?.let { CountingBody(b, it) } } ?: body
         return Request.Builder()
             .url(request.url)
-            .method(request.method, body)
+            .method(request.method, counted)
             .apply { request.headers.forEach { (name, value) -> header(name, value) } }
             .build()
+    }
+
+    /**
+     * [body] as it is, telling [onUpload] the bytes written so far. A retried request writes
+     * the body again, and the count starts again with it.
+     */
+    private class CountingBody(private val body: RequestBody, private val onUpload: (Long, Long) -> Unit) : RequestBody() {
+        override fun contentType() = body.contentType()
+
+        override fun contentLength() = body.contentLength()
+
+        override fun writeTo(sink: BufferedSink) {
+            val total = contentLength()
+            var sent = 0L
+            val counting = object : ForwardingSink(sink) {
+                // Okio hands a large body over in one write; in steps, the ring moves with it.
+                override fun write(source: Buffer, byteCount: Long) {
+                    var left = byteCount
+                    while (left > 0) {
+                        val step = minOf(left, PIECE_BYTES)
+                        super.write(source, step)
+                        left -= step
+                        sent += step
+                        onUpload(sent, total)
+                    }
+                }
+            }.buffer()
+            body.writeTo(counting)
+            counting.flush()
+        }
     }
 
     private companion object {
         /** Far beyond any transcript or cleanup reply; see [boundedBytes]. */
         const val MAX_RESPONSE_BYTES = 8L shl 20
+
+        /** How much of a streamed reply is read at a time. */
+        const val PIECE_BYTES = 8_192L
 
         fun hexToBytes(hex: String): ByteArray {
             val clean = hex.trim().lowercase()

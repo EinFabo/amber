@@ -1,6 +1,7 @@
 package app.amethyst.dictation
 
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.engine.WaitProgress
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.text.Transcript
 
@@ -14,10 +15,10 @@ sealed interface DictationState {
     data class Listening(val amplitude: Float = 0f, val partial: String? = null) : DictationState
 
     /**
-     * Turning the recording into text. [expectedMs] is how long that should take, learned from
-     * earlier dictations, for the progress ring; null when there is nothing to go by.
+     * Turning the recording into text, and cleaning it. [progress] is how far that has come,
+     * for the progress ring; null when there is nothing to go by.
      */
-    data class Transcribing(val expectedMs: Long? = null) : DictationState
+    data class Transcribing(val progress: WaitProgress? = null) : DictationState
 
     data class Done(
         val transcript: Transcript,

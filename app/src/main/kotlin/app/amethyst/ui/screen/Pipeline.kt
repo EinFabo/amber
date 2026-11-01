@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.Fallback
+import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
@@ -38,6 +39,7 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.Unfold
 import app.amethyst.ui.theme.AmberPalette
@@ -206,7 +208,8 @@ fun FallbackScreen(
 ) {
     val primary = settings.activeEngine
     val fallback = settings.fallback
-    fun choose(choice: FallbackSettings) = onUpdateSettings { it.copy(fallback = choice) }
+    // Who steps in changes; whether it prepares stays the user's.
+    fun choose(choice: FallbackSettings) = onUpdateSettings { it.copy(fallback = choice.copy(prepare = it.fallback.prepare)) }
 
     SubPage(modifier) {
         SectionCard(
@@ -248,6 +251,23 @@ fun FallbackScreen(
                         "from it - a failed dictation stays failed.",
                     AmberPalette.Primary,
                 )
+            }
+        }
+        if (ReadyFallback.preparable(fallback, settings.engines) && (primary == null || !primary.runsOnPhone())) {
+            SectionCard(
+                title = "Ready in advance",
+                subtitle = "So taking over is quick.",
+                learnMore = "While you dictate, the model on the phone already recognizes the recording in parts. " +
+                    "If the server fails, or takes much longer than usual, the text from the phone is used at once " +
+                    "instead of the whole recording being recognized afterwards.",
+            ) {
+                ToggleRow(
+                    "Prepare on the phone while you speak",
+                    "Uses the phone's processor and battery while you dictate. Only with a downloaded model.",
+                    checked = fallback.prepare,
+                    onChange = { on -> onUpdateSettings { it.copy(fallback = it.fallback.copy(prepare = on)) } },
+                )
+                if (fallback.prepare) Hint("If the server takes much longer than usual, the text from the phone is used.")
             }
         }
     }

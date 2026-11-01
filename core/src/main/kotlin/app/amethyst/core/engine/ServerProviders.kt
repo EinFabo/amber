@@ -26,6 +26,12 @@ data class ServerProvider(
      * "the PC", "the server". Null for the lists this app keeps.
      */
     val listedBy: String? = null,
+    /**
+     * Its chat endpoint streams a reply (`"stream": true`, server-sent events), so the ring can
+     * follow a cleanup as it is written. Amber PC's answers in one piece; an own server's is
+     * unknown.
+     */
+    val streamsChat: Boolean = false,
 ) {
     /** The lists came from the server, so they are all it takes; nothing else is typed. */
     val listsItself: Boolean get() = listedBy != null
@@ -55,6 +61,7 @@ object ServerProviders {
         speechModels = EnginePresets.TINFOIL_SPEECH_MODELS,
         cleanupModels = EnginePresets.TINFOIL_CLEANUP_MODELS,
         fixedAddress = true,
+        streamsChat = true,
     )
 
     /*
@@ -79,6 +86,7 @@ object ServerProviders {
             ModelChoice("llama-3.1-8b-instant", "Llama 3.1 8B", "fastest, simplest"),
         ),
         fixedAddress = true,
+        streamsChat = true,
     )
 
     val OPENAI = ServerProvider(
@@ -97,6 +105,7 @@ object ServerProviders {
             ModelChoice("gpt-4.1-mini", "GPT-4.1 mini", "smarter · ~\$0.0004", usdPerMIn = 0.40, usdPerMOut = 1.60),
         ),
         fixedAddress = true,
+        streamsChat = true,
     )
 
     /** Anything else: the user's own server, models typed by hand. */

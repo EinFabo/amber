@@ -22,6 +22,8 @@ import app.amethyst.core.insert.InputTarget
 import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.engine.ChunkedTranscription
+import app.amethyst.core.engine.ReadyFallback
+import app.amethyst.core.engine.WaitProgress
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
@@ -64,6 +66,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +76,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Drives one dictation from tap to inserted text.
@@ -121,6 +125,10 @@ class DictationController(
 
     /** The local engine that took over this dictation from an unreachable server, if any. */
     private var fellBack: String? = null
+
+    /** How far the wait after this run's recording has come, for the progress ring. */
+    @Volatile
+    private var wait: WaitProgress? = null
 
     /** The engine that failed when [fellBack] took over. */
     private var fellBackFrom: String? = null
@@ -337,6 +345,7 @@ class DictationController(
 
     private suspend fun run(source: TriggerSource) {
         _state.value = DictationState.Starting
+        wait = null
         stoppedByTap = false
         commandSteps = null
         commandRecorded = false
@@ -374,7 +383,7 @@ class DictationController(
             val finished = withTimeoutOrNull(settings.capture.effectiveTotalTimeoutMs()) {
                 val transcript = when (engine) {
                     is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                    else -> recordThenTranscribe(engine, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels)
+                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels)
                 } ?: return@withTimeoutOrNull Unit // the failure was already reported
 
                 if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else deliver(cleanUp(transcript), settings, engineConfig.id)
@@ -441,6 +450,7 @@ class DictationController(
 
     private suspend fun recordThenTranscribe(
         engine: SttEngine,
+        engineConfig: EngineConfig,
         options: TranscribeOptions,
         source: TriggerSource,
         /** Engine and model, for learning how long recognition takes here. */
@@ -468,19 +478,25 @@ class DictationController(
         } else {
             null
         }
+        // A server dictation whose fallback is a model on the phone may have it recognize the
+        // recording alongside, so its text is there the moment the server fails or hangs.
+        val prepared = if (_mode.value == RunMode.DICTATION && chunked == null) prepareFallback(engineConfig) else null
+        val chunkSink = chunked ?: prepared?.chunks
         val outcome = try {
             capture.record(
                 config = vadConfig,
                 stopRequested = { stopRequested.get() },
                 onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
-                onChunk = chunked?.let { it::submit },
-                minChunkMs = captureSettings.chunkMinMs ?: engine.capabilities.minChunkMs,
+                onChunk = chunkSink?.let { it::submit },
+                minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
             )
         } catch (e: Throwable) {
             chunked?.cancel()
+            prepared?.chunks?.cancel()
             throw e
         }
         if (outcome !is AudioCapture.Outcome.Captured || outcome.chunks == 0) chunked?.cancel()
+        if (outcome !is AudioCapture.Outcome.Captured) prepared?.chunks?.cancel()
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
@@ -522,6 +538,9 @@ class DictationController(
                 // the engine gets the command.
                 val command = _mode.value == RunMode.COMMAND
                 if (command) chunked?.cancelAndJoin()
+                // A command is heard by its engine alone; nothing prepared stands in for it.
+                if (command) prepared?.chunks?.cancelAndJoin()
+                val ready = prepared.takeUnless { command }
                 val chunking = !command && chunked != null && outcome.chunks > 0
                 // What is left to recognize after the stop: with chunks, only the unfinished
                 // ones and the tail.
@@ -533,37 +552,79 @@ class DictationController(
                 val caps = engine.capabilities
                 val coldModel = trace?.modelWarm == false
                 val overheadMs = caps.overheadMs + if (coldModel) MODEL_LOAD_MS else 0L
-                val expectedMs = graph.recognitionEstimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
-                _state.value = DictationState.Transcribing(expectedMs)
+                val estimate = graph.recognitionEstimate
+                val server = engine is OpenAiCompatibleEngine
+                val uploadKey = "upload/$estimateKey"
+                val recognizeMs = estimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
+                val uploadMs = if (server) estimate.expectedMs(uploadKey, outcome.audio.durationMs, UPLOAD_RATE, 0) else 0L
+                val cleanupMs = if (command) null else expectedCleanupMs(graph.settings.value, (outcome.audio.durationMs * CHARS_PER_AUDIO_MS).toLong(), fellBackFrom = null)
+                // One ring from the release to the text in the field: upload, recognition, cleanup.
+                val wait = WaitProgress(SystemClock::elapsedRealtime).also { this.wait = it }
+                wait.plan(
+                    *listOfNotNull(
+                        (WaitProgress.Step.UPLOAD to uploadMs).takeIf { server },
+                        WaitProgress.Step.RECOGNIZE to recognizeMs,
+                        cleanupMs?.let { WaitProgress.Step.CLEANUP to it },
+                    ).toTypedArray(),
+                )
+                // The bytes sent fill the upload's share; once they are out, the server recognizes.
+                val uploadFrom = AtomicLong(0)
+                val uploadTo = AtomicLong(0)
+                val serverOptions = if (!server) options else options.copy(
+                    onUpload = { sent, total ->
+                        uploadFrom.compareAndSet(0, SystemClock.elapsedRealtime())
+                        if (total > 0) wait.report(WaitProgress.Step.UPLOAD, sent.toFloat() / total)
+                        if (total in 1..sent) {
+                            uploadTo.compareAndSet(0, SystemClock.elapsedRealtime())
+                            wait.begin(WaitProgress.Step.RECOGNIZE)
+                        }
+                    },
+                )
+                // Each chunk done is a real step of the recognition.
+                if (chunking && pendingMs > 0) {
+                    chunked!!.onChunkDone = { left -> wait.report(WaitProgress.Step.RECOGNIZE, 1f - left.toFloat() / pendingMs, upTo = 1f) }
+                }
+                _state.value = DictationState.Transcribing(wait)
                 trace?.transcribingStarts()
                 trace?.connection = connectionWarmUp?.describe()
                 val startedAt = SystemClock.elapsedRealtime()
                 var passes = 1
+                var tookOver: ReadyFallback.Outcome.Local? = null
                 val result = when {
                     chunking -> chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
                     command -> recognizeCommand(engine, outcome.audio, options, appLabels).also { passes = it.passes }.result
-                    else -> engine.transcribe(outcome.audio, options)
+                    ready != null -> when (val race = raceWithPrepared(engine, serverOptions, outcome, ready, uploadMs + recognizeMs)) {
+                        is ReadyFallback.Outcome.Server -> race.result
+                        is ReadyFallback.Outcome.Local -> Result.success(race.transcript).also { tookOver = race }
+                    }
+                    else -> engine.transcribe(outcome.audio, serverOptions)
                 }
                 trace?.transcribingEnds()
                 trace?.upload = result.getOrNull()?.upload?.summary()
                 // A cold model's load time would teach the wrong rate, and so would a command
-                // heard in several languages.
-                if (result.isSuccess && !coldModel && passes == 1) {
-                    graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
+                // heard in several languages, or a text the phone recognized instead. The
+                // upload is learned on its own: on the road it can take longer than the server.
+                if (result.isSuccess && !coldModel && passes == 1 && tookOver == null) {
+                    val upload = if (uploadTo.get() > 0) uploadTo.get() - uploadFrom.get() else 0L
+                    estimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt - upload, caps.overheadMs)
+                    if (upload > 0) estimate.learn(uploadKey, outcome.audio.durationMs, upload, 0)
+                    graph.saveEstimates()
                 }
                 if (engine is WhisperCppEngine) {
                     trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
                     trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
                 }
+                tookOver?.let { local -> return tookOverFromServer(local, ready!!.config, engine.capabilities.trustLevel) }
                 // No signal, a timeout, a server down: the recording is still here, so another
-                // engine can take it instead of the dictation being lost.
+                // engine can take it instead of the dictation being lost - not the one prepared
+                // alongside, whose text did not come.
                 val recoverable = Fallback.recoverable(
                     result.exceptionOrNull(),
                     engine.capabilities.trustLevel,
                     graph.settings.value.fallback.mode,
                 )
                 val recovered = recoverable
-                    ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel) }
+                    ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, skip = ready?.config?.id) }
                     ?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
                     fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
@@ -572,6 +633,131 @@ class DictationController(
             }
         }
     }
+
+    /** A fallback on the phone recognizing this recording alongside the server ([ReadyFallback]). */
+    private class Prepared(val config: EngineConfig, val engine: SttEngine, val options: TranscribeOptions, val chunks: ChunkedTranscription)
+
+    /**
+     * The fallback model to prepare while [primary] records, if the user switched preparing on
+     * and the model is downloaded: it starts loading now, and finished chunks of the recording
+     * go to it. Null otherwise - and always for an engine on the phone.
+     */
+    private suspend fun prepareFallback(primary: EngineConfig): Prepared? {
+        val config = ReadyFallback.engineToPrepare(graph.settings.value, primary, ::trustOf, ::localModelReady) ?: return null
+        val engine = graph.engineFactory.create(config).getOrNull() ?: return null
+        val scope = CoroutineScope(currentCoroutineContext())
+        // The model loads while the user speaks; a failure shows when it is asked for text.
+        scope.launch { engine.warmUp() }
+        val options = TranscribeOptions(languageTag = config.languageTag)
+        return Prepared(config, engine, options, ChunkedTranscription(engine, options, scope))
+    }
+
+    private fun trustOf(config: EngineConfig): TrustLevel =
+        EngineTrust.forDisplay(config, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
+
+    /** Whether a model on the phone is downloaded; an engine elsewhere needs none. */
+    private fun localModelReady(config: EngineConfig): Boolean = when (config.kind) {
+        EngineKind.LOCAL_SHERPA -> graph.parakeetModels.isReady()
+        EngineKind.WHISPER_CPP -> graph.whisperModels.isReady(config.modelId ?: WhisperModels.default.id)
+        else -> true
+    }
+
+    /** Whether a model on the phone is in memory already; null for an engine elsewhere. */
+    private fun localModelWarm(config: EngineConfig): Boolean? = when (config.kind) {
+        EngineKind.LOCAL_SHERPA -> graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
+        EngineKind.WHISPER_CPP -> graph.whisperRuntime.isLoaded(graph.whisperModels.fileFor(config.modelId ?: WhisperModels.default.id).path)
+        else -> null
+    }
+
+    /**
+     * The server's answer against the text [ready] prepares on the phone ([ReadyFallback.race]):
+     * the rest of the recording is recognized there while the server works. Whatever comes of
+     * it, the work on the phone stops when this returns. Diagnostics get one line on it.
+     */
+    private suspend fun raceWithPrepared(
+        engine: SttEngine,
+        options: TranscribeOptions,
+        captured: AudioCapture.Outcome.Captured,
+        ready: Prepared,
+        expectedServerMs: Long,
+    ): ReadyFallback.Outcome {
+        val stoppedAt = SystemClock.elapsedRealtime()
+        val localDoneAt = AtomicLong(0)
+        val localOk = AtomicBoolean(false)
+        val local = CoroutineScope(currentCoroutineContext()).async {
+            try {
+                if (captured.chunks > 0) {
+                    ready.chunks.finish(captured.tail, captured.audio)
+                } else {
+                    ready.chunks.cancel()
+                    ready.engine.transcribe(captured.audio, ready.options)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }.also {
+                localOk.set(it.isSuccess)
+                localDoneAt.set(SystemClock.elapsedRealtime())
+            }
+        }
+        val deadlineMs = ReadyFallback.deadlineMs(expectedServerMs)
+        try {
+            val outcome = ReadyFallback.race({ engine.transcribe(captured.audio, options) }, local, deadlineMs) {
+                Fallback.recoverable(it, engine.capabilities.trustLevel, graph.settings.value.fallback.mode)
+            }
+            val readyAfter = localDoneAt.get().takeIf { it > 0 }?.let { at ->
+                val text = if (localOk.get()) "ready" else "failed"
+                "$text ${ms(at - stoppedAt)} after stop"
+            } ?: "not ready yet"
+            val who = when (outcome) {
+                is ReadyFallback.Outcome.Server -> if (outcome.result.isSuccess) "the server answered first" else "the server's error stands"
+                is ReadyFallback.Outcome.Local ->
+                    if (outcome.serverTooSlow) "the server took over ${ms(deadlineMs)}, the phone's text was used"
+                    else "the server failed, the phone's text was used"
+            }
+            trace?.prepared = "prepared on the phone with ${ready.config.displayName}, ${ready.chunks.chunkCount} chunks, $readyAfter; $who"
+            return outcome
+        } finally {
+            local.cancel()
+            ready.chunks.cancel()
+        }
+    }
+
+    /**
+     * The text prepared on the phone took over from the server: labelled with where the
+     * recording may have gone, said in a toast and in Diagnostics, as any fallback is.
+     */
+    private fun tookOverFromServer(local: ReadyFallback.Outcome.Local, config: EngineConfig, serverTrust: TrustLevel): Transcript {
+        val transcript = local.transcript
+        val trust = local.serverFailure?.let { Fallback.trustAfter(it, serverTrust, transcript.trustLevel) }
+            ?: Fallback.trustAfterSlowServer(serverTrust, transcript.trustLevel)
+        val primary = graph.settings.value.activeEngine
+        fellBack = config.displayName
+        fellBackFrom = primary?.id
+        val why = if (local.serverTooSlow) "server too slow" else "server unreachable"
+        trace?.fallback = "$why, recognized by ${config.displayName} during the recording, label $trust"
+        val message = when {
+            local.serverTooSlow -> "The server took too long - used the text recognized on the phone."
+            trust == TrustLevel.ON_DEVICE -> "No connection - recognized on the phone with ${config.displayName}."
+            else -> "The server did not answer - recognized on the phone with ${config.displayName}. " +
+                "The recording may have reached the server."
+        }
+        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+        return transcript.copy(trustLevel = trust)
+    }
+
+    /**
+     * How long the cleanup chosen for this dictation's app should take for about [chars]
+     * characters, learned per cleanup model; null when it gets none.
+     */
+    private fun expectedCleanupMs(settings: AmethystSettings, chars: Long, fellBackFrom: String?): Long? {
+        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        val choice = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }.choice ?: return null
+        return graph.recognitionEstimate.expectedMs(cleanupKey(choice), chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS)
+    }
+
+    private fun cleanupKey(choice: CleanupChoice) = "cleanup/${choice.engineId}/${choice.model}"
 
     /**
      * A command's words: where the engine takes a language per request, heard a language at a
@@ -646,16 +832,21 @@ class DictationController(
      * then Whisper) for a recording the server could not take. Null when none is ready or none
      * recognized it; the original error then stands.
      */
-    private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel): Transcript? {
+    private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel, skip: String? = null): Transcript? {
         val settings = graph.settings.value
         val primary = settings.activeEngine ?: return null
-        val candidates = Fallback.candidates(settings.fallback, settings.engines, primary) {
-            EngineTrust.forDisplay(it, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
-        }
+        val candidates = Fallback.candidates(settings.fallback, settings.engines, primary, ::trustOf).filter { it.id != skip }
         for (config in candidates) {
             val other = graph.engineFactory.create(config).getOrNull() ?: continue
             Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
-            _state.value = DictationState.Transcribing()
+            // The rest of the ring is this engine's recognition and the cleanup after it.
+            val caps = other.capabilities
+            val load = if (localModelWarm(config) == false) MODEL_LOAD_MS else 0L
+            val recognizeMs = graph.recognitionEstimate.expectedMs("${config.id}/${config.modelId}", audio.durationMs, caps.typicalRate, caps.overheadMs + load)
+            val cleanupMs = expectedCleanupMs(settings, (audio.durationMs * CHARS_PER_AUDIO_MS).toLong(), fellBackFrom = primary.id)
+            val wait = wait ?: WaitProgress(SystemClock::elapsedRealtime).also { wait = it }
+            wait.plan(*listOfNotNull(WaitProgress.Step.RECOGNIZE to recognizeMs, cleanupMs?.let { WaitProgress.Step.CLEANUP to it }).toTypedArray())
+            _state.value = DictationState.Transcribing(wait)
             val result = try {
                 other.transcribe(audio, TranscribeOptions(languageTag = config.languageTag))
             } finally {
@@ -703,7 +894,14 @@ class DictationController(
         val style = profile?.style ?: WritingStyle.AS_SPOKEN
         // Whether its server connection was opened at the start - only for the cleanup chosen then.
         val connection = cleanupWarmUp?.takeIf { it.first == choice }?.let { ", ${it.second.describe()}" }.orEmpty()
-        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text, style, profile?.instruction) }
+        // The rest of the ring: a streamed reply fills it as it comes, else the clock against
+        // what this model took here before.
+        val key = cleanupKey(choice)
+        val chars = transcript.text.length.toLong()
+        wait?.plan(WaitProgress.Step.CLEANUP to graph.recognitionEstimate.expectedMs(key, chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS))
+        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) {
+            cleanup.clean(transcript.text, style, profile?.instruction) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
+        }
         if (result == null) {
             trace?.cleanup = "${note}cleanup timed out (${cleanup.model})"
             return transcript
@@ -712,6 +910,8 @@ class DictationController(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
                 trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$connection)"
+                graph.recognitionEstimate.learn(key, chars, cleaned.latencyMs, CLEANUP_OVERHEAD_MS)
+                graph.saveEstimates()
                 trace?.cleanupModel = cleanup.model
                 trace?.cleanupEngineId = choice.engineId
                 transcript.copy(
@@ -1073,6 +1273,19 @@ class DictationController(
 
         /** Rough cost of loading a Whisper model that was not in memory, for the estimate. */
         const val MODEL_LOAD_MS = 1_000L
+
+        private fun ms(value: Long): String =
+            if (value >= 1_000) "%.1f s".format(java.util.Locale.US, value / 1000.0) else "$value ms"
+
+        /** Upload milliseconds per millisecond of audio before this phone taught better: WAV at about 5 Mbit/s. */
+        const val UPLOAD_RATE = 0.05
+
+        /** A cleanup's milliseconds per character, and its fixed cost, before this phone taught better. */
+        const val CLEANUP_RATE = 8.0
+        const val CLEANUP_OVERHEAD_MS = 500L
+
+        /** About how many characters a millisecond of speech becomes - 15 a second - for planning the cleanup. */
+        const val CHARS_PER_AUDIO_MS = 0.015
 
         /** Past this the dictation goes in as recognized rather than keep the user waiting. */
         const val CLEANUP_TIMEOUT_MS = 12_000L

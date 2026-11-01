@@ -77,6 +77,11 @@ data class TranscribeOptions(
      * passed as the engine's prompt so sentence flow and spellings hold across the cut.
      */
     val precedingText: String? = null,
+    /**
+     * Told how many bytes of the recording's upload have gone out, of how many - for the
+     * progress ring. Engines on the phone upload nothing and never call it.
+     */
+    val onUpload: ((sent: Long, total: Long) -> Unit)? = null,
 )
 
 /**
