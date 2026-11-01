@@ -120,7 +120,10 @@ class ChatCleanup(
                 "starts. Keep the original language and meaning. Never translate, answer, add " +
                 "facts or comment. Use line breaks only where the text has separate paragraphs " +
                 "or a list, or for the greeting and sign-off of an email; otherwise keep it one " +
-                "paragraph. Reply with the cleaned text only, without tags."
+                "paragraph. When the speaker lists several items, steps or points (a shopping " +
+                "list, a to-do list, steps to follow), put each item on its own line starting " +
+                "with \"- \", after the sentence that introduces them. Reply with the cleaned " +
+                "text only, without tags."
 
         private fun styleRule(style: WritingStyle): String = when (style) {
             WritingStyle.AS_SPOKEN ->
@@ -182,11 +185,15 @@ class ChatCleanup(
             )
         }
 
-        /** Drops reasoning blocks and stray tags some models add around the answer. */
+        /**
+         * Drops reasoning blocks and stray tags some models add around the answer, and the
+         * spaces and tabs at the end of each line - Markdown's line break, junk in a text field.
+         */
         internal fun unwrap(reply: String): String =
             reply.replace(Regex("""(?s)<think>.*?</think>"""), "")
                 .replace("<dictation>", "")
                 .replace("</dictation>", "")
+                .replace(Regex("""[ \t]+(?=\r?\n)"""), "")
                 .trim()
                 .removeSurrounding("\"")
                 .trim()

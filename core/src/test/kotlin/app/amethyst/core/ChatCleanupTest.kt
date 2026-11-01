@@ -122,4 +122,46 @@ class ChatCleanupTest {
         )
         assertEquals("Ja, bis gleich.", cleanup(transport).clean("ja bis gleich").getOrThrow().text)
     }
+
+    @Test
+    fun `a spoken list is asked for as lines, as the pc's prompt has it`() {
+        for (style in WritingStyle.entries) {
+            assertContains(
+                ChatCleanup.systemPrompt(style, null),
+                "When the speaker lists several items, steps or points (a shopping list, a to-do list, " +
+                    "steps to follow), put each item on its own line starting with \"- \", after the " +
+                    "sentence that introduces them.",
+            )
+        }
+    }
+
+    @Test
+    fun `spaces and tabs at the end of a line are dropped`() {
+        assertEquals("Liste:\n- A\n- B", ChatCleanup.unwrap("Liste:  \n- A  \n- B"))
+        assertEquals("Liste:\r\n- A\n- B", ChatCleanup.unwrap("Liste:\t\r\n- A \t\n- B  "), "before a CRLF too")
+        assertEquals("Ich brauche Tomaten,  Käse und Suppe.", ChatCleanup.unwrap("Ich brauche Tomaten,  Käse und Suppe."), "inside a line nothing changes")
+    }
+
+    @Test
+    fun `a cleaned list is plausible`() {
+        assertTrue(
+            ChatCleanup.plausible(
+                "Einkaufsliste Tomaten Gurken Käse Milch und Brot",
+                "Einkaufsliste:\n- Tomaten\n- Gurken\n- Käse\n- Milch\n- Brot",
+            ),
+        )
+        assertTrue(
+            ChatCleanup.plausible(
+                "für morgen erstens den Arzt anrufen zweitens die Miete überweisen drittens Brot kaufen",
+                "Für morgen:\n- Den Arzt anrufen\n- Die Miete überweisen\n- Brot kaufen",
+            ),
+        )
+    }
+
+    @Test
+    fun `a list the model ends with markdown line breaks comes out clean`() = runTest {
+        val transport = FakeHttpTransport.json(reply("Einkaufsliste:  \n- Tomaten  \n- Gurken  \n- Käse  \n- Milch  \n- Brot"))
+        val cleaned = cleanup(transport).clean("Einkaufsliste Tomaten Gurken Käse Milch und Brot").getOrThrow()
+        assertEquals("Einkaufsliste:\n- Tomaten\n- Gurken\n- Käse\n- Milch\n- Brot", cleaned.text)
+    }
 }
