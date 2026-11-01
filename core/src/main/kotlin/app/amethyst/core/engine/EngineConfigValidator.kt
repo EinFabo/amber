@@ -33,8 +33,10 @@ object EngineConfigValidator {
             }
         }
 
-        // Only Whisper decides between several languages itself; every other engine takes one.
-        val tags = if (config.kind == EngineKind.WHISPER_CPP) {
+        // Whisper and an Amber server decide between several languages themselves, and any other
+        // server gets no language for a list (OpenAiCompatibleEngine.languageField), so it detects.
+        // The rest take one.
+        val tags = if (config.kind == EngineKind.WHISPER_CPP || config.kind == EngineKind.OPENAI_COMPATIBLE) {
             config.languageTag?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
         } else {
             listOfNotNull(config.languageTag)

@@ -1,6 +1,7 @@
 package app.amethyst.core
 
 import app.amethyst.core.engine.EngineConfigValidator
+import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.EngineConfig
@@ -133,6 +134,16 @@ class EngineConfigValidatorTest {
     @Test
     fun `an absent language tag means automatic detection, not an error`() {
         assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = null), true))
+    }
+
+    @Test
+    fun `a server engine takes a list of languages and names the broken one`() {
+        // What the language chips of an Amber server store; any other server detects instead.
+        assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = "de,en"), true))
+        assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = "de-DE, en"), true))
+        assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = WhisperInput.toggledLanguage("de", "en")), true))
+        val problems = EngineConfigValidator.validate(openAiCompatible(languageTag = "de,deutsch bitte"), true)
+        assertContains(problems.single(), "deutsch bitte")
     }
 
     @Test
