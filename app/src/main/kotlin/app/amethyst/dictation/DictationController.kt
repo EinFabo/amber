@@ -146,6 +146,9 @@ class DictationController(
     @Volatile
     private var stoppedByTap = false
 
+    /** Warm-ups per server; one still running is joined, so rapid taps do not queue HEADs. */
+    private val warmUps by lazy { ConnectionWarmUp.Pool(graph.appScope) }
+
     /** This run's server connection, opened while the user speaks; null for a model on the phone. */
     @Volatile
     private var connectionWarmUp: ConnectionWarmUp? = null
@@ -350,7 +353,7 @@ class DictationController(
             fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
             return
         }
-        warmUpConnections(engine, engineConfig.id, settings)
+        warmUpConnections(engine, engineConfig, settings)
 
         val options = TranscribeOptions(languageTag = engineConfig.languageTag)
         val appLabels = appLabelsOnce()
@@ -594,28 +597,32 @@ class DictationController(
     /**
      * Opens the server connections this run will need while the user is still speaking: the
      * speech engine's - for an enclave the attestation and the pinned connection - and, for a
-     * dictation, that of the cleanup chosen for the app being written in, when it runs on
-     * another server. Off the main thread and in the app's scope, so nothing waits for them; a
-     * HEAD with no key and no audio, and a failure changes nothing ([ConnectionWarmUp]). A model
-     * on the phone needs none.
+     * dictation, that of the cleanup chosen for the app being written in. Off the main thread
+     * and in the app's scope, so nothing waits for them. A HEAD to the API root with no
+     * Authorization header and no audio - an Amber PC or Server has its key in the address's
+     * path, so it goes there as with every request, never logged - and a failure changes
+     * nothing ([ConnectionWarmUp]). One per server at a time: a warm-up still running for the
+     * same API root - an earlier tap's, or the speech engine's for a cleanup on its server - is
+     * joined ([ConnectionWarmUp.Pool]). A model on the phone needs none.
      */
-    private fun warmUpConnections(engine: SttEngine, engineId: String, settings: AmethystSettings) {
+    private fun warmUpConnections(engine: SttEngine, engineConfig: EngineConfig, settings: AmethystSettings) {
         connectionWarmUp = null
         cleanupWarmUp = null
-        val speech = (engine as? OpenAiCompatibleEngine)?.let { server ->
-            ConnectionWarmUp.start(graph.appScope) { withContext(Dispatchers.IO) { server.warmUp().isSuccess } }
+        val server = engine as? OpenAiCompatibleEngine
+        val serverUrl = engineConfig.baseUrl
+        if (server != null && serverUrl != null) {
+            connectionWarmUp = warmUps.start(OpenAiCompatibleEngine.apiRoot(serverUrl)) {
+                withContext(Dispatchers.IO) { server.warmUp().isSuccess }
+            }
         }
-        connectionWarmUp = speech
         if (_mode.value != RunMode.DICTATION) return
         val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
         val choice = CleanupRouting.decide(settings, target, fellBackFrom = null) { graph.secretStore.has(it) }.choice ?: return
-        // The speech engine's own server: its connection is already on the way.
-        if (choice.engineId == engineId && speech != null) {
-            cleanupWarmUp = choice to speech
-            return
-        }
+        val cleanupUrl = settings.engines.firstOrNull { it.id == choice.engineId }?.baseUrl ?: return
         val cleanup = graph.engineFactory.cleanupFor(choice, settings) ?: return
-        cleanupWarmUp = choice to ConnectionWarmUp.start(graph.appScope) { withContext(Dispatchers.IO) { cleanup.warmUp() } }
+        cleanupWarmUp = choice to warmUps.start(OpenAiCompatibleEngine.apiRoot(cleanupUrl)) {
+            withContext(Dispatchers.IO) { cleanup.warmUp() }
+        }
     }
 
     /** The language the phone is set to ("de") - not Amber's own, should it have one. */

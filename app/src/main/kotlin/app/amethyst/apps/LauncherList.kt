@@ -70,7 +70,12 @@ class LauncherList(context: Context) {
             cached?.let { return it }
             val before = generation.get()
             val read = Launcher.apps(context)
-            if (watching && generation.get() == before) cached = read
+            if (watching) {
+                // Kept first, checked after: a drop between the read and here - invalidate() runs
+                // outside this lock - takes the stale list straight back out.
+                cached = read
+                if (generation.get() != before) cached = null
+            }
             return read
         }
     }

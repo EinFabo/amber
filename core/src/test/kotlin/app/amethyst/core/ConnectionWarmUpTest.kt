@@ -3,8 +3,10 @@ package app.amethyst.core
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.net.ConnectionWarmUp
+import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.HttpTransport
+import app.amethyst.core.net.PinnableTransport
 import app.amethyst.core.net.SecureChannel
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
@@ -18,7 +20,9 @@ import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -114,6 +118,17 @@ class ConnectionWarmUpTest {
     }
 
     @Test
+    fun `a proof whose key cannot be pinned fails the warm-up instead of throwing`() = runTest {
+        // OkHttpTransport refuses a malformed fingerprint with IllegalArgumentException.
+        val transport = object : PinnableTransport {
+            override suspend fun execute(request: HttpRequest): HttpResponse = error("unpinned request")
+            override fun pinnedTo(host: String, spkiSha256Hex: String): HttpTransport = throw IllegalArgumentException("not a SHA-256")
+        }
+
+        assertTrue(engine(transport, "https://inference.tinfoil.sh/v1", Verifier("abc")).warmUp().isFailure)
+    }
+
+    @Test
     fun `a cleanup warms its chat server the same way`() = runTest {
         val transport = FakeHttpTransport { HttpResponse(401, ByteArray(0)) }
         val cleanup = ChatCleanup(
@@ -151,5 +166,29 @@ class ConnectionWarmUpTest {
             assertEquals("connection cold (warm-up failed)", failed.describe())
         }
         assertFalse(thrown.state == ConnectionWarmUp.State.WARM)
+    }
+
+    @Test
+    fun `a warm-up still running for the same server is joined, not started again`() = runTest {
+        // Rapid taps on a dead network must not queue HEAD after HEAD ahead of the real upload.
+        val pool = ConnectionWarmUp.Pool(this)
+        val done = CompletableDeferred<Boolean>()
+        var started = 0
+        val first = pool.start("https://api.groq.com/openai/v1") { started++; done.await() }
+        val again = pool.start("https://api.groq.com/openai/v1") { started++; true }
+        val other = pool.start("https://inference.tinfoil.sh/v1") { started++; true }
+        advanceUntilIdle()
+
+        assertSame(first, again)
+        assertNotSame(first, other)
+        assertEquals(2, started)
+
+        // Once it has ended, the next dictation warms afresh.
+        done.complete(true)
+        advanceUntilIdle()
+        val later = pool.start("https://api.groq.com/openai/v1") { started++; true }
+        advanceUntilIdle()
+        assertNotSame(first, later)
+        assertEquals(3, started)
     }
 }

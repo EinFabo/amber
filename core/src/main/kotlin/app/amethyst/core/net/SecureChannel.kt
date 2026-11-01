@@ -92,23 +92,26 @@ class SecureChannel(
      * Opens the connection a request to [url] would take, while the user is still speaking, so
      * the request after the stop does not also pay for DNS, TCP and TLS - nor, for an enclave,
      * for the attestation, which is verified first; the connection is then opened through the
-     * pinned client, exactly as a request would be. A HEAD with no key and no payload: whatever
-     * the server answers, the connection is open and kept for the request. True when it is; a
-     * failure is silent and changes nothing - the request opens its own connection, and an
-     * enclave that cannot be verified is refused there, as always. [url] is never logged: it may
-     * carry a key.
+     * pinned client, exactly as a request would be. A HEAD with no Authorization header and no
+     * payload: whatever the server answers, the connection is open and kept for the request.
+     * An Amber PC or Amber Server carries its key in the address's path, so the HEAD carries it
+     * there too - to the server it belongs to, as every request does. True when the connection
+     * is open; a failure - a proof whose key cannot be pinned included - is silent, never
+     * thrown, and changes nothing: the request opens its own connection, and an enclave that
+     * cannot be verified is refused there, as always. [url] is never logged.
      */
-    suspend fun warmUp(url: String): Boolean {
-        val route = route(forceFresh = false, what = "nothing").getOrNull() ?: return false
-        if (!reaches(route, url)) return false
-        return try {
+    suspend fun warmUp(url: String): Boolean = try {
+        val route = route(forceFresh = false, what = "nothing").getOrNull()
+        if (route == null || !reaches(route, url)) {
+            false
+        } else {
             route.transport.execute(HttpRequest(method = "HEAD", url = url, timeoutMs = WARM_UP_TIMEOUT_MS))
             true
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            false
         }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 
     /** Whether [url] may go over [route]: anywhere on a plain one, only to the attested host over https on a pinned one. */
@@ -166,7 +169,10 @@ class SecureChannel(
         }
 
     private companion object {
-        /** A warm-up that takes longer than this is no help to the request it is for. */
-        const val WARM_UP_TIMEOUT_MS = 10_000L
+        /**
+         * A warm-up that takes longer is no help to the request it is for - and on a dead
+         * network it must give way to the real upload soon (see [ConnectionWarmUp.Pool]).
+         */
+        const val WARM_UP_TIMEOUT_MS = 5_000L
     }
 }

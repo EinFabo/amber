@@ -77,6 +77,12 @@ void collect_log(ggml_log_level /* level */, const char *text, void *user_data) 
 
 // whisper_print_timings' lines - totals and run counts, which whisper_get_timings does not give
 // (it averages per run) - taken from the log instead of printed. Numbers only, plain ASCII.
+//
+// Safe only because nothing else logs through whisper.cpp or ggml meanwhile: the log callback
+// is process-wide, and every call here that reaches whisper.cpp - load, transcribe, free, and
+// so this capture - runs under NativeWhisperRuntime's lock on the one whisper thread, the CPU
+// pool's workers idle between graphs (abort, workerTids and cpuSupported log nothing). A
+// whisper.cpp call made from anywhere else would break that.
 std::string printed_timings(whisper_context *ctx) {
     std::string out;
     // Only a measurement: nothing here may fail a dictation or throw into the VM.

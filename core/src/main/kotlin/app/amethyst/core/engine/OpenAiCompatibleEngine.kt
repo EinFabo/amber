@@ -173,7 +173,9 @@ class OpenAiCompatibleEngine(
     /**
      * Opens the connection while the user speaks ([SecureChannel.warmUp]): for an enclave the
      * attestation and the pinned connection, for any other server its TLS connection - a HEAD to
-     * the API root, with no key and no audio. A failure is silent and changes nothing.
+     * the API root, with no Authorization header and no audio (an Amber PC or Server has its key
+     * in the address's path, which the HEAD goes to like every request; never logged). A failure
+     * is silent and changes nothing.
      */
     override suspend fun warmUp(): Result<Unit> =
         if (channel.warmUp(apiRoot(baseUrl))) Result.success(Unit)

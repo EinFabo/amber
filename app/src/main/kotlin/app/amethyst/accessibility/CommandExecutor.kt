@@ -155,9 +155,18 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
 
     private suspend fun open(name: String, trace: CommandTrace): CommandOutcome {
         // The list the rules looked the name up in, if they had to: read once, on the IO pool.
-        val apps = graph.launcherList.apps()
+        var apps = graph.launcherList.apps()
         trace.note("app search: “$name” among ${apps.size} launcher apps")
-        return when (val match = AppMatch.find(name, apps) { it.label }) {
+        var match = AppMatch.find(name, apps) { it.label }
+        if (match == AppMatch.NotFound) {
+            // An app installed a moment ago may not be in the kept list yet - its broadcast can
+            // come after the command: read the list afresh once before saying there is none.
+            graph.launcherList.invalidate()
+            apps = graph.launcherList.apps()
+            trace.note("not in the kept list - read the launcher list afresh: ${apps.size} launcher apps")
+            match = AppMatch.find(name, apps) { it.label }
+        }
+        return when (match) {
             is AppMatch.Found -> {
                 val app = match.app
                 trace.note("Found: ${app.label} (${AppMatch.tier(name, app.label).words()})")

@@ -42,8 +42,9 @@ class ChatCleanup(
 
     /**
      * Opens the connection to the chat server while the user is still speaking, the way the
-     * engine does ([SecureChannel.warmUp]): no key, no text. True when it is open; a failure is
-     * silent and changes nothing.
+     * engine does ([SecureChannel.warmUp]): no Authorization header, no text - only an address
+     * that holds its key in the path (Amber PC, Amber Server) carries it, as every request does.
+     * True when it is open; a failure is silent and changes nothing.
      */
     suspend fun warmUp(): Boolean = channel.warmUp(OpenAiCompatibleEngine.apiRoot(baseUrl))
 
