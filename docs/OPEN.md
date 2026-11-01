@@ -113,9 +113,10 @@ with the release key, the enclave path solid. Each finding was checked against t
       Amber PC 0.4.6: the short German phrases stayed German (de 0.80-0.99), "See you later."
       English (en 0.82). The hint in `EngineDetailScreen` stays careful: older servers and any
       other language pair are not measured.
-- [ ] **Custom instructions and the like** (Fabi, 2026-11-01; what else belongs here is still to
-      ask him): an own instruction per app skips the word test (`ChatCleanup.plausible`), so a
-      translation of about the same length still passes there; only the prompt guards it.
+- [ ] **Custom voice commands** (Fabi, 2026-11-01): voice commands of one's own, beside the fixed
+      rules. What exactly they should do is still to ask him.
+- [ ] A cleanup with an own instruction per app skips the word test (`ChatCleanup.plausible`), so
+      a translation of about the same length still passes there; only the prompt guards it.
 - [ ] **Scan a server's QR code in the app** (Fabi, 2026-11-01): for example an own server's
       address from the QR code Amber PC shows on its Phone page, instead of typing it.
 - [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden
