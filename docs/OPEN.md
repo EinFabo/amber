@@ -106,6 +106,12 @@ with the release key, the enclave path solid. Each finding was checked against t
       Settings → Updates has the switch (on by default),
       what the check sends, "Check now" and the last result. Logic in `core/update/`, state in
       `AmethystSettings.updates`. Open: the device test with a GitHub-signed build.
+- [ ] **Short dictations and a language list** (Fabi, 2026-11-01, device test of 0.26.1): with
+      "de,en" for Amber PC, "Okay, danke." came back as "Thank you" and "Ich hab kein Wasser." in
+      English; "Bis gleich." and "See you later." were right. Likely the server's `pick_language`
+      (the likelier of the list wins, English then translates German), not yet measured. To be
+      fixed in Amber PC and Amber Server; once it is, the hint in `EngineDetailScreen` can promise
+      more again.
 - [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
       switched on under Accessibility, both show a bubble and both get the keyboard and field
       signals - a likely source of rare, random misbehaviour. Amber could notice another Amber

@@ -323,7 +323,7 @@ fun EngineDetailScreen(
                     SectionCard(title = "Languages") {
                         Hint(
                             "The languages you dictate in. Several: ${amber.machine} picks among them for each " +
-                                "dictation - a short one is not taken for another language or translated. " +
+                                "dictation; a very short one can still land in the wrong one and come out translated. " +
                                 "A single one is forced: anything said in another language is then translated.",
                         )
                         WhisperLanguagePicker(language, noneHint = "None picked: ${amber.machine} guesses among all languages.") { picked ->
