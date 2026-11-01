@@ -39,6 +39,8 @@ import kotlin.coroutines.CoroutineContext
  *
  * An [amberServer] (an own server whose stored list says it is Amber PC or Amber Server) takes
  * several languages at once and detects among them; any other service takes one code or none.
+ * It is also told to leave the cleanup to this app: the app decides about cleanup for its
+ * dictations, so a dictation is never cleaned twice.
  */
 class OpenAiCompatibleEngine(
     override val id: String,
@@ -106,6 +108,9 @@ class OpenAiCompatibleEngine(
                     add(MultipartPart.Field("model", modelId))
                     add(MultipartPart.Field("response_format", "json"))
                     languageField(options.languageTag, amberServer)?.let { add(MultipartPart.Field("language", it)) }
+                    // Whether or not the app cleans this dictation, the server does not: it
+                    // returns what it recognized. An older Amber ignores the field.
+                    if (amberServer) add(MultipartPart.Field(AMBER_CLEANUP, AMBER_CLEANUP_CLIENT))
                     // The preceding chunk's text continues the sentence; names and jargon bias
                     // spelling.
                     if (withPrompt && prompt != null) add(MultipartPart.Field("prompt", prompt))
@@ -238,6 +243,10 @@ class OpenAiCompatibleEngine(
                 else -> codes.singleOrNull()
             }
         }
+
+        /** Tells an Amber server who cleans up the transcript: with [AMBER_CLEANUP_CLIENT], this app. */
+        const val AMBER_CLEANUP = "amber_cleanup"
+        const val AMBER_CLEANUP_CLIENT = "client"
 
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"

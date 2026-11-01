@@ -10,6 +10,7 @@ import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.net.HttpBody
+import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.MultipartPart
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
@@ -25,7 +26,7 @@ import kotlin.test.assertTrue
 
 /**
  * What a transcription request tells an Amber server that other servers are never told: every
- * language picked, to detect among.
+ * language picked, to detect among, and that the app does the cleanup.
  */
 class AmberServerRequestTest {
 
@@ -97,5 +98,41 @@ class AmberServerRequestTest {
         assertEquals("en,fr", WhisperInput.toggledLanguage("en,de,fr", "de"))
         assertEquals("de,fr,en", WhisperInput.toggledLanguage("de,fr", "en"))
         assertEquals("", WhisperInput.toggledLanguage("de", "de"))
+    }
+
+    @Test
+    fun `every request to an amber server leaves the cleanup to the app`() = runTest {
+        for (tag in listOf(null, "de", "de,en")) {
+            assertEquals("client", fieldsSent(amberServer = true, languageTag = tag)["amber_cleanup"], "language $tag")
+        }
+    }
+
+    @Test
+    fun `no other server is told about amber's cleanup`() = runTest {
+        for (tag in listOf(null, "de", "de,en")) {
+            assertNull(fieldsSent(amberServer = false, languageTag = tag)["amber_cleanup"], "language $tag")
+        }
+    }
+
+    @Test
+    fun `a prompt the server refused goes again with the cleanup field kept`() = runTest {
+        var calls = 0
+        val transport = FakeHttpTransport {
+            if (calls++ == 0) HttpResponse(400, "no prompt".encodeToByteArray()) else HttpResponse(200, "{\"text\":\"Bis gleich.\"}".encodeToByteArray())
+        }
+        OpenAiCompatibleEngine(
+            id = own.id,
+            displayName = own.displayName,
+            baseUrl = own.baseUrl!!,
+            modelId = own.modelId!!,
+            transport = transport,
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+            amberServer = true,
+        ).transcribe(audio, TranscribeOptions(languageTag = "de,en", vocabularyHint = "Amber")).getOrThrow()
+        val retry = assertIs<HttpBody.Multipart>(transport.requests.last().body).parts
+            .filterIsInstance<MultipartPart.Field>().associate { it.name to it.value }
+        assertNull(retry["prompt"])
+        assertEquals("client", retry["amber_cleanup"])
+        assertEquals("de,en", retry["language"])
     }
 }
