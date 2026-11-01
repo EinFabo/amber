@@ -134,6 +134,9 @@ class BubbleController(
         view.alpha = if (shown) view.targetAlpha() else 0f
         if (!shown) layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
+        // Sparks first: overlays of one type stack in the order they are added, so the bubble
+        // comes out on top and the sparks rise from behind its disc, not across it.
+        attachSparks(windows, layoutParams)
         try {
             windows.addView(view, layoutParams)
             params = layoutParams
@@ -141,12 +144,13 @@ class BubbleController(
             Log.i(TAG, "bubble attached as accessibility overlay")
         } catch (e: Exception) {
             Log.e(TAG, "could not attach bubble overlay", e)
+            sparkParams?.let { runCatching { windows.removeView(sparkView) } }
+            sparkParams = null
             return
         }
-        attachSparks(windows, layoutParams)
     }
 
-    /** Added after the bubble, so it lies on top - drawn over it, never touched. */
+    /** Added before the bubble, so it lies underneath - seen only around the disc, never touched. */
     private fun attachSparks(windows: WindowManager, bubble: WindowManager.LayoutParams) {
         val sparks = WindowManager.LayoutParams(
             bubble.width,
