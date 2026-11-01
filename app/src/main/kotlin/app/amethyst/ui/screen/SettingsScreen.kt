@@ -179,8 +179,8 @@ fun RecognitionScreen(
 ) {
     var showPresets by remember { mutableStateOf(false) }
 
-    // Each hasKeyFor() is an AES-SIV decrypt out of EncryptedSharedPreferences. Computing it
-    // per engine row on every recomposition made scrolling the settings screen do crypto.
+    // Once per settings change, not per engine row on every recomposition while scrolling.
+    // (hasKeyFor() no longer decrypts - SecretStore keeps the stored aliases in memory.)
     val problemsByEngine = remember(settings) {
         settings.engines.associate { engine ->
             engine.id to EngineConfigValidator.validate(

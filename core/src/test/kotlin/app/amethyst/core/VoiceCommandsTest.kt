@@ -11,6 +11,7 @@ import app.amethyst.core.commands.VoiceCommands
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class VoiceCommandsTest {
 
@@ -287,6 +288,40 @@ class VoiceCommandsTest {
         }
         // Not next to each other: no phrase.
         assertEquals(3, commands("hoch, zurück, runter").size)
+    }
+
+    /**
+     * How often the installed apps are asked for while a command is chosen among its language
+     * passes (parseStrict) and then run and explained (parse, explain) - each ask is the
+     * launcher list read on the phone, up to a few hundred milliseconds.
+     */
+    private fun labelReads(heard: String): Int {
+        var reads = 0
+        val apps = { reads++; listOf("WhatsApp", "Spotify", "Telegram") }
+        VoiceCommands.parseStrict(heard, apps)
+        VoiceCommands.parse(heard, apps)
+        VoiceCommands.explain(heard, apps)
+        return reads
+    }
+
+    @Test
+    fun `a command the rules know never asks for the installed apps`() {
+        listOf(
+            "Zurück", "Lauter", "Scroll runter", "Taschenlampe an", "Zehnmal runter", "Startbildschirm", "Nächste Seite",
+            "Pause", "WLAN-Einstellungen", "neue Zeile", "Lösche das letzte Wort", "Go back.", "Flashlight off",
+        ).forEach {
+            assertIs<Understanding.Understood>(VoiceCommands.parse(it), "\"$it\"")
+            assertEquals(0, labelReads(it), "\"$it\" read the app list")
+        }
+    }
+
+    @Test
+    fun `an app, a bare name or several commands still look the apps up`() {
+        // Opening needs the list anyway; a bare name and the parts of several commands are checked against it.
+        listOf("Öffne WhatsApp", "WhatsApp", "Zu Spotify", "alles markieren und kopieren", "markier alles und öffne WhatsApp").forEach {
+            assertIs<Understanding.Understood>(VoiceCommands.parse(it) { listOf("WhatsApp", "Spotify") }, "\"$it\"")
+            assertTrue(labelReads(it) > 0, "\"$it\" never read the app list")
+        }
     }
 
     @Test

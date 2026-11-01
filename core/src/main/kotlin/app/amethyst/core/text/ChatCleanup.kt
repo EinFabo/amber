@@ -41,6 +41,13 @@ class ChatCleanup(
     data class Cleaned(val text: String, val latencyMs: Long, val trust: TrustLevel)
 
     /**
+     * Opens the connection to the chat server while the user is still speaking, the way the
+     * engine does ([SecureChannel.warmUp]): no key, no text. True when it is open; a failure is
+     * silent and changes nothing.
+     */
+    suspend fun warmUp(): Boolean = channel.warmUp(OpenAiCompatibleEngine.apiRoot(baseUrl))
+
+    /**
      * [style] and [instruction] come from the target app's profile; the default only tidies.
      */
     suspend fun clean(

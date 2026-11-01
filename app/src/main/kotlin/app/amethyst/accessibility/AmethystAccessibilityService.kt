@@ -132,6 +132,9 @@ class AmethystAccessibilityService : AccessibilityService() {
         }
 
         graph.accessibilityService = this
+        // The first tap after a process start should not wait for the keystore, the HTTP client
+        // and the engine factory to be built: they are, now, on the IO pool.
+        graph.warmUp()
         // Switched on just now from Amber's setup: back to Amber, without the user pressing Back.
         graph.returnToAmber.serviceConnected(this)
 

@@ -170,11 +170,14 @@ class OpenAiCompatibleEngine(
         )
     }
 
-    /** Verifies ahead of the first dictation, so it does not pay for the attestation fetch. */
-    override suspend fun warmUp(): Result<Unit> {
-        channel.warmUp()
-        return Result.success(Unit)
-    }
+    /**
+     * Opens the connection while the user speaks ([SecureChannel.warmUp]): for an enclave the
+     * attestation and the pinned connection, for any other server its TLS connection - a HEAD to
+     * the API root, with no key and no audio. A failure is silent and changes nothing.
+     */
+    override suspend fun warmUp(): Result<Unit> =
+        if (channel.warmUp(apiRoot(baseUrl))) Result.success(Unit)
+        else Result.failure(SttFailure(userMessage = "No connection to \"$displayName\".", technical = "warm-up failed"))
 
     /** The current attestation, or null if this engine has no verifier configured. */
     suspend fun attestation(): AttestationResult? = channel.attestation()

@@ -75,7 +75,7 @@ fun CleanupScreen(
     }
 }
 
-/** Which server engines are set up (address, key) - once per settings change: [hasKeyFor] decrypts. */
+/** Which server engines are set up (address, key) - once per settings change, not on every recomposition. */
 @Composable
 internal fun rememberCleanupReadiness(settings: AmethystSettings, hasKeyFor: (String?) -> Boolean): Map<String, Boolean> =
     remember(settings) {

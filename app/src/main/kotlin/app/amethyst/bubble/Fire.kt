@@ -144,6 +144,9 @@ class SparkField(private val random: Random = Random(7)) {
         pending = 0f
     }
 
+    /** No spark left - as of the last [forEachAlive], which puts out the ones that burnt down. */
+    val empty: Boolean get() = pool.none { it.on }
+
     /**
      * Hands each living spark to [draw] as a short vertical stroke from (x, y) down by [length],
      * cooling from amber to ember red. Returns whether any spark is still alive.

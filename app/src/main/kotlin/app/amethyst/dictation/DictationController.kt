@@ -10,7 +10,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.amethyst.Graph
-import app.amethyst.apps.Launcher
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
@@ -44,6 +43,10 @@ import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineTrust
+import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.net.ConnectionWarmUp
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.engine.ModelDownloads
@@ -142,6 +145,14 @@ class DictationController(
     /** A tap stopped this run's command: Diagnostics say so instead of nothing. */
     @Volatile
     private var stoppedByTap = false
+
+    /** This run's server connection, opened while the user speaks; null for a model on the phone. */
+    @Volatile
+    private var connectionWarmUp: ConnectionWarmUp? = null
+
+    /** The cleanup whose server connection this run opened at its start, and how that went. */
+    @Volatile
+    private var cleanupWarmUp: Pair<CleanupChoice, ConnectionWarmUp>? = null
 
     /** The engine this run recognizes with, for a command's Diagnostics when it fails before it is read. */
     @Volatile
@@ -339,6 +350,7 @@ class DictationController(
             fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
             return
         }
+        warmUpConnections(engine, engineConfig.id, settings)
 
         val options = TranscribeOptions(languageTag = engineConfig.languageTag)
         val appLabels = appLabelsOnce()
@@ -348,6 +360,8 @@ class DictationController(
         if (engine is WhisperCppEngine) {
             val modelId = engineConfig.modelId ?: WhisperModels.default.id
             trace?.modelWarm = graph.whisperRuntime.isLoaded(graph.whisperModels.fileFor(modelId).path)
+            // From here on the timings are this run's.
+            graph.whisperRuntime.takeTimings()
         }
 
         try {
@@ -519,6 +533,7 @@ class DictationController(
                 val expectedMs = graph.recognitionEstimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
                 _state.value = DictationState.Transcribing(expectedMs)
                 trace?.transcribingStarts()
+                trace?.connection = connectionWarmUp?.describe()
                 val startedAt = SystemClock.elapsedRealtime()
                 var passes = 1
                 val result = when {
@@ -533,7 +548,10 @@ class DictationController(
                 if (result.isSuccess && !coldModel && passes == 1) {
                     graph.recognitionEstimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt, caps.overheadMs)
                 }
-                if (engine is WhisperCppEngine) trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
+                if (engine is WhisperCppEngine) {
+                    trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
+                    trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
+                }
                 // No signal, a timeout, a server down: the recording is still here, so another
                 // engine can take it instead of the dictation being lost.
                 val recoverable = Fallback.recoverable(
@@ -573,18 +591,46 @@ class DictationController(
         note = { line -> (commandSteps ?: CommandTrace().also { commandSteps = it }).note(line) },
     )
 
+    /**
+     * Opens the server connections this run will need while the user is still speaking: the
+     * speech engine's - for an enclave the attestation and the pinned connection - and, for a
+     * dictation, that of the cleanup chosen for the app being written in, when it runs on
+     * another server. Off the main thread and in the app's scope, so nothing waits for them; a
+     * HEAD with no key and no audio, and a failure changes nothing ([ConnectionWarmUp]). A model
+     * on the phone needs none.
+     */
+    private fun warmUpConnections(engine: SttEngine, engineId: String, settings: AmethystSettings) {
+        connectionWarmUp = null
+        cleanupWarmUp = null
+        val speech = (engine as? OpenAiCompatibleEngine)?.let { server ->
+            ConnectionWarmUp.start(graph.appScope) { withContext(Dispatchers.IO) { server.warmUp().isSuccess } }
+        }
+        connectionWarmUp = speech
+        if (_mode.value != RunMode.DICTATION) return
+        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        val choice = CleanupRouting.decide(settings, target, fellBackFrom = null) { graph.secretStore.has(it) }.choice ?: return
+        // The speech engine's own server: its connection is already on the way.
+        if (choice.engineId == engineId && speech != null) {
+            cleanupWarmUp = choice to speech
+            return
+        }
+        val cleanup = graph.engineFactory.cleanupFor(choice, settings) ?: return
+        cleanupWarmUp = choice to ConnectionWarmUp.start(graph.appScope) { withContext(Dispatchers.IO) { cleanup.warmUp() } }
+    }
+
     /** The language the phone is set to ("de") - not Amber's own, should it have one. */
     private fun phoneLanguage(): String? =
         Resources.getSystem().configuration.locales.takeUnless { it.isEmpty }?.get(0)?.language
 
     /**
-     * The installed apps' launcher labels, for a bare app name: read once per command when the
+     * The installed apps' launcher labels, for a bare app name: taken once per command when the
      * rules first need them - picking a language, then running the command - and not at all
-     * while commands are off.
+     * while commands are off. Asked for on the IO pool only; the list itself is the process's
+     * one ([app.amethyst.apps.LauncherList]), read again only after a package changed.
      */
     private fun appLabelsOnce(): () -> List<String> {
         val enabled = graph.settings.value.commands.enabled
-        val labels by lazy { if (enabled) Launcher.apps(context).map { it.label } else emptyList() }
+        val labels by lazy { if (enabled) graph.launcherList.appsBlocking().map { it.label } else emptyList() }
         return { labels }
     }
 
@@ -648,6 +694,8 @@ class DictationController(
             ?: return transcript.also { trace?.cleanup = "${note}cleanup ${choice.model} could not be set up" }
         val profile = AppProfiles.forPackage(settings.profiles, target)
         val style = profile?.style ?: WritingStyle.AS_SPOKEN
+        // Whether its server connection was opened at the start - only for the cleanup chosen then.
+        val connection = cleanupWarmUp?.takeIf { it.first == choice }?.let { ", ${it.second.describe()}" }.orEmpty()
         val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) { cleanup.clean(transcript.text, style, profile?.instruction) }
         if (result == null) {
             trace?.cleanup = "${note}cleanup timed out (${cleanup.model})"
@@ -656,7 +704,7 @@ class DictationController(
         return result.fold(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
-                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote)"
+                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$connection)"
                 trace?.cleanupModel = cleanup.model
                 trace?.cleanupEngineId = choice.engineId
                 transcript.copy(

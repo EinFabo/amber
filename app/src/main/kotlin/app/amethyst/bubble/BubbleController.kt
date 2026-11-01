@@ -61,9 +61,15 @@ class BubbleController(
      * that follows the bubble and takes no touches, so the air above the bubble never swallows
      * a tap meant for the app underneath.
      */
-    private val sparkView = SparkView(service)
+    private val sparkView = SparkView(service).apply {
+        // Nothing left to draw: off the screen, until the next listening or spark brings it back.
+        onIdle = { visibility = View.INVISIBLE }
+    }
     private var sparkParams: WindowManager.LayoutParams? = null
-    private val sparkAfterAppear = Runnable { sparkView.spark() }
+    private val sparkAfterAppear = Runnable {
+        showSparks()
+        sparkView.spark()
+    }
     private var settings = BubbleSettings()
     private var commandsOn = false
     private var hapticsEnabled = true
@@ -75,6 +81,16 @@ class BubbleController(
     private var currentApp: String? = null
     private var shown = false
     private val hideLater = Runnable { applyVisibility(immediate = true) }
+
+    /**
+     * The vanish animation has run its course: the bubble's window is off the screen
+     * (INVISIBLE), not merely transparent - a transparent window would stay a layer the
+     * compositor blends over every app.
+     */
+    private var vanished = false
+
+    /** A screenshot is being taken: both windows are off the screen until it is done. */
+    private var capturing = false
 
     /** Where the bubble rests when no keyboard is in the way: settings, or where it was dropped. */
     private var baseY = 0
@@ -133,6 +149,8 @@ class BubbleController(
         view.restingOpacity = settings.restingOpacity
         view.alpha = if (shown) view.targetAlpha() else 0f
         if (!shown) layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        vanished = !shown
+        applyWindowVisibility()
 
         // Sparks first: overlays of one type stack in the order they are added, so the bubble
         // comes out on top and the sparks rise from behind its disc, not across it.
@@ -166,6 +184,8 @@ class BubbleController(
             screenCoordinates()
         }
         followBubble(sparks, bubble)
+        // Nothing to draw at rest: on the screen only while sparks fly (showSparks).
+        sparkView.visibility = View.INVISIBLE
         try {
             windows.addView(sparkView, sparks)
             sparkParams = sparks
@@ -326,9 +346,30 @@ class BubbleController(
 
     /** Invisible at once, sparks included, without the vanish animation - for a screenshot. */
     fun setHiddenForCapture(hidden: Boolean) {
-        val visibility = if (hidden) View.INVISIBLE else View.VISIBLE
-        view.visibility = visibility
-        sparkView.visibility = visibility
+        capturing = hidden
+        applyWindowVisibility()
+        // Back as they were: sparks only if some are still to be drawn.
+        if (hidden) sparkView.visibility = View.INVISIBLE else if (sparkView.busy) showSparks()
+    }
+
+    /** On the screen unless it vanished or a screenshot is being taken. */
+    private fun applyWindowVisibility() {
+        view.visibility = if (vanished || capturing) View.INVISIBLE else View.VISIBLE
+    }
+
+    /**
+     * Brings the spark window back where the bubble is now - it is not moved while off the
+     * screen - before anything is drawn in it.
+     */
+    private fun showSparks() {
+        if (capturing || sparkView.visibility == View.VISIBLE) return
+        val sparks = sparkParams ?: return
+        val bubble = params ?: return
+        if (followBubble(sparks, bubble) && attached) {
+            runCatching { windowManager?.updateViewLayout(sparkView, sparks) }
+                .onFailure { Log.w(TAG, "could not move the spark overlay", it) }
+        }
+        sparkView.visibility = View.VISIBLE
     }
 
     /** Where the bubble is on screen while it shows - a dispatched gesture keeps clear of it. */
@@ -347,6 +388,8 @@ class BubbleController(
                 shown = true
                 layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
                 update()
+                vanished = false
+                applyWindowVisibility()
                 view.appear()
                 // Ember arrives alight: one spark once the bubble is mostly in.
                 view.removeCallbacks(sparkAfterAppear)
@@ -366,6 +409,8 @@ class BubbleController(
                 if (!shown) {
                     layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                     update()
+                    vanished = true
+                    applyWindowVisibility()
                 }
             }
         }
@@ -391,6 +436,7 @@ class BubbleController(
             sparkView.amplitude = state.amplitude
         }
         if (state is DictationState.Transcribing) view.expectedWorkMs = state.expectedMs
+        if (state is DictationState.Listening) showSparks()
         sparkView.listening = state is DictationState.Listening
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
@@ -624,6 +670,8 @@ class BubbleController(
         runCatching { windowManager?.updateViewLayout(view, layoutParams) }
             .onFailure { Log.w(TAG, "could not update bubble layout", it) }
         val sparks = sparkParams ?: return
+        // Off the screen it stays where it is; showSparks() brings it along first.
+        if (sparkView.visibility != View.VISIBLE) return
         if (followBubble(sparks, layoutParams)) {
             runCatching { windowManager?.updateViewLayout(sparkView, sparks) }
                 .onFailure { Log.w(TAG, "could not move the spark overlay", it) }

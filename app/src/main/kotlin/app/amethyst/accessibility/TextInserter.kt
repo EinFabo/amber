@@ -83,7 +83,9 @@ class TextInserter(
      * very editor the keyboard is typing into, whatever the node tree says.
      */
     private fun resolveTarget(): Pair<EditableTarget?, String> {
-        val fallbackPackage = service.rootInActiveWindow?.packageName?.toString()
+        // Only for a node that names no package: the active window's root is a cross-process
+        // call that also prefetches nodes.
+        val fallbackPackage = { service.rootInActiveWindow?.packageName?.toString() }
 
         val focused = runCatching { service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
         if (focused?.isEditable == true) {
@@ -182,11 +184,12 @@ class TextInserter(
     private class NodeTarget(
         private val service: AccessibilityService,
         private val node: AccessibilityNodeInfo,
-        fallbackPackage: String?,
+        /** Asked only when [node] names no package. */
+        fallbackPackage: () -> String?,
     ) : EditableTarget {
 
         override val packageName: String =
-            node.packageName?.toString() ?: fallbackPackage ?: InsertionEngine.UNKNOWN_PACKAGE
+            node.packageName?.toString() ?: fallbackPackage() ?: InsertionEngine.UNKNOWN_PACKAGE
 
         override val isEditable: Boolean get() = node.isEditable
 

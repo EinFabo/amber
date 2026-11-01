@@ -2,8 +2,9 @@ package app.amethyst.ui
 
 import android.content.Context
 import android.util.LruCache
+import app.amethyst.AmethystApp
 import app.amethyst.apps.InstalledApp
-import app.amethyst.apps.Launcher
+import app.amethyst.apps.LauncherList
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,19 +36,16 @@ interface AppSource {
     suspend fun icon(packageName: String, sizePx: Int): ImageBitmap?
 }
 
-class AndroidAppSource(context: Context) : AppSource {
+class AndroidAppSource(
+    context: Context,
+    /** The process's one launcher list, which voice commands use too; read again after a package changes. */
+    private val launcher: LauncherList = AmethystApp.graph(context).launcherList,
+) : AppSource {
 
-    private val context = context.applicationContext
     private val packages = context.packageManager
     private val icons = LruCache<String, ImageBitmap>(ICONS_KEPT)
 
-    /** Loaded once per screen visit: the list rarely changes while Amber is open. */
-    @Volatile
-    private var loaded: List<InstalledApp>? = null
-
-    override suspend fun all(): List<InstalledApp> = loaded ?: withContext(Dispatchers.IO) {
-        Launcher.apps(context)
-    }.also { loaded = it }
+    override suspend fun all(): List<InstalledApp> = launcher.apps()
 
     override fun label(packageName: String): String = runCatching {
         packages.getApplicationInfo(packageName, 0).loadLabel(packages).toString()

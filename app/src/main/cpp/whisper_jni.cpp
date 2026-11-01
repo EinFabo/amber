@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <set>
 #include <sstream>
@@ -68,6 +69,31 @@ bool read_string(JNIEnv *env, jstring value, std::string &out) {
 void quiet_log(ggml_log_level level, const char *text, void * /* user_data */) {
     if (level >= GGML_LOG_LEVEL_WARN) __android_log_print(ANDROID_LOG_WARN, TAG, "%s", text);
 }
+
+// Collects whatever is logged into the std::string behind user_data.
+void collect_log(ggml_log_level /* level */, const char *text, void *user_data) {
+    static_cast<std::string *>(user_data)->append(text);
+}
+
+// whisper_print_timings' lines - totals and run counts, which whisper_get_timings does not give
+// (it averages per run) - taken from the log instead of printed. Numbers only, plain ASCII.
+std::string printed_timings(whisper_context *ctx) {
+    std::string out;
+    // Only a measurement: nothing here may fail a dictation or throw into the VM.
+    try {
+        whisper_log_set(collect_log, &out);
+        whisper_print_timings(ctx);
+    } catch (...) {
+        out.clear();
+    }
+    whisper_log_set(quiet_log, nullptr);
+    return out;
+}
+
+// The last transcription's timings for Diagnostics, parsed in Kotlin (WhisperTimings): how the
+// language was chosen, then the printed timings before and after the run. Read by Kotlin right
+// after transcribe, on the same thread; empty after a failed run.
+std::string g_last_timings;
 
 // One pool for the life of the process. Its threads sleep on a condition variable between
 // dictations (see pause_pool), so keeping it costs a few stacks of memory, not battery.
@@ -228,6 +254,12 @@ Java_app_amethyst_engine_WhisperNative_lastLanguage(JNIEnv *env, jobject /* this
     return env->NewStringUTF(g_last_language.c_str());
 }
 
+// What the last transcription spent where (see g_last_timings); empty after a failed one.
+extern "C" JNIEXPORT jstring JNICALL
+Java_app_amethyst_engine_WhisperNative_lastTimings(JNIEnv *env, jobject /* this */) {
+    return env->NewStringUTF(g_last_timings.c_str());
+}
+
 // Kernel thread ids of the pool's workers, for the performance hint session. Empty when there
 // is no pool yet or it could not be created.
 extern "C" JNIEXPORT jintArray JNICALL
@@ -275,6 +307,13 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
     jfloat *samples = env->GetFloatArrayElements(jsamples, nullptr);
     if (samples == nullptr) return nullptr;  // out of memory, exception pending
 
+    // Measured for Diagnostics only: whisper.cpp keeps its fallback counts for the life of the
+    // model, so they are read before the run as well; the timings start from zero here.
+    g_last_timings.clear();
+    const std::string timings_before = printed_timings(ctx);
+    whisper_reset_timings(ctx);
+    std::string detection = "none";
+
     std::string lang = requested;
     try {
         if (requested != "auto") {
@@ -284,9 +323,14 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
             } else if (allowed.size() == 1) {
                 lang = allowed.front();
             } else {
+                const auto started = std::chrono::steady_clock::now();
                 lang = detect_among(ctx, allowed, samples, count, audio_ctx, threads);
+                const auto took = std::chrono::steady_clock::now() - started;
+                detection = "among " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(took).count());
             }
         }
+        // whisper_full detects by itself then: one more encoder pass, inside the run.
+        if (lang == "auto" && whisper_is_multilingual(ctx)) detection = "auto";
     } catch (...) {
         env->ReleaseFloatArrayElements(jsamples, samples, JNI_ABORT);
         pause_pool();
@@ -342,6 +386,11 @@ Java_app_amethyst_engine_WhisperNative_transcribe(
 
     const int lang_id = whisper_full_lang_id(ctx);
     g_last_language = lang_id >= 0 ? whisper_lang_str(lang_id) : lang;
+    try {
+        g_last_timings = "detection: " + detection + "\n--- before\n" + timings_before + "\n--- after\n" + printed_timings(ctx);
+    } catch (...) {
+        g_last_timings.clear();
+    }
 
     std::string text;
     const int segments = whisper_full_n_segments(ctx);

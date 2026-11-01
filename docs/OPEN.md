@@ -417,6 +417,30 @@ while active, model released after 3 min, no wakelocks/alarms/jobs)
       (`AmethystAccessibilityService.kt:177`): cache it, refresh with a ContentObserver.
 - [ ] Measure a normal day: `adb shell dumpsys batterystats --charged app.amber`.
 
+Performance review 0.22.1 - to measure on the phone (2026-11-01; static review and JVM
+benchmarks, no device)
+- [x] Fixed right away: the command rules read the launcher list only when no rule matches
+      (it was read for 367 of the 433 understood corpus phrases, an est. 50-300 ms each on the
+      phone; now 65 - bare names, misheard "öffne", several commands), and the list is one per
+      process, dropped when a package or the phone language changes; the server connection
+      (and an enclave's attestation) opens while the user speaks; hidden overlays leave the
+      screen instead of staying transparent layers; the engine factory and secret store are
+      built when the service connects, `has(key)` answers from memory; whisper.cpp's timings
+      and whether the language was detected are in Diagnostics.
+- [ ] **Whisper encodes twice with a language list**: `detect_among` (a ~10 s encoder pass,
+      audio_ctx 512) and then `whisper_full`. Reuse the detection's encoder output for
+      short-context models and audio up to 10 s, and for a command's second language pass (a
+      whisper.cpp patch) - once the new "whisper: …" Diagnostics line shows what it costs.
+- [ ] **Opus uploads for Groq, OpenAI and Tinfoil** too, if they take Ogg: 60 s of WAV is 1.92 MB.
+      Encode while recording, or skip it on a LAN; keep the bytes between a command's two passes.
+- [ ] **Accessibility node cache**: cache-critical events reach Amber's process from every app
+      while typing. `setCacheEnabled(false)` at rest (API 33+), on around node walks - measure
+      with perfetto first.
+- [ ] **Whisper decoder retries** (greedy best_of 5, temperature_inc 0.2): decide from the
+      fallback counts the Diagnostics line now shows.
+- [ ] `KeyboardTracker.windowsChanged()` calls `getWindows()` even with no field focused.
+- [ ] Preload on focus keeps up to 874 MB for 3 more minutes - the ~300 MB cap above.
+
 Devices that are still in use
 - [ ] **32-bit Android cannot install Amber at all** (`abiFilters += "arm64-v8a"`): Android Go
       phones, cheap tablets. Add armeabi-v7a with the Android recognizer and servers (no Whisper).

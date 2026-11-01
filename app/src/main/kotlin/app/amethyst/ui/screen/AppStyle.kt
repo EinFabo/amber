@@ -55,7 +55,7 @@ fun AppStyleScreen(
     modifier: Modifier = Modifier,
 ) {
     val ready = rememberCleanupReadiness(settings, hasKeyFor)
-    // hasKeyFor() decrypts, so once per settings change rather than on every recomposition.
+    // Once per settings change rather than on every recomposition.
     val decision = remember(settings) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
     var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
     val own = profile.appCleanup

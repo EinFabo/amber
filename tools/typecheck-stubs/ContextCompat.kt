@@ -5,10 +5,14 @@
 // stubs are faithful.
 package androidx.core.content
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 
 object ContextCompat {
+    const val RECEIVER_NOT_EXPORTED: Int = 0x4
     fun startForegroundService(context: Context, intent: Intent) = Unit
     fun checkSelfPermission(context: Context, permission: String): Int = 0
+    fun registerReceiver(context: Context, receiver: BroadcastReceiver?, filter: IntentFilter, flags: Int): Intent? = null
 }

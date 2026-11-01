@@ -7,6 +7,7 @@ import android.os.Process
 import android.util.Log
 import app.amethyst.core.engine.whisper.WhisperRuntime
 import app.amethyst.core.engine.whisper.WhisperRuntimeException
+import app.amethyst.core.engine.whisper.WhisperTimings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.io.File
@@ -36,6 +37,9 @@ internal object WhisperNative {
 
     /** The language code the last transcription used. */
     external fun lastLanguage(): String
+
+    /** What the last transcription spent where, as [WhisperTimings.parse] reads it; empty after a failed one. */
+    external fun lastTimings(): String
 
     /** Kernel thread ids of the pool's workers; empty before the first load. */
     external fun workerTids(): IntArray
@@ -123,10 +127,13 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
         val bytes = booster.during(listOf(inferenceTid) + WhisperNative.workerTids().toList()) {
             WhisperNative.transcribe(handle, samples, language, audioCtx, threads, prompt)
         }
+        val timings = runCatching { WhisperNative.lastTimings() }.getOrNull()?.let(WhisperTimings::parse)
+        timings?.let { synchronized(timingsLock) { pendingTimings = pendingTimings?.plus(it) ?: it } }
         Log.i(
             TAG,
             "whisper: ${samples.size / 16} ms audio, ctx=$audioCtx, lang=$language, " +
-                "$threads threads -> ${System.currentTimeMillis() - started} ms (${schedulingSummary()})",
+                "$threads threads -> ${System.currentTimeMillis() - started} ms (${schedulingSummary()})" +
+                (timings?.let { " - ${it.summary()}" } ?: ""),
         )
         lastLanguage = runCatching { WhisperNative.lastLanguage() }.getOrNull()?.takeIf { it.isNotBlank() }
         // Decoded here, not in native code: a token boundary can split a multi-byte
@@ -138,6 +145,17 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
     private var lastLanguage: String? = null
 
     override fun lastLanguage(): String? = lastLanguage
+
+    private val timingsLock = Any()
+
+    /** The transcriptions' timings since the last [takeTimings], added up. */
+    private var pendingTimings: WhisperTimings? = null
+
+    /**
+     * What whisper.cpp spent where in the transcriptions since the last call - a dictation's
+     * chunks or a command's language passes added up - and starts over. For Diagnostics.
+     */
+    fun takeTimings(): WhisperTimings? = synchronized(timingsLock) { pendingTimings.also { pendingTimings = null } }
 
     /** True when [modelPath] is in memory right now - read without the lock, for diagnostics. */
     fun isLoaded(modelPath: String): Boolean = loadedPath == modelPath

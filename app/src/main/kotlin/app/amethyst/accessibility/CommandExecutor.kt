@@ -17,7 +17,6 @@ import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import app.amethyst.Graph
-import app.amethyst.apps.Launcher
 import app.amethyst.core.commands.AppMatch
 import app.amethyst.core.commands.Command
 import app.amethyst.core.bubble.Box
@@ -155,7 +154,8 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
     }
 
     private suspend fun open(name: String, trace: CommandTrace): CommandOutcome {
-        val apps = withContext(Dispatchers.IO) { Launcher.apps(service) }
+        // The list the rules looked the name up in, if they had to: read once, on the IO pool.
+        val apps = graph.launcherList.apps()
         trace.note("app search: “$name” among ${apps.size} launcher apps")
         return when (val match = AppMatch.find(name, apps) { it.label }) {
             is AppMatch.Found -> {

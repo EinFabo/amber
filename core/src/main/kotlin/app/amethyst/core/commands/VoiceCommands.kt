@@ -128,9 +128,12 @@ object VoiceCommands : CommandParser {
     private fun command(reading: Reading, appLabels: () -> List<String>, guessMisheard: Boolean = true): Command? {
         val (times, words) = reading.times to reading.words
         if (words.isEmpty() || (times != null && times < 1)) return null
+        // The rules first: they win over an app of the same name anyway, and only a phrase they
+        // do not know needs the installed apps - a launcher read on the phone.
+        rule(words)?.let { return it.repeated(times) }
         // A bare name with a count ("zweimal WhatsApp") is not an app being opened.
-        val app = if (times != null) null else bareApp(words, appLabels) ?: misheardOpen(words, appLabels).takeIf { guessMisheard }
-        return (rule(words) ?: app)?.repeated(times)
+        if (times != null) return null
+        return bareApp(words, appLabels) ?: if (guessMisheard) misheardOpen(words, appLabels) else null
     }
 
     // ---- Several commands in one go ----

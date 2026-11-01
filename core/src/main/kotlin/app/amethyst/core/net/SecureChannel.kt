@@ -37,8 +37,8 @@ class SecureChannel(
     suspend fun send(request: HttpRequest, what: String = "recording"): Result<Sent> {
         var route = route(forceFresh = false, what).getOrElse { return Result.failure(it) }
         route.host?.let { attested ->
-            val target = runCatching { URI(request.url) }.getOrNull()
-            if (target?.scheme != "https" || !attested.equals(target.host, ignoreCase = true)) {
+            if (!reaches(route, request.url)) {
+                val target = runCatching { URI(request.url) }.getOrNull()
                 return Result.failure(
                     SttFailure(
                         userMessage = "The request did not go to the verified enclave. The $what was not sent.",
@@ -88,9 +88,34 @@ class SecureChannel(
     /** The current attestation, or null without a verifier. */
     suspend fun attestation(): AttestationResult? = verifier?.let { verify(it, forceFresh = false) }
 
-    /** Verifies ahead of first use, so the first request does not pay for the fetch. */
-    suspend fun warmUp() {
-        verifier?.let { runCatching { it.verify(baseUrl) } }
+    /**
+     * Opens the connection a request to [url] would take, while the user is still speaking, so
+     * the request after the stop does not also pay for DNS, TCP and TLS - nor, for an enclave,
+     * for the attestation, which is verified first; the connection is then opened through the
+     * pinned client, exactly as a request would be. A HEAD with no key and no payload: whatever
+     * the server answers, the connection is open and kept for the request. True when it is; a
+     * failure is silent and changes nothing - the request opens its own connection, and an
+     * enclave that cannot be verified is refused there, as always. [url] is never logged: it may
+     * carry a key.
+     */
+    suspend fun warmUp(url: String): Boolean {
+        val route = route(forceFresh = false, what = "nothing").getOrNull() ?: return false
+        if (!reaches(route, url)) return false
+        return try {
+            route.transport.execute(HttpRequest(method = "HEAD", url = url, timeoutMs = WARM_UP_TIMEOUT_MS))
+            true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Whether [url] may go over [route]: anywhere on a plain one, only to the attested host over https on a pinned one. */
+    private fun reaches(route: Route, url: String): Boolean {
+        val attested = route.host ?: return true
+        val target = runCatching { URI(url) }.getOrNull()
+        return target?.scheme == "https" && attested.equals(target.host, ignoreCase = true)
     }
 
     private suspend fun route(forceFresh: Boolean, what: String): Result<Route> {
@@ -139,4 +164,9 @@ class SecureChannel(
         } catch (e: Exception) {
             AttestationResult(false, "Verification failed: ${e.message}", unreachable = e is java.io.IOException)
         }
+
+    private companion object {
+        /** A warm-up that takes longer than this is no help to the request it is for. */
+        const val WARM_UP_TIMEOUT_MS = 10_000L
+    }
 }

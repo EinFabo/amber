@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.accessibility.ReturnToAmber
+import app.amethyst.apps.LauncherList
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.SecretStore
@@ -34,6 +35,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -146,6 +149,9 @@ class Graph(app: Application) {
         AmberCatalogRefresher(appScope, httpTransport, { alias -> secretStore.get(alias) }, { settings.value }, settingsStore::update)
     }
 
+    /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */
+    val launcherList = LauncherList(app)
+
     /** How long recognition takes per engine and model on this phone, for the progress ring. */
     val recognitionEstimate = RecognitionEstimate()
 
@@ -171,6 +177,24 @@ class Graph(app: Application) {
 
     @Volatile
     private var lastDictationAt = 0L
+
+    /**
+     * Builds what the first dictation after a process start would otherwise build while the
+     * bubble says "Starting": the secret store (keystore, Tink, the list of stored keys), the
+     * HTTP client and the engine factory - and, with voice commands on, the launcher list. On
+     * the IO pool, called when the accessibility service connects; a failure here only means
+     * the first dictation builds them itself, as it always did.
+     */
+    fun warmUp() {
+        appScope.launch(Dispatchers.IO) {
+            runCatching { engineFactory }
+                .onFailure { android.util.Log.w("Amber", "warm-up of the engine factory failed: ${it.javaClass.simpleName}") }
+            if (loadedSettings.filterNotNull().first().commands.enabled) {
+                runCatching { launcherList.appsBlocking() }
+                    .onFailure { android.util.Log.w("Amber", "warm-up of the launcher list failed: ${it.javaClass.simpleName}") }
+            }
+        }
+    }
 
     /** A field gained focus. Preloads only for someone who dictated a moment ago. */
     fun textFieldFocused() {

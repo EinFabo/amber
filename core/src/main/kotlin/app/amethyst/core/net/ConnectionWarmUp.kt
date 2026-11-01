@@ -1,0 +1,45 @@
+package app.amethyst.core.net
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+/**
+ * A server connection being opened while the user speaks ([SecureChannel.warmUp]), and whether
+ * it was ready when the request went out - for the dictation's Diagnostics. Started in a scope
+ * of its own, so the dictation never waits for it; a warm-up that fails or throws changes
+ * nothing but this line.
+ */
+class ConnectionWarmUp private constructor() {
+
+    enum class State { RUNNING, WARM, FAILED }
+
+    @Volatile
+    var state: State = State.RUNNING
+        private set
+
+    /** What the request found, read when it goes out. */
+    fun describe(): String = when (state) {
+        State.RUNNING -> "connection still warming up"
+        State.WARM -> "connection warm"
+        State.FAILED -> "connection cold (warm-up failed)"
+    }
+
+    companion object {
+        /** Runs [warm] in [scope]; true from it means the connection is open. */
+        fun start(scope: CoroutineScope, warm: suspend () -> Boolean): ConnectionWarmUp {
+            val warmUp = ConnectionWarmUp()
+            scope.launch {
+                warmUp.state = try {
+                    if (warm()) State.WARM else State.FAILED
+                } catch (e: CancellationException) {
+                    warmUp.state = State.FAILED
+                    throw e
+                } catch (e: Exception) {
+                    State.FAILED
+                }
+            }
+            return warmUp
+        }
+    }
+}

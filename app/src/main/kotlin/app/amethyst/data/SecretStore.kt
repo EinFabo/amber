@@ -29,6 +29,22 @@ class SecretStore(context: Context) {
     /** Only when the keystore is unusable altogether: keys until the next restart, nowhere on disk. */
     private val memory = java.util.concurrent.ConcurrentHashMap<String, String>()
 
+    /**
+     * The aliases a key is stored under, read once when the store opens - which the
+     * accessibility service does on the IO pool - and kept in step with [put] and [clear]. So
+     * [has], asked while the settings screens compose and on the dictation path, never
+     * decrypts just to learn whether there is a key. Null when the stored entries could not be
+     * listed: [has] then asks the store each time, as it always did.
+     */
+    private val stored: MutableSet<String>? = runCatching { encrypted?.all.orEmpty() }
+        .onFailure { Log.w(TAG, "stored key aliases unreadable: ${it.javaClass.simpleName}") }
+        .getOrNull()
+        ?.let { entries ->
+            java.util.concurrent.ConcurrentHashMap.newKeySet<String>().apply {
+                entries.forEach { (alias, value) -> if ((value as? String)?.isNotBlank() == true) add(alias) }
+            }
+        }
+
     init {
         if (encrypted == null) Log.e(TAG, "no keystore - API keys are kept in memory only")
         migratePlainFile(context)
@@ -38,12 +54,15 @@ class SecretStore(context: Context) {
         alias?.let { (encrypted?.getString(it, null) ?: memory[it])?.takeIf(String::isNotBlank) }
 
     fun put(alias: String, value: String) {
-        if (encrypted != null) encrypted.edit().putString(alias, value.trim()).apply() else memory[alias] = value.trim()
+        val key = value.trim()
+        if (encrypted != null) encrypted.edit().putString(alias, key).apply() else memory[alias] = key
+        if (key.isNotEmpty()) stored?.add(alias) else stored?.remove(alias)
     }
 
     fun clear(alias: String) {
         encrypted?.edit()?.remove(alias)?.apply()
         memory.remove(alias)
+        stored?.remove(alias)
     }
 
     private fun openEncrypted(context: Context): SharedPreferences? = try {
@@ -76,7 +95,11 @@ class SecretStore(context: Context) {
         Log.i(TAG, "moved ${entries.size} key(s) out of the old plain-text store")
     }
 
-    fun has(alias: String?): Boolean = !get(alias).isNullOrBlank()
+    /** Whether a key is stored under [alias] - from memory, without decrypting it. */
+    fun has(alias: String?): Boolean {
+        if (alias == null) return false
+        return stored?.contains(alias) ?: !get(alias).isNullOrBlank()
+    }
 
     private companion object {
         const val TAG = "Amber"

@@ -28,6 +28,9 @@ internal class RunTrace(val route: String) {
     /** How the whisper thread was scheduled during this run; see NativeWhisperRuntime. */
     var whisperScheduling: String? = null
 
+    /** Where whisper.cpp spent the run: language detection, encoder and decoder runs, fallbacks (WhisperTimings). */
+    var whisperTimings: String? = null
+
     /** How many parts the recording was recognized in; 0 means in one piece. */
     var chunks = 0
 
@@ -39,6 +42,9 @@ internal class RunTrace(val route: String) {
 
     /** How the recording went up to a server - format and size, never the address. */
     var upload: String? = null
+
+    /** Whether the server connection opened during the recording was ready for the upload. */
+    var connection: String? = null
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
@@ -93,9 +99,11 @@ internal class RunTrace(val route: String) {
         fallback?.let(::add)
         cleanup?.let(::add)
         upload?.let(::add)
+        connection?.let(::add)
         servedBy?.let { add("enclave $it") }
         // The whisper thread's own group says more than the caller's, when there is one.
         whisperScheduling?.let(::add) ?: cpuGroup?.let { add("CPU group $it") }
+        whisperTimings?.let(::add)
         importance?.let { add("importance $it") }
     }.joinToString(" · ")
 
