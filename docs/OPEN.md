@@ -116,6 +116,8 @@ with the release key, the enclave path solid. Each finding was checked against t
 - [ ] **Custom instructions and the like** (Fabi, 2026-11-01; what else belongs here is still to
       ask him): an own instruction per app skips the word test (`ChatCleanup.plausible`), so a
       translation of about the same length still passes there; only the prompt guards it.
+- [ ] **Scan a server's QR code in the app** (Fabi, 2026-11-01): for example an own server's
+      address from the QR code Amber PC shows on its Phone page, instead of typing it.
 - [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden
       until the mic key is pressed. First a throwaway build that logs only whether a click on that
       key reaches Amber, and whether Gboard's own voice typing then blocks the microphone. If both
