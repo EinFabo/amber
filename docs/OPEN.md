@@ -106,14 +106,21 @@ with the release key, the enclave path solid. Each finding was checked against t
       Settings → Updates has the switch (on by default),
       what the check sends, "Check now" and the last result. Logic in `core/update/`, state in
       `AmethystSettings.updates`. Open: the device test with a GitHub-signed build.
-- [ ] **Short dictations and a language list** (Fabi, 2026-11-01, device test of 0.26.1): with
-      "de,en" for Amber PC, "Okay, danke." came back as "Thank you" and "Ich hab kein Wasser." in
-      English; "Bis gleich." and "See you later." were right. Likely the server's `pick_language`
-      (the likelier of the list wins, English then translates German). Amber PC 0.4.6 and Amber
-      Server keep a short dictation in the first language unless another is clearly likelier
-      (measured there); the app's cleanup now says which language to answer in and rejects a
-      translation, as the PC's does. Open: the device test with 0.4.6; then the hint in
-      `EngineDetailScreen` can promise more again.
+- [x] **Short dictations and a language list** (Fabi, 2026-11-01): with "de,en" for Amber PC,
+      "Okay, danke." came back as "Thank you". Fixed in Amber PC and Amber Server 0.4.6 (a short
+      dictation stays in the first language unless another is clearly likelier) and in the app's
+      cleanup (0.26.3: says which language to answer in, rejects a translation). Device test with
+      Amber PC 0.4.6: the short German phrases stayed German (de 0.80-0.99), "See you later."
+      English (en 0.82). The hint in `EngineDetailScreen` stays careful: older servers and any
+      other language pair are not measured.
+- [ ] **Custom instructions and the like** (Fabi, 2026-11-01; what else belongs here is still to
+      ask him): an own instruction per app skips the word test (`ChatCleanup.plausible`), so a
+      translation of about the same length still passes there; only the prompt guards it.
+- [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden
+      until the mic key is pressed. First a throwaway build that logs only whether a click on that
+      key reaches Amber, and whether Gboard's own voice typing then blocks the microphone. If both
+      work: a setting, Gboard only, with a fallback for when an update breaks it. If not: an own
+      trigger (accessibility button or quick settings tile).
 - [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
       switched on under Accessibility, both show a bubble and both get the keyboard and field
       signals - a likely source of rare, random misbehaviour. Amber could notice another Amber
