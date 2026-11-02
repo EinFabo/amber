@@ -117,6 +117,10 @@ with the release key, the enclave path solid. Each finding was checked against t
       rules. What exactly they should do is still to ask him.
 - [ ] A cleanup with an own instruction per app skips the word test (`ChatCleanup.plausible`), so
       a translation of about the same length still passes there; only the prompt guards it.
+- [ ] **The cleanup leaves a spoken self-correction in** (Fabi, 2026-11-02): "bitte ein paar Namen
+      raus, ohne Überprüfung erstmal. Nein, obwohl, stopp, mach mit Überprüfungen ..." reached the
+      field as said; only what the speaker settled on should remain ("bitte ein paar Namen raus,
+      mit Überprüfungen ..."). Which engine and cleanup model it ran through is not known yet.
 - [ ] **Scan a server's QR code in the app** (Fabi, 2026-11-01): for example an own server's
       address from the QR code Amber PC shows on its Phone page, instead of typing it.
 - [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden
