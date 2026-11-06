@@ -135,7 +135,8 @@ object CleanupGuard {
 
     /** Phrases with which a speaker takes something back. Ambiguous ones only ever relax a check. */
     private val CORRECTION_PHRASES = listOf(
-        "nee", "nö", "stopp", "warte", "obwohl", "ich meine", "ich mein", "besser gesagt", "korrektur",
+        // "stop": how Whisper often writes a spoken "stopp".
+        "nee", "nö", "stopp", "stop", "warte", "obwohl", "ich meine", "ich mein", "besser gesagt", "korrektur",
         "quatsch", "no wait", "wait no", "i mean", "actually", "scratch that", "sorry", "oder besser",
         "oder vielmehr",
     ).map { phrase -> Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(phrase) + "(?![\\p{L}\\p{N}])") }

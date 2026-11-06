@@ -192,4 +192,13 @@ class CleanupGuardTest {
             assertFalse(CleanupGuard.hasCorrectionMarker(text), text)
         }
     }
+
+    @Test
+    fun `whisper's spelling of a spoken stopp is a correction too`() {
+        // On the phone (2026-11-06): "um zwei, nee stopp, um vier" came back from Whisper like this,
+        // DeepSeek rightly kept only "um 4", and the guard threw the cleanup away.
+        val heard = "Lass uns doch heute um 2 an die Stop um 4 Uhr am Bahnhof treffen"
+        assertTrue(CleanupGuard.hasCorrectionMarker(heard))
+        assertEquals(Verdict.OK, verdict(heard, "Lass uns doch heute um 4 Uhr am Bahnhof treffen."))
+    }
 }
