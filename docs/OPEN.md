@@ -21,6 +21,15 @@ series and one store release per phase, each after his OK.
       cancel, keep as heard. Hold-to-talk removed. Open: the device test (portrait and landscape,
       WhatsApp/Gmail/Chrome with the keyboard, send buttons not covered, fling both ways, every
       slot), then tune the 80 dp and the menu radius. Later: magnetic hide target, idle fade/peek.
+      Redone after Fabi's design lab (layout and buttons, Amber's own style): a hold ring, the screen
+      dims, four round buttons on a fan that tilts to fit (84 dp, nearest direction within 32 deg,
+      26 dp dead zone), the lit one a pill with its name; icons drawn like the flame glyph. Same
+      top-to-bottom order on both edges (the lab mirrored it on the left). Landscape height is fine
+      (Fabi, 2026-11-06).
+- [ ] **Pause / Resume while dictating** (Fabi, 2026-11-06; built): from the quick menu while
+      listening; the microphone stays open, paused audio is dropped, auto-stop and the time limit
+      count only recorded time; a tap on the paused bubble sends; off for Android's own recognizer.
+      Open: the device test, also with another app in front (Android 14+).
       Plans: [`bubble-behaviour`](plans/2026-11-06-bubble-behaviour.md),
       [`bubble-quick-menu`](plans/2026-11-06-bubble-quick-menu.md).
 - [ ] **P3 - Simpler surface**, built 2026-11-06 (no schema step needed): voice commands hidden
