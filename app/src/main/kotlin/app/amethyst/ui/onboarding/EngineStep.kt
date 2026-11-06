@@ -20,6 +20,7 @@ import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.EngineCard
+import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
@@ -90,7 +91,7 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
             if (state is OptionState.Failed) {
                 // A smaller download may still fit where this one failed for room or connection.
                 advice.others.firstOrNull { it.downloadBytes in 1 until shown.downloadBytes }?.let { smaller ->
-                    GhostButton("Or take ${optionName(smaller)} (${megabytes(smaller)})", { picked = smaller.name })
+                    GhostButton("Or take ${EngineNames.of(smaller)} (${megabytes(smaller)})", { picked = smaller.name })
                 }
             }
         }
@@ -99,7 +100,7 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 (listOf(advice.recommended) + advice.others).forEach { option ->
                     RadioRow(
-                        label = optionName(option),
+                        label = EngineNames.of(option),
                         note = listOfNotNull(trustOf(option, phone).badgeLabel(), sizeText(option), waitText(option)).joinToString(" · "),
                         selected = option == shown,
                         onSelect = {
@@ -123,7 +124,7 @@ private fun KeptCard(engine: EngineConfig) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("In use now", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
-        Text(engine.displayName, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+        Text(EngineNames.of(engine), style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         TrustBadge(engine.trustLevelForDisplay())
         Hint("Stays as it is. Pick another one under Other options if you like.")
     }
@@ -139,7 +140,7 @@ private fun OptionCard(option: EngineOption, recommended: Boolean, state: Option
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (recommended) Text("Recommended for this phone", style = MaterialTheme.typography.labelLarge, color = AmberPalette.Primary)
-        Text(optionName(option), style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+        Text(EngineNames.of(option), style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         TrustBadge(trustOf(option, content.phone))
         Hint(listOfNotNull(sizeText(option), waitText(option)).joinToString(" · "), AmberPalette.Text)
         when (state) {
@@ -172,15 +173,6 @@ private fun stateOf(option: EngineOption, content: OnboardingContent): OptionSta
         }
         else -> OptionState.Missing
     }
-}
-
-private fun optionName(option: EngineOption): String = when (option) {
-    EngineOption.PARAKEET -> "Parakeet"
-    EngineOption.ACFT_LARGE -> "Whisper large"
-    EngineOption.FUTO_244 -> "Whisper small"
-    EngineOption.FUTO_74 -> "Whisper base"
-    EngineOption.ANDROID -> "Android's recognizer"
-    EngineOption.SERVER -> "A server with your own key"
 }
 
 private fun trustOf(option: EngineOption, phone: PhoneFacts?): TrustLevel = when (option) {

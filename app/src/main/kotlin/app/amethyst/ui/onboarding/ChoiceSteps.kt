@@ -26,6 +26,7 @@ import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.onboarding.CleanupPick
+import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.ui.AppIcon
@@ -207,7 +208,8 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFi
         lead = "Change any of this in Settings, top right on the home screen.",
         buttons = { ContinueButton(onFinish, "Try it") },
     ) {
-        Chosen("Recognition", settings.activeEngine?.displayName ?: "None", "Settings → Recognition")
+        // By the name the engine step gave it, not the one Settings lists it under.
+        Chosen("Recognition", settings.activeEngine?.let(EngineNames::of) ?: "None", "Settings → Recognition")
         Chosen("Cleanup", settings.cleanupSummary() ?: "Off", "Settings → Cleanup")
         Chosen(
             "Flame",
