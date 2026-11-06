@@ -13,13 +13,23 @@ series and one store release per phase, each after his OK.
       self-correction rule, guards with a reason, a global own addition and "View system prompt",
       no comma before a list's "und". Fabi, 2026-11-06 on the device: the cleanup works. Open: the
       eval (`tools/cleanup-eval/run.sh`, needs his keys), Amber PC adopting the prompt.
-- [ ] **P2 - Bubble edge-dock + quick menu** (schema 11): place first, then show; clear of system
-      bars and cutout; snap to the left/right edge with fling; its own height above the keyboard;
-      landscape keeps the side. Long-press opens a 4-slot menu, hold-to-talk goes. Plans:
-      [`bubble-behaviour`](plans/2026-11-06-bubble-behaviour.md),
+- [ ] **P2 - Bubble edge-dock + quick menu** (schema 11), built 2026-11-06: docks left or right
+      (fling over 750 px/s changes side, spring), inside the bars and the cutout; its own height
+      above the keyboard (80 dp, set by dragging with the keyboard up); placed before it appears;
+      rotation keeps side and height. Long-press = quick menu, 4 slots - Idle: cleanup off/on here,
+      insert again, copy last, hide here; Listening: start over, cancel, send as spoken; Working:
+      cancel, keep as heard. Hold-to-talk removed. Open: the device test (portrait and landscape,
+      WhatsApp/Gmail/Chrome with the keyboard, send buttons not covered, fling both ways, every
+      slot), then tune the 80 dp and the menu radius. Later: magnetic hide target, idle fade/peek.
+      Plans: [`bubble-behaviour`](plans/2026-11-06-bubble-behaviour.md),
       [`bubble-quick-menu`](plans/2026-11-06-bubble-quick-menu.md).
-- [ ] **P3 - Simpler surface** (schema 12): voice commands hidden (code stays), one global
-      "Advanced settings" switch, auto-pause off by default, the onboarding recording step gone.
+- [ ] **P3 - Simpler surface**, built 2026-11-06 (no schema step needed): voice commands hidden
+      behind `Features.VOICE_COMMANDS = false` (code and stored switch stay; one accessor
+      `commandsEnabled`); one "Advanced settings" switch (`SettingsLayout`) - new installs start
+      simple (Recognition, Cleanup, Bubble, App styles), existing installs see everything; auto-pause
+      off for new installs, the introduction's "how a dictation ends" step gone. Open: the device
+      test (upgrade with commands on, simple vs advanced, fresh install). Decide (Fabi): drop
+      `canPerformGestures` from the service config while the commands are off.
 - [ ] **P4 - UI language**: texts into string resources, `values-de`, `locales_config`; plain
       words from a glossary Fabi approves (`docs/GLOSSARY.md`). Diagnostics stay English.
 - [ ] **P5 - One "Server" entry + app-side security** (schema 13): one addable Server with
