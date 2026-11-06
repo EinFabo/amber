@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
@@ -29,6 +28,8 @@ class KeyboardTracker(
     private val service: AccessibilityService,
     /** The last few decisions, newest first, with their time since the field took focus. */
     private val log: MutableStateFlow<List<String>>,
+    /** The package of the keyboard in use, e.g. "com.google.android.inputmethod.latin". */
+    private val keyboardPackage: () -> String?,
     /** The docked keyboard's top edge (null: none) and a floating keyboard's bounds. */
     private val onKeyboard: (top: Int?, floating: Box?) -> Unit,
 ) {
@@ -147,10 +148,6 @@ class KeyboardTracker(
         return all.firstOrNull { window -> window.root?.packageName?.toString() == ime }
             ?.also { packageFallbackWorks = true }
     }
-
-    private fun keyboardPackage(): String? = runCatching {
-        Settings.Secure.getString(service.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
-    }.getOrNull()?.substringBefore('/')?.takeIf { it.isNotBlank() }
 
     /** The whole display, status and navigation bar included - window bounds use the same. */
     @Suppress("DEPRECATION")

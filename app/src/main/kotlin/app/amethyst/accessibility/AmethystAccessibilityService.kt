@@ -16,7 +16,6 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import app.amethyst.core.capture.TriggerSource
-import android.provider.Settings
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -68,6 +67,9 @@ class AmethystAccessibilityService : AccessibilityService() {
     private var bubble: BubbleController? = null
 
     private var keyboard: KeyboardTracker? = null
+
+    /** The keyboard in use, kept current by an observer: asked on every window change. */
+    private val defaultKeyboard by lazy { DefaultKeyboard(contentResolver) }
 
     /** Package of the app currently in front, for logs and per-app behaviour. */
     @Volatile
@@ -130,7 +132,8 @@ class AmethystAccessibilityService : AccessibilityService() {
             },
         )
 
-        keyboard = KeyboardTracker(this, graph.keyboardLog) { top, floating ->
+        defaultKeyboard.start()
+        keyboard = KeyboardTracker(this, graph.keyboardLog, defaultKeyboard::packageName) { top, floating ->
             bubble?.setKeyboard(top, floating)
             // Apps move their fields when the keyboard comes or goes; look once they have.
             fieldCheck.schedule(FIELD_SETTLE_MS)
@@ -223,10 +226,8 @@ class AmethystAccessibilityService : AccessibilityService() {
     private val bubbleShown: Boolean
         get() = graph.settings.value.bubble.enabled
 
-    /** Whether [pkg] is the keyboard in use, e.g. "com.google.android.inputmethod.latin/...". */
-    private fun isKeyboard(pkg: String): Boolean = runCatching {
-        Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.startsWith("$pkg/") == true
-    }.getOrDefault(false)
+    /** Whether [pkg] is the keyboard in use, e.g. "com.google.android.inputmethod.latin". */
+    private fun isKeyboard(pkg: String): Boolean = defaultKeyboard.isKeyboard(pkg)
 
     private val tracksInputDirectly: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -411,6 +412,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         fieldCheck.stop()
         keyboard?.stop()
         keyboard = null
+        defaultKeyboard.stop()
         bubble?.detach()
         bubble = null
         if (::graph.isInitialized && graph.accessibilityService === this) {
