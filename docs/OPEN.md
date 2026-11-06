@@ -96,7 +96,8 @@ with the release key, the enclave path solid. Each finding was checked against t
       (2026-11-01): certificate `CN=Amber`, SHA-256
       `c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11` (in the README and
       `ReleaseChannel`). `tools/sign-release.sh` now needs `SIGN_CERT_SHA256` for every run and
-      writes `SIGN_OUTPUT` (`amber-github.apk` for this key). Open: the first release with it.
+      writes `SIGN_OUTPUT` (`amber-github.apk` for this key). First releases with it: v0.26.2 and
+      v0.26.3, signed by hand; built by CI is M1 above.
 - [x] **Update check** (Fabi, 2026-11-01): builds signed with the GitHub release key ask
       GitHub's `releases/latest` once a day, when Amber's screen opens or the service connects
       (no jobs, alarms or wake locks; no answer at all is retried after an hour); every other
@@ -405,9 +406,8 @@ The full task prompt, with causes, code pointers and acceptance criteria:
 ## F-Droid release (Fabi, 2026-10-29)
 
 Amber in F-Droid, built there from source. What stands in the way today, found in the repo:
-- [ ] **A license.** The repo has no `LICENSE` file; F-Droid only takes free software. Fabi picks
-      one (e.g. GPL-3.0 or Apache-2.0); whisper.cpp (MIT), sherpa-onnx (Apache-2.0) and
-      tinfoil-go (check) must fit it.
+- [x] **A license** (2026-11-06): Apache 2.0, with a `NOTICE` for what Amber is built from and
+      the speech models' licenses; both ship in the app (Settings -> Licenses).
 - [ ] **No prebuilt binaries.** `tools/fetch-sherpa-aar.sh` downloads sherpa-onnx's released
       AAR (with onnxruntime inside). F-Droid builds every native library itself: sherpa-onnx and
       onnxruntime from source in the build recipe (heavy - check how other apps on F-Droid do
@@ -888,9 +888,8 @@ Endurance
 
 - [x] **Committed** (0.6.2) - before, everything since the rename lived only in the working
       tree; native code and Whisper files were not even tracked.
-- [ ] **Release signing** with an own keystore instead of the debug key (more pressing now that
-      Tinfoil promises the audio only goes to a verified enclave). Needs one uninstall; models
-      have to be downloaded again.
+- [x] **Release signing** with an own keystore instead of the debug key: done, signed on the
+      signing host (`tools/sign-release.sh`, fingerprint in the README).
 - [x] **CI**: `tools/typecheck-android.sh` fetches the compiler's runtime dependency
       (`kotlinx-coroutines-core-jvm` 1.8.0) and runs again.
 - [x] **`docs/PLAN.md`** marked as historical.
@@ -904,7 +903,8 @@ Endurance
 
 ## Later stages
 
-- [ ] Local models Parakeet TDT and Moonshine through sherpa-onnx
+- [x] Local model Parakeet TDT through sherpa-onnx (built; its device test is under "Better local
+      models"). Moonshine is not built.
 - [ ] ElevenLabs Scribe v2 Realtime (streaming)
 - [x] **Tinfoil address** (0.6.3): the per-model hosts `*.inf.tinfoil.sh` are gone, everything
       goes through the router `https://inference.tinfoil.sh/v1`. Preset and stored engines
