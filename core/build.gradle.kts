@@ -33,3 +33,18 @@ tasks.test {
     useJUnitPlatform()
     testLogging { events("passed", "failed", "skipped") }
 }
+
+// The cleanup eval (tools/cleanup-eval): its own source set, so it runs the real ChatCleanup
+// against real models only when asked - never as part of :core:test or a build.
+val eval: SourceSet by sourceSets.creating
+configurations[eval.implementationConfigurationName].extendsFrom(configurations.implementation.get())
+configurations[eval.runtimeOnlyConfigurationName].extendsFrom(configurations.runtimeOnly.get())
+kotlin.target.compilations.getByName("eval").associateWith(kotlin.target.compilations.getByName("main"))
+
+tasks.register<JavaExec>("cleanupEval") {
+    description = "Runs tools/cleanup-eval/cases.jsonl through chat models; keys from the environment only."
+    group = "verification"
+    classpath = eval.runtimeClasspath
+    mainClass.set("app.amethyst.eval.CleanupEvalKt")
+    workingDir = rootDir
+}

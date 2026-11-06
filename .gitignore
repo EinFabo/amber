@@ -27,3 +27,4 @@ tools/sign-release.local
 # Claude Code: local overrides and session worktrees stay on this machine.
 .claude/settings.local.json
 .claude/worktrees/
+cleanup-eval-report.md
