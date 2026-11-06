@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -106,6 +105,7 @@ class BubbleController(
     /** The open menu's slots, as they were when it opened. */
     private var menuSlots: List<QuickSlot?> = emptyList()
     private var hapticsEnabled = true
+    private val haptics = Haptics(service)
 
     private var textFieldFocused = false
     private var locked = false
@@ -579,8 +579,8 @@ class BubbleController(
         sparkView.listening = listening
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
-            is DictationState.Done, is DictationState.Commanded -> haptic(confirmConstant())
-            is DictationState.Failed -> haptic(rejectConstant())
+            is DictationState.Done, is DictationState.Commanded -> haptic(Haptics.Kind.CONFIRM)
+            is DictationState.Failed -> haptic(Haptics.Kind.REJECT)
             else -> Unit
         }
     }
@@ -658,7 +658,7 @@ class BubbleController(
                 is BubbleGesture.Event.Tap -> {
                     // A keyboard that came or went while the finger was down was not followed.
                     moveTo(layoutParams, targetY())
-                    haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+                    haptic(Haptics.Kind.CLICK)
                     // The recording the first tap started becomes a command instead of stopping.
                     val wasDoubleTap = event.doubleTap && onDoubleTap()
                     gesture.tapDone(at, startedRecording = !wasDoubleTap && onTap())
@@ -687,7 +687,7 @@ class BubbleController(
                         if (over != overTarget) {
                             overTarget = over
                             hideTarget.active = over
-                            if (over) haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+                            if (over) haptic(Haptics.Kind.CLICK)
                         }
                     }
                 }
@@ -696,7 +696,7 @@ class BubbleController(
                     val hideIn = currentApp.takeIf { mayHide && overTarget && !event.cancelled }
                     if (hideIn != null) {
                         // Back to where it was: the place the user chose stays for other apps.
-                        haptic(confirmConstant())
+                        haptic(Haptics.Kind.CONFIRM)
                         layoutParams.x = startX
                         layoutParams.y = startY
                         update()
@@ -717,8 +717,8 @@ class BubbleController(
                         menuView.lit = event.slot
                         val slot = event.slot?.let { menuSlots.getOrNull(it) }
                         when {
-                            event.slot == null -> haptic(HapticFeedbackConstants.CLOCK_TICK)
-                            slot?.enabled == true -> haptic(segmentConstant())
+                            event.slot == null -> haptic(Haptics.Kind.TICK)
+                            slot?.enabled == true -> haptic(Haptics.Kind.TICK)
                             else -> Unit
                         }
                     }
@@ -730,10 +730,10 @@ class BubbleController(
                     closeMenu(animated = true, chosen = event.slot.takeIf { slot?.enabled == true })
                     settleAfterMenu(layoutParams)
                     if (slot == null || !slot.enabled) {
-                        haptic(rejectConstant())
+                        haptic(Haptics.Kind.REJECT)
                     } else {
                         Log.i(TAG, "quick menu: ${slot.action.name}")
-                        haptic(if (onQuickAction(slot.action, currentApp)) confirmConstant() else rejectConstant())
+                        haptic(if (onQuickAction(slot.action, currentApp)) Haptics.Kind.CONFIRM else Haptics.Kind.REJECT)
                     }
                 }
 
@@ -783,7 +783,7 @@ class BubbleController(
         menuSlots = quickMenu(currentApp)
         val fan = fanAt(cx, cy)
         gesture.fanShown(fan, menuSlots.map { it != null })
-        haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+        haptic(Haptics.Kind.CLICK)
         // The screen may have turned since the window was added.
         val (width, height) = screenSize()
         if (menu.width != width || menu.height != height) {
@@ -1014,32 +1014,9 @@ class BubbleController(
         }
     }
 
-    // CONFIRM and REJECT only exist from API 30; below that fall back to what is available.
-    private fun confirmConstant(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            HapticFeedbackConstants.CONFIRM
-        } else {
-            HapticFeedbackConstants.CONTEXT_CLICK
-        }
-
-    /** Entering a slot of the menu: a light tick, the segment one where it exists (API 34). */
-    private fun segmentConstant(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.SEGMENT_TICK
-        } else {
-            HapticFeedbackConstants.CLOCK_TICK
-        }
-
-    private fun rejectConstant(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            HapticFeedbackConstants.REJECT
-        } else {
-            HapticFeedbackConstants.LONG_PRESS
-        }
-
-    private fun haptic(constant: Int) {
+    private fun haptic(kind: Haptics.Kind) {
         if (!hapticsEnabled) return
-        view.performHapticFeedback(constant)
+        haptics.play(kind)
     }
 
     private fun dp(value: Int): Int =

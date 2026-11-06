@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The bubble's haptics play on the vibrator: touch feedback is dropped while the system's is off. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!--
       Android 11+ package visibility: without this, queryIntentServices for the recognition
