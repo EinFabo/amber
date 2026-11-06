@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import app.amethyst.DebugLog
 import app.amethyst.Graph
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
@@ -887,10 +888,11 @@ class DictationController(
         val settings = graph.settings.value
         val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
         val decision = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }
-        val note = decision.note?.let { "$it · " }.orEmpty()
-        val choice = decision.choice ?: return transcript.also { trace?.cleanup = decision.note }
+        // May name the app (its style's label), so the trace keeps it apart from the rest.
+        trace?.cleanupNote = decision.note
+        val choice = decision.choice ?: return transcript
         val cleanup = graph.engineFactory.cleanupFor(choice, settings)
-            ?: return transcript.also { trace?.cleanup = "${note}cleanup ${choice.model} could not be set up" }
+            ?: return transcript.also { trace?.cleanup = "cleanup ${choice.model} could not be set up" }
         val profile = AppProfiles.forPackage(settings.profiles, target)
         val style = profile?.style ?: WritingStyle.AS_SPOKEN
         // Whether its server connection was opened at the start - only for the cleanup chosen then.
@@ -917,14 +919,14 @@ class DictationController(
             ) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
         }
         if (result == null) {
-            trace?.cleanup = "${note}cleanup timed out (${cleanup.model})"
+            trace?.cleanup = "cleanup timed out (${cleanup.model})"
             return transcript
         }
         return result.fold(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
                 val languageNote = language?.let { ", $it" }.orEmpty()
-                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$languageNote$connection)"
+                trace?.cleanup = "cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$languageNote$connection)"
                 graph.recognitionEstimate.learn(key, chars, cleaned.latencyMs, CLEANUP_OVERHEAD_MS)
                 graph.saveEstimates()
                 trace?.cleanupModel = cleanup.model
@@ -937,7 +939,7 @@ class DictationController(
                 )
             },
             onFailure = { error ->
-                trace?.cleanup = "${note}cleanup skipped: ${userMessageOf(error)}"
+                trace?.cleanup = "cleanup skipped: ${userMessageOf(error)}"
                 // The error's own text may quote the model's reply, i.e. the dictation.
                 Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.take(80) ?: error.javaClass.simpleName}")
                 transcript
@@ -1089,7 +1091,7 @@ class DictationController(
         val now = graph.accessibilityService?.focusedTarget()
         val verdict = TargetCheck.verdict(startTarget, now)
         if (verdict != TargetCheck.Verdict.INSERT) {
-            Log.i(TAG, "not inserting: $verdict (start ${startTarget?.packageName}, now ${now?.packageName})")
+            Log.i(TAG, "not inserting: $verdict (start ${DebugLog.redact(startTarget?.packageName)}, now ${DebugLog.redact(now?.packageName)})")
             val why = when (verdict) {
                 TargetCheck.Verdict.SECRET -> "The field now is a password field"
                 TargetCheck.Verdict.NO_FIELD -> "No text field has focus any more"
@@ -1120,7 +1122,7 @@ class DictationController(
         trace?.insertingEnds()
         Log.i(
             TAG,
-            "insertion via ${insertion.strategy} into ${insertion.targetPackage}: " +
+            "insertion via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: " +
                 "field=${insertion.insertedIntoField} clipboard=${insertion.copiedToClipboard} " +
                 "(engine=${transcript.engineId}, trust=${transcript.trustLevel}, " +
                 "${transcript.latencyMs}ms)",
@@ -1149,7 +1151,7 @@ class DictationController(
             note = inserter.lastTrace,
             timing = trace?.summary(),
         )
-        trace?.let { Log.i(TAG, "dictation timing: ${it.summary()}") }
+        trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
         recordStat(finalTranscript, insertion.targetPackage, settings)
 
         _state.value = DictationState.Done(

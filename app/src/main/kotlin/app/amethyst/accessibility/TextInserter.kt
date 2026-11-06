@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import app.amethyst.DebugLog
 import app.amethyst.R
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
@@ -58,7 +59,8 @@ class TextInserter(
                 outcome.insertedIntoField -> ""
                 else -> " (not in the field)"
             }
-        Log.i(TAG, "insertion: $lastTrace")
+        // The trace names the app and its field: logcat gets it in debug builds only.
+        DebugLog.i(TAG) { "insertion: $lastTrace" }
 
         // Only nag when the text really did not make it into the field. A successful paste
         // also uses the clipboard, and announcing that every time would be noise.

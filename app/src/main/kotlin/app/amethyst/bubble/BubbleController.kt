@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
+import app.amethyst.DebugLog
 import app.amethyst.core.bubble.BubbleAccess
 import app.amethyst.core.bubble.BubblePlacement
 import app.amethyst.core.bubble.BubbleVisibility
@@ -570,7 +571,7 @@ class BubbleController(
                         mayHide = !holding && !dictating && currentApp.let { it != null && it != service.packageName }
                         Log.i(
                             TAG,
-                            "drag in $currentApp: " + when {
+                            "drag in ${DebugLog.redact(currentApp)}: " + when {
                                 mayHide -> "hide target shown"
                                 holding -> "no hide target, dictating while held"
                                 dictating -> "no hide target, a dictation is running"

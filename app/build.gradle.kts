@@ -72,6 +72,8 @@ android {
 
     buildFeatures {
         compose = true
+        // BuildConfig.DEBUG keeps user data out of a release build's logcat (DebugLog).
+        buildConfig = true
     }
 
     // -Pamber.insertTestHook=true puts the debug build's adb insertion hook (src/debug) into a

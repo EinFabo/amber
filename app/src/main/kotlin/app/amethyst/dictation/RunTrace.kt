@@ -37,6 +37,9 @@ internal class RunTrace(val route: String) {
     /** What the cleanup model did, when one is chosen. */
     var cleanup: String? = null
 
+    /** Why the cleanup went the way it did, when there is a story; may name the app. */
+    var cleanupNote: String? = null
+
     /** The enclave that answered, when the engine names one (Tinfoil). */
     var servedBy: String? = null
 
@@ -83,7 +86,11 @@ internal class RunTrace(val route: String) {
     fun insertingStarts() { insertingFrom = now() }
     fun insertingEnds() { insertingTo = now() }
 
-    fun summary(): String = buildList {
+    /**
+     * One line for the diagnostics card and logcat. [namesApps] false leaves out what names
+     * the app the text went to: a release build's logcat gets no app names.
+     */
+    fun summary(namesApps: Boolean = true): String = buildList {
         add("route $route")
         if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
         if (recordingTo > 0) add("recording ${ms(recordingTo - recordingFrom)}")
@@ -101,6 +108,7 @@ internal class RunTrace(val route: String) {
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
         fallback?.let(::add)
         prepared?.let(::add)
+        cleanupNote?.let { add(if (namesApps) it else "cleanup routed by the app's style") }
         cleanup?.let(::add)
         upload?.let(::add)
         connection?.let(::add)
