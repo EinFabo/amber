@@ -279,7 +279,7 @@ where it was installed.
 
 Commits and pull requests carry the human author only - no AI co-author or session
 trailers. The `commit-msg` hook in `tools/hooks` enforces that. Project rules are in
-[`CLAUDE.md`](CLAUDE.md): English everywhere, logic that can go wrong belongs in `core`.
+[`CLAUDE.md`](CLAUDE.md): English everywhere (the app also in German), logic that can go wrong belongs in `core`.
 
 ## Checking on a device
 
@@ -313,3 +313,9 @@ recognizer or a silent server cannot keep the bubble spinning forever.
 ## Not in yet
 
 Command mode on selected text · dictionary and snippets · encrypted history. Open items and their state: [`docs/OPEN.md`](docs/OPEN.md).
+
+## License
+
+Amber is free software under the [Apache License 2.0](LICENSE). What it is built from, and the
+licenses of the speech models it can download, are listed in [`NOTICE`](NOTICE) and in the app
+under Settings → Licenses.

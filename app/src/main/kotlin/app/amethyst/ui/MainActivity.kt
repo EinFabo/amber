@@ -64,6 +64,7 @@ import app.amethyst.ui.onboarding.OnboardingContent
 import app.amethyst.ui.onboarding.OnboardingScreen
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
+import app.amethyst.ui.screen.LicensesScreen
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.SettingsPage
@@ -277,6 +278,7 @@ private fun Screen.title(): String = when (this) {
         SettingsPage.RELIABILITY -> "Reliability"
         SettingsPage.DIAGNOSTICS -> "Diagnostics"
         SettingsPage.UPDATES -> "Updates"
+        SettingsPage.LICENSES -> "Licenses"
     }
 }
 
@@ -547,6 +549,7 @@ private fun AmethystScreens(
                                 onClear = { graph.stats.clear() },
                             )
                             SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
+                            SettingsPage.LICENSES -> LicensesScreen()
                             SettingsPage.UPDATES -> {
                                 val checking by graph.updates.checking.collectAsStateWithLifecycle()
                                 // "3 hours ago" moves on while the page is open.

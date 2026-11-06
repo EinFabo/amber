@@ -1,0 +1,44 @@
+Amber
+Copyright 2026 EinFabo
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This app contains, or is built from, the following third-party software:
+
+- whisper.cpp / ggml (https://github.com/ggml-org/whisper.cpp) - MIT License,
+  Copyright (c) 2023-2026 The ggml authors
+- sherpa-onnx (https://github.com/k2-fsa/sherpa-onnx) - Apache License 2.0
+- ONNX Runtime (https://github.com/microsoft/onnxruntime), inside sherpa-onnx - MIT License,
+  Copyright (c) Microsoft Corporation
+- tinfoil-go (https://github.com/tinfoilsh/tinfoil-go) - Apache License 2.0
+- OkHttp and Okio (https://square.github.io/okhttp/) - Apache License 2.0
+- Kotlin, kotlinx.coroutines, kotlinx.serialization (https://kotlinlang.org) - Apache License 2.0
+- AndroidX and Jetpack Compose (https://developer.android.com/jetpack/androidx) - Apache License 2.0
+
+Speech models are not part of the app; Amber downloads them when you choose one:
+
+- Parakeet TDT 0.6B v3 (NVIDIA), via sherpa-onnx - CC BY 4.0
+  (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
+- FUTO voice input models, Whisper fine-tunes (https://github.com/futo-org/whisper-acft) - MIT License
+- Whisper large-v3-turbo (OpenAI) in ggml form - MIT License
+- ACFT Whisper large-v3-turbo q8_0 (https://huggingface.co/DeadBranches/acft-whisper-large-v3-turbo_q8_0) -
+  Apache License 2.0
+
+The MIT License, as it applies to whisper.cpp (Copyright (c) 2023-2026 The ggml authors),
+ONNX Runtime (Copyright (c) Microsoft Corporation) and the FUTO models (Copyright (c) 2024 FUTO
+Organization):
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

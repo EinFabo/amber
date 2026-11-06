@@ -70,7 +70,7 @@ import app.amethyst.ui.theme.placeExplanation
 import kotlin.math.roundToInt
 
 /** Where a settings row leads. */
-enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES }
+enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES, LICENSES }
 
 /** How many rows the folded "Advanced" group holds. */
 private const val ADVANCED_ROWS = 4
@@ -159,6 +159,8 @@ fun SettingsScreen(
                 "Updates", releaseChannel?.let { UpdatePolicy.summary(it, settings.updates, version) }, icon = AmberIcons.Update,
                 summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
             ) { onOpen(SettingsPage.UPDATES) }
+            RowDivider()
+            NavRow("Licenses", "Apache 2.0, and what Amber is built from", icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
             RowDivider()
             NavRow("Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction)
         }

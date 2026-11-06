@@ -126,8 +126,17 @@ val tinfoilAar = file("libs/tinfoil-mobile.aar")
 /** sherpa-onnx, the runtime of the local Parakeet engine; fetched by tools/fetch-sherpa-aar.sh. */
 val sherpaAar = file("libs/sherpa-onnx.aar")
 
+/** LICENSE and NOTICE from the repository root, shipped as assets for the Licenses page. */
+val licenseAssets = layout.buildDirectory.dir("generated/licenseAssets")
+val copyLicenses by tasks.registering(Copy::class) {
+    from(rootProject.file("LICENSE"), rootProject.file("NOTICE"))
+    into(licenseAssets)
+}
+android.sourceSets.getByName("main").assets.srcDir(licenseAssets)
+
 // Checked when the app is built, not when Gradle configures - :core's tests need no AAR.
 tasks.named("preBuild") {
+    dependsOn(copyLicenses)
     // A plain File, so the check holds no reference to the build script (configuration cache).
     val aar = tinfoilAar
     val sherpa = sherpaAar

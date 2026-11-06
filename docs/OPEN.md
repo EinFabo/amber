@@ -135,6 +135,12 @@ with the release key, the enclave path solid. Each finding was checked against t
       between list items and main clauses and keeps them where they may close a clause, an
       apposition or an insertion (`GermanCommas.dropBeforeJoiners`). Open: watch real dictations
       for commas it should have kept.
+- [ ] **Later** (Fabi, 2026-11-06): Tinfoil outreach mail and a Tinfoil referral/kickback;
+      a subscription where Fabi hosts the servers with a "can't see your data" guarantee; a phone
+      remote-control mode (AI fills forms, presses buttons) built on today's voice commands.
+- [ ] **Security review of Amber PC and Amber Server**: the prompt is in
+      `docs/AMBER-PC-REVIEW-PROMPT.md`, for Fabi to run in the amberPC repo; the app's side follows
+      in phase P5 (docs/plans and the roadmap of 2026-11-06).
 - [ ] **Scan a server's QR code in the app** (Fabi, 2026-11-01): for example an own server's
       address from the QR code Amber PC shows on its Phone page, instead of typing it.
 - [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden

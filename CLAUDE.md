@@ -1,11 +1,13 @@
 # Amber – project rules
 
-## Language: English, everywhere
+## Language: English, and the app also in German
 
 Everything that lands in this project is written in English:
 
-- app text: UI labels, hints, error and toast messages, notifications, accessibility strings
-- diagnostics and log lines, tool and script output
+- app text: UI labels, hints, error and toast messages, notifications, accessibility strings -
+  in English, and once the text lives in string resources also in German (`values-de`): the app
+  follows the phone's language. Plain words in both: "speech recognition", not "engine"
+- diagnostics and log lines, tool and script output (English only: reports get shared)
 - listing texts when a release is published (summary, description, changelog)
 - docs (`README.md`, `docs/`), code comments, commit messages
 
