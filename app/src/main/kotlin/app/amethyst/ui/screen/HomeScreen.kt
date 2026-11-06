@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.onboarding.AmberVariant
+import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.update.UpdateNotice
@@ -112,6 +114,8 @@ fun HomeScreen(
         }
 
         if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
+
+        if (setup.otherAmbers.isNotEmpty()) OtherAmbersCard(setup.otherAmbers, actions.openAccessibilityList)
 
         EngineGroup(settings, onOpenRecognition, onOpenCleanup)
 
@@ -246,6 +250,33 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
         ) {
             GhostButton("Dismiss", onDismiss, color = AmberPalette.Muted)
             PrimaryButton("Download", onDownload)
+        }
+    }
+}
+
+/**
+ * Another Amber's service is on beside this one (the debug build, say): both show a bubble and
+ * both react to the keyboard and the field, so things go wrong at random. Home and Diagnostics.
+ */
+@Composable
+fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
+    val notice = OtherAmbers.notice(others) ?: return
+    SettingsGroup(label = null) {
+        NavRow(
+            title = if (others.size == 1) "Two Ambers are on" else "${others.size + 1} Ambers are on",
+            summary = "$notice Each shows a bubble and types into the same fields.",
+            icon = AmberIcons.Info,
+            summaryMaxLines = 3,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            PrimaryButton("Open accessibility settings", onOpenSettings)
         }
     }
 }

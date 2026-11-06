@@ -16,7 +16,9 @@ import androidx.core.content.ContextCompat
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.InstallSource
+import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.onboarding.PackageSource
 import app.amethyst.core.onboarding.RestrictedSettings
 import app.amethyst.engine.AndroidOnDeviceEngine
@@ -34,6 +36,8 @@ data class SetupState(
     val restrictedSettings: Boolean = false,
     /** Amber has sent the user to switch the service on, and it is still off. */
     val accessibilityTried: Boolean = false,
+    /** Other Ambers (the debug build, say) whose service is on beside this one's; empty while this one is off. */
+    val otherAmbers: List<AmberVariant> = emptyList(),
 ) {
     /** The two that are actually mandatory; the rest only improve reliability. */
     val ready: Boolean get() = microphoneGranted && accessibilityEnabled
@@ -43,6 +47,8 @@ object Setup {
 
     fun snapshot(context: Context, accessibilityTried: Boolean = false): SetupState {
         val accessibility = isAccessibilityEnabled(context)
+        // Only a conflict while this one is on too: with it off, the other is simply the Amber in use.
+        val others = if (accessibility) OtherAmbers.find(context.packageName, enabledServices(context)) else emptyList()
         return SetupState(
             microphoneGranted = ContextCompat.checkSelfPermission(
                 context,
@@ -54,6 +60,7 @@ object Setup {
             batteryUnrestricted = isBatteryUnrestricted(context),
             restrictedSettings = restrictedSettings(context),
             accessibilityTried = accessibilityTried && !accessibility,
+            otherAmbers = others,
         )
     }
 
@@ -98,14 +105,14 @@ object Setup {
      */
     fun isAccessibilityEnabled(context: Context): Boolean {
         val expected = ComponentName(context, AmethystAccessibilityService::class.java)
-        val enabled = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ).orEmpty()
-        return enabled.split(':').any { entry ->
+        return enabledServices(context).orEmpty().split(':').any { entry ->
             ComponentName.unflattenFromString(entry) == expected
         }
     }
+
+    /** Every switched-on accessibility service, flattened and joined by ':'; null if none ever was. */
+    private fun enabledServices(context: Context): String? =
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
 
     private fun areNotificationsGranted(context: Context): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

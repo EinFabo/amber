@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
+import app.amethyst.core.onboarding.AmberVariant
+import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.DangerAction
@@ -128,6 +130,9 @@ fun DiagnosticsScreen(
     initialFilter: DiagnosticsReport.Filter = DiagnosticsReport.Filter.ALL,
     /** The entries (by their time) shown open from the start - for the screenshots. */
     initiallyOpen: Set<Long> = emptySet(),
+    /** Other Ambers switched on beside this one: shown on top and noted in a copy. */
+    otherAmbers: List<AmberVariant> = emptyList(),
+    onOpenAccessibility: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf(initialFilter) }
@@ -143,6 +148,8 @@ fun DiagnosticsScreen(
     val keyboardShown = filter != DiagnosticsReport.Filter.COMMANDS && keyboardLog.isNotEmpty()
 
     SubPage(modifier) {
+        if (otherAmbers.isNotEmpty()) OtherAmbersCard(otherAmbers, onOpenAccessibility)
+
         if (records.isNotEmpty()) {
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -177,6 +184,7 @@ fun DiagnosticsScreen(
                             val text = DiagnosticsReport.of(
                                 shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
                                 keyboard = if (keyboardShown) keyboardLog else emptyList(),
+                                warning = OtherAmbers.notice(otherAmbers),
                             )
                             copied = copySensitive(context, text)
                         },

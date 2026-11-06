@@ -135,6 +135,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         openAccessibility = ::openAccessibility,
+                        openAccessibilityList = ::openAccessibilityList,
                         openAppInfo = { Setup.openAppSettings(this) },
                         openBattery = ::openBattery,
                         startMicService = {
@@ -178,6 +179,16 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Android's accessibility settings did not open. Find them under Settings → Accessibility.", Toast.LENGTH_LONG).show()
         }
         refreshSetup()
+    }
+
+    /**
+     * To the accessibility list without a trip back: the service is on already, the user goes
+     * there to switch another Amber off ([SetupState.otherAmbers]).
+     */
+    private fun openAccessibilityList() {
+        if (!Setup.openAccessibilitySettings(this)) {
+            Toast.makeText(this, "Android's accessibility settings did not open. Find them under Settings → Accessibility.", Toast.LENGTH_LONG).show()
+        }
     }
 
     /** To the battery list, watched while the user is there; back to Amber once Amber is exempt. */
@@ -244,6 +255,8 @@ class SetupActions(
     val requestMicrophone: () -> Unit,
     val requestNotifications: () -> Unit,
     val openAccessibility: () -> Unit,
+    /** The accessibility list, with no return trip: to switch another Amber off. */
+    val openAccessibilityList: () -> Unit,
     val openAppInfo: () -> Unit,
     val openBattery: () -> Unit,
     val startMicService: () -> Unit,
@@ -579,6 +592,8 @@ private fun AmethystScreens(
                                 DiagnosticsScreen(
                                     records = records,
                                     keyboardLog = keyboardLog,
+                                    otherAmbers = setup.otherAmbers,
+                                    onOpenAccessibility = actions.openAccessibilityList,
                                     onClear = {
                                         graph.dictationLog.clear()
                                         graph.keyboardLog.value = emptyList()
