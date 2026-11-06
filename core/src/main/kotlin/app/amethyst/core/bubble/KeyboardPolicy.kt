@@ -96,14 +96,16 @@ class KeyboardPolicy(
 
     /**
      * Whether a window change is worth a look at the window list (a round trip per look).
-     * Not with no field focused, no keyboard on screen at the last look and no dictation
-     * running: then a window change - an app switch, the notification shade, the bubble's own
-     * moves - cannot move the bubble. Whatever is still settling asks for its own recheck and
-     * does not depend on this. [fromKeyboardApp]: the change came from the keyboard app itself,
-     * the one sign of a keyboard opening for a view that is no field.
+     * Not with no field focused, no keyboard on screen at the last look, no dictation running
+     * and the bubble off screen: then a window change - an app switch, the notification shade,
+     * the bubble's own moves - cannot move the bubble. Whatever is still settling asks for its
+     * own recheck and does not depend on this. [fromKeyboardApp]: the change came from the
+     * keyboard app itself, the one sign of a keyboard opening for a view that is no field.
+     * [bubbleVisible]: a bubble on screen everywhere, in an app whose field Amber cannot see
+     * (a WebView, Flutter), learns of the keyboard only from a window change.
      */
-    fun wantsWindowChanges(dictating: Boolean, fromKeyboardApp: Boolean): Boolean =
-        focused || dictating || fromKeyboardApp || windowSeen || current != null
+    fun wantsWindowChanges(dictating: Boolean, fromKeyboardApp: Boolean, bubbleVisible: Boolean): Boolean =
+        focused || dictating || fromKeyboardApp || bubbleVisible || windowSeen || current != null
 
     fun onFocusChanged(isFocused: Boolean, now: Long, screenHeight: Int): Decision {
         if (isFocused != focused) {

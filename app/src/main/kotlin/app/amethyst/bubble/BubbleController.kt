@@ -114,6 +114,9 @@ class BubbleController(
     /** The app in front, as far as the service can tell; the bubble stays out of hidden ones. */
     private var currentApp: String? = null
     private var shown = false
+
+    /** On screen (or on its way there), not hidden in this app or without a field. */
+    val visible: Boolean get() = shown
     private val hideLater = Runnable { applyVisibility(immediate = true) }
 
     /**

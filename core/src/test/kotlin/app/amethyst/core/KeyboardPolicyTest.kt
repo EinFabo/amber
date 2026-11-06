@@ -212,8 +212,8 @@ class KeyboardPolicyTest {
 
     // Window changes: looked at only while a keyboard can matter.
 
-    private fun wanted(dictating: Boolean = false, fromKeyboardApp: Boolean = false) =
-        policy.wantsWindowChanges(dictating, fromKeyboardApp)
+    private fun wanted(dictating: Boolean = false, fromKeyboardApp: Boolean = false, bubbleVisible: Boolean = false) =
+        policy.wantsWindowChanges(dictating, fromKeyboardApp, bubbleVisible)
 
     /** A field had the keyboard, focus left, and the keyboard is gone. */
     private fun keyboardGoneAfterFocus() {
@@ -234,6 +234,15 @@ class KeyboardPolicyTest {
         assertFalse(wanted())
         assertTrue(wanted(dictating = true), "a dictation keeps the bubble, and its place")
         assertTrue(wanted(fromKeyboardApp = true), "the keyboard app itself says something opened")
+    }
+
+    @Test
+    fun `a bubble on screen without a field it knows of still looks - a keyboard may cover it`() {
+        // Shown everywhere, in an app whose field Amber cannot see (a WebView, Flutter): the
+        // keyboard only shows up as a window change.
+        keyboardGoneAfterFocus()
+        assertTrue(wanted(bubbleVisible = true))
+        assertFalse(wanted(bubbleVisible = false), "hidden, it cannot sit on the keys")
     }
 
     @Test

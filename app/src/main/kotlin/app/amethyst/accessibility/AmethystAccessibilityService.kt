@@ -188,7 +188,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val fromKeyboard = event.packageName?.toString()?.let(::isKeyboard) == true
-                if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, fromKeyboardApp = fromKeyboard)
+                if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen, fromKeyboardApp = fromKeyboard)
                 event.packageName?.toString()?.let { pkg ->
                     if (pkg != packageName) foregroundPackage = pkg
                     // The keyboard and the system bars send window changes too; they are not
@@ -214,12 +214,16 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning)
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
         }
     }
 
     private val bubbleShown: Boolean
         get() = graph.settings.value.bubble.enabled
+
+    /** The bubble is on screen now - also where no field is detected, when it shows everywhere. */
+    private val bubbleOnScreen: Boolean
+        get() = bubble?.visible == true
 
     /** Whether [pkg] is the keyboard in use, e.g. "com.google.android.inputmethod.latin". */
     private fun isKeyboard(pkg: String): Boolean = defaultKeyboard.isKeyboard(pkg)
