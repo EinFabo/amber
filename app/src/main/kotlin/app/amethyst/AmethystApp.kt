@@ -6,6 +6,7 @@ import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
+import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.EstimateStore
@@ -35,6 +36,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -187,6 +190,13 @@ class Graph(app: Application) {
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)
+
+    /**
+     * What the bubble just did - a dictation inserted, a quick action run, a dock - for the
+     * introduction's practice step, the only one listening. No replay: with nobody listening
+     * an event is simply gone. Emitted with tryEmit, from any thread.
+     */
+    val bubbleEvents = MutableSharedFlow<BubbleEvent>(extraBufferCapacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     val dictation = DictationController(app, this, appScope)
 

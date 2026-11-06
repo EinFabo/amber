@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import app.amethyst.Graph
+import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickActions
 import app.amethyst.core.bubble.QuickMenuContext
@@ -39,7 +40,7 @@ class QuickActionRunner(
         val dictation = graph.dictation
         val app = otherApp(currentApp)
         // Each says what happened; copy, the cleanup switch and hiding say it themselves.
-        return when (action) {
+        val ran = when (action) {
             QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast("Last dictation inserted.") }
             QuickAction.COPY_LAST -> dictation.copyLast()
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
@@ -52,6 +53,8 @@ class QuickActionRunner(
             QuickAction.PAUSE -> dictation.pause().also { if (it) toast("Paused. Tap the bubble to send.") }
             QuickAction.RESUME -> dictation.resume().also { if (it) toast("Listening again.") }
         }
+        if (ran) graph.bubbleEvents.tryEmit(BubbleEvent.QuickActionRun(action))
+        return ran
     }
 
     private fun done(message: String, action: () -> Unit): Boolean {

@@ -15,6 +15,7 @@ import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
 import app.amethyst.core.audio.DiscardReason
+import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
@@ -1286,6 +1287,7 @@ class DictationController(
             strategy = insertion.strategy,
             insertedIntoApp = insertion.targetPackage,
         )
+        graph.bubbleEvents.tryEmit(BubbleEvent.DictationInserted)
 
         // Let the bubble show the result for a moment, then go back to resting. Launched
         // separately so this pause is not charged to the dictation's timeout.

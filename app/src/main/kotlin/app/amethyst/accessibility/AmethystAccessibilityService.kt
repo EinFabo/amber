@@ -24,6 +24,7 @@ import app.amethyst.AmethystApp
 import app.amethyst.bubble.BubbleController
 import app.amethyst.ui.MainActivity
 import app.amethyst.core.bubble.Box
+import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
 import app.amethyst.dictation.DictationState
@@ -109,6 +110,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             quickMenu = quickActions::slots,
             onQuickAction = quickActions::run,
             onMoved = { side, edgeY, aboveKeyboardDp ->
+                graph.bubbleEvents.tryEmit(BubbleEvent.Docked(side))
                 graph.appScope.launch {
                     graph.settingsStore.update {
                         it.copy(
