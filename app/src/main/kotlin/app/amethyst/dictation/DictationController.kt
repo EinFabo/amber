@@ -1065,8 +1065,8 @@ class DictationController(
         val key = cleanupKey(choice)
         val chars = transcript.text.length.toLong()
         wait?.plan(WaitProgress.Step.CLEANUP to graph.recognitionEstimate.expectedMs(key, chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS))
-        // Named in the prompt and checked in the reply: what the engine detected, the one
-        // language it was set to, or what the words clearly are.
+        // Named in the prompt and checked in the reply: what the words clearly are, else what
+        // the engine detected, else the one language it was set to.
         val language = LanguageGuess.forDictation(
             transcript.text,
             transcript.detectedLanguage,

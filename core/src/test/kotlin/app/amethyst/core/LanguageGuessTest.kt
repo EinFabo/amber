@@ -42,9 +42,15 @@ class LanguageGuessTest {
     }
 
     @Test
-    fun `detected first, then the engine's one language, then the words`() {
-        assertEquals("en", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", "english", "de-DE"))
-        assertEquals("de", LanguageGuess.forDictation("See you later, I think.", null, "de-DE"))
+    fun `clear words first, as the cleanup guard reads them, then detected, then the engine's one language`() {
+        // An engine set to German that heard English: the prompt must not ask for German - the
+        // model would translate, and the guard, going by the words, would throw the reply away.
+        assertEquals("en", LanguageGuess.forDictation("See you later, I think.", null, "de-DE"))
+        assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", null, "en-US"))
+        assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", "english", "en-US"))
+        // Words too few to tell: what the engine detected, else the one language it was set to.
+        assertEquals("en", LanguageGuess.forDictation("Okay, danke.", "english", "de-DE"))
+        assertEquals("de", LanguageGuess.forDictation("Okay, danke.", null, "de-DE"))
         assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", null, "de,en"))
         assertEquals(null, LanguageGuess.forDictation("Okay, danke.", null, "de,en"))
     }

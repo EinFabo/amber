@@ -1,8 +1,8 @@
 package app.amethyst.core.text
 
 /**
- * Which language a dictation is in, as far as it can be told without a model: from what the
- * engine detected, from the one language it was set to, or from the text's small words.
+ * Which language a dictation is in, as far as it can be told without a model: from the
+ * text's small words, from what the engine detected, or from the one language it was set to.
  *
  * The cleanup names the language in its prompt (small models drift to the prompt's English on
  * short input otherwise) and checks that the reply kept it. Both only act on a sure answer:
@@ -72,11 +72,14 @@ object LanguageGuess {
     }
 
     /**
-     * The dictation's language for the cleanup, in this order: what the engine detected, the
-     * one language it was set to, the words. Null when none of them is sure.
+     * The dictation's language for the cleanup, in this order: the words when they are clear
+     * ([fromWords], the rule [CleanupGuard] checks the reply by), what the engine detected,
+     * the one language it was set to. Words first, because the guard goes by them: a prompt
+     * asking for German on an English dictation gets a translation, which the guard rejects -
+     * an engine set to "de-DE" hears English too. Null when none of them is sure.
      */
     fun forDictation(text: String, detected: String?, engineTag: String?): String? =
-        fromTag(detected) ?: fromTag(engineTag) ?: fromWords(text)
+        fromWords(text) ?: fromTag(detected) ?: fromTag(engineTag)
 
     /** "German" for "de"; null for a code the prompt has no name for. */
     fun nameOf(code: String?): String? = code?.let { NAMES[fromTag(it) ?: it] }
