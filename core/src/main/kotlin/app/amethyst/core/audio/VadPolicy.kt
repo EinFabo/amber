@@ -151,6 +151,16 @@ sealed interface VadDecision {
     data class Discard(val reason: DiscardReason) : VadDecision
 }
 
-enum class StopReason { SILENCE, MAX_DURATION, MANUAL }
+enum class StopReason {
+    SILENCE, MAX_DURATION, MANUAL,
 
-enum class DiscardReason { NO_SPEECH, TOO_SHORT }
+    /** Paused longer than [app.amethyst.core.capture.RecordingPause.MAX_PAUSE_MS]: ended as if tapped. */
+    PAUSE_LIMIT,
+}
+
+enum class DiscardReason {
+    NO_SPEECH, TOO_SHORT,
+
+    /** The pause ran out with nothing worth sending recorded: ends quietly, no error. */
+    PAUSED_TOO_LONG,
+}

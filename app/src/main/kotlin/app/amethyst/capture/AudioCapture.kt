@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import android.util.Log
 import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.audio.PcmAudio
@@ -95,7 +96,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         }
 
         val vad = VadPolicy(config)
-        val gate = PausableRecording(vad, pause)
+        val gate = PausableRecording(vad, pause, clock = SystemClock::elapsedRealtime)
         val recorded = PcmAccumulator(sampleRate)
         val planner = onChunk?.let { ChunkPlanner(sampleRate, config.frameMs, minChunkMs = minChunkMs) }
         var chunks = 0

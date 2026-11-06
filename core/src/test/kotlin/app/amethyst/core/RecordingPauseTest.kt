@@ -73,7 +73,10 @@ class RecordingPauseTest {
     private val quiet = 50.0
     private val loud = 2_000.0
 
-    private fun recording() = PausableRecording(VadPolicy(config))
+    /** The recorder's clock, in ms. */
+    private var time = 0L
+
+    private fun recording() = PausableRecording(VadPolicy(config), clock = { time })
 
     /** Feeds [frames] frames of [rms]; the last step. */
     private fun PausableRecording.feed(frames: Int, rms: Double, stop: Boolean = false): PausableRecording.Step {
@@ -143,6 +146,46 @@ class RecordingPauseTest {
         val step = rec.onFrame(quiet, stopRequested = true)
         assertIs<PausableRecording.Step.End>(step)
         assertEquals(VadDecision.Discard(DiscardReason.NO_SPEECH), step.decision)
+    }
+
+    @Test
+    fun `a pause has a limit, after which what was recorded is sent`() {
+        val rec = recording()
+        rec.feed(5, quiet)
+        rec.feed(30, loud)
+        rec.pause.pause(now = time)
+        time += RecordingPause.MAX_PAUSE_MS - 1
+        assertEquals(PausableRecording.Step.Drop, rec.onFrame(quiet, stopRequested = false), "not yet")
+        time += 1
+        assertEquals(PausableRecording.Step.End(VadDecision.Stop(StopReason.PAUSE_LIMIT)), rec.onFrame(quiet, stopRequested = false))
+        assertEquals("paused 300.0 s, ended: paused longer than 5 min", rec.pause.summary(now = time))
+    }
+
+    @Test
+    fun `a pause that runs out with nothing recorded ends quietly`() {
+        val rec = recording()
+        rec.feed(5, quiet)
+        rec.pause.pause(now = time)
+        time += RecordingPause.MAX_PAUSE_MS
+        val step = rec.onFrame(quiet, stopRequested = false)
+        assertIs<PausableRecording.Step.End>(step)
+        assertEquals(VadDecision.Discard(DiscardReason.PAUSED_TOO_LONG), step.decision)
+    }
+
+    @Test
+    fun `the pause limit counts each pause on its own`() {
+        val rec = recording()
+        rec.feed(5, quiet)
+        rec.feed(30, loud)
+        val most = RecordingPause.MAX_PAUSE_MS - 1_000
+        rec.pause.pause(now = time)
+        time += most
+        rec.pause.resume(now = time)
+        rec.feed(5, loud)
+        rec.pause.pause(now = time)
+        time += most
+        assertEquals(PausableRecording.Step.Drop, rec.onFrame(quiet, stopRequested = false))
+        assertNull(rec.pause.summary(now = time)?.takeIf { "ended" in it })
     }
 
     @Test

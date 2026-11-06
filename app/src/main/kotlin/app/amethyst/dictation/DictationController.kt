@@ -579,6 +579,23 @@ class DictationController(
         }
     }
 
+    /**
+     * A forgotten pause ran out with nothing worth sending: no error, the bubble just rests
+     * again - and Diagnostics say why the recording ended.
+     */
+    private fun endQuietlyAfterPause(pause: RecordingPause) {
+        val now = SystemClock.elapsedRealtime()
+        trace?.recordingEnds()
+        trace?.pausedMs = pause.pausedMs(now)
+        trace?.paused = pause.summary(now)
+        Log.i(TAG, "recording ended: paused too long, nothing recorded")
+        graph.dictationLog.recordFailure(
+            "Paused for more than ${RecordingPause.MAX_PAUSE_MS / 60_000} minutes with nothing recorded - the recording ended.",
+            timing = trace?.summary(),
+        )
+        _state.value = DictationState.Idle
+    }
+
     private suspend fun recordThenTranscribe(
         engine: SttEngine,
         engineConfig: EngineConfig,
@@ -632,17 +649,24 @@ class DictationController(
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
+                if (outcome.reason == DiscardReason.PAUSED_TOO_LONG) {
+                    endQuietlyAfterPause(pause)
+                    return null
+                }
+                // Never silent:
+                trace?.pausedMs = pause.pausedMs(SystemClock.elapsedRealtime())
+                trace?.paused = pause.summary(SystemClock.elapsedRealtime())
                 // Never silent: a dictation that ends with no tick and no text and no word why
                 // looks exactly like a bug. Both cases get a message and a diagnostics line.
                 fail(
                     when (outcome.reason) {
                         DiscardReason.TOO_SHORT -> "Too short - please speak a little longer."
-                        DiscardReason.NO_SPEECH -> "Nothing heard - try again a little closer to the phone."
+                        DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> "Nothing heard - try again a little closer to the phone."
                     },
                     details = listOf(
                         when (outcome.reason) {
                             DiscardReason.TOO_SHORT -> "recording discarded: too short"
-                            DiscardReason.NO_SPEECH -> "recording discarded: no speech detected"
+                            DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> "recording discarded: no speech detected"
                         },
                     ),
                 )

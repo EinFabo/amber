@@ -9,17 +9,20 @@ import java.util.Locale
 /**
  * A recording paused from the bubble's quick menu: the microphone stays open, so going on is
  * instant and needs no new start from the background, but nothing heard meanwhile is kept
- * ([PausableRecording]). Keeps the paused time, which no limit of the run counts.
+ * ([PausableRecording]). Keeps the paused time, which no limit of the run counts. One pause
+ * lasts at most [maxPauseMs]: a forgotten one must not hold the microphone, the foreground
+ * service and the privacy indicator forever.
  *
  * Paused and resumed from the main thread, read by the recorder's thread: every call holds
  * the lock.
  */
-class RecordingPause {
+class RecordingPause(private val maxPauseMs: Long = MAX_PAUSE_MS) {
 
     private var since: Long? = null
     private var before = 0L
     private var resumedSinceAsked = false
     private var pauses = 0
+    private var ranOut = false
 
     val paused: Boolean
         @Synchronized get() = since != null
@@ -50,14 +53,32 @@ class RecordingPause {
     /** How much longer a run limited to [limitMs] that began at [startedAt] may take at [now]. */
     fun remainingMs(limitMs: Long, startedAt: Long, now: Long): Long = limitMs - (now - startedAt - pausedMs(now))
 
+    /**
+     * Whether the pause going on at [now] has lasted [maxPauseMs]: the recording ends then as
+     * if tapped. Once true, the run trace says so ([summary]).
+     */
+    @Synchronized
+    fun ranOut(now: Long): Boolean {
+        val from = since ?: return false
+        if (now - from >= maxPauseMs) ranOut = true
+        return ranOut
+    }
+
     /** Whether it was resumed since the last call - once per resume. */
     @Synchronized
     fun takeResumed(): Boolean = resumedSinceAsked.also { resumedSinceAsked = false }
 
-    /** "paused 4.2 s" for the run trace; null when it never was. */
+    /** "paused 4.2 s" for the run trace, and why it ended if the pause ran out; null when it never was. */
     fun summary(now: Long): String? {
-        if (synchronized(this) { pauses } == 0) return null
-        return String.format(Locale.ROOT, "paused %.1f s", pausedMs(now) / 1000.0)
+        val (count, limited) = synchronized(this) { pauses to ranOut }
+        if (count == 0) return null
+        val line = String.format(Locale.ROOT, "paused %.1f s", pausedMs(now) / 1000.0)
+        return if (limited) "$line, ended: paused longer than ${maxPauseMs / 60_000} min" else line
+    }
+
+    companion object {
+        /** The longest one pause may last before the recording ends by itself. */
+        const val MAX_PAUSE_MS = 5 * 60_000L
     }
 }
 
