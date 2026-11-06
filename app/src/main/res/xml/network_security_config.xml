@@ -2,8 +2,9 @@
 <!-- Plain http is allowed so an own server in the home network (http://192.168.x.x:8000)
      can work at all - Android blocks cleartext by default, and a network config cannot
      name address ranges. The app itself narrows it down: EngineConfigValidator accepts
-     http:// only for private and local addresses, the enclave channel insists on https,
-     and every other address in the app is https. -->
+     http:// only for private and local addresses, CleartextGuard (on every OkHttp client)
+     refuses a plain-http request whose connected address is public, the enclave channel
+     insists on https, and every other address in the app is https. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

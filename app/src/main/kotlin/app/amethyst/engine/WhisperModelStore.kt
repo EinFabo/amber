@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import okhttp3.Call
+import app.amethyst.core.net.guardCleartext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -47,6 +48,7 @@ class WhisperModelStore(
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
+            .guardCleartext()
             .build()
     }
 

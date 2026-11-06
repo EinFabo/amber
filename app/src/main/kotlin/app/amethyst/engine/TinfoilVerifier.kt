@@ -18,6 +18,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.ConnectionPool
+import app.amethyst.core.net.guardCleartext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import sh.tinfoil.mobile.Mobile
@@ -63,6 +64,7 @@ class TinfoilVerifier(
         .callTimeout(FETCH_TIMEOUT_S, TimeUnit.SECONDS)
         .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
         .followSslRedirects(false)
+        .guardCleartext()
         .build()
 
     /** Built on first use: loading the Go library is not free, and most users never need it. */

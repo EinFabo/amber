@@ -1,6 +1,7 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.net.CleartextRefusedException
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.flow.Flow
@@ -103,9 +104,11 @@ class SttFailure(
     /**
      * The server could not be reached, did not answer, or is down - worth recognizing the
      * same recording elsewhere. A refused key or a bad request is not: that needs the user.
+     * Nor is plain http refused for a public address: a setting to fix, not an outage.
      */
     val serviceUnavailable: Boolean
-        get() = (statusCode == null && cause is java.io.IOException) || statusCode in 500..599
+        get() = (statusCode == null && cause is java.io.IOException && cause !is CleartextRefusedException) ||
+            statusCode in 500..599
 
     /**
      * Whether the recording may have reached the server before this failure. Only a failure to
@@ -139,4 +142,4 @@ class SttFailure(
 }
 
 /** A failure that happened before a single byte of the request went out. */
-class NotSentException(message: String) : java.io.IOException(message)
+open class NotSentException(message: String) : java.io.IOException(message)

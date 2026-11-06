@@ -1,6 +1,7 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.engine.EnginePresets.ModelChoice
+import app.amethyst.core.net.LocalNetwork
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 
@@ -160,54 +161,18 @@ object ServerProviders {
 
     /**
      * http:// only to addresses in the user's own network - a server in the same Wi-Fi or on
-     * the phone itself. Anything on the internet must be https.
+     * the phone itself. Anything on the internet must be https. Address literals are judged
+     * by [LocalNetwork], the same rule the request-time [app.amethyst.core.net.CleartextGuard]
+     * applies to the address a name resolved to.
      */
     fun isPrivateHost(host: String?): Boolean {
         val h = host?.lowercase()?.trim('[', ']')?.takeIf { it.isNotEmpty() } ?: return false
-        if (':' in h) return isPrivateV6(h.substringBefore('%'))
-        isPrivateV4(h)?.let { return it }
+        LocalNetwork.parseLiteral(h)?.let { return LocalNetwork.isLocal(it) }
+        // A broken IPv6 literal, or a bare number - an IPv4 address to some resolvers.
+        if (':' in h || h.all { it in '0'..'9' || it == '.' }) return false
         // A single label ("nas", "raspberrypi") only resolves inside the local network.
         if ('.' !in h) return true
         return LOCAL_SUFFIXES.any { h.endsWith(it) }
-    }
-
-    /** Null when [h] is no IPv4 address at all. */
-    private fun isPrivateV4(h: String): Boolean? {
-        val parts = h.split('.')
-        if (parts.size != 4 || !parts.all { p -> p.toIntOrNull()?.let { it in 0..255 } == true }) return null
-        val (a, b) = parts.map { it.toInt() }
-        // Private ranges, loopback, and 100.64/10 (carrier-grade NAT, used by Tailscale).
-        return a == 10 || a == 127 || (a == 192 && b == 168) || (a == 172 && b in 16..31) || (a == 100 && b in 64..127)
-    }
-
-    /**
-     * Loopback, unique local (fc00::/7) and link-local (fe80::/10), judged on the parsed
-     * groups - "fd::1" is 00fd::1, on the internet. Parsed by hand: InetAddress would look an
-     * invalid literal up in DNS on Android.
-     */
-    private fun isPrivateV6(h: String): Boolean {
-        // IPv4-mapped (::ffff:192.168.1.10) is the IPv4 address it carries.
-        h.substringAfterLast(':').takeIf { '.' in it }?.let { v4 ->
-            val groups = groupsOf(h.substringBeforeLast(':') + ":0:0") ?: return false
-            return groups.take(5).all { it == 0 } && groups[5] == 0xffff && isPrivateV4(v4) == true
-        }
-        val groups = groupsOf(h) ?: return false
-        val first = groups[0]
-        val loopback = groups.dropLast(1).all { it == 0 } && groups.last() == 1
-        return loopback || first in 0xfc00..0xfdff || first in 0xfe80..0xfebf
-    }
-
-    /** The eight 16-bit groups of an IPv6 address, with "::" filled in; null if malformed. */
-    private fun groupsOf(address: String): List<Int>? {
-        val halves = address.split("::")
-        if (halves.size > 2) return null
-        fun parse(part: String): List<Int>? =
-            if (part.isEmpty()) emptyList() else part.split(':').map { g -> g.takeIf { it.length in 1..4 }?.toIntOrNull(16) ?: return null }
-        val head = parse(halves[0]) ?: return null
-        val tail = if (halves.size == 2) parse(halves[1]) ?: return null else emptyList()
-        val missing = 8 - head.size - tail.size
-        if (if (halves.size == 2) missing < 1 else missing != 0) return null
-        return head + List(missing) { 0 } + tail
     }
 
     /** Names that only exist in a home network - or in a tailnet, which is encrypted itself. */

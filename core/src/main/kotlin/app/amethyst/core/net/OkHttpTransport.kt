@@ -32,7 +32,7 @@ import kotlin.coroutines.resumeWithException
  * existed in :app would be the one piece nothing could verify.
  */
 class OkHttpTransport(
-    private val client: OkHttpClient = OkHttpClient.Builder()
+    client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
@@ -43,6 +43,10 @@ class OkHttpTransport(
         .followSslRedirects(false)
         .build(),
 ) : PinnableTransport {
+
+    /** Whatever client is passed in: plain http to the internet stays refused. */
+    internal val client: OkHttpClient =
+        if (client.networkInterceptors.any { it is CleartextGuard }) client else client.newBuilder().guardCleartext().build()
 
     /** One pinned copy per host, replaced when the pinned key changes. */
     private val pinned = ConcurrentHashMap<String, Pair<String, OkHttpTransport>>()

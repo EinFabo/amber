@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Call
+import app.amethyst.core.net.guardCleartext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -55,6 +56,7 @@ class ParakeetModelStore(
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
+            .guardCleartext()
             .build()
     }
 

@@ -76,8 +76,9 @@ object EngineConfigValidator {
             if (url.any { it.isWhitespace() }) {
                 add("The base URL contains a space.")
             }
-            // Plain http only inside the user's own network; Android blocks the rest anyway,
-            // and a recording should not cross the internet unencrypted.
+            // Plain http only inside the user's own network: a recording should not cross the
+            // internet unencrypted. CleartextGuard holds the same rule at request time, on the
+            // address a name actually resolved to.
             if (url.startsWith("http://", ignoreCase = true)) {
                 val host = runCatching { java.net.URI(url).host }.getOrNull()
                 if (!ServerProviders.isPrivateHost(host)) {

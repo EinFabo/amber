@@ -67,6 +67,8 @@ class SecureChannel(
                     cause = e,
                 ),
             )
+        } catch (e: CleartextRefusedException) {
+            Result.failure(SttFailure(userMessage = e.message!!, technical = "cleartext refused: ${e.detail}", cause = e))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
