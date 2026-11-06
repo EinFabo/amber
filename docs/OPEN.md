@@ -149,11 +149,12 @@ with the release key, the enclave path solid. Each finding was checked against t
       key reaches Amber, and whether Gboard's own voice typing then blocks the microphone. If both
       work: a setting, Gboard only, with a fallback for when an update breaks it. If not: an own
       trigger (accessibility button or quick settings tile).
-- [ ] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
+- [x] **Two Ambers at once** (Fabi, 2026-11-01): with the debug build and the regular Amber both
       switched on under Accessibility, both show a bubble and both get the keyboard and field
-      signals - a likely source of rare, random misbehaviour. Amber could notice another Amber
-      variant's service in `ENABLED_ACCESSIBILITY_SERVICES` and say so on Home and in
-      Diagnostics ("Amber (debug) is also on - switch one off").
+      signals. Built 2026-11-06: while this Amber's own service is on, Home and Diagnostics say
+      "Amber (debug) is also on - switch one off." with a button to the accessibility settings;
+      a copied Diagnostics notes it too (`OtherAmbers` in :core). Open: the device test with
+      both builds switched on.
 - [x] **A ready local fallback while a server recognizes** (Fabi, 2026-10-31; built 2026-11-01,
       `docs/READY-FALLBACK.md`): "Prepare on the phone while you speak" under "When the server
       fails", off by default. The local model loads and recognizes the chunks while a server engine
@@ -446,21 +447,31 @@ Needs
       Advanced Protection (below) or the sideloading hurdles cost real users.
 
 Best UX
-- [ ] Languages follow the phone: `defaultLanguageTag()` and `defaults()` are fixed to de-DE,
-      so an English phone dictates German out of the box. Then a German UI (`values-de`).
+- [x] Languages follow the phone (2026-11-06): new engines (first run, added later, the
+      introduction's choices) start in the phone's first language, Whisper on the phone's first
+      two languages it knows ("de", "de,en", "en"); `en-US`/`en` if the phone names none
+      (`PhoneLanguages`). Saved engines keep their language. Open: the device test on a phone
+      set to English, fresh install.
+- [ ] A German UI: `values-de` exists since the TalkBack strings (2026-11-06) and covers every
+      string resource; the Compose screens still have their texts inline, in English.
 - [ ] Failures with one tap: "Recognize again" / "Use the local model" in the toast.
 - [ ] Ask for unrestricted battery only on makers that kill apps (Xiaomi/HyperOS, Samsung,
       Huawei/Honor, Oppo), with that maker's steps; nobody else.
 - [ ] Optional start/stop sound, for dictating without looking (and for low vision).
 - [ ] Tablets and landscape: content at most ~600 dp wide, centred.
-- [ ] One name per engine: the last introduction step says "Parakeet TDT (local)", step 4 "Parakeet".
+- [x] One name per engine (2026-11-06): the introduction takes its names from `EngineNames`;
+      Parakeet is "Parakeet TDT" in the engine step and in the summary, as in Settings.
 
 Security
-- [ ] Package names in the release logcat (`TextInserter.kt:59`, `DictationController.kt:538`)
-      behind `BuildConfig.DEBUG` (= L17).
-- [ ] Cleartext is allowed app-wide (network_security_config); only the validator keeps http
-      to local addresses. Belt and braces: an OkHttp interceptor in `OkHttpTransport` refusing
-      http to public hosts, and a test that every built-in URL is https.
+- [x] Package names in the release logcat (= L17, 2026-11-06): app names, the insertion trace
+      and the cleanup note that names an app's style are debug-only or `<hidden>` (`DebugLog`,
+      `BuildConfig.DEBUG`); the Diagnostics screen keeps everything.
+- [x] Cleartext belt and braces (2026-11-06): every OkHttp client has `CleartextGuard`, which
+      refuses plain http when the connected address is outside loopback, RFC1918, link-local,
+      100.64/10 (Tailscale), fc00::/7 and fe80::/10 ("Refused unencrypted connection to a public
+      address - use https."); the validator shares the rule (`LocalNetwork`). Not covered: the Go
+      Tinfoil library's own calls. Open: an own server over http on the LAN and over Tailscale
+      still works on the device.
 - [ ] Android 17 Advanced Protection (opt-in) takes the accessibility service from apps not
       marked `isAccessibilityTool`. Amber must not claim it (Play rejects it, Play Protect may
       block). Accept, document in the README; the IME way above is the only way around.
@@ -473,8 +484,8 @@ while active, model released after 3 min, no wakelocks/alarms/jobs)
 - [ ] Preload on focus (`AmethystApp.kt:151-152`): for 10 min after a dictation every focused
       field reloads the model once the 3-min release ran - up to 874 MB from flash each time
       for Whisper large, without a dictation. Do not preload after a release, or only < 300 MB.
-- [ ] `isKeyboard()` reads Settings.Secure on every window change
-      (`AmethystAccessibilityService.kt:177`): cache it, refresh with a ContentObserver.
+- [x] `isKeyboard()` reads the keyboard in use from a cache that a ContentObserver on
+      DEFAULT_INPUT_METHOD keeps current (`DefaultKeyboard`, 2026-11-06).
 - [ ] Measure a normal day: `adb shell dumpsys batterystats --charged app.amber`.
 
 Performance review 0.22.1 - to measure on the phone (2026-11-01; static review and JVM
@@ -498,7 +509,10 @@ benchmarks, no device)
       with perfetto first.
 - [ ] **Whisper decoder retries** (greedy best_of 5, temperature_inc 0.2): decide from the
       fallback counts the Diagnostics line now shows.
-- [ ] `KeyboardTracker.windowsChanged()` calls `getWindows()` even with no field focused.
+- [x] `KeyboardTracker.windowsChanged()` skips `getWindows()` with no field focused, no keyboard
+      at the last look and no dictation (`KeyboardPolicy.wantsWindowChanges`, 2026-11-06); the
+      keyboard app's own window event still looks. Open, device test: switch keyboards, Back with
+      the field focused, field to field, a floating keyboard, Termux with the bubble everywhere.
 - [ ] Preload on focus keeps up to 874 MB for 3 more minutes - the ~300 MB cap above.
 - [ ] A cleanup on the speech engine's server joins the speech warm-up, so its own pinned
       client is not warmed by it (a cold connection only if the two do not share a pool).
@@ -509,9 +523,13 @@ Devices that are still in use
 - [ ] **No Whisper without ARMv8.2 dot-product**: budget phones 2017-2020 (Snapdragon
       625/636/660/665, Helio P22/P35/G35). With 4-5 GB they now get only Android's recognizer.
       ggml CPU variants (see above) or Parakeet from 4 GB when Whisper cannot run (measure first).
-- [ ] **The bubble is silent for TalkBack** (no contentDescription or actions in `bubble/`):
-      a label, the state ("listening") and a "Start dictation" action - dictation matters most
-      to people with low vision or limited motor control.
+- [x] **The bubble is silent for TalkBack** (built 2026-11-06, `BubbleAccess` in :core): a button
+      "Amber dictation" with its state (Ready, Listening, Processing, Done, Failed: reason), a
+      double tap that acts like a tap, actions (start/stop, voice command, hide in this app), and
+      spoken start, result and failure.
+- [ ] TalkBack device test: is the spoken "Listening" recorded into the dictation (then an earcon
+      instead), and does a focused bubble speak its own state changes (else drop the `focused`
+      check in `BubbleAccessibility`)?
 - [ ] Makers that kill background apps: the Reliability page with per-maker steps.
 - Fine as is: minSdk 28 (Android 8 and older out), no x86 (Chromebooks), Android 9-12 have no
   on-device Android recognizer (labelled as cloud).
