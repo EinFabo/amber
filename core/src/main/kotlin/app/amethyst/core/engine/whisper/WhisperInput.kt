@@ -65,6 +65,30 @@ object WhisperInput {
         return if (codes.isEmpty()) "auto" else codes.joinToString(",")
     }
 
+    /**
+     * The codes whisper.cpp has a language token for (its g_lang table). Native code drops any
+     * other code from a list, so a default built from the phone's languages leaves them out.
+     */
+    val KNOWN_LANGUAGES: Set<String> = """
+        en zh de es ru ko fr ja pt tr pl ca nl ar sv it id hi fi vi he uk el ms cs ro da hu ta no
+        th ur hr bg lt la mi ml cy sk te fa lv bn sr az sl kn et mk br eu is hy ne mn bs kk sq sw
+        gl mr pa si km sn yo so af oc ka be tg sd gu am yi lo uz fo ht ps tk nn mt sa lb my bo tl
+        mg as tt haw ln ha ba jw su yue
+    """.trim().split(Regex("\\s+")).toSet()
+
+    /**
+     * Where Android and Whisper spell a language differently: Android's Norwegian Bokmål,
+     * Filipino and Javanese, and the old Java codes for Hebrew, Indonesian and Yiddish.
+     */
+    private val ALIASES = mapOf(
+        "nb" to "no", "fil" to "tl", "jv" to "jw",
+        "iw" to "he", "in" to "id", "ji" to "yi",
+    )
+
+    /** Whisper's code for a primary language subtag, or null when Whisper has no model for it. */
+    fun knownCode(primary: String): String? =
+        primary.lowercase().let { ALIASES[it] ?: it }.takeIf { it in KNOWN_LANGUAGES }
+
     /** The distinct primary subtags in [tag], in order: "de-DE, en_US" -> [de, en]. */
     fun languageCodes(tag: String?): List<String> =
         tag.orEmpty()

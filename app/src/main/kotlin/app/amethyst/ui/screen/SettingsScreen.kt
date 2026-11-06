@@ -44,6 +44,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
+import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
@@ -237,7 +238,7 @@ fun RecognitionScreen(
             onPick = { preset ->
                 showPresets = false
                 onUpdateSettings {
-                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
+                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())))
                 }
                 onOpenEngine(preset.id)
             },

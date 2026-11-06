@@ -28,6 +28,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.onboarding.CleanupPick
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -64,8 +65,9 @@ internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent,
 
     fun apply() {
         if (pick == CleanupPick.TINFOIL && key.isNotBlank() && alias != null) content.onSaveKey(alias, key.trim())
-        content.onUpdateSettings { pick.applyTo(it, keyReady) }
-        onNextWith(pick.applyTo(settings, keyReady))
+        val phone = PhoneLocales.tags()
+        content.onUpdateSettings { pick.applyTo(it, keyReady, phone) }
+        onNextWith(pick.applyTo(settings, keyReady, phone))
     }
 
     StepPage(

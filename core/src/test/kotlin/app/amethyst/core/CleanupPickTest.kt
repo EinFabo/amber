@@ -14,7 +14,7 @@ class CleanupPickTest {
 
     private val tinfoil = EnginePresets.TINFOIL.id
     private val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)
-    private val local = AmethystSettings.defaults().withEngine(parakeet).copy(activeEngineId = parakeet.id)
+    private val local = AmethystSettings.defaults(TEST_PHONE).withEngine(parakeet).copy(activeEngineId = parakeet.id)
     private val onGemma = local
         .withEngine(EngineConfig.fromPreset(EnginePresets.TINFOIL))
         .copy(cleanup = CleanupChoice(tinfoil, "gemma-4-31b"))
@@ -31,12 +31,12 @@ class CleanupPickTest {
 
     @Test
     fun `off switches the cleanup off`() {
-        assertNull(CleanupPick.OFF.applyTo(onGroq, keyReady = false).cleanup)
+        assertNull(CleanupPick.OFF.applyTo(onGroq, keyReady = false, TEST_PHONE).cleanup)
     }
 
     @Test
     fun `tinfoil with a key adds the engine and the recommended model`() {
-        val after = CleanupPick.TINFOIL.applyTo(local, keyReady = true)
+        val after = CleanupPick.TINFOIL.applyTo(local, keyReady = true, TEST_PHONE)
         assertEquals(CleanupChoice(tinfoil, "deepseek-v4-1-flash"), after.cleanup)
         assertTrue(after.engines.any { it.id == tinfoil })
         assertEquals(parakeet.id, after.activeEngineId)
@@ -44,12 +44,18 @@ class CleanupPickTest {
 
     @Test
     fun `a tinfoil cleanup on another model keeps its model`() {
-        assertEquals(CleanupChoice(tinfoil, "gemma-4-31b"), CleanupPick.TINFOIL.applyTo(onGemma, keyReady = true).cleanup)
+        assertEquals(CleanupChoice(tinfoil, "gemma-4-31b"), CleanupPick.TINFOIL.applyTo(onGemma, keyReady = true, TEST_PHONE).cleanup)
     }
 
     @Test
     fun `tinfoil without a key and keep change nothing`() {
-        assertEquals(local, CleanupPick.TINFOIL.applyTo(local, keyReady = false))
-        assertEquals(onGroq, CleanupPick.KEEP.applyTo(onGroq, keyReady = false))
+        assertEquals(local, CleanupPick.TINFOIL.applyTo(local, keyReady = false, TEST_PHONE))
+        assertEquals(onGroq, CleanupPick.KEEP.applyTo(onGroq, keyReady = false, TEST_PHONE))
+    }
+
+    @Test
+    fun `a tinfoil engine added here speaks the phone's language`() {
+        val after = CleanupPick.TINFOIL.applyTo(local, keyReady = true, listOf("en-GB"))
+        assertEquals("en-GB", after.engines.single { it.id == tinfoil }.languageTag)
     }
 }

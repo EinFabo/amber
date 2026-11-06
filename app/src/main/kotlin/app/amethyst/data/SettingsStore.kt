@@ -20,11 +20,11 @@ private val Context.amethystDataStore: DataStore<Preferences> by preferencesData
 class SettingsStore(private val context: Context) {
 
     val settings: Flow<AmethystSettings> =
-        context.amethystDataStore.data.map { prefs -> SettingsCodec.decode(prefs[KEY].orEmpty()) }
+        context.amethystDataStore.data.map { prefs -> SettingsCodec.decode(prefs[KEY].orEmpty(), PhoneLocales.tags()) }
 
     suspend fun update(transform: (AmethystSettings) -> AmethystSettings) {
         context.amethystDataStore.edit { prefs ->
-            val current = SettingsCodec.decode(prefs[KEY].orEmpty())
+            val current = SettingsCodec.decode(prefs[KEY].orEmpty(), PhoneLocales.tags())
             prefs[KEY] = SettingsCodec.encode(transform(current))
         }
     }

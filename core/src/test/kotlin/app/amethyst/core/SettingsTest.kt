@@ -31,7 +31,7 @@ class SettingsTest {
 
     @Test
     fun `defaults start on the engine that needs no setup`() {
-        val settings = AmethystSettings.defaults()
+        val settings = AmethystSettings.defaults(TEST_PHONE)
         assertEquals(EnginePresets.ANDROID_ON_DEVICE.id, settings.activeEngineId)
         val active = assertNotNull(settings.activeEngine)
         assertEquals(EngineKind.ANDROID_ON_DEVICE, active.kind)
@@ -49,11 +49,11 @@ class SettingsTest {
 
     @Test
     fun `settings survive a json round trip`() {
-        val original = AmethystSettings.defaults()
+        val original = AmethystSettings.defaults(TEST_PHONE)
             .withEngine(EngineConfig.fromPreset(EnginePresets.TINFOIL, "de-DE"))
             .copy(activeEngineId = EnginePresets.TINFOIL.id)
 
-        val decoded = SettingsCodec.decode(SettingsCodec.encode(original))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(original), TEST_PHONE)
         assertEquals(original, decoded)
         assertEquals(2, decoded.engines.size)
     }
@@ -61,18 +61,18 @@ class SettingsTest {
     @Test
     fun `unknown fields from a newer build are ignored`() {
         val raw = """{"activeEngineId":"android-on-device","engines":[],"somethingNew":42}"""
-        assertEquals("android-on-device", SettingsCodec.decode(raw).activeEngineId)
+        assertEquals("android-on-device", SettingsCodec.decode(raw, TEST_PHONE).activeEngineId)
     }
 
     @Test
     fun `corrupt settings fall back to defaults instead of crashing`() {
-        assertEquals(AmethystSettings.defaults(), SettingsCodec.decode("}{ not json"))
+        assertEquals(AmethystSettings.defaults(TEST_PHONE), SettingsCodec.decode("}{ not json", TEST_PHONE))
     }
 
     @Test
     fun `withEngine replaces an existing entry rather than duplicating it`() {
         val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
-        val settings = AmethystSettings.defaults()
+        val settings = AmethystSettings.defaults(TEST_PHONE)
             .withEngine(tinfoil)
             .withEngine(tinfoil.copy(modelId = "whisper-large-v3"))
 
@@ -143,7 +143,7 @@ class CaptureTimeoutTest {
         val android = EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE, "de-DE")
         val old = AmethystSettings(engines = listOf(whisper, android), schemaVersion = 1)
 
-        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
 
         assertEquals("de,en", migrated.engines.first { it.id == whisper.id }.languageTag)
         assertEquals("de-DE", migrated.engines.first { it.id == android.id }.languageTag)
@@ -155,7 +155,7 @@ class CaptureTimeoutTest {
         val whisper = EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER, "fr")
         val old = AmethystSettings(engines = listOf(whisper), schemaVersion = 1)
 
-        assertEquals("fr", SettingsCodec.decode(SettingsCodec.encode(old)).engines.single().languageTag)
+        assertEquals("fr", SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE).engines.single().languageTag)
     }
 
     @Test
@@ -167,7 +167,7 @@ class CaptureTimeoutTest {
             ),
             schemaVersion = 2,
         )
-        val migrated = SettingsCodec.decode(SettingsCodec.encode(old)).engines.single()
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE).engines.single()
         assertEquals("https://inference.tinfoil.sh/v1", migrated.baseUrl)
         assertEquals("whisper-large-v3-turbo", migrated.modelId)
     }
@@ -175,7 +175,7 @@ class CaptureTimeoutTest {
     @Test
     fun `settings from before profiles get the default profiles`() {
         val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":3}"""
-        val decoded = SettingsCodec.decode(old)
+        val decoded = SettingsCodec.decode(old, TEST_PHONE)
         assertEquals(AppProfiles.DEFAULTS, decoded.profiles)
         assertEquals(WritingStyle.CASUAL, AppProfiles.forPackage(decoded.profiles, "com.whatsapp")?.style)
     }
@@ -194,7 +194,7 @@ class CaptureTimeoutTest {
             {"packageName":"a","label":"A","cleanup":false},
             {"packageName":"b","label":"B","cleanup":true},
             {"packageName":"c","label":"C"}],"schemaVersion":8}"""
-        val profiles = SettingsCodec.decode(old).profiles
+        val profiles = SettingsCodec.decode(old, TEST_PHONE).profiles
         assertEquals(listOf(AppCleanupMode.OFF, AppCleanupMode.DEFAULT, AppCleanupMode.DEFAULT), profiles.map { it.appCleanup.mode })
         @Suppress("DEPRECATION")
         assertTrue(profiles.all { it.cleanup == null })
@@ -205,7 +205,7 @@ class CaptureTimeoutTest {
         assertEquals(10, AmethystSettings.SCHEMA_VERSION)
         val old = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
             "displayName":"Own server","baseUrl":"http://192.168.1.20:8765/k3y/v1","modelId":"acft-large-v3-turbo-q8_0"}],"schemaVersion":9}"""
-        val migrated = SettingsCodec.decode(old)
+        val migrated = SettingsCodec.decode(old, TEST_PHONE)
         assertTrue(migrated.serverCatalogs.isEmpty())
         assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
         assertEquals("acft-large-v3-turbo-q8_0", migrated.engines.single().modelId)
@@ -215,9 +215,9 @@ class CaptureTimeoutTest {
     fun `a stored amber catalog survives a round trip, so it works offline and on a cold start`() {
         val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = "http://192.168.1.20:8765/k3y/v1")
         val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS))
-        val settings = AmethystSettings.defaults().withEngine(own)
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
             .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
-        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE)
         assertEquals(settings, decoded)
         assertEquals(pc, decoded.catalogFor(own))
     }
@@ -231,7 +231,7 @@ class CaptureTimeoutTest {
             "serverCatalogs":{"self-hosted":{"address":"${AmberCatalog.fingerprint(baseUrl)}","service":"amber-pc",
             "version":"0.4.2","speech":[{"id":"acft-large-v3-turbo-q8_0","label":"Large v3 Turbo","recommended":true}]}},
             "schemaVersion":10}"""
-        val decoded = SettingsCodec.decode(raw)
+        val decoded = SettingsCodec.decode(raw, TEST_PHONE)
         val catalog = assertNotNull(decoded.catalogFor(decoded.engines.single()))
         assertEquals(listOf("wav"), catalog.audio)
         assertFalse(catalog.takesOpus)
@@ -242,27 +242,27 @@ class CaptureTimeoutTest {
     fun `the upload formats a server takes survive a round trip`() {
         val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = "http://192.168.1.20:8765/k3y/v1")
         val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS)).copy(audio = listOf("wav", "opus"))
-        val settings = AmethystSettings.defaults().withEngine(own)
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
             .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
-        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE)
         assertEquals(listOf("wav", "opus"), assertNotNull(decoded.catalogFor(own)).audio)
     }
 
     @Test
     fun `a per-app cleanup model survives a round trip`() {
         val choice = CleanupChoice("tinfoil", "gemma4-31b")
-        val settings = AmethystSettings.defaults().copy(
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(
             profiles = listOf(AppProfile("md.obsidian", "Obsidian", appCleanup = AppCleanup(AppCleanupMode.MODEL, choice))),
         )
-        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings))
+        val decoded = SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE)
         assertEquals(AppCleanup(AppCleanupMode.MODEL, choice), decoded.profiles.single().appCleanup)
     }
 
     @Test
     fun `the cleanup addition for every app survives a round trip, and older settings start without`() {
-        val settings = AmethystSettings.defaults().copy(cleanupInstruction = "Zahlen als Ziffern.")
-        assertEquals("Zahlen als Ziffern.", SettingsCodec.decode(SettingsCodec.encode(settings)).cleanupInstruction)
-        assertNull(SettingsCodec.decode("""{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""").cleanupInstruction)
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(cleanupInstruction = "Zahlen als Ziffern.")
+        assertEquals("Zahlen als Ziffern.", SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).cleanupInstruction)
+        assertNull(SettingsCodec.decode("""{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""", TEST_PHONE).cleanupInstruction)
         assertEquals(10, AmethystSettings.SCHEMA_VERSION, "a new field with a default needs no schema step")
     }
 
@@ -286,7 +286,7 @@ class CaptureTimeoutTest {
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""",
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}""",
         )) {
-            val updates = SettingsCodec.decode(raw).updates
+            val updates = SettingsCodec.decode(raw, TEST_PHONE).updates
             assertEquals(UpdateSettings(), updates)
             assertTrue(updates.enabled)
             assertEquals(0L, updates.lastCheckedAt)
@@ -307,15 +307,15 @@ class CaptureTimeoutTest {
             notifiedVersion = "0.24.0",
             dismissedVersion = "0.24.0",
         )
-        val settings = AmethystSettings.defaults().copy(updates = updates)
-        assertEquals(updates, SettingsCodec.decode(SettingsCodec.encode(settings)).updates)
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(updates = updates)
+        assertEquals(updates, SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).updates)
     }
 
     @Test
     fun `voice commands start switched off, for old settings too`() {
-        assertFalse(AmethystSettings.defaults().commands.enabled)
+        assertFalse(AmethystSettings.defaults(TEST_PHONE).commands.enabled)
         val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":9}"""
-        assertFalse(SettingsCodec.decode(old).commands.enabled)
+        assertFalse(SettingsCodec.decode(old, TEST_PHONE).commands.enabled)
     }
 
     @Test
@@ -334,7 +334,7 @@ class CaptureTimeoutTest {
             engines = listOf(EngineConfig.fromPreset(EnginePresets.TINFOIL).copy(requireEnclave = false)),
             schemaVersion = 4,
         )
-        assertTrue(SettingsCodec.decode(SettingsCodec.encode(old)).engines.single().requireEnclave)
+        assertTrue(SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE).engines.single().requireEnclave)
     }
 
     @Test
@@ -344,7 +344,7 @@ class CaptureTimeoutTest {
             activeEngineId = EnginePresets.ELEVENLABS.id,
             schemaVersion = 5,
         )
-        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
         assertEquals(listOf(EnginePresets.ANDROID_ON_DEVICE.id), migrated.engines.map { it.id })
         assertEquals(EnginePresets.ANDROID_ON_DEVICE.id, migrated.activeEngineId)
         assertTrue(EnginePresets.all.none { it.id == EnginePresets.ELEVENLABS.id }, "no longer offered")
@@ -422,7 +422,7 @@ class CaptureTimeoutTest {
             capture = CaptureSettings(localFallback = false),
             schemaVersion = 6,
         )
-        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
 
         assertEquals(CleanupChoice(groq.id, "openai/gpt-oss-20b"), migrated.cleanup)
         assertEquals(FallbackMode.OFF, migrated.fallback.mode)
@@ -437,28 +437,28 @@ class CaptureTimeoutTest {
             engines = listOf(EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER), EngineConfig.fromPreset(EnginePresets.GROQ).copy(cleanupModel = "x")),
             schemaVersion = 6,
         )
-        val migrated = SettingsCodec.decode(SettingsCodec.encode(old))
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
         assertNull(migrated.cleanup)
         assertEquals(FallbackMode.AUTOMATIC, migrated.fallback.mode)
     }
 
     @Test
     fun `a fresh install has not seen the introduction`() {
-        assertFalse(AmethystSettings.defaults().onboardingDone)
-        assertFalse(SettingsCodec.decode("").onboardingDone)
+        assertFalse(AmethystSettings.defaults(TEST_PHONE).onboardingDone)
+        assertFalse(SettingsCodec.decode("", TEST_PHONE).onboardingDone)
     }
 
     @Test
     fun `settings from before version 8 count as introduced`() {
         val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}"""
-        val migrated = SettingsCodec.decode(old)
+        val migrated = SettingsCodec.decode(old, TEST_PHONE)
         assertTrue(migrated.onboardingDone)
         assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
     }
 
     @Test
     fun `version 8 settings keep their flag`() {
-        val pending = SettingsCodec.encode(AmethystSettings.defaults())
-        assertFalse(SettingsCodec.decode(pending).onboardingDone)
+        val pending = SettingsCodec.encode(AmethystSettings.defaults(TEST_PHONE))
+        assertFalse(SettingsCodec.decode(pending, TEST_PHONE).onboardingDone)
     }
 }

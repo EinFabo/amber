@@ -14,13 +14,16 @@ import app.amethyst.core.settings.EngineConfig
 enum class CleanupPick {
     OFF, TINFOIL, KEEP;
 
-    /** The settings once the step's Continue is pressed; [keyReady] says a Tinfoil key exists. */
-    fun applyTo(settings: AmethystSettings, keyReady: Boolean): AmethystSettings = when {
+    /**
+     * The settings once the step's Continue is pressed; [keyReady] says a Tinfoil key exists.
+     * A Tinfoil engine added here starts in the [phone]'s first language, like any new engine.
+     */
+    fun applyTo(settings: AmethystSettings, keyReady: Boolean, phone: List<String>): AmethystSettings = when {
         this == OFF -> settings.copy(cleanup = null)
         this == TINFOIL && keyReady -> {
             val tinfoil = EnginePresets.TINFOIL
             val engine = settings.engines.firstOrNull { it.id == tinfoil.id }
-                ?: EngineConfig.fromPreset(tinfoil, languageTag = EngineConfig.defaultLanguageTag(tinfoil.kind))
+                ?: EngineConfig.fromPreset(tinfoil, languageTag = EngineConfig.defaultLanguageTag(tinfoil.kind, phone))
             // A Tinfoil model chosen earlier stays; only a new Tinfoil cleanup gets the recommended one.
             val model = settings.cleanup?.takeIf { it.engineId == tinfoil.id }?.model
                 ?: ServerProviders.TINFOIL.cleanupModels.first { it.recommended }.id

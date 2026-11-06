@@ -48,11 +48,13 @@ data class EngineConfig(
         )
 
         /**
-         * German for engines that take one language. Whisper gets two to choose from: fixed
-         * to one, it translates everything else into it.
+         * The language a new engine starts with, from the phone's languages ([phone], BCP-47,
+         * most preferred first): the first one for engines that take one language, up to two
+         * for Whisper to detect between - fixed to one, it translates everything else into it.
+         * See [PhoneLanguages].
          */
-        fun defaultLanguageTag(kind: EngineKind): String =
-            if (kind == EngineKind.WHISPER_CPP) AmethystSettings.WHISPER_DEFAULT_LANGUAGES else "de-DE"
+        fun defaultLanguageTag(kind: EngineKind, phone: List<String>): String =
+            PhoneLanguages.defaultLanguageTag(kind, phone)
     }
 }
 
@@ -250,16 +252,25 @@ data class AmethystSettings(
          */
         const val SCHEMA_VERSION = 10
 
-        /** What a new Whisper engine detects between - German and English cover most mixing. */
-        const val WHISPER_DEFAULT_LANGUAGES = "de,en"
+        /**
+         * What the version 1 migration gives Whisper engines that version 1 had forced to
+         * German. New engines take their languages from the phone instead ([PhoneLanguages]).
+         */
+        const val V1_WHISPER_LANGUAGES = "de,en"
 
         /**
          * First launch: only the zero-setup engine is configured, so dictation works before
-         * the user has typed a single URL or downloaded a model.
+         * the user has typed a single URL or downloaded a model - in the phone's first
+         * language ([phone], BCP-47, most preferred first).
          */
-        fun defaults(): AmethystSettings = AmethystSettings(
+        fun defaults(phone: List<String>): AmethystSettings = AmethystSettings(
             activeEngineId = EnginePresets.ANDROID_ON_DEVICE.id,
-            engines = listOf(EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE, "de-DE")),
+            engines = listOf(
+                EngineConfig.fromPreset(
+                    EnginePresets.ANDROID_ON_DEVICE,
+                    EngineConfig.defaultLanguageTag(EngineKind.ANDROID_ON_DEVICE, phone),
+                ),
+            ),
         )
     }
 }
@@ -274,10 +285,14 @@ object SettingsCodec {
 
     fun encode(settings: AmethystSettings): String = json.encodeToString(settings)
 
-    /** Falls back to defaults rather than throwing: corrupt settings must not brick the app. */
-    fun decode(raw: String): AmethystSettings = runCatching {
+    /**
+     * Falls back to defaults rather than throwing: corrupt settings must not brick the app.
+     * Nothing saved yet (a first launch) decodes to the defaults too, in the [phone]'s
+     * languages; anything saved keeps its own.
+     */
+    fun decode(raw: String, phone: List<String>): AmethystSettings = runCatching {
         migrate(json.decodeFromString<AmethystSettings>(raw))
-    }.getOrElse { AmethystSettings.defaults() }
+    }.getOrElse { AmethystSettings.defaults(phone) }
 
     /**
      * Version 1 put "de-DE" on every engine it created, Whisper included. Forced to German,
@@ -313,7 +328,7 @@ object SettingsCodec {
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
-                        engine.copy(languageTag = AmethystSettings.WHISPER_DEFAULT_LANGUAGES)
+                        engine.copy(languageTag = AmethystSettings.V1_WHISPER_LANGUAGES)
                     // Version 3: Tinfoil's per-model hosts (*.inf.tinfoil.sh) no longer resolve.
                     engine.baseUrl?.contains(".inf.tinfoil.sh") == true ->
                         engine.copy(baseUrl = EnginePresets.TINFOIL_BASE_URL)

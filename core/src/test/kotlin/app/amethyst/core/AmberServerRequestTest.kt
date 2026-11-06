@@ -38,7 +38,7 @@ class AmberServerRequestTest {
     private val audio = PcmAudio(ShortArray(16_000) { (it % 500).toShort() })
 
     private fun settingsWith(catalog: AmberCatalog?): AmethystSettings {
-        val settings = AmethystSettings.defaults().withEngine(own)
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
         return if (catalog == null) settings else AmberCatalogs.apply(settings, own.id, own.baseUrl!!, CatalogFetch.Found(catalog))
     }
 

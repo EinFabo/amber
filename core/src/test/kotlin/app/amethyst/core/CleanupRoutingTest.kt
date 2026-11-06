@@ -25,7 +25,7 @@ class CleanupRoutingTest {
     private val onGroq = CleanupChoice(groq.id, "openai/gpt-oss-20b")
     private val allKeys: (String?) -> Boolean = { true }
 
-    private fun settings(global: CleanupChoice?, vararg profiles: AppProfile) = AmethystSettings.defaults()
+    private fun settings(global: CleanupChoice?, vararg profiles: AppProfile) = AmethystSettings.defaults(TEST_PHONE)
         .withEngine(tinfoil).withEngine(groq).withEngine(whisper)
         .copy(cleanup = global, profiles = profiles.toList())
 

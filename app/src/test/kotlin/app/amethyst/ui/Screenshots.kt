@@ -54,6 +54,9 @@ import java.io.File
 import java.time.Duration
 import org.junit.Assert.assertTrue
 
+/** The phone in the screenshots: German first, then English, as they always showed. */
+private val PHONE = listOf("de-DE", "en-US")
+
 /**
  * Renders the main screens with sample data into PNGs - the listing screenshots, and a look at
  * the layout without a phone. Real Android drawing (Robolectric's native graphics), a 1080 ×
@@ -76,9 +79,9 @@ class Screenshots {
 
     private val actions = SetupActions({}, {}, {}, {}, {}, {})
 
-    private val settings = AmethystSettings.defaults().let { base ->
+    private val settings = AmethystSettings.defaults(PHONE).let { base ->
         listOf(EnginePresets.LOCAL_PARAKEET, EnginePresets.LOCAL_WHISPER, EnginePresets.TINFOIL)
-            .fold(base) { s, preset -> s.withEngine(EngineConfig.fromPreset(preset, EngineConfig.defaultLanguageTag(preset.kind))) }
+            .fold(base) { s, preset -> s.withEngine(EngineConfig.fromPreset(preset, EngineConfig.defaultLanguageTag(preset.kind, PHONE))) }
             .copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id)
     }
 
@@ -519,7 +522,7 @@ class Screenshots {
         name: String,
         step: OnboardingStep,
         setup: SetupState = fresh,
-        settings: AmethystSettings = AmethystSettings.defaults(),
+        settings: AmethystSettings = AmethystSettings.defaults(PHONE),
         content: OnboardingContent = content(),
     ) = shoot("x-onboarding-$name", null) {
         OnboardingScreen(step = step, settings = settings, setup = setup, actions = actions, content = content, onStep = {}, onFinish = {})
@@ -564,7 +567,7 @@ class Screenshots {
     @Test
     fun onboardingEngineDownloading() = onboarding(
         "4-engine-downloading", OnboardingStep.ENGINE, ready,
-        settings = AmethystSettings.defaults().withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id),
+        settings = AmethystSettings.defaults(PHONE).withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id),
         content = content(parakeet = app.amethyst.engine.ParakeetState.Busy(300_000_000, 670_000_000)),
     )
 
@@ -572,14 +575,14 @@ class Screenshots {
     @Test
     fun onboardingEngineKept() = onboarding(
         "4-engine-kept", OnboardingStep.ENGINE, ready,
-        settings = AmethystSettings.defaults().withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
+        settings = AmethystSettings.defaults(PHONE).withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
             .copy(activeEngineId = EnginePresets.GROQ.id, onboardingDone = true),
     )
 
     @Test
     fun onboardingEngineMetered() = onboarding("4-engine-metered", OnboardingStep.ENGINE, ready, content = content(metered = true))
 
-    private val parakeetActive = AmethystSettings.defaults()
+    private val parakeetActive = AmethystSettings.defaults(PHONE)
         .withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id)
 
     @Test
