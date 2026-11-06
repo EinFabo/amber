@@ -78,6 +78,30 @@ class CleanupGuardTest {
     }
 
     @Test
+    fun `an everyday word that only looks like a correction keeps every check`() {
+        // "obwohl" joins a clause here; it takes nothing back.
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("Ich komme nicht, obwohl ich will", "Ich komme, obwohl ich will."))
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("Actually I don't have 3 tickets", "Actually, I have 3 tickets."))
+        assertEquals(Verdict.NUMBER_DROPPED, verdict("Actually I don't have 3 tickets", "Actually, I don't have tickets."))
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("sorry, ich habe keine Zeit", "Sorry, ich habe Zeit."))
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("I can't come, sorry", "I can come, sorry."))
+    }
+
+    @Test
+    fun `a correction only takes back what was said before it`() {
+        assertEquals(Verdict.OK, verdict("um drei nee stopp um vier", "Um vier."))
+        // The replacement is what counts: keeping the version taken back instead is no tidy-up.
+        assertEquals(Verdict.NUMBER_DROPPED, verdict("um drei nee stopp um vier", "Um drei."))
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("um drei, nein, um vier komme ich nicht", "Um vier komme ich."))
+    }
+
+    @Test
+    fun `the shorter reply a correction allows needs something taken back`() {
+        val original = "sorry, wir treffen uns morgen um acht beim alten bahnhof gleich neben dem kiosk"
+        assertEquals(Verdict.LENGTH, verdict(original, "Sorry, wir treffen uns morgen."))
+    }
+
+    @Test
     fun `without a correction marker a dropped number is rejected`() {
         assertEquals(Verdict.NUMBER_DROPPED, verdict("wir treffen uns um drei am bahnhof", "Wir treffen uns am Bahnhof."))
         assertEquals(Verdict.NUMBER_DROPPED, verdict("das kostet zwölf euro fünfzig", "Das kostet zwölf Euro."))
@@ -188,7 +212,7 @@ class CleanupGuardTest {
         for (text in listOf("um drei nee um vier", "at three no wait at four", "ohne, stopp, mit", "zwei ich meine drei", "I mean four", "drei, nein, vier", "Ich komme. Nein, doch nicht.", "scratch that")) {
             assertTrue(CleanupGuard.hasCorrectionMarker(text), text)
         }
-        for (text in listOf("Nein, ich habe keine Zeit.", "No, I don't think so.", "Ich komme morgen.", "Keine Zeit heute.", "Nein danke", "Neinsager gibt es immer")) {
+        for (text in listOf("Nein, ich habe keine Zeit.", "No, I don't think so.", "Ich komme morgen.", "Keine Zeit heute.", "Nein danke", "Neinsager gibt es immer", "Ich komme nicht, obwohl ich will", "Actually I don't have 3 tickets", "I can't come, sorry")) {
             assertFalse(CleanupGuard.hasCorrectionMarker(text), text)
         }
     }

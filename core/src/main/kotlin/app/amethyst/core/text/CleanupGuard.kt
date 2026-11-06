@@ -10,8 +10,9 @@ import app.amethyst.core.settings.WritingStyle
  * Rules, not a model, and each one cheap: the length band, the share of the dictation's own
  * words, the language, the negations and the numbers, a question mark, a preamble, the line
  * breaks. A spoken self-correction ("um drei, nee, um vier") rightly drops a number or a
- * negation, so a correction marker in the dictation relaxes the "dropped" checks - never the
- * "added" ones.
+ * negation - but only one said before the correction marker, in the part taken back. What
+ * comes after the last marker is kept, so its negations and numbers must survive; the
+ * "added" checks never relax.
  */
 object CleanupGuard {
 
@@ -53,19 +54,21 @@ object CleanupGuard {
         if ('?' in original && '?' !in cleaned) return Verdict.QUESTION
         // Spoken line breaks are the user's; a tidy-up keeps them.
         if (cleaned.count { it == '\n' } < original.count { it == '\n' }) return Verdict.LINE_BREAKS
-        val corrected = hasCorrectionMarker(original)
-        if (!lengthFits(original, cleaned, style, corrected)) return Verdict.LENGTH
+        val correction = correction(original)
+        if (!lengthFits(original, cleaned, style, corrected = correction != null)) return Verdict.LENGTH
         if (languageChanged(original, cleaned, language)) return Verdict.LANGUAGE
         if (hasPreamble(original, cleaned)) return Verdict.PREAMBLE
         if (!ownWordsFit(original, cleaned, style, ownInstruction)) return Verdict.OWN_WORDS
         val negationsBefore = negations(original)
         val negationsAfter = negations(cleaned)
         if (negationsAfter > negationsBefore) return Verdict.NEGATION_ADDED
-        if (negationsAfter < negationsBefore && !corrected) return Verdict.NEGATION_DROPPED
+        // Only the part taken back may lose its negations and numbers.
+        val kept = correction?.kept ?: original
+        if (negationsAfter < negationsBefore && negationsAfter < negations(kept)) return Verdict.NEGATION_DROPPED
         val before = numberGroups(original)
         val after = numberGroups(cleaned)
         if (after.any { !it.foundIn(before) }) return Verdict.NUMBER_ADDED
-        if (!corrected && before.any { !it.foundIn(after) }) return Verdict.NUMBER_DROPPED
+        if (numberGroups(kept).any { !it.foundIn(after) }) return Verdict.NUMBER_DROPPED
         return Verdict.OK
     }
 
@@ -133,25 +136,54 @@ object CleanupGuard {
 
     // --- Self-corrections ---------------------------------------------------------------
 
-    /** Phrases with which a speaker takes something back. Ambiguous ones only ever relax a check. */
+    private fun phrase(phrase: String) = Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(phrase) + "(?![\\p{L}\\p{N}])")
+
+    /** Phrases with which a speaker takes something back, wherever they stand. */
     private val CORRECTION_PHRASES = listOf(
         // "stop": how Whisper often writes a spoken "stopp".
-        "nee", "nö", "stopp", "stop", "warte", "obwohl", "ich meine", "ich mein", "besser gesagt", "korrektur",
-        "quatsch", "no wait", "wait no", "i mean", "actually", "scratch that", "sorry", "oder besser",
-        "oder vielmehr",
-    ).map { phrase -> Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(phrase) + "(?![\\p{L}\\p{N}])") }
+        "nee", "nö", "stopp", "stop", "ich meine", "ich mein", "besser gesagt", "korrektur",
+        "quatsch", "no wait", "wait no", "i mean", "scratch that", "oder besser", "oder vielmehr",
+    ).map(::phrase)
+
+    /**
+     * Everyday words that take something back only when they stand alone, set off before more
+     * words ("um drei, obwohl, um vier"): "Ich komme nicht, obwohl ich will" joins a clause.
+     */
+    private val INTERJECTIONS = listOf("obwohl", "warte", "actually", "sorry").map(::phrase)
+
+    /** After an interjection: a punctuation mark, then more words. */
+    private val SET_OFF = Regex("^\\s*[,.;:!?–—-]+\\s*[\\p{L}\\p{N}]")
 
     /** "nein" or "no," - an answer at the very start, a correction anywhere later. */
     private val NO = Regex("(?<![\\p{L}\\p{N}])(nein(?![\\p{L}\\p{N}])|no\\s*,)")
     private val FIRST_WORD = Regex("[\\p{L}\\p{N}]+")
 
     /** Whether the speaker corrected themselves somewhere in [text]. */
-    fun hasCorrectionMarker(text: String): Boolean {
-        val lower = text.lowercase()
-        if (CORRECTION_PHRASES.any { it.containsMatchIn(lower) }) return true
+    fun hasCorrectionMarker(text: String): Boolean = markers(text.lowercase()).any()
+
+    /** Where in [lower] the speaker takes something back. */
+    private fun markers(lower: String): Sequence<IntRange> {
+        val phrases = CORRECTION_PHRASES.asSequence().flatMap { it.findAll(lower) }.map { it.range }
+        val interjections = INTERJECTIONS.asSequence().flatMap { it.findAll(lower) }.map { it.range }
+            .filter { SET_OFF.containsMatchIn(lower.substring(it.last + 1)) }
         // "Nein, ich habe keine Zeit." answers; "um drei, nein, um vier" and "... Nein, mit ..." correct.
-        val firstWord = FIRST_WORD.find(lower)?.range?.last ?: return false
-        return NO.findAll(lower).any { it.range.first > firstWord }
+        val firstWord = FIRST_WORD.find(lower)?.range?.last
+        val no = if (firstWord == null) emptySequence() else NO.findAll(lower).map { it.range }.filter { it.first > firstWord }
+        return phrases + interjections + no
+    }
+
+    /** A self-correction: what is still said after the last marker. */
+    private class Correction(val kept: String)
+
+    /**
+     * The speaker's self-correction in [text], when there is one with something said before it
+     * to take back - "Sorry, ich habe keine Zeit" takes nothing back. Null otherwise.
+     */
+    private fun correction(text: String): Correction? {
+        val lower = text.lowercase()
+        val last = markers(lower).maxByOrNull { it.last } ?: return null
+        if (FIRST_WORD.find(lower.substring(0, last.first)) == null) return null
+        return Correction(kept = lower.substring(last.last + 1))
     }
 
     // --- Negations ----------------------------------------------------------------------
