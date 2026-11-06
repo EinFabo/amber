@@ -63,9 +63,11 @@ moves at rest. The sparks fly in a second overlay window that takes no touches.
 
 The app itself ("Hearth"): the engine and where it sends your voice, the flame, a row with
 today's numbers that opens the statistics, and a test field. Settings are a short grouped list, each row an icon and its
-state in a few words: recognition, cleanup, bubble and voice commands first, then the app
-styles, the rarer pages folded under Advanced (when the server fails, recording, inserting,
-reliability), and statistics and diagnostics. Each page starts with what matters; longer
+state in a few words. A new install sees only the simple ones - recognition, cleanup, bubble
+and app styles, plus updates, licenses and the introduction; one "Advanced settings" switch
+shows the rest: when the server fails, recording, inserting, reliability, statistics and
+diagnostics, and on the Cleanup page the own addition and the system prompt. Which row is
+which is one table in `:core` (`SettingsLayout`). Each page starts with what matters; longer
 explanations wait behind "Learn more".
 
 **Statistics** are counted on the phone only - words, dictations per app, where the voice

@@ -327,8 +327,6 @@ private fun AmethystScreens(
     val screen = stack.last()
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
-    // Kept beside the stack, so coming back from one of its pages finds "Advanced" as it was left.
-    var advancedOpen by rememberSaveable { mutableStateOf(false) }
     val tester = remember(graph) { ConnectionTester(graph) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
@@ -508,8 +506,7 @@ private fun AmethystScreens(
                             diagnosticsCount = records.size,
                             version = build?.version.orEmpty(),
                             releaseChannel = build?.channel,
-                            advancedOpen = advancedOpen,
-                            onToggleAdvanced = { advancedOpen = !advancedOpen },
+                            onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
                             onOpen = { page -> open(Screen.Page(page)) },
                             onReplayIntroduction = {
                                 // On top of Settings, the flag left alone: Back on the first step

@@ -288,7 +288,7 @@ fun ToggleRow(
 
 /** The switch itself; its row does the toggling, so it takes no clicks of its own. */
 @Composable
-private fun AmberSwitch(checked: Boolean) {
+internal fun AmberSwitch(checked: Boolean) {
     Switch(
         checked = checked,
         onCheckedChange = null,

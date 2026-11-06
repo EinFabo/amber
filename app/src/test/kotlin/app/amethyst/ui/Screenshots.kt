@@ -164,18 +164,19 @@ class Screenshots {
     fun settingsList() = shoot("5-settings", "Settings") {
         SettingsScreen(
             settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
-            advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+            onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
-    /** Not part of the listing set: the whole settings list in one picture, "Advanced" unfolded. */
+    /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
     @Test
     @Config(qualifiers = "w360dp-h1160dp-xxhdpi")
     fun settingsTall() = shoot("x-settings-tall", "Settings") {
         SettingsScreen(
-            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready.copy(batteryUnrestricted = false),
+            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id, ui = app.amethyst.core.settings.UiSettings(advanced = true)),
+            setup = ready.copy(batteryUnrestricted = false),
             diagnosticsCount = 12, version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
-            advancedOpen = true, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+            onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
@@ -448,7 +449,7 @@ class Screenshots {
     fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
-            releaseChannel = ReleaseChannel.OTHER, advancedOpen = false, onToggleAdvanced = {}, onOpen = {}, onReplayIntroduction = {},
+            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 

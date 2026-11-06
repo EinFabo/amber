@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EngineConfigValidator
@@ -41,16 +43,17 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
-import app.amethyst.core.settings.Features
+import app.amethyst.core.settings.SettingsGroupKind
+import app.amethyst.core.settings.SettingsItem
+import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
+import app.amethyst.ui.AmberSwitch
 import app.amethyst.ui.AppSource
-import app.amethyst.ui.ExpandChevron
-import app.amethyst.ui.foldState
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.LearnMore
@@ -65,7 +68,6 @@ import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
-import app.amethyst.ui.Unfold
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.placeExplanation
@@ -74,14 +76,11 @@ import kotlin.math.roundToInt
 /** Where a settings row leads. */
 enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES, LICENSES }
 
-/** How many rows the folded "Advanced" group holds. */
-private const val ADVANCED_ROWS = 4
-
 /**
- * Amber's settings in four groups: the four most used, the per-app styles, an "Advanced" group
- * folded to one row, and Amber itself. Each row is an icon, its name and its state in a few
- * words; the page behind it explains. [advancedOpen] lives with the caller, so coming back from
- * a page finds the group as it was left.
+ * Amber's settings in groups: the most used, the per-app styles, the advanced ones and Amber
+ * itself. Which rows show is [SettingsLayout]'s table: a new install sees the simple ones, the
+ * "Advanced settings" switch shows the rest. Each row is an icon, its name and its state in a
+ * few words; the page behind it explains.
  */
 @Composable
 fun SettingsScreen(
@@ -91,8 +90,7 @@ fun SettingsScreen(
     version: String,
     /** Which build this is - only the GitHub build checks for updates itself; null until known. */
     releaseChannel: ReleaseChannel?,
-    advancedOpen: Boolean,
-    onToggleAdvanced: () -> Unit,
+    onAdvancedChange: (Boolean) -> Unit,
     onOpen: (SettingsPage) -> Unit,
     onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
@@ -100,74 +98,71 @@ fun SettingsScreen(
     val engine = settings.activeEngine
     val trust = engine?.trustLevelForDisplay()
     val reliabilityOpen = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
-    // Folded, "Advanced" passes on what Reliability needs; open, the Reliability row says it itself.
-    val advancedFlags = if (advancedOpen) 0 else reliabilityOpen
+    val advanced = settings.ui.advanced
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
 
+    @Composable
+    fun ItemRow(item: SettingsItem) = when (item) {
+        SettingsItem.RECOGNITION -> NavRow(
+            "Recognition", SettingsSummaries.recognition(engine, trust), icon = AmberIcons.Mic,
+            summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
+        ) { onOpen(SettingsPage.RECOGNITION) }
+        SettingsItem.CLEANUP -> NavRow("Cleanup", SettingsSummaries.cleanup(settings), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
+        SettingsItem.BUBBLE -> NavRow("Bubble", SettingsSummaries.onOff(settings.bubble.enabled), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
+        SettingsItem.VOICE_COMMANDS -> NavRow(
+            "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
+            summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
+        ) { onOpen(SettingsPage.COMMANDS) }
+        SettingsItem.APP_STYLES -> NavRow("App styles", SettingsSummaries.appStyles(settings.profiles.size), icon = AmberIcons.Palette) {
+            onOpen(SettingsPage.APP_STYLES)
+        }
+        SettingsItem.FALLBACK -> NavRow("When the server fails", SettingsSummaries.fallback(settings, trust), icon = AmberIcons.CloudOff) {
+            onOpen(SettingsPage.FALLBACK)
+        }
+        SettingsItem.RECORDING -> NavRow("Recording", SettingsSummaries.recording(settings.capture), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
+        SettingsItem.INSERTING -> NavRow("Inserting", SettingsSummaries.inserting(settings.insertion), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
+        SettingsItem.RELIABILITY -> NavRow(
+            "Reliability", SettingsSummaries.reliability(reliabilityOpen), icon = AmberIcons.Battery,
+            summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
+        ) { onOpen(SettingsPage.RELIABILITY) }
+        SettingsItem.STATISTICS -> NavRow("Statistics", SettingsSummaries.onOff(settings.stats.keep), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
+        SettingsItem.DIAGNOSTICS -> NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
+        SettingsItem.UPDATES -> NavRow(
+            "Updates", releaseChannel?.let { UpdatePolicy.summary(it, settings.updates, version) }, icon = AmberIcons.Update,
+            summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
+        ) { onOpen(SettingsPage.UPDATES) }
+        SettingsItem.LICENSES -> NavRow("Licenses", "Apache 2.0, and what Amber is built from", icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
+        SettingsItem.INTRODUCTION -> NavRow(
+            "Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction,
+        )
+        // A part of the Cleanup page, never a row here.
+        SettingsItem.CLEANUP_INSTRUCTION -> Unit
+    }
+
     SubPage(modifier) {
-        SettingsGroup(label = null) {
-            NavRow(
-                "Recognition", SettingsSummaries.recognition(engine, trust), icon = AmberIcons.Mic,
-                summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
-            ) { onOpen(SettingsPage.RECOGNITION) }
-            RowDivider()
-            NavRow("Cleanup", SettingsSummaries.cleanup(settings), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
-            RowDivider()
-            NavRow("Bubble", SettingsSummaries.onOff(settings.bubble.enabled), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
-            if (Features.VOICE_COMMANDS) {
-                RowDivider()
-                NavRow(
-                    "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
-                    summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
-                ) { onOpen(SettingsPage.COMMANDS) }
+        var switchShown = false
+        SettingsLayout.groups(advanced).forEach { group ->
+            // The switch sits right above what it shows, or where that would be.
+            if (!switchShown && group.kind >= SettingsGroupKind.ADVANCED) {
+                AdvancedSwitch(advanced, reliabilityOpen, onAdvancedChange)
+                switchShown = true
             }
-        }
-
-        SettingsGroup("Per app") {
-            NavRow("App styles", SettingsSummaries.appStyles(settings.profiles.size), icon = AmberIcons.Palette) { onOpen(SettingsPage.APP_STYLES) }
-        }
-
-        SettingsGroup(label = null) {
-            NavRow(
-                "Advanced", SettingsSummaries.advanced(ADVANCED_ROWS, advancedFlags), Modifier.foldState(advancedOpen), icon = AmberIcons.Tune,
-                summaryColor = if (advancedFlags > 0) AmberPalette.Primary else AmberPalette.Muted,
-                trailing = { ExpandChevron(advancedOpen) },
-                onClick = onToggleAdvanced,
-            )
-            Unfold(advancedOpen) {
-                Column {
-                    RowDivider()
-                    NavRow("When the server fails", SettingsSummaries.fallback(settings, trust), icon = AmberIcons.CloudOff) {
-                        onOpen(SettingsPage.FALLBACK)
-                    }
-                    RowDivider()
-                    NavRow("Recording", SettingsSummaries.recording(settings.capture), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
-                    RowDivider()
-                    NavRow("Inserting", SettingsSummaries.inserting(settings.insertion), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
-                    RowDivider()
-                    NavRow(
-                        "Reliability", SettingsSummaries.reliability(reliabilityOpen), icon = AmberIcons.Battery,
-                        summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
-                    ) { onOpen(SettingsPage.RELIABILITY) }
+            SettingsGroup(
+                label = when (group.kind) {
+                    SettingsGroupKind.MAIN -> null
+                    SettingsGroupKind.PER_APP -> "Per app"
+                    SettingsGroupKind.ADVANCED -> "Advanced"
+                    SettingsGroupKind.AMBER -> "Amber"
+                },
+            ) {
+                group.items.forEachIndexed { i, item ->
+                    if (i > 0) RowDivider()
+                    ItemRow(item)
                 }
             }
         }
-
-        SettingsGroup("Amber") {
-            NavRow("Statistics", SettingsSummaries.onOff(settings.stats.keep), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
-            RowDivider()
-            NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
-            RowDivider()
-            NavRow(
-                "Updates", releaseChannel?.let { UpdatePolicy.summary(it, settings.updates, version) }, icon = AmberIcons.Update,
-                summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
-            ) { onOpen(SettingsPage.UPDATES) }
-            RowDivider()
-            NavRow("Licenses", "Apache 2.0, and what Amber is built from", icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
-            RowDivider()
-            NavRow("Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction)
-        }
+        if (!switchShown) AdvancedSwitch(advanced, reliabilityOpen, onAdvancedChange)
 
         Text(
             "Amber $version",
@@ -175,6 +170,26 @@ fun SettingsScreen(
             color = AmberPalette.Muted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        )
+    }
+}
+
+/**
+ * The one switch between the simple and the full settings. Off, it says how much more there
+ * is - or, first, what Reliability would flag, which is then out of sight.
+ */
+@Composable
+private fun AdvancedSwitch(advanced: Boolean, reliabilityOpen: Int, onChange: (Boolean) -> Unit) {
+    val flagged = !advanced && reliabilityOpen > 0
+    SettingsGroup(label = null) {
+        NavRow(
+            "Advanced settings",
+            if (advanced) "Every setting is shown" else SettingsSummaries.advanced(SettingsLayout.hiddenRows(), reliabilityOpen),
+            Modifier.toggleable(value = advanced, role = Role.Switch, onValueChange = onChange),
+            icon = AmberIcons.Tune,
+            summaryColor = if (flagged) AmberPalette.Primary else AmberPalette.Muted,
+            trailing = { AmberSwitch(advanced) },
+            onClick = null,
         )
     }
 }

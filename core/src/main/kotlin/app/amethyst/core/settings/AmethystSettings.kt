@@ -216,6 +216,8 @@ data class AmethystSettings(
      * [app.amethyst.core.update.UpdatePolicy]. Absent in older settings, which check by default.
      */
     val updates: UpdateSettings = UpdateSettings(),
+    /** How the app itself looks: the simple or the advanced settings. */
+    val ui: UiSettings = UiSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     val activeEngine: EngineConfig?
@@ -260,7 +262,8 @@ data class AmethystSettings(
          * 10: the model lists of Amber servers - nothing to migrate, an absent field decodes
          * to none, and the next fetch fills it.
          * The update check ([updates]) needed no new version: an absent field decodes to its
-         * defaults.
+         * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
+         * (settings from before it), and a new install starts with it off ([defaults]).
          * See [SettingsCodec.migrate].
          */
         const val SCHEMA_VERSION = 10
@@ -284,6 +287,8 @@ data class AmethystSettings(
                     EngineConfig.defaultLanguageTag(EngineKind.ANDROID_ON_DEVICE, phone),
                 ),
             ),
+            // A new install sees the few settings most people need; see [SettingsLayout].
+            ui = UiSettings(advanced = false),
         )
     }
 }
@@ -452,6 +457,17 @@ data class CommandSettings(val enabled: Boolean = false) {
      */
     fun effective(featureOn: Boolean = Features.VOICE_COMMANDS): Boolean = featureOn && enabled
 }
+
+/** How the app itself looks. */
+@Serializable
+data class UiSettings(
+    /**
+     * Show every setting, not only the simple ones ([SettingsLayout]). The default, on, is what
+     * settings from before this switch decode to - their users keep seeing what they set up;
+     * a new install starts with it off ([AmethystSettings.defaults]).
+     */
+    val advanced: Boolean = true,
+)
 
 @Serializable
 enum class FallbackMode {

@@ -38,6 +38,8 @@ import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
+import app.amethyst.core.settings.SettingsItem
+import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
@@ -83,7 +85,7 @@ fun CleanupScreen(
             CleanupModelChoices(settings, ready, current, ::choose)
             CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), settings.cleanupEngine()?.trustLevelForDisplay())
         }
-        CleanupInstructionCard(settings, onUpdateSettings)
+        if (SettingsLayout.shows(SettingsItem.CLEANUP_INSTRUCTION, settings.ui.advanced)) CleanupInstructionCard(settings, onUpdateSettings)
     }
 }
 

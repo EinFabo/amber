@@ -197,7 +197,7 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFi
             if (settings.bubble.onlyWithTextField) "Only when you type" else "Always",
             "Settings → Bubble",
         )
-        Chosen("Everything else", "Recording, inserting, statistics, diagnostics", "Settings → Advanced")
+        Chosen("Everything else", "Recording, inserting, statistics, diagnostics", "Settings → Advanced settings")
         if (download != null) {
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Hint(DownloadNotice.short(download), AmberPalette.Text)
