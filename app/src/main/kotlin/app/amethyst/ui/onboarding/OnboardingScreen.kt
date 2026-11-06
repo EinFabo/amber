@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
@@ -38,6 +39,8 @@ import app.amethyst.ui.IconAction
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.theme.AmberPalette
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * The introduction: one decision per screen, from what Amber does to the first dictation. A
@@ -84,6 +87,7 @@ fun OnboardingScreen(
                 OnboardingStep.CLEANUP -> CleanupStep(settings, content) { after -> nextFrom(current, after) }
                 OnboardingStep.APP_STYLES -> AppStylesStep(settings, content, onward)
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
+                OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
                 OnboardingStep.DONE -> DoneStep(settings, content.download, onFinish)
             }
@@ -112,9 +116,11 @@ class OnboardingContent(
     val hasKeyFor: (alias: String?) -> Boolean,
     val onSaveKey: (alias: String, key: String) -> Unit,
     val onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    /** What the real bubble does, for the practice step; see [app.amethyst.Graph.bubbleEvents]. */
+    val bubbleEvents: Flow<BubbleEvent> = emptyFlow(),
 )
 
-/** "Step 4 of 9" between Back and Skip. */
+/** "Step 4 of 10" between Back and Skip. */
 @Composable
 private fun StepLine(step: OnboardingStep, settings: AmethystSettings, onBack: (() -> Unit)?, onSkip: (() -> Unit)?) {
     val (position, total) = Onboarding.position(step, settings)

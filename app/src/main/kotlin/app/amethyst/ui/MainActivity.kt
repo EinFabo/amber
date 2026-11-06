@@ -460,6 +460,7 @@ private fun AmethystScreens(
                             hasKeyFor = { alias -> graph.secretStore.has(alias) },
                             onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
                             onUpdateSettings = ::updateSettings,
+                            bubbleEvents = graph.bubbleEvents,
                         ),
                         onStep = { step = it },
                         onFinish = {

@@ -503,6 +503,7 @@ class Screenshots {
         parakeet: ParakeetState = ParakeetState.Missing,
         metered: Boolean = false,
         download: app.amethyst.core.engine.ModelDownload? = null,
+        bubbleEvents: List<app.amethyst.core.bubble.BubbleEvent> = emptyList(),
     ) = OnboardingContent(
         phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
         metered = metered,
@@ -517,6 +518,7 @@ class Screenshots {
         hasKeyFor = { false },
         onSaveKey = { _, _ -> },
         onUpdateSettings = {},
+        bubbleEvents = kotlinx.coroutines.flow.flowOf(*bubbleEvents.toTypedArray()),
     )
 
     private fun onboarding(
@@ -597,6 +599,52 @@ class Screenshots {
 
     @Test
     fun onboardingBubble() = onboarding("7-bubble", OnboardingStep.BUBBLE, ready, parakeetActive)
+
+    private val parakeetReady = ParakeetState.Ready(670_000_000)
+
+    /** The practice step as it opens: the field focused, nothing tried yet. */
+    @Test
+    fun onboardingPractice() = onboarding("7b-practice", OnboardingStep.PRACTICE, ready, parakeetActive, content(parakeet = parakeetReady))
+
+    /** A dictation went in and Copy last ran; the drag is next. */
+    @Test
+    fun onboardingPracticeTwoDone() = onboarding(
+        "7b-practice-two-done", OnboardingStep.PRACTICE, ready, parakeetActive,
+        content(
+            parakeet = parakeetReady,
+            bubbleEvents = listOf(
+                app.amethyst.core.bubble.BubbleEvent.DictationInserted,
+                app.amethyst.core.bubble.BubbleEvent.QuickActionRun(app.amethyst.core.bubble.QuickAction.COPY_LAST),
+            ),
+        ),
+    )
+
+    /** All three seen: the success line, Continue filled. */
+    @Test
+    fun onboardingPracticeAllDone() = onboarding(
+        "7b-practice-all-done", OnboardingStep.PRACTICE, ready, parakeetActive,
+        content(
+            parakeet = parakeetReady,
+            bubbleEvents = listOf(
+                app.amethyst.core.bubble.BubbleEvent.DictationInserted,
+                app.amethyst.core.bubble.BubbleEvent.QuickActionRun(app.amethyst.core.bubble.QuickAction.COPY_LAST),
+                app.amethyst.core.bubble.BubbleEvent.Docked(app.amethyst.core.bubble.BubbleSide.LEFT),
+            ),
+        ),
+    )
+
+    /** "Not now" on the service: no flame, so the step says so and offers the way back. */
+    @Test
+    fun onboardingPracticeNoService() = onboarding(
+        "7b-practice-no-service", OnboardingStep.PRACTICE, fresh.copy(microphoneGranted = true), parakeetActive, content(parakeet = parakeetReady),
+    )
+
+    /** The model still on its way: the tap waits for it, the drag does not. */
+    @Test
+    fun onboardingPracticeDownloading() = onboarding(
+        "7b-practice-downloading", OnboardingStep.PRACTICE, ready, parakeetActive,
+        content(parakeet = ParakeetState.Busy(300_000_000, 670_000_000), download = app.amethyst.core.engine.ModelDownload.Running(300_000_000, 670_000_000)),
+    )
 
     @Test
     fun onboardingReliability() = onboarding("8-reliability", OnboardingStep.RELIABILITY, fresh.copy(microphoneGranted = true, accessibilityEnabled = true), parakeetActive)

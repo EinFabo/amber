@@ -19,13 +19,13 @@ class OnboardingTest {
     @Test
     fun `without cleanup the styles step is left out`() {
         assertEquals(OnboardingStep.entries - OnboardingStep.APP_STYLES, Onboarding.steps(plain))
-        assertEquals(4 to 8, Onboarding.position(OnboardingStep.ENGINE, plain))
+        assertEquals(4 to 9, Onboarding.position(OnboardingStep.ENGINE, plain))
     }
 
     @Test
     fun `with cleanup the styles step follows it`() {
         assertEquals(OnboardingStep.APP_STYLES, Onboarding.next(OnboardingStep.CLEANUP, withCleanup))
-        assertEquals(9 to 9, Onboarding.position(OnboardingStep.DONE, withCleanup))
+        assertEquals(10 to 10, Onboarding.position(OnboardingStep.DONE, withCleanup))
     }
 
     @Test
@@ -47,8 +47,16 @@ class OnboardingTest {
     }
 
     @Test
-    fun `the bubble is followed by reliability - auto-pause is off and no longer asked`() {
-        assertEquals(OnboardingStep.RELIABILITY, Onboarding.next(OnboardingStep.BUBBLE, plain))
+    fun `the flame is tried right after it is explained, then comes reliability`() {
+        assertEquals(OnboardingStep.PRACTICE, Onboarding.next(OnboardingStep.BUBBLE, plain))
+        assertEquals(OnboardingStep.RELIABILITY, Onboarding.next(OnboardingStep.PRACTICE, plain))
+        assertEquals(OnboardingStep.BUBBLE, Onboarding.previous(OnboardingStep.PRACTICE, withCleanup))
+        assertEquals(7 to 9, Onboarding.position(OnboardingStep.PRACTICE, plain))
+        assertEquals(8 to 10, Onboarding.position(OnboardingStep.PRACTICE, withCleanup))
+    }
+
+    @Test
+    fun `auto-pause is off and no longer asked`() {
         assertTrue(OnboardingStep.entries.none { it.name == "RECORDING" })
     }
 
@@ -56,6 +64,7 @@ class OnboardingTest {
     fun `skip is offered from the cleanup on`() {
         assertFalse(Onboarding.skippable(OnboardingStep.MICROPHONE))
         assertTrue(Onboarding.skippable(OnboardingStep.CLEANUP))
+        assertTrue(Onboarding.skippable(OnboardingStep.PRACTICE))
         assertTrue(Onboarding.skippable(OnboardingStep.RELIABILITY))
         assertFalse(Onboarding.skippable(OnboardingStep.DONE))
     }

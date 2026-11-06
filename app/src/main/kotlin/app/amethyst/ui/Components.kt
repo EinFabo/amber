@@ -87,7 +87,7 @@ fun StatusRow(
 
 /** An empty ring that fills amber and shows a tick when the step is done. */
 @Composable
-private fun StatusDot(done: Boolean) {
+internal fun StatusDot(done: Boolean) {
     val fill by animateColorAsState(
         if (done) AmberPalette.Primary else Color.Transparent,
         tween(FAST_MS),

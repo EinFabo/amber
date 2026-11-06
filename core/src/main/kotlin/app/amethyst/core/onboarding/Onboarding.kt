@@ -5,8 +5,9 @@ import app.amethyst.core.settings.AmethystSettings
 /**
  * The introduction's screens, in the order they are shown. How a recording ends is no longer
  * asked: it runs until the second tap ([app.amethyst.core.settings.CaptureSettings.autoStopOnSilence]).
+ * PRACTICE tries the real flame right after BUBBLE explained it ([Practice]).
  */
-enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, RELIABILITY, DONE }
+enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, PRACTICE, RELIABILITY, DONE }
 
 /**
  * Which screens the introduction shows and how it moves between them. The styles step only
@@ -24,7 +25,7 @@ object Onboarding {
     fun previous(current: OnboardingStep, settings: AmethystSettings): OnboardingStep? =
         steps(settings).lastOrNull { it < current }
 
-    /** 1-based position and total, for "Step 4 of 9". */
+    /** 1-based position and total, for "Step 4 of 10". */
     fun position(current: OnboardingStep, settings: AmethystSettings): Pair<Int, Int> {
         val steps = steps(settings)
         return (steps.count { it <= current }).coerceAtLeast(1) to steps.size
