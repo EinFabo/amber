@@ -163,4 +163,14 @@ class DictationLogTest {
         log.clear()
         assertTrue(log.records.value.isEmpty())
     }
+
+    @Test
+    fun `the last dictation skips failures and commands`() {
+        val log = log(capacity = 10)
+        assertNull(log.lastDictation)
+        log.recordSuccess(transcript("Bis morgen"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        log.recordFailure("No text field accepted the text")
+        log.recordCommand("öffne WhatsApp", CommandOutcome.Done("Opened WhatsApp"), engineId = "parakeet")
+        assertEquals("Bis morgen", log.lastDictation?.text)
+    }
 }

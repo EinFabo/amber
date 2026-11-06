@@ -15,6 +15,7 @@ import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
 import app.amethyst.core.audio.DiscardReason
+import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.TriggerSource
@@ -65,6 +66,7 @@ import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,7 +76,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
@@ -113,6 +117,13 @@ class DictationController(
      */
     @Volatile
     private var holdToTalk = false
+
+    /**
+     * Completed when this run's text is to go in as recognized - "Send as spoken" or "Keep as
+     * heard" from the bubble's quick menu. A cleanup on its way is dropped at that moment.
+     */
+    @Volatile
+    private var skipCleanup = CompletableDeferred<Unit>()
 
     /** Timing of the current run; created at the first start(), kept across the proxy hop. */
     @Volatile
@@ -224,6 +235,7 @@ class DictationController(
             commandSteps = null
             commandRecorded = false
             runEngineId = graph.settings.value.activeEngine?.id
+            skipCleanup = CompletableDeferred()
             this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
@@ -343,6 +355,73 @@ class DictationController(
     fun cancel() {
         job?.cancel()
         _state.value = DictationState.Idle
+    }
+
+    /**
+     * Throws the recording away and starts a new one - once the old run has let go of the
+     * microphone, so the two never share it.
+     */
+    fun startOver() {
+        val old = job
+        cancel()
+        if (old == null) {
+            start()
+            return
+        }
+        scope.launch {
+            old.join()
+            withContext(Dispatchers.Main) { if (!isRunning) start() }
+        }
+    }
+
+    /** Ends the recording; the words go in as recognized, without the cleanup. */
+    fun sendWithoutCleanup() {
+        skipCleanup.complete(Unit)
+        stop()
+    }
+
+    /** The text goes in as recognized: a cleanup still to come is skipped, one under way dropped. */
+    fun keepAsRecognized() {
+        skipCleanup.complete(Unit)
+    }
+
+    /**
+     * The last dictation of this session (any app) typed again into the field that has focus
+     * now - never into a password field. False with nothing to insert or nowhere to put it.
+     */
+    fun insertAgain(): Boolean {
+        if (isRunning) return false
+        val text = graph.dictationLog.lastDictation?.text ?: return false
+        val service = graph.accessibilityService ?: return false
+        val target = service.focusedTarget()
+        if (target == null || target.kind == TextFieldKind.SECRET) {
+            toast("No text field to insert into.")
+            return false
+        }
+        val settings = graph.settings.value
+        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard)
+        Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
+        if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
+            toast("The text could not be inserted here.")
+            return false
+        }
+        return true
+    }
+
+    /**
+     * The last dictation of this session onto the clipboard, marked sensitive so it stays out
+     * of clipboard previews and history - asked for by the user, so whatever the clipboard
+     * fallback setting says.
+     */
+    fun copyLast(): Boolean {
+        val text = graph.dictationLog.lastDictation?.text ?: return false
+        val inserter = graph.accessibilityService?.textInserter ?: return false
+        if (!inserter.copyToClipboard(text)) return false
+        // From Android 13 the system confirms a copy itself.
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+            toast("Last dictation copied.")
+        }
+        return true
     }
 
     private suspend fun run(source: TriggerSource) {
@@ -891,6 +970,11 @@ class DictationController(
         // May name the app (its style's label), so the trace keeps it apart from the rest.
         trace?.cleanupNote = decision.note
         val choice = decision.choice ?: return transcript
+        val skip = skipCleanup
+        if (skip.isCompleted) {
+            trace?.cleanup = "cleanup skipped from the quick menu"
+            return transcript
+        }
         val cleanup = graph.engineFactory.cleanupFor(choice, settings)
             ?: return transcript.also { trace?.cleanup = "cleanup ${choice.model} could not be set up" }
         val profile = AppProfiles.forPackage(settings.profiles, target)
@@ -910,16 +994,28 @@ class DictationController(
             settings.engines.firstOrNull { it.id == transcript.engineId }?.languageTag,
         )
         val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) {
-            cleanup.clean(
-                transcript.text,
-                style,
-                instruction = profile?.instruction,
-                generalInstruction = settings.cleanupInstruction,
-                language = language,
-            ) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
+            coroutineScope {
+                val work = async {
+                    cleanup.clean(
+                        transcript.text,
+                        style,
+                        instruction = profile?.instruction,
+                        generalInstruction = settings.cleanupInstruction,
+                        language = language,
+                    ) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
+                }
+                // "Keep as heard" from the quick menu wins over a cleanup still on its way.
+                select {
+                    work.onAwait { it }
+                    skip.onAwait {
+                        work.cancel()
+                        null
+                    }
+                }
+            }
         }
         if (result == null) {
-            trace?.cleanup = "cleanup timed out (${cleanup.model})"
+            trace?.cleanup = if (skip.isCompleted) "cleanup dropped from the quick menu (${cleanup.model})" else "cleanup timed out (${cleanup.model})"
             return transcript
         }
         return result.fold(
@@ -1221,6 +1317,11 @@ class DictationController(
     private fun updateListening(transform: (DictationState.Listening) -> DictationState.Listening) {
         val current = _state.value
         if (current is DictationState.Listening) _state.value = transform(current)
+    }
+
+    /** A short note over whatever app is open, from the quick menu's actions. */
+    private fun toast(message: String) {
+        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
 
     /** A toast without a failure: the state stays Idle, the bubble stays calm, nothing is logged. */

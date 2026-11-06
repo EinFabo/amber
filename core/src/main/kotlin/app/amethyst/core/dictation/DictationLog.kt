@@ -36,6 +36,10 @@ class DictationLog(
 
     val last: DictationRecord? get() = _records.value.firstOrNull()
 
+    /** The newest dictation that put text somewhere - not a failure, not a command. */
+    val lastDictation: DictationRecord?
+        get() = _records.value.firstOrNull { it.error == null && !it.command && it.text.isNotBlank() }
+
     fun recordSuccess(
         transcript: Transcript,
         strategy: InsertionStrategy,

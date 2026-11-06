@@ -74,6 +74,22 @@ object AppProfiles {
     fun edit(profiles: List<AppProfile>, packageName: String, change: (AppProfile) -> AppProfile): List<AppProfile> =
         profiles.map { if (it.packageName == packageName) change(it) else it }
 
+    /**
+     * The cleanup switched off or on again for [packageName] from the bubble, everything else of
+     * its profile kept - an own model too, so on brings it back. An app without a profile gets
+     * one under [label], in the style as spoken.
+     */
+    fun withCleanupHere(profiles: List<AppProfile>, packageName: String, label: String, on: Boolean): List<AppProfile> {
+        val profile = forPackage(profiles, packageName) ?: AppProfile(packageName, label)
+        val own = profile.appCleanup.choice
+        val cleanup = when {
+            !on -> AppCleanup(AppCleanupMode.OFF, own)
+            own != null -> AppCleanup(AppCleanupMode.MODEL, own)
+            else -> AppCleanup(AppCleanupMode.DEFAULT)
+        }
+        return upsert(profiles, profile.copy(appCleanup = cleanup))
+    }
+
     /** Replaces the profile for its package, or adds it. */
     fun upsert(profiles: List<AppProfile>, profile: AppProfile): List<AppProfile> =
         if (profiles.any { it.packageName == profile.packageName }) {
