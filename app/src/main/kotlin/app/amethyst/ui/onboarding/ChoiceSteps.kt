@@ -152,7 +152,7 @@ internal fun BubbleStep(settings: AmethystSettings, content: OnboardingContent, 
     val bubble = settings.bubble
     StepPage(
         title = "The flame",
-        lead = "It floats over other apps. Tap it to dictate, hold it for the quick menu.",
+        lead = "It floats over other apps, at the edge of the screen.",
         buttons = { ContinueButton(onNext) },
     ) {
         RadioRow(
@@ -166,7 +166,26 @@ internal fun BubbleStep(settings: AmethystSettings, content: OnboardingContent, 
             onSelect = { content.onUpdateSettings { it.copy(bubble = it.bubble.copy(onlyWithTextField = false)) } },
         )
         BubbleSizeRow(sizeDp = bubble.sizeDp, onChange = { size -> content.onUpdateSettings { it.copy(bubble = it.bubble.copy(sizeDp = size)) } })
-        Hint("Drag it anywhere; drop it on the X to hide it.")
+        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Gesture("Tap", "Start dictating. Tap again and the text goes in.")
+            Gesture(
+                "Hold",
+                "The quick menu: four buttons fan out. Slide toward one and let go - " +
+                    "insert or copy the last dictation again, cleanup off for this app, hide here. " +
+                    "While you speak: pause, cancel, start over, or send without the cleanup. " +
+                    "Let go in the middle to close it.",
+            )
+            Gesture("Drag", "Move it up or down, or to the other edge. Drop it on the X to hide it in this app.")
+        }
+    }
+}
+
+/** One way to touch the flame, and what it does. */
+@Composable
+private fun Gesture(gesture: String, what: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(gesture, style = MaterialTheme.typography.labelLarge, color = AmberPalette.Text)
+        Hint(what)
     }
 }
 
