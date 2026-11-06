@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Amber</string>
+    <string name="accessibility_label">Amber-Diktat</string>
+    <string name="accessibility_summary">Bubble zum Diktieren und Einfügen von Text in jeder App</string>
+    <!-- The current English text (values/strings.xml), without voice commands: they are out
+         of the build. With them back, their part returns here too. -->
+    <string name="accessibility_description">Amber nutzt diesen Dienst, um die Diktier-Bubble zu zeigen und dein Diktat in das Feld zu schreiben, in dem du gerade schreibst. Dafür liest er, welche App vorne ist und ob ein Textfeld den Fokus hat (um die Bubble zu zeigen oder auszublenden), wo die Tastatur ist (um die Bubble über ihr zu halten) und - nur beim Einfügen eines Diktats - den Text, der schon in diesem Feld steht, damit die neuen Wörter am Cursor passen. Nichts davon wird gespeichert oder irgendwohin gesendet: Nur deine Aufnahme geht an die Spracherkennung, die du gewählt hast, und mit Bereinigung ihr Text an die Bereinigung, die du gewählt hast. Direkt nachdem du etwas eingeschaltet hast, wofür Amber dich in die Android-Einstellungen geschickt hat - diesen Dienst oder Akkunutzung ohne Einschränkungen -, holt er Amber wieder nach vorne. Darüber hinaus tippt, wischt oder handelt er nie für dich.</string>
+
+    <string name="notification_channel_name">Amber bereit</string>
+    <string name="notification_channel_description">Hält das Mikrofon für die Diktier-Bubble bereit</string>
+    <string name="notification_ready_title">Amber ist bereit</string>
+    <string name="notification_ready_text">Tippe auf die Bubble, um zu diktieren</string>
+
+    <string name="update_channel_name">Updates</string>
+    <string name="update_channel_description">Wenn eine neue Version von Amber auf GitHub erschienen ist</string>
+    <string name="update_available_title">Amber %1$s ist verfügbar</string>
+    <string name="update_available_text">Tippe, um die Release-Seite auf GitHub zu öffnen</string>
+
+    <string name="clipboard_fallback">Der Text ist in der Zwischenablage - bitte einfügen</string>
+    <string name="clipboard_after_lost_commit">Der Text ist vielleicht nicht angekommen - er ist in der Zwischenablage, füge ihn ein, falls er fehlt</string>
+</resources>
