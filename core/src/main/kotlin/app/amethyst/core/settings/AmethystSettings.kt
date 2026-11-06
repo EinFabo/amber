@@ -187,6 +187,12 @@ data class AmethystSettings(
      * recognition can be cleaned up by a server model (or, later, a local one). Null: nobody.
      */
     val cleanup: CleanupChoice? = null,
+    /**
+     * The user's own addition to the cleanup for every app ("write numbers as digits"), under
+     * the fixed rules and before an app's own instruction; see
+     * [app.amethyst.core.text.ChatCleanup.systemPrompt]. Absent in older settings: none.
+     */
+    val cleanupInstruction: String? = null,
     /** Who takes a recording the engine's server could not; see [app.amethyst.core.engine.Fallback]. */
     val fallback: FallbackSettings = FallbackSettings(),
     /** Whether the introduction ran; a fresh install starts without, see [SettingsCodec.migrate]. */

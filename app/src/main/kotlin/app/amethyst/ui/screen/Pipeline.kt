@@ -1,5 +1,6 @@
 package app.amethyst.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,16 +12,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.Fallback
@@ -33,6 +39,8 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.settings.WritingStyle
+import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.foldState
 import app.amethyst.ui.GhostButton
@@ -45,6 +53,7 @@ import app.amethyst.ui.Unfold
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeLabel
+import kotlinx.coroutines.delay
 
 /**
  * Who rewrites the recognized text, chosen apart from who recognizes it: local Whisper can be
@@ -74,6 +83,94 @@ fun CleanupScreen(
             CleanupModelChoices(settings, ready, current, ::choose)
             CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), settings.cleanupEngine()?.trustLevelForDisplay())
         }
+        CleanupInstructionCard(settings, onUpdateSettings)
+    }
+}
+
+/** Typing pauses this long before the addition is saved. */
+private const val ADDITION_SAVE_MS = 600L
+
+/**
+ * The user's own addition for every app, and the prompt it ends up in - read-only, so what the
+ * cleanup model is told is never a secret. The fixed rules come first and win over the addition.
+ */
+@Composable
+private fun CleanupInstructionCard(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+) {
+    var addition by remember { mutableStateOf(settings.cleanupInstruction.orEmpty()) }
+    var showPrompt by rememberSaveable { mutableStateOf(false) }
+
+    fun persist() {
+        val typed = addition.trim().ifEmpty { null }
+        if (typed != settings.cleanupInstruction) onUpdateSettings { it.copy(cleanupInstruction = typed) }
+    }
+
+    SectionCard(
+        title = "Your addition",
+        subtitle = "For every app, before an app's own instruction.",
+        learnMore = "Tone and form only, e.g. \"write numbers as digits\". The fixed rules come first: " +
+            "the cleanup never translates, answers, or changes what you said, whatever this says.",
+    ) {
+        OutlinedTextField(
+            value = addition,
+            onValueChange = { addition = it.take(ChatCleanup.INSTRUCTION_CHARS) },
+            label = { Text("Own addition (optional)") },
+            placeholder = { Text("e.g. write numbers as digits") },
+            supportingText = { Text("${addition.length} / ${ChatCleanup.INSTRUCTION_CHARS}") },
+            minLines = 2,
+            maxLines = 8,
+            shape = AmberShapes.Inner,
+            colors = fieldColors(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(AmberShapes.Inner)
+                .clickable { showPrompt = !showPrompt }
+                .foldState(showPrompt)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("View system prompt", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
+            ExpandChevron(showPrompt)
+        }
+        Unfold(showPrompt) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // As sent for an app with the default style; the app's own style and
+                // instruction take their places in it, and the language is named when known.
+                val prompt = remember(settings.cleanupInstruction) {
+                    ChatCleanup.systemPrompt(WritingStyle.AS_SPOKEN, null, settings.cleanupInstruction)
+                }
+                Text(
+                    prompt,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp),
+                    color = AmberPalette.Text,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(AmberShapes.Inner)
+                        .background(AmberPalette.Elevated)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                )
+                Hint(
+                    "Shown for the As spoken style. Each app's style and own instruction take their place at the end, " +
+                        "the dictation's language is named when it is known, and ${ChatCleanup.EXAMPLES.size} worked " +
+                        "examples follow before the dictation.",
+                )
+            }
+        }
+    }
+
+    // Saved a moment after typing stops, and when the page goes, as an app's instruction is.
+    LaunchedEffect(addition) {
+        delay(ADDITION_SAVE_MS)
+        persist()
+    }
+    val latestPersist by rememberUpdatedState(::persist)
+    DisposableEffect(Unit) {
+        onDispose { latestPersist() }
     }
 }
 

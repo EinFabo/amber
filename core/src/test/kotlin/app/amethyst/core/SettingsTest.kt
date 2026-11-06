@@ -259,6 +259,14 @@ class CaptureTimeoutTest {
     }
 
     @Test
+    fun `the cleanup addition for every app survives a round trip, and older settings start without`() {
+        val settings = AmethystSettings.defaults().copy(cleanupInstruction = "Zahlen als Ziffern.")
+        assertEquals("Zahlen als Ziffern.", SettingsCodec.decode(SettingsCodec.encode(settings)).cleanupInstruction)
+        assertNull(SettingsCodec.decode("""{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""").cleanupInstruction)
+        assertEquals(10, AmethystSettings.SCHEMA_VERSION, "a new field with a default needs no schema step")
+    }
+
+    @Test
     fun `editing a profile changes only that one`() {
         val edited = AppProfiles.edit(AppProfiles.DEFAULTS, "com.whatsapp") { it.copy(style = WritingStyle.FORMAL) }
         assertEquals(WritingStyle.FORMAL, AppProfiles.forPackage(edited, "com.whatsapp")?.style)

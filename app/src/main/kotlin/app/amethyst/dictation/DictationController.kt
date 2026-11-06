@@ -60,6 +60,7 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.ServerCost
 import app.amethyst.core.stats.countWords
+import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlinx.coroutines.CancellationException
@@ -899,8 +900,21 @@ class DictationController(
         val key = cleanupKey(choice)
         val chars = transcript.text.length.toLong()
         wait?.plan(WaitProgress.Step.CLEANUP to graph.recognitionEstimate.expectedMs(key, chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS))
+        // Named in the prompt and checked in the reply: what the engine detected, the one
+        // language it was set to, or what the words clearly are.
+        val language = LanguageGuess.forDictation(
+            transcript.text,
+            transcript.detectedLanguage,
+            settings.engines.firstOrNull { it.id == transcript.engineId }?.languageTag,
+        )
         val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) {
-            cleanup.clean(transcript.text, style, profile?.instruction) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
+            cleanup.clean(
+                transcript.text,
+                style,
+                instruction = profile?.instruction,
+                generalInstruction = settings.cleanupInstruction,
+                language = language,
+            ) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
         }
         if (result == null) {
             trace?.cleanup = "${note}cleanup timed out (${cleanup.model})"
@@ -909,7 +923,8 @@ class DictationController(
         return result.fold(
             onSuccess = { cleaned ->
                 val styleNote = if (style == WritingStyle.AS_SPOKEN) "" else ", ${style.name.lowercase()}"
-                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$connection)"
+                val languageNote = language?.let { ", $it" }.orEmpty()
+                trace?.cleanup = "${note}cleanup ${cleaned.latencyMs} ms (${cleanup.model}$styleNote$languageNote$connection)"
                 graph.recognitionEstimate.learn(key, chars, cleaned.latencyMs, CLEANUP_OVERHEAD_MS)
                 graph.saveEstimates()
                 trace?.cleanupModel = cleanup.model
