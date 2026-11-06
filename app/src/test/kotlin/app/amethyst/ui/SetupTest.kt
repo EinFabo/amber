@@ -80,4 +80,19 @@ class SetupTest {
         assertTrue(Setup.openBatterySettings(app))
         assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, shadowOf(app).nextStartedActivity.action)
     }
+
+    @Test
+    fun `another Amber's service beside this one is noticed, and only while this one is on`() {
+        val other = if (app.packageName == "app.amber") "app.amber.debug" else "app.amber"
+        val otherService = "$other/${AmethystAccessibilityService::class.java.name}"
+        val resolver = app.contentResolver
+
+        Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, otherService)
+        assertTrue(Setup.snapshot(app).otherAmbers.isEmpty())
+
+        Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "$service:$otherService")
+        val state = Setup.snapshot(app)
+        assertTrue(state.accessibilityEnabled)
+        assertEquals(listOf(other), state.otherAmbers.map { it.packageName })
+    }
 }

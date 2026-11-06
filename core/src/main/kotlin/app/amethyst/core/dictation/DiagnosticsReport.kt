@@ -31,7 +31,8 @@ object DiagnosticsReport {
 
     /**
      * [records] newest first, as Diagnostics lists them, times in [zone]. [title] names the app
-     * and its version; [keyboard] are the keyboard lines the page shows, if any.
+     * and its version; [keyboard] are the keyboard lines the page shows, if any. [warning] is
+     * a line the page shows above them (another Amber switched on too), right under the title.
      */
     fun of(
         records: List<DictationRecord>,
@@ -39,6 +40,7 @@ object DiagnosticsReport {
         title: String,
         copiedAt: Long,
         keyboard: List<String> = emptyList(),
+        warning: String? = null,
     ): String = buildString {
         val count = when (records.size) {
             0 -> "no records"
@@ -46,6 +48,7 @@ object DiagnosticsReport {
             else -> "${records.size} records, newest first"
         }
         appendLine("$title - diagnostics copied ${DATE_TIME.format(local(copiedAt, zone))} - $count")
+        warning?.let { appendLine("Note: $it") }
         for (record in records) {
             appendLine()
             appendLine("${TIME.format(local(record.atMillis, zone))}  ${record.summary()}")

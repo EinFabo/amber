@@ -74,7 +74,7 @@ class Screenshots {
         batteryUnrestricted = true,
     )
 
-    private val actions = SetupActions({}, {}, {}, {}, {}, {})
+    private val actions = SetupActions({}, {}, {}, {}, {}, {}, {})
 
     private val settings = AmethystSettings.defaults().let { base ->
         listOf(EnginePresets.LOCAL_PARAKEET, EnginePresets.LOCAL_WHISPER, EnginePresets.TINFOIL)

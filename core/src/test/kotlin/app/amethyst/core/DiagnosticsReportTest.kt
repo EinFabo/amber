@@ -75,6 +75,18 @@ class DiagnosticsReportTest {
     }
 
     @Test
+    fun `another Amber switched on too is noted right under the title`() {
+        val text = DiagnosticsReport.of(
+            emptyList(), ZoneOffset.UTC, title = "Amber 0.21.0", copiedAt = at + 60_000,
+            warning = "Amber (debug) is also on - switch one off.",
+        )
+        assertEquals(
+            "Amber 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - no records\nNote: Amber (debug) is also on - switch one off.\n",
+            text,
+        )
+    }
+
+    @Test
     fun `the keyboard lines come after the records`() {
         val text = report(emptyList(), keyboard = listOf("12:00:01 keyboard at 1466", "12:00:02 keyboard closed"))
         assertTrue(text.endsWith("\nKeyboard\n  12:00:01 keyboard at 1466\n  12:00:02 keyboard closed\n"), text)
