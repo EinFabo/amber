@@ -598,14 +598,11 @@ class Screenshots {
     fun onboardingBubble() = onboarding("7-bubble", OnboardingStep.BUBBLE, ready, parakeetActive)
 
     @Test
-    fun onboardingRecording() = onboarding("8-recording", OnboardingStep.RECORDING, ready, parakeetActive)
-
-    @Test
-    fun onboardingReliability() = onboarding("9-reliability", OnboardingStep.RELIABILITY, fresh.copy(microphoneGranted = true, accessibilityEnabled = true), parakeetActive)
+    fun onboardingReliability() = onboarding("8-reliability", OnboardingStep.RELIABILITY, fresh.copy(microphoneGranted = true, accessibilityEnabled = true), parakeetActive)
 
     @Test
     fun onboardingDone() = onboarding(
-        "10-done", OnboardingStep.DONE, ready, parakeetActive,
+        "9-done", OnboardingStep.DONE, ready, parakeetActive,
         content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)),
     )
 

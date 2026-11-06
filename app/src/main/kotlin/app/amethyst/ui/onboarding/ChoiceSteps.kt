@@ -171,27 +171,6 @@ internal fun BubbleStep(settings: AmethystSettings, content: OnboardingContent, 
 }
 
 @Composable
-internal fun RecordingStep(settings: AmethystSettings, content: OnboardingContent, onNext: () -> Unit) {
-    val auto = settings.capture.autoStopOnSilence
-    StepPage(
-        title = "Ending a dictation",
-        lead = "How Amber knows you are done.",
-        buttons = { ContinueButton(onNext) },
-    ) {
-        RadioRow(
-            "Stop when I pause", "About a second of silence ends it",
-            selected = auto,
-            onSelect = { content.onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = true)) } },
-        )
-        RadioRow(
-            "Run until I tap again", "For long thoughts with pauses",
-            selected = !auto,
-            onSelect = { content.onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = false)) } },
-        )
-    }
-}
-
-@Composable
 internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {
     StepPage(
         title = "Keep Amber ready",
@@ -218,12 +197,7 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFi
             if (settings.bubble.onlyWithTextField) "Only when you type" else "Always",
             "Settings → Bubble",
         )
-        Chosen(
-            "Ending",
-            if (settings.capture.autoStopOnSilence) "Stops when you pause" else "Runs until you tap",
-            "Settings → Recording",
-        )
-        Chosen("Everything else", "Inserting, statistics, diagnostics", "Settings")
+        Chosen("Everything else", "Recording, inserting, statistics, diagnostics", "Settings → Advanced")
         if (download != null) {
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Hint(DownloadNotice.short(download), AmberPalette.Text)

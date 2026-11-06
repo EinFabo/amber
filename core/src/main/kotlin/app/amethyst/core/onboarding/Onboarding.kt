@@ -2,8 +2,11 @@ package app.amethyst.core.onboarding
 
 import app.amethyst.core.settings.AmethystSettings
 
-/** The introduction's screens, in the order they are shown. */
-enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, RECORDING, RELIABILITY, DONE }
+/**
+ * The introduction's screens, in the order they are shown. How a recording ends is no longer
+ * asked: it runs until the second tap ([app.amethyst.core.settings.CaptureSettings.autoStopOnSilence]).
+ */
+enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, RELIABILITY, DONE }
 
 /**
  * Which screens the introduction shows and how it moves between them. The styles step only

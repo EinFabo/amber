@@ -19,13 +19,13 @@ class OnboardingTest {
     @Test
     fun `without cleanup the styles step is left out`() {
         assertEquals(OnboardingStep.entries - OnboardingStep.APP_STYLES, Onboarding.steps(plain))
-        assertEquals(4 to 9, Onboarding.position(OnboardingStep.ENGINE, plain))
+        assertEquals(4 to 8, Onboarding.position(OnboardingStep.ENGINE, plain))
     }
 
     @Test
     fun `with cleanup the styles step follows it`() {
         assertEquals(OnboardingStep.APP_STYLES, Onboarding.next(OnboardingStep.CLEANUP, withCleanup))
-        assertEquals(10 to 10, Onboarding.position(OnboardingStep.DONE, withCleanup))
+        assertEquals(9 to 9, Onboarding.position(OnboardingStep.DONE, withCleanup))
     }
 
     @Test
@@ -44,6 +44,12 @@ class OnboardingTest {
     fun `the ends have no neighbour`() {
         assertNull(Onboarding.previous(OnboardingStep.WELCOME, plain))
         assertNull(Onboarding.next(OnboardingStep.DONE, plain))
+    }
+
+    @Test
+    fun `the bubble is followed by reliability - auto-pause is off and no longer asked`() {
+        assertEquals(OnboardingStep.RELIABILITY, Onboarding.next(OnboardingStep.BUBBLE, plain))
+        assertTrue(OnboardingStep.entries.none { it.name == "RECORDING" })
     }
 
     @Test

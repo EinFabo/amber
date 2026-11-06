@@ -60,7 +60,12 @@ data class EngineConfig(
 
 @Serializable
 data class CaptureSettings(
-    val autoStopOnSilence: Boolean = true,
+    /**
+     * End the recording after a pause. Off by default since roadmap P3: a dictation runs until
+     * the second tap, so a pause to think never cuts it off. Settings are saved with every
+     * field, so an install from before keeps what it had.
+     */
+    val autoStopOnSilence: Boolean = false,
     /**
      * Hard ceiling for one whole dictation, recording plus transcription. A stuck recognizer
      * or a server that accepts the upload and never answers would otherwise leave the bubble

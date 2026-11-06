@@ -84,7 +84,6 @@ fun OnboardingScreen(
                 OnboardingStep.CLEANUP -> CleanupStep(settings, content) { after -> nextFrom(current, after) }
                 OnboardingStep.APP_STYLES -> AppStylesStep(settings, content, onward)
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
-                OnboardingStep.RECORDING -> RecordingStep(settings, content, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
                 OnboardingStep.DONE -> DoneStep(settings, content.download, onFinish)
             }

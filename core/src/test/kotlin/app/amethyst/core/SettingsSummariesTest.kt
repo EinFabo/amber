@@ -88,9 +88,9 @@ class SettingsSummariesTest {
 
     @Test
     fun `recording says when it stops`() {
-        assertEquals("Stops after 0.9 s silence", SettingsSummaries.recording(CaptureSettings(silenceTimeoutMs = 900)))
-        assertEquals("Stops after 1.5 s silence", SettingsSummaries.recording(CaptureSettings(silenceTimeoutMs = 1_500)))
-        assertEquals("Runs until you tap", SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = false)))
+        assertEquals("Stops after 0.9 s silence", SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)))
+        assertEquals("Stops after 1.5 s silence", SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 1_500)))
+        assertEquals("Runs until you tap", SettingsSummaries.recording(CaptureSettings()))
     }
 
     @Test
