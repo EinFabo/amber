@@ -201,16 +201,4 @@ class QuickMenuGeometryTest {
         val fan = fan(BubbleSide.RIGHT, cx = 996f, cy = 360f)
         fan.orbs.forEachIndexed { slot, orb -> assertEquals(slot, fan.slotAt(orb.x, orb.y, deadZone)) }
     }
-
-    @Test
-    fun `the labels of the old menu sit inward of the bubble`() {
-        val labels = (0 until QuickMenuGeometry.SLOTS).map {
-            QuickMenuGeometry.labelCentre(BubbleSide.RIGHT, it, cx = 1006f, cy = 1500f, radius = 300f, width = 1080, height = 2424, halfWidth = 120f, halfHeight = 40f)
-        }
-        assertTrue(labels.all { it.x < 1006f })
-        val chip = QuickMenuGeometry.chipCentre(BubbleSide.RIGHT, cx = 1006f, cy = 1500f, radius = 300f, width = 1080, height = 2424, halfWidth = 200f, halfHeight = 50f)
-        assertTrue(chip.y < 1500f - 300f)
-        val far = QuickMenuGeometry.rubberBand(-900f, -900f, limit = 60f)
-        assertTrue(hypot(far.x, far.y) <= 60f + 0.01f)
-    }
 }

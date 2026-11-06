@@ -38,17 +38,24 @@ class QuickActionRunner(
         }
         val dictation = graph.dictation
         val app = otherApp(currentApp)
+        // Each says what happened; copy, the cleanup switch and hiding say it themselves.
         return when (action) {
-            QuickAction.INSERT_AGAIN -> dictation.insertAgain()
+            QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast("Last dictation inserted.") }
             QuickAction.COPY_LAST -> dictation.copyLast()
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
             QuickAction.CLEANUP_ON_HERE -> app != null && cleanupHere(app, on = true)
             QuickAction.HIDE_HERE -> app?.let { hideIn(it); true } ?: false
-            QuickAction.CANCEL -> true.also { dictation.cancel() }
-            QuickAction.SEND_WITHOUT_CLEANUP -> true.also { dictation.sendWithoutCleanup() }
-            QuickAction.START_OVER -> true.also { dictation.startOver() }
-            QuickAction.KEEP_AS_RECOGNIZED -> true.also { dictation.keepAsRecognized() }
+            QuickAction.CANCEL -> done("Dictation cancelled.") { dictation.cancel() }
+            QuickAction.SEND_WITHOUT_CLEANUP -> done("Sending without the cleanup.") { dictation.sendWithoutCleanup() }
+            QuickAction.START_OVER -> done("Recording again from the start.") { dictation.startOver() }
+            QuickAction.KEEP_AS_RECOGNIZED -> done("Keeping the text as recognized.") { dictation.keepAsRecognized() }
         }
+    }
+
+    private fun done(message: String, action: () -> Unit): Boolean {
+        action()
+        toast(message)
+        return true
     }
 
     private fun context(currentApp: String?): QuickMenuContext {

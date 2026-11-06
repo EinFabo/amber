@@ -17,6 +17,8 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.view.animation.PathInterpolator
 import app.amethyst.DebugLog
 import app.amethyst.core.bubble.BubbleDock
@@ -97,7 +99,7 @@ class BubbleController(
         deadZone = dp(MENU_DEAD_ZONE_DP).toFloat(),
     )
 
-    /** The quick menu, in a window of its own that takes no touches; added while it is open. */
+    /** The quick menu, in a window of its own that takes no touches; on the screen while it is open. */
     private val menuView = QuickMenuView(service)
     private var menuParams: WindowManager.LayoutParams? = null
 
@@ -191,8 +193,10 @@ class BubbleController(
         vanished = !shown
         applyWindowVisibility()
 
-        // Sparks first: overlays of one type stack in the order they are added, so the bubble
-        // comes out on top and the sparks rise from behind its disc, not across it.
+        // The menu and the sparks first: overlays of one type stack in the order they are
+        // added, so the bubble comes out on top - the menu's shade never darkens it, its
+        // buttons fly out from under it, and the sparks rise from behind its disc.
+        attachMenu(windows)
         attachSparks(windows, layoutParams)
         try {
             windows.addView(view, layoutParams)
@@ -203,7 +207,42 @@ class BubbleController(
             Log.e(TAG, "could not attach bubble overlay", e)
             sparkParams?.let { runCatching { windows.removeView(sparkView) } }
             sparkParams = null
+            menuParams?.let { runCatching { windows.removeView(menuView) } }
+            menuParams = null
             return
+        }
+    }
+
+    /**
+     * The quick menu's window: the whole screen, never touchable - the touch stays with the
+     * bubble that was pressed. Added once, under the bubble, and off the screen (INVISIBLE)
+     * except while the menu is open: added only when it opens, it would lie on top.
+     */
+    private fun attachMenu(windows: WindowManager) {
+        val (width, height) = screenSize()
+        val menu = WindowManager.LayoutParams(
+            width,
+            height,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            screenCoordinates()
+            x = 0
+            y = 0
+        }
+        menuView.visibility = View.INVISIBLE
+        menuView.onClosed = { menuView.visibility = View.INVISIBLE }
+        try {
+            windows.addView(menuView, menu)
+            menuParams = menu
+        } catch (e: Exception) {
+            // The bubble works without its menu: a hold then does nothing.
+            Log.w(TAG, "could not attach the quick menu overlay", e)
         }
     }
 
@@ -277,9 +316,14 @@ class BubbleController(
             runCatching { windowManager?.removeView(sparkView) }
                 .onFailure { Log.w(TAG, "spark overlay already gone", it) }
         }
+        if (menuParams != null) {
+            runCatching { windowManager?.removeView(menuView) }
+                .onFailure { Log.w(TAG, "quick menu overlay already gone", it) }
+        }
         attached = false
         params = null
         sparkParams = null
+        menuParams = null
     }
 
     /**
@@ -435,6 +479,7 @@ class BubbleController(
         applyWindowVisibility()
         // Back as they were: sparks only if some are still to be drawn.
         if (hidden) sparkView.visibility = View.INVISIBLE else if (sparkView.busy) showSparks()
+        if (hidden) closeMenu()
     }
 
     /** On the screen unless it vanished or a screenshot is being taken. */
@@ -571,6 +616,7 @@ class BubbleController(
                     mayHide = false
                     overTarget = false
                     gesture.down(event.rawX, event.rawY, event.eventTime)
+                    view.press(BubbleGesture.HOLD_MS)
                     // A finger held perfectly still produces no move events at all.
                     v.removeCallbacks(holdCheck)
                     v.postDelayed(holdCheck, BubbleGesture.HOLD_MS)
@@ -587,6 +633,7 @@ class BubbleController(
                         gesture.cancel()
                     }
                     handle(result, event.eventTime)
+                    view.release()
                     removeHideTarget()
                     mayHide = false
                     overTarget = false
@@ -617,6 +664,7 @@ class BubbleController(
 
                 is BubbleGesture.Event.Drag -> {
                     if (event.started) {
+                        view.release()
                         mayHide = !dictating && currentApp.let { it != null && it != service.packageName }
                         Log.i(
                             TAG,
@@ -657,7 +705,10 @@ class BubbleController(
                     }
                 }
 
-                BubbleGesture.Event.MenuOpen -> openMenu(startX + layoutParams.width / 2f, startY + layoutParams.height / 2f)
+                BubbleGesture.Event.MenuOpen -> {
+                    view.holdDone()
+                    openMenu(startX + layoutParams.width / 2f, startY + layoutParams.height / 2f)
+                }
 
                 is BubbleGesture.Event.Menu -> {
                     if (event.slotChanged) {
@@ -673,7 +724,8 @@ class BubbleController(
 
                 is BubbleGesture.Event.Select -> {
                     val slot = menuSlots.getOrNull(event.slot)
-                    closeMenu()
+                    // The chosen button pops, the others fly back into the bubble.
+                    closeMenu(animated = true, chosen = event.slot.takeIf { slot?.enabled == true })
                     settleAfterMenu(layoutParams)
                     if (slot == null || !slot.enabled) {
                         haptic(rejectConstant())
@@ -684,7 +736,7 @@ class BubbleController(
                 }
 
                 BubbleGesture.Event.MenuClosed -> {
-                    closeMenu()
+                    closeMenu(animated = true)
                     settleAfterMenu(layoutParams)
                 }
             }
@@ -725,39 +777,25 @@ class BubbleController(
      */
     private fun openMenu(cx: Float, cy: Float) {
         val windows = windowManager ?: return
+        val menu = menuParams ?: return
         menuSlots = quickMenu(currentApp)
         val fan = fanAt(cx, cy)
         gesture.fanShown(fan, menuSlots.map { it != null })
-        haptic(HapticFeedbackConstants.LONG_PRESS)
-        if (menuParams != null) return
+        haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+        // The screen may have turned since the window was added.
         val (width, height) = screenSize()
-        menuView.side = side
-        menuView.fan = fan
-        menuView.lit = null
-        menuView.slots = menuSlots
-        val menu = WindowManager.LayoutParams(
-            width,
-            height,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            screenCoordinates()
-            x = 0
-            y = 0
+        if (menu.width != width || menu.height != height) {
+            menu.width = width
+            menu.height = height
+            runCatching { windows.updateViewLayout(menuView, menu) }
+                .onFailure { Log.w(TAG, "could not resize the quick menu", it) }
         }
-        menuView.alpha = 0f
-        runCatching { windows.addView(menuView, menu) }
-            .onSuccess {
-                menuParams = menu
-                menuView.animate().alpha(1f).setDuration(MENU_FADE_MS).start()
-                Log.i(TAG, "quick menu: ${menuSlots.joinToString { it?.let { slot -> slot.action.name + if (slot.enabled) "" else " (off)" } ?: "-" }}")
-            }
-            .onFailure { Log.w(TAG, "could not show the quick menu", it) }
+        menuView.side = side
+        menuView.open(fan, menuSlots)
+        menuView.visibility = View.VISIBLE
+        view.animate().scaleX(MENU_BUBBLE_SCALE).scaleY(MENU_BUBBLE_SCALE).setDuration(MENU_SCALE_MS)
+            .setInterpolator(OvershootInterpolator()).withEndAction(null).start()
+        Log.i(TAG, "quick menu: ${menuSlots.joinToString { it?.let { slot -> slot.action.name + if (slot.enabled) "" else " (off)" } ?: "-" }}, tilt ${fan.tiltDeg.roundToInt()}")
     }
 
     /**
@@ -777,18 +815,28 @@ class BubbleController(
             side,
             cx,
             cy,
-            radius = dp(MENU_RADIUS_DP).toFloat(),
-            orbRadius = dp(MENU_ORB_DP) / 2f,
-            margin = dp(MENU_MARGIN_DP).toFloat(),
+            radius = dp(QuickMenuView.RADIUS_DP).toFloat(),
+            orbRadius = dp(QuickMenuView.ORB_DP) / 2f,
+            margin = dp(QuickMenuView.MARGIN_DP).toFloat(),
             area = area,
         )
     }
 
-    private fun closeMenu() {
-        if (menuParams == null) return
-        menuParams = null
-        menuView.animate().cancel()
-        runCatching { windowManager?.removeView(menuView) }
+    /**
+     * Closes the quick menu: [animated], the [chosen] button pops and the rest fly back into
+     * the bubble; otherwise it is gone at once (a new touch, the bubble leaving).
+     */
+    private fun closeMenu(animated: Boolean = false, chosen: Int? = null) {
+        if (menuView.visibility != View.VISIBLE) return
+        if (view.scaleX != 1f && shown) {
+            view.animate().scaleX(1f).scaleY(1f).setDuration(MENU_SCALE_MS).setInterpolator(DecelerateInterpolator()).withEndAction(null).start()
+        }
+        if (animated) {
+            menuView.close(chosen)
+        } else {
+            menuView.dismiss()
+            menuView.visibility = View.INVISIBLE
+        }
     }
 
     private fun hideTargetFrame(): Triple<Int, Int, Int> {
@@ -1017,10 +1065,9 @@ class BubbleController(
         /** Inside this radius around the bubble's centre nothing in the menu is lit. */
         const val MENU_DEAD_ZONE_DP = 26
 
-        /** The menu's buttons: their size, how far out they sit, how far from any edge they stay. */
-        const val MENU_ORB_DP = 46
-        const val MENU_RADIUS_DP = 84
-        const val MENU_MARGIN_DP = 6
-        const val MENU_FADE_MS = 120L
+
+        /** The bubble steps back a little while its menu is open. */
+        const val MENU_BUBBLE_SCALE = 0.92f
+        const val MENU_SCALE_MS = 200L
     }
 }

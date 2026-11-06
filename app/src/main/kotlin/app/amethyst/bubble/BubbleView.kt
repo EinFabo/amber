@@ -143,8 +143,15 @@ class BubbleView(context: Context) : View(context) {
             else -> Unit
         }
 
+        val now = SystemClock.elapsedRealtime()
+        val holding = drawHold(canvas, now, still)
+
         // New content fades in over the first fifth of a second of a state.
         glyph.alpha = (255 * (elapsed / ENTER_MS).coerceIn(0f, 1f)).toInt()
+        // A finger on the bubble presses the glyph in a little.
+        val pressed = pressDepth(now, still)
+        canvas.save()
+        canvas.scale(1f - (1f - PRESSED_SCALE) * pressed, 1f - (1f - PRESSED_SCALE) * pressed, cx, cy)
         when (visual) {
             BubbleVisual.IDLE -> drawFlame(canvas, r)
             BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
@@ -152,12 +159,83 @@ class BubbleView(context: Context) : View(context) {
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
+        canvas.restore()
 
-        when (val delay = nextFrameMs(elapsed, still)) {
+        val pressMoving = !still && now - pressChangedAt < PRESS_MS
+        when (val delay = if (holding || pressMoving) 0L else nextFrameMs(elapsed, still)) {
             null -> Unit
             0L -> postInvalidateOnAnimation()
             else -> postInvalidateDelayed(delay)
         }
+    }
+
+    /** When the finger came down and the hold ring began; null while no ring fills. */
+    private var holdFrom: Long? = null
+    private var holdMs = 300L
+
+    /** The glyph pressed in (true) or let out, and when that changed. */
+    private var pressed = false
+    private var pressChangedAt = 0L
+
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        color = Fire.AMBER
+    }
+
+    /**
+     * A finger came down: the glyph presses in, and a thin ring fills around the bubble from
+     * twelve o'clock for [holdMs] - the time until the quick menu opens.
+     */
+    fun press(holdMs: Long) {
+        this.holdMs = holdMs
+        holdFrom = SystemClock.elapsedRealtime()
+        setPressedGlyph(true)
+    }
+
+    /** The hold is over - the menu opened, or the finger moved away: the ring goes. */
+    fun holdDone() {
+        holdFrom = null
+        invalidate()
+    }
+
+    /** The finger is off the bubble, or dragging it: ring gone, glyph back. */
+    fun release() {
+        holdFrom = null
+        setPressedGlyph(false)
+    }
+
+    private fun setPressedGlyph(on: Boolean) {
+        if (pressed == on) {
+            invalidate()
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        // From wherever the last change had got to.
+        val depth = pressDepth(now, !ValueAnimator.areAnimatorsEnabled())
+        pressed = on
+        pressChangedAt = now - ((if (on) depth else 1f - depth) * PRESS_MS).toLong()
+        invalidate()
+    }
+
+    /** 0 let out, 1 pressed in. */
+    private fun pressDepth(now: Long, still: Boolean): Float {
+        val t = if (still) 1f else ((now - pressChangedAt).toFloat() / PRESS_MS).coerceIn(0f, 1f)
+        val eased = Fire.easeOut(t)
+        return if (pressed) eased else 1f - eased
+    }
+
+    /** The hold ring, just outside the fuse's track; true while it is still filling. */
+    private fun drawHold(canvas: Canvas, now: Long, still: Boolean): Boolean {
+        val from = holdFrom ?: return false
+        // With animations off there is no filling ring, only the menu when it comes.
+        if (still) return false
+        val progress = ((now - from).toFloat() / holdMs).coerceIn(0f, 1f)
+        ring.strokeWidth = fuse.strokeWidth * HOLD_STROKE
+        val radius = min(width, height) / 2f - ring.strokeWidth / 2 - 1f
+        bounds.set(cx - radius, cy - radius, cx + radius, cy + radius)
+        canvas.drawArc(bounds, -90f, 360f * progress, false, ring)
+        return progress < 1f
     }
 
     /** A spark running clockwise around the rim, its tail fading behind it in four steps. */
@@ -362,6 +440,13 @@ class BubbleView(context: Context) : View(context) {
         const val WORKING_FRAME_MS = 33L
         const val MIN_OPACITY = 0.2f
         const val STILL_PROGRESS_MS = 250L
+
+        /** The glyph under a finger, and how fast it gets there. */
+        const val PRESSED_SCALE = 0.88f
+        const val PRESS_MS = 140L
+
+        /** The hold ring's stroke, in fuse strokes: a little bolder, it is the only thing moving. */
+        const val HOLD_STROKE = 1.3f
 
         val BAR_PROFILE = floatArrayOf(0.75f, 1f, 0.75f)
         val BAR_SPEED = floatArrayOf(2.6f, 3.2f, 2.2f)
