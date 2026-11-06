@@ -1,20 +1,30 @@
 package app.amethyst.bubble
 
 import android.accessibilityservice.AccessibilityService
+import android.animation.Animator
+import android.animation.TimeAnimator
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.graphics.PixelFormat
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
 import app.amethyst.DebugLog
+import app.amethyst.core.bubble.BubbleDock
 import app.amethyst.core.bubble.BubblePlacement
+import app.amethyst.core.bubble.BubbleSide
+import app.amethyst.core.bubble.BubbleSpring
 import app.amethyst.core.bubble.BubbleVisibility
+import app.amethyst.core.bubble.SafeArea
+import app.amethyst.core.bubble.Screen
 import app.amethyst.core.commands.CommandTrigger
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.settings.BubbleSettings
@@ -38,8 +48,12 @@ class BubbleController(
     private val onHoldStart: () -> Boolean,
     /** Finger lifted after a hold that started a dictation. */
     private val onHoldEnd: () -> Unit,
-    /** The bubble was dragged to a new resting place, as fractions of the free screen area. */
-    private val onMoved: (horizontalBias: Float, verticalBias: Float) -> Unit,
+    /**
+     * The bubble was let go and docked on [side]. [edgeY]: its new height along the edge
+     * without a keyboard ([BubbleSettings.edgeY]); [aboveKeyboardDp]: its new height above a
+     * keyboard. Null leaves that one as it was - a drag sets only the height it was made at.
+     */
+    private val onMoved: (side: BubbleSide, edgeY: Float?, aboveKeyboardDp: Int?) -> Unit,
     /** The bubble was dropped on the hide target while this app was in front. */
     private val onHideIn: (packageName: String) -> Unit,
 ) {
@@ -94,8 +108,17 @@ class BubbleController(
     /** A screenshot is being taken: both windows are off the screen until it is done. */
     private var capturing = false
 
-    /** Where the bubble rests when no keyboard is in the way: settings, or where it was dropped. */
-    private var baseY = 0
+    /** The edge the bubble is docked on. */
+    private var side = BubbleSide.RIGHT
+
+    /** Where the bubble rests along its edge when no keyboard is in the way. */
+    private var restY = 0
+
+    /** Its gap to the keys of a docked keyboard, in pixels. */
+    private var aboveKeyboard = 0
+
+    /** The settings the position was last taken from; an echo of the bubble's own drop moves nothing. */
+    private var placedFrom: BubbleSettings? = null
 
     /** Top edge of the keyboard on screen, or null while none is shown. */
     private var keyboardTop: Int? = null
@@ -105,7 +128,8 @@ class BubbleController(
 
     /** The field being typed in, so the bubble does not sit on it. */
     private var field: Box? = null
-    private var moveAnimator: ValueAnimator? = null
+    /** A keyboard glide or the spring to the edge - one at a time. */
+    private var moveAnimator: Animator? = null
 
     /** The drop zone shown while dragging; added only for a drag that may hide the bubble. */
     private val hideTarget = HideTarget(service)
@@ -126,6 +150,7 @@ class BubbleController(
         }
 
         val size = dp(settings.sizeDp)
+        takePosition(settings, size)
         val layoutParams = WindowManager.LayoutParams(
             size,
             size,
@@ -138,11 +163,9 @@ class BubbleController(
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             screenCoordinates()
-            x = horizontalPosition(settings.horizontalBias, size)
-            y = verticalPosition(settings.verticalBias, size)
+            x = targetX(size)
+            y = targetY(size, x)
         }
-        baseY = layoutParams.y
-        layoutParams.y = targetY()
 
         view.setOnTouchListener(TouchHandler())
         // Start hidden when the bubble is only wanted with a text field; the first focus
@@ -255,19 +278,50 @@ class BubbleController(
         view.restingOpacity = bubbleSettings.restingOpacity
         if (shown) view.settleAlpha()
         val layoutParams = params ?: return
-        // A drag in progress wins over a settings write that may be its own echo.
-        if (!touching) {
+        // A drag in progress wins over a settings write that may be its own echo, and the
+        // echo of a drop - same side, same heights - leaves the spring to finish its swing.
+        if (!touching && !samePosition(placedFrom, bubbleSettings)) {
             val size = dp(bubbleSettings.sizeDp)
+            takePosition(bubbleSettings, size)
             layoutParams.width = size
             layoutParams.height = size
-            layoutParams.x = horizontalPosition(bubbleSettings.horizontalBias, size)
-            baseY = verticalPosition(bubbleSettings.verticalBias, size)
             moveAnimator?.cancel()
+            layoutParams.x = targetX()
             layoutParams.y = targetY()
             update()
         }
         applyVisibility(immediate = true)
     }
+
+    /**
+     * The screen turned or changed size: the bubble goes back to its edge - the same side,
+     * the same share of the height. Measured again once the new size has settled.
+     */
+    fun screenChanged() {
+        replace()
+        view.post { replace() }
+    }
+
+    private fun replace() {
+        val layoutParams = params ?: return
+        if (touching) return
+        moveAnimator?.cancel()
+        takePosition(settings, layoutParams.height)
+        layoutParams.x = targetX()
+        layoutParams.y = targetY()
+        update()
+    }
+
+    /** Side and both heights from [from], in pixels for a bubble of [size] on this screen. */
+    private fun takePosition(from: BubbleSettings, size: Int) {
+        side = from.side
+        restY = BubbleDock.yOf(from.edgeY, size, screen())
+        aboveKeyboard = dp(from.aboveKeyboardDp)
+        placedFrom = from
+    }
+
+    private fun samePosition(a: BubbleSettings?, b: BubbleSettings): Boolean =
+        a != null && a.side == b.side && a.edgeY == b.edgeY && a.aboveKeyboardDp == b.aboveKeyboardDp && a.sizeDp == b.sizeDp
 
     /**
      * Keeps the bubble above the keyboard. An accessibility overlay is not resized by the IME
@@ -294,23 +348,29 @@ class BubbleController(
         moveTo(layoutParams, targetY())
     }
 
-    private fun targetY(): Int {
-        val size = params?.height ?: dp(settings.sizeDp)
-        val x = params?.x ?: horizontalPosition(settings.horizontalBias, size)
-        return BubblePlacement.y(
-            restY = baseY,
+    /** The bubble's left edge on its side, clear of a cutout or bar there. */
+    private fun targetX(size: Int = params?.width ?: dp(settings.sizeDp)): Int = BubbleDock.x(side, size, screen())
+
+    private fun targetY(size: Int = params?.height ?: dp(settings.sizeDp), x: Int = params?.x ?: targetX(size)): Int =
+        BubblePlacement.y(
+            restY = restY,
             x = x,
             size = size,
-            screenHeight = screenSize().second,
+            screen = screen(),
             gap = dp(KEYBOARD_GAP_DP),
             keyboardTop = keyboardTop,
+            aboveKeyboard = aboveKeyboard,
             avoid = listOfNotNull(floatingKeyboard, field),
         )
-    }
 
+    /**
+     * Glides to [y] along the edge - only while shown; a hidden bubble is simply put there,
+     * so it appears in the right place. The edge is taken as it is now, without a glide.
+     */
     private fun moveTo(layoutParams: WindowManager.LayoutParams, y: Int) {
         moveAnimator?.cancel()
-        if (!shown || layoutParams.y == y) {
+        layoutParams.x = targetX()
+        if (!shown || layoutParams.y == y || !ValueAnimator.areAnimatorsEnabled()) {
             layoutParams.y = y
             update()
             return
@@ -396,6 +456,13 @@ class BubbleController(
             if (!shown) {
                 shown = true
                 layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                // Place first, then show: it appears where it belongs - above the keyboard
+                // that is on its way - instead of sliding there once it is visible.
+                if (!touching) {
+                    moveAnimator?.cancel()
+                    layoutParams.x = targetX()
+                    layoutParams.y = targetY()
+                }
                 update()
                 vanished = false
                 applyWindowVisibility()
@@ -481,6 +548,8 @@ class BubbleController(
         private var mayHide = false
         private var overTarget = false
 
+        private var velocity: VelocityTracker? = null
+
         private val holdStarted = Runnable {
             if (dragging) return@Runnable
             holding = onHoldStart()
@@ -489,6 +558,7 @@ class BubbleController(
 
         override fun onTouch(v: View, event: MotionEvent): Boolean {
             val layoutParams = params ?: return false
+            track(event)
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -559,7 +629,8 @@ class BubbleController(
                         update()
                         onHideIn(hideIn)
                     } else if (dragging) {
-                        dropped(layoutParams)
+                        val (vx, vy) = flingVelocity()
+                        dropped(layoutParams, vx, vy)
                     } else {
                         // A keyboard that came or went while the finger was down was not followed.
                         moveTo(layoutParams, targetY())
@@ -577,12 +648,37 @@ class BubbleController(
                     }
                     holding = false
                     dragging = false
+                    velocity?.recycle()
+                    velocity = null
                     // A hide that was held back while the finger was down.
                     applyVisibility(immediate = false)
                     return true
                 }
             }
             return false
+        }
+
+        /**
+         * In screen coordinates: the window moves with the finger, so the view's own
+         * coordinates hardly change during a drag.
+         */
+        private fun track(event: MotionEvent) {
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                velocity?.recycle()
+                velocity = VelocityTracker.obtain()
+            }
+            val tracker = velocity ?: return
+            val screen = MotionEvent.obtain(event)
+            screen.setLocation(event.rawX, event.rawY)
+            tracker.addMovement(screen)
+            screen.recycle()
+        }
+
+        /** Pixels per second at the lift. */
+        private fun flingVelocity(): Pair<Float, Float> {
+            val tracker = velocity ?: return 0f to 0f
+            tracker.computeCurrentVelocity(1000)
+            return tracker.xVelocity to tracker.yVelocity
         }
     }
 
@@ -638,23 +734,95 @@ class BubbleController(
     }
 
     /**
-     * The bubble stays where it was let go. Dropped onto the keyboard, it rests there in the
-     * settings but is lifted above the keys until they go away.
+     * Let go: to the nearer edge, or the one a sideways fling throws it to, on a spring. The
+     * height it was let go at becomes its height above the keyboard while one is up, else
+     * its resting height - each remembered on its own.
      */
-    private fun dropped(layoutParams: WindowManager.LayoutParams) {
-        baseY = layoutParams.y
-        moveTo(layoutParams, targetY())
-        val (width, height) = screenSize()
-        val freeX = (width - layoutParams.width).coerceAtLeast(1)
-        val freeY = (height - layoutParams.height).coerceAtLeast(1)
-        onMoved(layoutParams.x.toFloat() / freeX, baseY.toFloat() / freeY)
+    private fun dropped(layoutParams: WindowManager.LayoutParams, velocityX: Float, velocityY: Float) {
+        val size = layoutParams.width
+        val screen = screen()
+        val dock = BubbleDock.release(layoutParams.x, layoutParams.y, velocityX, velocityY, size, screen)
+        side = dock.side
+        val keyboard = keyboardTop
+        val edgeY: Float?
+        val aboveDp: Int?
+        if (keyboard != null) {
+            aboveKeyboard = BubblePlacement.aboveKeyboard(dock.y, size, keyboard)
+            aboveDp = px(aboveKeyboard)
+            edgeY = null
+        } else {
+            restY = dock.y
+            edgeY = BubbleDock.fractionOf(restY, size, screen)
+            aboveDp = null
+        }
+        // The echo of this drop's settings write must not move the bubble again.
+        settings = settings.copy(
+            side = side,
+            edgeY = edgeY ?: settings.edgeY,
+            aboveKeyboardDp = aboveDp ?: settings.aboveKeyboardDp,
+        )
+        placedFrom = settings
+        springTo(layoutParams, dock.x, targetY(size, dock.x), velocityX, 0f)
+        onMoved(side, edgeY, aboveDp)
     }
 
-    private fun horizontalPosition(bias: Float, size: Int): Int =
-        ((screenSize().first - size) * bias.coerceIn(0f, 1f)).roundToInt()
+    /**
+     * To ([x], [y]) on a slightly damped spring that takes the fling's speed along: a few
+     * pixels past the edge and back, instead of a hard stop.
+     */
+    private fun springTo(layoutParams: WindowManager.LayoutParams, x: Int, y: Int, velocityX: Float, velocityY: Float) {
+        moveAnimator?.cancel()
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            layoutParams.x = x
+            layoutParams.y = y
+            update()
+            return
+        }
+        val spring = BubbleSpring()
+        var motionX = BubbleSpring.Motion(layoutParams.x.toDouble(), velocityX.toDouble())
+        var motionY = BubbleSpring.Motion(layoutParams.y.toDouble(), velocityY.toDouble())
+        moveAnimator = TimeAnimator().apply {
+            setTimeListener { animator, _, deltaMs ->
+                val seconds = deltaMs.coerceIn(0L, MAX_FRAME_MS) / 1000.0
+                motionX = spring.step(motionX, x.toDouble(), seconds)
+                motionY = spring.step(motionY, y.toDouble(), seconds)
+                val done = spring.atRest(motionX, x.toDouble()) && spring.atRest(motionY, y.toDouble())
+                layoutParams.x = if (done) x else motionX.position.roundToInt()
+                layoutParams.y = if (done) y else motionY.position.roundToInt()
+                update()
+                if (done) animator.end()
+            }
+            start()
+        }
+    }
 
-    private fun verticalPosition(bias: Float, size: Int): Int =
-        ((screenSize().second - size) * bias.coerceIn(0f, 1f)).roundToInt()
+    /** The display with what the bubble keeps clear of: bars, gesture bar, cutout. */
+    private fun screen(): Screen {
+        val (width, height) = screenSize()
+        return Screen(width, height, safeArea(width, height))
+    }
+
+    private fun safeArea(width: Int, height: Int): SafeArea {
+        val windows = windowManager
+        if (windows != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insets = windows.currentWindowMetrics.windowInsets
+            val bars = insets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            val gestures = insets.getInsetsIgnoringVisibility(WindowInsets.Type.mandatorySystemGestures())
+            val area = SafeArea(bars.left, bars.top, bars.right, maxOf(bars.bottom, gestures.bottom))
+            if (area != SafeArea()) return area
+        }
+        // Android 9 and 10, or no insets known: the bars' usual sizes, the navigation bar at
+        // the bottom only in portrait (in landscape it may sit on either side).
+        val status = systemDimen("status_bar_height")
+        val navigation = if (height > width) systemDimen("navigation_bar_height") else 0
+        return SafeArea(top = status, bottom = navigation)
+    }
+
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
+    private fun systemDimen(name: String): Int {
+        val id = service.resources.getIdentifier(name, "dimen", "android")
+        return if (id > 0) service.resources.getDimensionPixelSize(id) else 0
+    }
 
     @Suppress("DEPRECATION")
     private fun screenSize(): Pair<Int, Int> {
@@ -710,6 +878,9 @@ class BubbleController(
     private fun dp(value: Int): Int =
         (value * service.resources.displayMetrics.density).roundToInt()
 
+    private fun px(value: Int): Int =
+        (value / service.resources.displayMetrics.density).roundToInt()
+
     private companion object {
         const val TAG = "Amber"
         const val HIDE_DELAY_MS = 400L
@@ -721,6 +892,9 @@ class BubbleController(
         const val HIDE_TARGET_LIFT_DP = 72
         /** Close to the keyboard's own slide, so both arrive together. */
         const val MOVE_MS = 250L
+
+        /** A longer frame (the phone busy) advances the spring by this much only. */
+        const val MAX_FRAME_MS = 32L
         val KEYBOARD_EASING = PathInterpolator(0.2f, 0f, 0f, 1f)
 
         /**

@@ -441,14 +441,15 @@ fun BubbleScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Position", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-                    Hint("Stays where you drag it")
+                    Hint("Docks at the left or right edge, wherever you drop it")
                 }
                 GhostButton("Reset", {
                     onUpdateSettings {
                         it.copy(
                             bubble = it.bubble.copy(
-                                horizontalBias = BubbleSettings.DEFAULT_HORIZONTAL_BIAS,
-                                verticalBias = BubbleSettings.DEFAULT_VERTICAL_BIAS,
+                                side = BubbleSettings().side,
+                                edgeY = BubbleSettings.DEFAULT_EDGE_Y,
+                                aboveKeyboardDp = BubbleSettings.DEFAULT_ABOVE_KEYBOARD_DP,
                             ),
                         )
                     }

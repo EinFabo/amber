@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
@@ -103,6 +104,43 @@ class SettingsTest {
         assertEquals(3, CaptureSettings(preRollMs = 0).toVadConfig().calibrationFrames)
         assertEquals(50, CaptureSettings(preRollMs = 5_000).toVadConfig().calibrationFrames)
     }
+
+    @Test
+    fun `schema 11 docks the bubble on the side it was nearer to, at the same height`() {
+        val left = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"enabled":true,"horizontalBias":0.2,"verticalBias":0.4,"sizeDp":64},"schemaVersion":10}"""
+        val migrated = SettingsCodec.decode(left, TEST_PHONE)
+        assertEquals(BubbleSide.LEFT, migrated.bubble.side)
+        assertEquals(0.4f, migrated.bubble.edgeY)
+        assertEquals(BubbleSettings.DEFAULT_ABOVE_KEYBOARD_DP, migrated.bubble.aboveKeyboardDp)
+        assertEquals(64, migrated.bubble.sizeDp, "the rest of the bubble settings stay")
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+        @Suppress("DEPRECATION")
+        assertNull(migrated.bubble.horizontalBias, "the old position is not written again")
+
+        val right = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"horizontalBias":1.0,"verticalBias":0.72},"schemaVersion":10}"""
+        assertEquals(BubbleSide.RIGHT, SettingsCodec.decode(right, TEST_PHONE).bubble.side)
+        val middle = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"horizontalBias":0.5,"verticalBias":0.1},"schemaVersion":10}"""
+        assertEquals(BubbleSide.RIGHT, SettingsCodec.decode(middle, TEST_PHONE).bubble.side)
+    }
+
+    @Test
+    fun `schema 11 gives settings without a bubble position the defaults`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":4}"""
+        val bubble = SettingsCodec.decode(old, TEST_PHONE).bubble
+        assertEquals(BubbleSettings(), bubble)
+        assertEquals(BubbleSide.RIGHT, bubble.side)
+    }
+
+    @Test
+    fun `the docked position survives a round trip`() {
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(
+            bubble = BubbleSettings(side = BubbleSide.LEFT, edgeY = 0.31f, aboveKeyboardDp = 120),
+        )
+        assertEquals(settings.bubble, SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).bubble)
+    }
 }
 
 class CaptureTimeoutTest {
@@ -202,7 +240,7 @@ class CaptureTimeoutTest {
 
     @Test
     fun `schema 10 keeps amber catalogs, and older settings start without`() {
-        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
+        assertTrue(AmethystSettings.SCHEMA_VERSION >= 10)
         val old = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
             "displayName":"Own server","baseUrl":"http://192.168.1.20:8765/k3y/v1","modelId":"acft-large-v3-turbo-q8_0"}],"schemaVersion":9}"""
         val migrated = SettingsCodec.decode(old, TEST_PHONE)
@@ -224,7 +262,7 @@ class CaptureTimeoutTest {
 
     @Test
     fun `a catalog stored before upload formats takes wav, with nothing to migrate`() {
-        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
+        assertTrue(AmethystSettings.SCHEMA_VERSION >= 10)
         val baseUrl = "http://192.168.1.20:8765/k3y/v1"
         val raw = """{"activeEngineId":"self-hosted","engines":[{"id":"self-hosted","kind":"OPENAI_COMPATIBLE",
             "displayName":"Own server","baseUrl":"$baseUrl","modelId":"acft-large-v3-turbo-q8_0"}],
@@ -263,7 +301,6 @@ class CaptureTimeoutTest {
         val settings = AmethystSettings.defaults(TEST_PHONE).copy(cleanupInstruction = "Zahlen als Ziffern.")
         assertEquals("Zahlen als Ziffern.", SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).cleanupInstruction)
         assertNull(SettingsCodec.decode("""{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""", TEST_PHONE).cleanupInstruction)
-        assertEquals(10, AmethystSettings.SCHEMA_VERSION, "a new field with a default needs no schema step")
     }
 
     @Test
@@ -281,7 +318,6 @@ class CaptureTimeoutTest {
 
     @Test
     fun `settings from before the update check check by default, with nothing to migrate`() {
-        assertEquals(10, AmethystSettings.SCHEMA_VERSION)
         for (raw in listOf(
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""",
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}""",

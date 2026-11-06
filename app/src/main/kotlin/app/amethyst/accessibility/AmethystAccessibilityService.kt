@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -114,10 +115,16 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
             },
             onHoldEnd = { graph.dictation.stop() },
-            onMoved = { horizontal, vertical ->
+            onMoved = { side, edgeY, aboveKeyboardDp ->
                 graph.appScope.launch {
                     graph.settingsStore.update {
-                        it.copy(bubble = it.bubble.copy(horizontalBias = horizontal, verticalBias = vertical))
+                        it.copy(
+                            bubble = it.bubble.copy(
+                                side = side,
+                                edgeY = edgeY ?: it.bubble.edgeY,
+                                aboveKeyboardDp = aboveKeyboardDp ?: it.bubble.aboveKeyboardDp,
+                            ),
+                        )
                     }
                 }
             },
@@ -326,11 +333,13 @@ class AmethystAccessibilityService : AccessibilityService() {
         val dictatable = kind.wantsDictation
         if (dictatable && !editableFieldFocused) graph.textFieldFocused()
         editableFieldFocused = dictatable
-        bubble?.setTextFieldFocused(dictatable)
-        fieldCheck.schedule(0)
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
         // on the next window event - this is what lets the bubble move with the keyboard.
+        // Before the bubble is told about the field: it is placed above the keyboard that is
+        // on its way first, and then appears there, instead of sliding up once visible.
         keyboard?.focusChanged(kind != TextFieldKind.NONE)
+        bubble?.setTextFieldFocused(dictatable)
+        fieldCheck.schedule(0)
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -373,6 +382,12 @@ class AmethystAccessibilityService : AccessibilityService() {
     private val fieldCheck = FieldCheck()
 
     override fun onInterrupt() = Unit
+
+    /** A rotation: the bubble goes back to its edge, at the same share of the height. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        bubble?.screenChanged()
+    }
 
     override fun onUnbind(intent: Intent?): Boolean {
         teardown()

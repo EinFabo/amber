@@ -1,6 +1,7 @@
 package app.amethyst.core.settings
 
 import app.amethyst.core.audio.VadConfig
+import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
@@ -132,10 +133,24 @@ data class BubbleSettings(
      * kills insertion - so the in-app test path would die with it.
      */
     val enabled: Boolean = true,
-    /** 0f = left edge, 1f = right edge. Written whenever the bubble is dragged. */
-    val horizontalBias: Float = 1f,
-    /** 0f = top of screen, 1f = bottom. */
-    val verticalBias: Float = 0.72f,
+    /** Until schema 11 the bubble could rest anywhere: 0f = left edge, 1f = right edge. */
+    @Deprecated("Since schema 11: side. Read only to migrate.")
+    val horizontalBias: Float? = null,
+    /** Until schema 11: 0f = top of screen, 1f = bottom. */
+    @Deprecated("Since schema 11: edgeY. Read only to migrate.")
+    val verticalBias: Float? = null,
+    /** The edge the bubble is docked on; a drag or a sideways fling changes it. */
+    val side: BubbleSide = BubbleSide.RIGHT,
+    /**
+     * Its height along the edge without a keyboard, as a share of the screen between the
+     * status bar and the gesture bar (0 = top, 1 = bottom), so a rotation keeps it in place.
+     */
+    val edgeY: Float = DEFAULT_EDGE_Y,
+    /**
+     * Its height while a keyboard is up: the gap between the bubble and the keys. Its own,
+     * so the bubble clears an app's input bar; dragging it while the keyboard is up sets it.
+     */
+    val aboveKeyboardDp: Int = DEFAULT_ABOVE_KEYBOARD_DP,
     val sizeDp: Int = 56,
     val haptics: Boolean = true,
     /**
@@ -155,8 +170,14 @@ data class BubbleSettings(
     val hiddenIn: List<String> = emptyList(),
 ) {
     companion object {
-        val DEFAULT_HORIZONTAL_BIAS = 1f
-        val DEFAULT_VERTICAL_BIAS = 0.72f
+        /** About three quarters down, where a thumb rests. */
+        const val DEFAULT_EDGE_Y = 0.72f
+
+        /**
+         * Clearly above a chat app's input bar (about 56-64 dp with its margins), so the bubble
+         * never lands on the send or microphone button at the bar's end.
+         */
+        const val DEFAULT_ABOVE_KEYBOARD_DP = 80
     }
 }
 
@@ -261,12 +282,14 @@ data class AmethystSettings(
          * 9: the cleanup per app is a choice (default, off, a model) instead of a switch.
          * 10: the model lists of Amber servers - nothing to migrate, an absent field decodes
          * to none, and the next fetch fills it.
+         * 11: the bubble docks on a side edge, with its own height above the keyboard - the
+         * free position becomes a side and a height along it.
          * The update check ([updates]) needed no new version: an absent field decodes to its
          * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
          * (settings from before it), and a new install starts with it off ([defaults]).
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 10
+        const val SCHEMA_VERSION = 11
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -343,6 +366,7 @@ object SettingsCodec {
             // Version 8: whoever had settings before the introduction existed has set Amber up.
             onboardingDone = settings.onboardingDone || settings.schemaVersion < 8,
             profiles = if (settings.schemaVersion < 9) settings.profiles.map(::migrateProfile) else settings.profiles,
+            bubble = if (settings.schemaVersion < 11) migrateBubble(settings.bubble) else settings.bubble,
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
@@ -358,6 +382,18 @@ object SettingsCodec {
         )
     }
 }
+
+/**
+ * Version 11: the bubble docks on the side it was nearer to (the middle goes right, where it
+ * starts), at the height it had. Settings without a position keep the defaults.
+ */
+@Suppress("DEPRECATION")
+private fun migrateBubble(bubble: BubbleSettings): BubbleSettings = bubble.copy(
+    side = bubble.horizontalBias?.let { if (it < 0.5f) BubbleSide.LEFT else BubbleSide.RIGHT } ?: bubble.side,
+    edgeY = bubble.verticalBias?.coerceIn(0f, 1f) ?: bubble.edgeY,
+    horizontalBias = null,
+    verticalBias = null,
+)
 
 /** Version 9: the per-app switch "never" becomes Off, "follow" and "always" the default. */
 @Suppress("DEPRECATION")
