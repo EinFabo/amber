@@ -19,6 +19,7 @@ import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
+import app.amethyst.core.capture.ProxyHandover
 import app.amethyst.core.capture.RecordingPause
 import app.amethyst.core.capture.withPausableTimeout
 import app.amethyst.core.capture.TriggerSource
@@ -147,8 +148,11 @@ class DictationController(
     /** The engine that failed when [fellBack] took over. */
     private var fellBackFrom: String? = null
 
-    /** A release that came while the proxy activity was still on its way. */
-    private val stopDuringHandover = AtomicBoolean(false)
+    /**
+     * A run handed to the proxy activity, until the activity calls back in: a cancel or start
+     * over meanwhile decides whether it may record then.
+     */
+    private val handover = ProxyHandover(lostAfterMs = PROXY_HANDOVER_TIMEOUT_MS)
 
     /** Counts runs, so a timer from an earlier run never acts on a later one. */
     private var runSerial = 0
@@ -223,6 +227,18 @@ class DictationController(
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
+        // The proxy activity records only for a run that still waits for it - not after a
+        // cancel - and brings along a release that came while it was on its way.
+        val stoppedDuringHandover = if (source == TriggerSource.PROXY_ACTIVITY) {
+            val arrival = handover.arrive()
+            if (arrival == null) {
+                Log.i(TAG, "mic proxy activity arrived with no dictation waiting for it")
+                return
+            }
+            arrival.stopped
+        } else {
+            false
+        }
         if (isRunning) return
         // The engine chosen in the introduction may still be downloading: say so and record
         // nothing, rather than taking the words and failing - and never hand them to another engine.
@@ -237,7 +253,6 @@ class DictationController(
             commandRecorded = false
             runEngineId = graph.settings.value.activeEngine?.id
             skipCleanup = CompletableDeferred()
-            stopDuringHandover.set(false)
             fellBack = null
             fellBackFrom = null
             startTarget = graph.accessibilityService?.focusedTarget()
@@ -276,8 +291,11 @@ class DictationController(
                 // onCreate - before AudioRecord opened - and the anchor it exists to provide
                 // would be gone again.
                 _state.value = DictationState.Starting
-                MicProxyActivity.launch(context)
-                watchProxyHandover()
+                // A start over during a handover takes the activity on its way: never two.
+                if (handover.begin(SystemClock.elapsedRealtime())) {
+                    MicProxyActivity.launch(context)
+                    watchProxyHandover()
+                }
                 return
             }
 
@@ -286,11 +304,13 @@ class DictationController(
             MicrophoneRoute.RECORD_NOW -> Unit
         }
 
+        // Recording directly: an activity still on its way starts nothing when it arrives.
+        if (source != TriggerSource.PROXY_ACTIVITY) handover.cancel()
         graph.dictationStarting()
 
         // Re-entry from the proxy keeps a stop that came while it was starting - otherwise a
         // tap that stopped the dictation meanwhile would leave it recording until the cap.
-        stopRequested.set(source == TriggerSource.PROXY_ACTIVITY && stopDuringHandover.getAndSet(false))
+        stopRequested.set(stoppedDuringHandover)
         // Also set here, synchronously: anything watching the state must see the dictation
         // begin before the coroutine gets its first dispatch.
         _state.value = DictationState.Starting
@@ -306,6 +326,7 @@ class DictationController(
         scope.launch {
             delay(PROXY_HANDOVER_TIMEOUT_MS)
             if (!isRunning && _state.value is DictationState.Starting) {
+                handover.lost()
                 fail(
                     "The microphone could not be opened. Open Amber once, " +
                         "then the bubble works directly.",
@@ -347,19 +368,21 @@ class DictationController(
     /** Finish the current recording and transcribe what was captured. */
     fun stop() {
         stopRequested.set(true)
-        if (!isRunning && _state.value is DictationState.Starting) stopDuringHandover.set(true)
+        if (!isRunning && _state.value is DictationState.Starting) handover.stop()
         selfCapturing?.requestStop()
     }
 
-    /** Throw the current recording away. */
+    /** Throw the current recording away - also one still being handed to the proxy activity. */
     fun cancel() {
+        handover.cancel()
         job?.cancel()
         _state.value = DictationState.Idle
     }
 
     /**
      * Throws the recording away and starts a new one - once the old run has let go of the
-     * microphone, so the two never share it.
+     * microphone, so the two never share it. During a handover to the proxy activity the new
+     * run takes the activity already on its way ([ProxyHandover.begin]).
      */
     fun startOver() {
         val old = job
@@ -632,7 +655,7 @@ class DictationController(
                 // service. Retry once through the activity path before giving up.
                 if (source.mayUseProxyFallback) {
                     Log.i(TAG, "retrying capture via proxy activity")
-                    MicProxyActivity.launch(context)
+                    if (handover.begin(SystemClock.elapsedRealtime())) MicProxyActivity.launch(context)
                 } else {
                     fail(outcome.message, details = listOf("capture failed: ${outcome.technical}"))
                 }
