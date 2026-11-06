@@ -183,19 +183,28 @@ object CleanupGuard {
      * A number as spoken or written: its parts ("zwei null vier" -> 2, 0, 4; "15:30" -> 15, 30)
      * and, where they form one, the whole value ("twenty three" -> 23, "1.000" -> 1000).
      */
-    internal class NumberGroup(val parts: List<Long>, val whole: Long?) {
+    internal class NumberGroup(
+        val parts: List<Long>,
+        val whole: Long?,
+        /** As written, for a number in digits ("0176"). */
+        digits: String? = null,
+        /** An article that may mean one ("ein", "a"): matches a 1, is never required. */
+        val soft: Boolean = false,
+    ) {
         private val values get() = parts + listOfNotNull(whole)
 
-        /** Said again on the other side: as a whole, or part by part. */
+        /** "0176", whether written so or spoken digit by digit ("null eins sieben sechs"). */
+        private val asDigits: String? = digits
+            ?: parts.takeIf { it.size > 1 && it.all { part -> part in 0..9 } }?.joinToString("")
+
+        /** Said again on the other side: as a whole, part by part, or digit by digit. */
         fun foundIn(others: List<NumberGroup>): Boolean {
             val known = others.flatMap { it.values }.toSet()
             return (whole != null && whole in known) || parts.all { it in known } ||
+                (asDigits != null && others.any { it.asDigits == asDigits }) ||
                 // "ein Uhr" -> "1 Uhr": an article may become a one, it is never missed.
                 (parts == listOf(1L) && others.any { it.soft })
         }
-
-        /** An article that may mean one ("ein", "a"): matches a 1, is never required. */
-        var soft = false
     }
 
     private val GERMAN_NUMBERS = mapOf(
@@ -247,7 +256,7 @@ object CleanupGuard {
                         groups += NumberGroup(parts, number.filter(Char::isDigit).toLongOrNull())
                     } else {
                         val parts = number.split('.', ',', ':').filter { it.isNotEmpty() }.mapNotNull { it.toLongOrNull() }
-                        groups += NumberGroup(parts, parts.singleOrNull())
+                        groups += NumberGroup(parts, parts.singleOrNull(), digits = number.takeIf { it.all(Char::isDigit) })
                     }
                 }
                 continue
@@ -267,7 +276,7 @@ object CleanupGuard {
                 if (token.endsSentence || token.endsClause) closeRun()
             } else {
                 closeRun()
-                if (word in ARTICLES_AS_ONE) groups += NumberGroup(emptyList(), null).also { it.soft = true }
+                if (word in ARTICLES_AS_ONE) groups += NumberGroup(emptyList(), null, soft = true)
             }
         }
         closeRun()

@@ -108,6 +108,8 @@ class CleanupGuardTest {
         assertEquals(Verdict.OK, verdict("es dauert zweieinhalb stunden", "Es dauert 2,5 Stunden."))
         assertEquals(Verdict.OK, verdict("ich komme um ein uhr", "Ich komme um 1 Uhr."))
         assertEquals(Verdict.OK, verdict("die dritte tür links", "Die 3. Tür links."))
+        assertEquals(Verdict.OK, verdict("ruf mich unter null eins sieben sechs an", "Ruf mich unter 0176 an."))
+        assertEquals(Verdict.NUMBER_ADDED, verdict("ruf mich unter null eins sieben sechs an", "Ruf mich unter 0167 an."))
     }
 
     @Test
