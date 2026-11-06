@@ -2,6 +2,37 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Roadmap (Fabi's plan, 2026-11-06)
+
+The order Fabi decided: [`plans/2026-11-06-roadmap.md`](plans/2026-11-06-roadmap.md), one commit
+series and one store release per phase, each after his OK.
+
+- [x] **P0 - License and rules**: Apache-2.0 with `NOTICE` and a Licenses page, CLAUDE.md (app text
+      English + German), `docs/AMBER-PC-REVIEW-PROMPT.md`, stale open items cleared.
+- [ ] **P1 - Cleanup quality**: built - prompt with hard rules and the language named, the
+      self-correction rule, guards with a reason, a global own addition and "View system prompt",
+      no comma before a list's "und". Fabi, 2026-11-06 on the device: the cleanup works. Open: the
+      eval (`tools/cleanup-eval/run.sh`, needs his keys), Amber PC adopting the prompt.
+- [ ] **P2 - Bubble edge-dock + quick menu** (schema 11): place first, then show; clear of system
+      bars and cutout; snap to the left/right edge with fling; its own height above the keyboard;
+      landscape keeps the side. Long-press opens a 4-slot menu, hold-to-talk goes. Plans:
+      [`bubble-behaviour`](plans/2026-11-06-bubble-behaviour.md),
+      [`bubble-quick-menu`](plans/2026-11-06-bubble-quick-menu.md).
+- [ ] **P3 - Simpler surface** (schema 12): voice commands hidden (code stays), one global
+      "Advanced settings" switch, auto-pause off by default, the onboarding recording step gone.
+- [ ] **P4 - UI language**: texts into string resources, `values-de`, `locales_config`; plain
+      words from a glossary Fabi approves (`docs/GLOSSARY.md`). Diagnostics stay English.
+- [ ] **P5 - One "Server" entry + app-side security** (schema 13): one addable Server with
+      profiles, auto-detected; Tinfoil separate. Done ahead (2026-11-06): http to public addresses
+      refused at request time (`CleartextGuard`). Open: key bound to host, `Redact.url`, response
+      size caps, model-id checks, no redirects with a key, header auth after the amberPC review.
+- [ ] **P6 - Languages everywhere + recognition per app**: one language-chips component for every
+      engine, Parakeet "detects itself", per-app engine like per-app cleanup. Done ahead
+      (2026-11-06): new engines default to the phone's languages (`PhoneLanguages`).
+- [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**: the engine chosen by the device
+      (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
+- [ ] **P8 - Light mode**: System/Light/Dark, colours through a CompositionLocal.
+
 ## In progress: bubble and keyboard
 
 - [ ] **Set up wireless debugging**, so the keyboard measurements can be read live with
@@ -452,8 +483,7 @@ Best UX
       two languages it knows ("de", "de,en", "en"); `en-US`/`en` if the phone names none
       (`PhoneLanguages`). Saved engines keep their language. Open: the device test on a phone
       set to English, fresh install.
-- [ ] A German UI: `values-de` exists since the TalkBack strings (2026-11-06) and covers every
-      string resource; the Compose screens still have their texts inline, in English.
+- [ ] A German UI: roadmap P4.
 - [ ] Failures with one tap: "Recognize again" / "Use the local model" in the toast.
 - [ ] Ask for unrestricted battery only on makers that kill apps (Xiaomi/HyperOS, Samsung,
       Huawei/Honor, Oppo), with that maker's steps; nobody else.
@@ -523,13 +553,6 @@ Devices that are still in use
 - [ ] **No Whisper without ARMv8.2 dot-product**: budget phones 2017-2020 (Snapdragon
       625/636/660/665, Helio P22/P35/G35). With 4-5 GB they now get only Android's recognizer.
       ggml CPU variants (see above) or Parakeet from 4 GB when Whisper cannot run (measure first).
-- [x] **The bubble is silent for TalkBack** (built 2026-11-06, `BubbleAccess` in :core): a button
-      "Amber dictation" with its state (Ready, Listening, Processing, Done, Failed: reason), a
-      double tap that acts like a tap, actions (start/stop, voice command, hide in this app), and
-      spoken start, result and failure.
-- [ ] TalkBack device test: is the spoken "Listening" recorded into the dictation (then an earcon
-      instead), and does a focused bubble speak its own state changes (else drop the `focused`
-      check in `BubbleAccessibility`)?
 - [ ] Makers that kill background apps: the Reliability page with per-maker steps.
 - Fine as is: minSdk 28 (Android 8 and older out), no x86 (Chromebooks), Android 9-12 have no
   on-device Android recognizer (labelled as cloud).

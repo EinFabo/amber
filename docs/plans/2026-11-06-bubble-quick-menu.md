@@ -73,10 +73,7 @@ finger on a rubber band (at most one bubble size) and springs back on lift.
   run that ended meanwhile gives REJECT and a short toast instead of a wrong action.
 - **Window**: one more TYPE_ACCESSIBILITY_OVERLAY, NOT_TOUCHABLE, like `HideTarget`; the touch
   stream stays with the bubble window that got ACTION_DOWN.
-- **TalkBack**: explore-by-touch does not deliver the hold. The same per-state list goes onto
-  the bubble as `AccessibilityAction`s (TalkBack's actions menu), with a contentDescription
-  that names the state. This also closes most of the open item "The bubble is silent for
-  TalkBack" (`docs/OPEN.md`).
+- **TalkBack**: not part of this plan (Fabi, 2026-11-06: not wanted).
 - **One-handed**: right thumb with the bubble on the right edge reaches the inward fan
   naturally; the left edge mirrors it. The most used action goes inward (the easiest thumb
   move), the rarest ones up and down along the edge.
@@ -138,7 +135,7 @@ Transcribing - inward Cancel, up-inward Keep as recognized.
 
 `:app`: `QuickMenuView` (labels, chip, fade), the overlay window, haptics, the rubber band,
 running the actions (new `DictationController` entry points: command start, skip cleanup,
-start over, insert again, copy last), the `MainActivity` intent extras, TalkBack actions.
+start over, insert again, copy last), the `MainActivity` intent extras.
 
 Tests (`:core:test`):
 - Gesture: tap; double tap; quick drag = move with no menu; still 300 ms = menu; dwell = talk;
@@ -152,7 +149,7 @@ Tests (`:core:test`):
   Insert again; clipboard off removes Copy; Amber in front swaps Hide here for Open Amber;
   "fresh result" age limit; `stillValid` after Listening -> Idle, and Transcribing past the
   cleanup step; labels at most 14 characters.
-- Device test (Pixel 9a): both edges, keyboard up, one-handed, TalkBack actions, haptics off.
+- Device test (Pixel 9a): both edges, keyboard up, one-handed, haptics off.
 
 ## 5. Open questions for Fabi
 

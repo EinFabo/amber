@@ -49,7 +49,7 @@ Planned elsewhere, only referenced here: the **quick menu on a long-press of the
    built and signed by hand with `tools/sign-release.sh`; OPEN.md still says the first one is
    open). CI only builds and tests, it publishes nothing [code: `.github/workflows/android.yml`];
    M1 (build from tag, provenance) is open [docs].
-8. **The bubble is silent for TalkBack** - S/M. No contentDescription, state or actions in
+8. *(Dropped - Fabi, 2026-11-06: not wanted; built once and taken out again.)* **The bubble is silent for TalkBack** - S/M. No contentDescription, state or actions in
    `app/.../bubble/` [code: no hit]. A dictation app for low vision should not need sight; Play's
    accessibility review may ask too. OPEN.md "Devices that are still in use".
 9. **Tinfoil outreach package** - S (non-code) [session]. Needs 1-3 first: license, public repo,
