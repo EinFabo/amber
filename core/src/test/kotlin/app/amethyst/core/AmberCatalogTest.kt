@@ -230,7 +230,7 @@ class AmberCatalogTest {
 
     @Test
     fun `an engine's provider comes from the catalog stored for it, at its address`() {
-        val settings = AmethystSettings.defaults().withEngine(own)
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
             .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
         assertEquals("Amber PC", ServerProviders.forEngine(own, settings).name)
         // The same address typed another way is the same server.
@@ -259,7 +259,7 @@ class AmberCatalogTest {
 
     @Test
     fun `the cleanup summary names the model as the pc lists it`() {
-        val settings = AmethystSettings.defaults().withEngine(own).copy(
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own).copy(
             serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)),
             cleanup = CleanupChoice(own.id, "qwen3-4b-instruct-2507-q4km"),
         )
@@ -292,7 +292,7 @@ class AmberCatalogTest {
 
     // --- keeping it ---
 
-    private val withOwn = AmethystSettings.defaults().withEngine(own)
+    private val withOwn = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
 
     @Test
     fun `a fetched catalog is stored for its engine and address`() {
@@ -414,7 +414,7 @@ class AmberCatalogTest {
             "displayName":"Own server","baseUrl":"${own.baseUrl}","modelId":"acft-large-v3-turbo-q8_0"}],
             "serverCatalogs":{"self-hosted":{"baseUrl":"${own.baseUrl}","service":"amber-pc","version":"0.4.2",
             "speech":[{"id":"acft-large-v3-turbo-q8_0","label":"Large v3 Turbo"}]}},"schemaVersion":10}"""
-        val decoded = SettingsCodec.decode(raw)
+        val decoded = SettingsCodec.decode(raw, TEST_PHONE)
         assertEquals(own.id, decoded.engines.single().id, "the settings themselves survive")
         assertNull(decoded.catalogFor(decoded.engines.single()))
         assertSame(ServerProviders.CUSTOM, ServerProviders.forEngine(decoded.engines.single(), decoded))

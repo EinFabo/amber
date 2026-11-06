@@ -70,7 +70,7 @@ class CompressedUploadTest {
     }
 
     private fun settingsWith(catalog: AmberCatalog?): AmethystSettings {
-        val settings = AmethystSettings.defaults().withEngine(own)
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
         return if (catalog == null) settings else AmberCatalogs.apply(settings, own.id, own.baseUrl!!, CatalogFetch.Found(catalog))
     }
 
@@ -126,7 +126,7 @@ class CompressedUploadTest {
         // Groq, OpenAI and Tinfoil are untouched, whatever is stored under their id.
         for (preset in listOf(EnginePresets.GROQ, EnginePresets.OPENAI, EnginePresets.TINFOIL)) {
             val engine = EngineConfig.fromPreset(preset)
-            val settings = AmethystSettings.defaults().withEngine(engine)
+            val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(engine)
                 .copy(serverCatalogs = mapOf(engine.id to StoredCatalog.of(engine.baseUrl!!, opusPc)))
             assertNull(AmberCatalogs.compressedUpload(settings, engine, encoder) {}, preset.id)
         }

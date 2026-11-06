@@ -20,7 +20,7 @@ class SettingsSummariesTest {
     private val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
     private val groq = EngineConfig.fromPreset(EnginePresets.GROQ)
     private val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)
-    private val settings = AmethystSettings.defaults().withEngine(tinfoil).withEngine(groq).withEngine(parakeet)
+    private val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(tinfoil).withEngine(groq).withEngine(parakeet)
 
     @Test
     fun `recognition names the engine without its note and where the voice goes`() {

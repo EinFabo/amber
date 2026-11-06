@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class OnboardingTest {
 
-    private val plain = AmethystSettings.defaults()
+    private val plain = AmethystSettings.defaults(TEST_PHONE)
     private val withCleanup = plain.copy(cleanup = CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"))
 
     @Test

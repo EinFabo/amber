@@ -9,6 +9,7 @@ import app.amethyst.apps.LauncherList
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.EstimateStore
+import app.amethyst.data.PhoneLocales
 import app.amethyst.data.SecretStore
 import app.amethyst.data.SettingsStore
 import app.amethyst.data.StatsStore
@@ -103,7 +104,7 @@ class Graph(app: Application) {
 
     /** Synchronously readable settings, for the service paths that cannot suspend. */
     val settings: StateFlow<AmethystSettings> = settingsStore.settings
-        .stateIn(appScope, SharingStarted.Eagerly, AmethystSettings.defaults())
+        .stateIn(appScope, SharingStarted.Eagerly, AmethystSettings.defaults(PhoneLocales.tags()))
 
     /**
      * The stored settings, null until DataStore has answered. [settings] starts on the defaults,

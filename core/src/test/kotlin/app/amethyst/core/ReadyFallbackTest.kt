@@ -36,13 +36,13 @@ class ReadyFallbackTest {
     private val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)
 
     private fun settings(fallback: FallbackSettings) =
-        AmethystSettings.defaults().copy(engines = listOf(tinfoil, groq, whisper, parakeet), fallback = fallback)
+        AmethystSettings.defaults(TEST_PHONE).copy(engines = listOf(tinfoil, groq, whisper, parakeet), fallback = fallback)
 
     private val prepared = FallbackSettings(FallbackMode.AUTOMATIC, prepare = true)
 
     @Test
     fun `preparing is off by default`() {
-        assertFalse(AmethystSettings.defaults().fallback.prepare)
+        assertFalse(AmethystSettings.defaults(TEST_PHONE).fallback.prepare)
         assertNull(ReadyFallback.engineToPrepare(settings(FallbackSettings()), tinfoil, trustOf) { true })
     }
 

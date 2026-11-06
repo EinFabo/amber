@@ -50,6 +50,7 @@ import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
@@ -395,7 +396,7 @@ private fun AmethystScreens(
         val preset = EnginePresets.byId(option.presetId) ?: return
         updateSettings { current ->
             val base = current.engines.firstOrNull { it.id == preset.id }
-                ?: EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind))
+                ?: EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags()))
             val config = option.whisperModelId?.let { base.copy(modelId = it) } ?: base
             current.withEngine(config).copy(activeEngineId = config.id)
         }
@@ -487,7 +488,7 @@ private fun AmethystScreens(
                             val preset = EnginePresets.LOCAL_WHISPER
                             if (settings.engines.none { it.id == preset.id }) {
                                 updateSettings {
-                                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind)))
+                                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())))
                                 }
                             }
                             open(Screen.EngineDetail(preset.id))
