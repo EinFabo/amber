@@ -118,6 +118,8 @@ class OnboardingContent(
     val onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     /** What the real bubble does, for the practice step; see [app.amethyst.Graph.bubbleEvents]. */
     val bubbleEvents: Flow<BubbleEvent> = emptyFlow(),
+    /** There is a last dictation for the quick menu's "Copy last", for the practice step. */
+    val hasLastDictation: Boolean = false,
 )
 
 /** "Step 4 of 10" between Back and Skip. */

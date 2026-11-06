@@ -47,6 +47,7 @@ import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.capture.TriggerSource
+import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
@@ -435,39 +436,43 @@ private fun AmethystScreens(
                 modifier = Modifier.fillMaxSize(),
             ) { current ->
                 when (current) {
-                    Screen.Onboarding -> OnboardingScreen(
-                        step = step,
-                        settings = settings,
-                        setup = setup,
-                        actions = actions,
-                        content = OnboardingContent(
-                            phone = phone,
-                            metered = graph.modelDownloads.metered(),
-                            parakeet = parakeetState,
-                            whisper = whisperStates,
-                            waitingFor = waitingFor,
-                            onChooseEngine = { option, mobileData ->
-                                useEngine(option)
-                                graph.modelDownloads.start(option, mobileData)
+                    Screen.Onboarding -> {
+                        val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                        OnboardingScreen(
+                            step = step,
+                            settings = settings,
+                            setup = setup,
+                            actions = actions,
+                            content = OnboardingContent(
+                                phone = phone,
+                                metered = graph.modelDownloads.metered(),
+                                parakeet = parakeetState,
+                                whisper = whisperStates,
+                                waitingFor = waitingFor,
+                                onChooseEngine = { option, mobileData ->
+                                    useEngine(option)
+                                    graph.modelDownloads.start(option, mobileData)
+                                },
+                                onWaitForWifi = { option ->
+                                    useEngine(option)
+                                    graph.modelDownloads.waitForWifi(option)
+                                },
+                                onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
+                                download = download,
+                                apps = apps,
+                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
+                                onUpdateSettings = ::updateSettings,
+                                bubbleEvents = graph.bubbleEvents,
+                                hasLastDictation = DictationLog.lastDictation(records) != null,
+                            ),
+                            onStep = { step = it },
+                            onFinish = {
+                                if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
+                                stack = listOf(Screen.Home)
                             },
-                            onWaitForWifi = { option ->
-                                useEngine(option)
-                                graph.modelDownloads.waitForWifi(option)
-                            },
-                            onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
-                            download = download,
-                            apps = apps,
-                            hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                            onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
-                            onUpdateSettings = ::updateSettings,
-                            bubbleEvents = graph.bubbleEvents,
-                        ),
-                        onStep = { step = it },
-                        onFinish = {
-                            if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
-                            stack = listOf(Screen.Home)
-                        },
-                    )
+                        )
+                    }
 
                     Screen.Home -> HomeScreen(
                         setup = setup,

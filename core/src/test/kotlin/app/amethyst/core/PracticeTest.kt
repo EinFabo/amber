@@ -132,7 +132,7 @@ class PracticeTest {
 
     // What stands in the way.
 
-    private val ready = PracticeReadiness(serviceOn = true, bubbleOn = true, microphone = true, recognition = Recognition.READY)
+    private val ready = PracticeReadiness(serviceOn = true, bubbleOn = true, microphone = true, recognition = Recognition.READY, hasLastDictation = true)
 
     @Test
     fun `nothing stands in the way when everything is ready`() {
@@ -155,7 +155,7 @@ class PracticeTest {
 
     @Test
     fun `without the microphone only the tap is stuck - and the hold until a dictation was made`() {
-        val noMic = ready.copy(microphone = false)
+        val noMic = ready.copy(microphone = false, hasLastDictation = false)
         assertNull(Practice.stepBlock(noMic))
         assertEquals(PracticeBlock.NO_MICROPHONE, Practice.blocked(PracticeTask.TAP, noMic, fresh))
         assertEquals(PracticeBlock.NEEDS_DICTATION, Practice.blocked(PracticeTask.HOLD, noMic, fresh))
@@ -163,8 +163,20 @@ class PracticeTest {
     }
 
     @Test
+    fun `the hold needs a dictation first, also when one could be made but the tap was skipped`() {
+        // Copy last is greyed out in the quick menu until there is a last dictation.
+        val none = ready.copy(hasLastDictation = false)
+        val tapSkipped = fresh.skip(PracticeTask.TAP)
+        assertEquals(PracticeBlock.NEEDS_DICTATION, Practice.blocked(PracticeTask.HOLD, none, tapSkipped))
+        assertEquals(PracticeBlock.NEEDS_DICTATION, Practice.blocked(PracticeTask.HOLD, none, fresh))
+        assertNull(Practice.blocked(PracticeTask.TAP, none, fresh), "the tap is what makes one")
+        // One from before - an earlier dictation in this session - is enough.
+        assertNull(Practice.blocked(PracticeTask.HOLD, ready, tapSkipped))
+    }
+
+    @Test
     fun `a model still downloading holds the tap, not the drag`() {
-        val downloading = ready.copy(recognition = Recognition.DOWNLOADING)
+        val downloading = ready.copy(recognition = Recognition.DOWNLOADING, hasLastDictation = false)
         assertEquals(PracticeBlock.DOWNLOADING, Practice.blocked(PracticeTask.TAP, downloading, fresh))
         assertEquals(PracticeBlock.NEEDS_DICTATION, Practice.blocked(PracticeTask.HOLD, downloading, fresh))
         assertNull(Practice.blocked(PracticeTask.DRAG, downloading, fresh))

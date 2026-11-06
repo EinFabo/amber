@@ -38,6 +38,11 @@ data class PracticeReadiness(
     val bubbleOn: Boolean,
     val microphone: Boolean,
     val recognition: Recognition,
+    /**
+     * There is a last dictation for the quick menu's "Copy last" - the same one it goes by
+     * ([app.amethyst.core.dictation.DictationLog.lastDictation]).
+     */
+    val hasLastDictation: Boolean,
 )
 
 /** Why a task cannot happen right now - each gets a plain hint instead of a dead task. */
@@ -117,7 +122,8 @@ data class Practice(
         /**
          * What stands in the way of [task] now; null when it can be done, or already was. The
          * drag only needs the flame; the tap a microphone and a recognition; the hold a
-         * dictation first, since in Amber's own screen nothing else in the quick menu works.
+         * dictation first, since in Amber's own screen nothing else in the quick menu works -
+         * whether none could be made yet or the tap was skipped.
          */
         fun blocked(task: PracticeTask, readiness: PracticeReadiness, practice: Practice): PracticeBlock? {
             if (practice.state(task) == TaskState.DONE) return null
@@ -130,7 +136,7 @@ data class Practice(
             }
             return when (task) {
                 PracticeTask.TAP -> dictation
-                PracticeTask.HOLD -> PracticeBlock.NEEDS_DICTATION.takeIf { dictation != null && practice.state(PracticeTask.TAP) != TaskState.DONE }
+                PracticeTask.HOLD -> PracticeBlock.NEEDS_DICTATION.takeIf { !readiness.hasLastDictation && practice.state(PracticeTask.TAP) != TaskState.DONE }
                 PracticeTask.DRAG -> null
             }
         }

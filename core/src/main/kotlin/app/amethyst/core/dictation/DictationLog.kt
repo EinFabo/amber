@@ -42,7 +42,7 @@ class DictationLog(
      * failure without words, not a command.
      */
     val lastDictation: DictationRecord?
-        get() = _records.value.firstOrNull { !it.command && it.text.isNotBlank() }
+        get() = lastDictation(_records.value)
 
     fun recordSuccess(
         transcript: Transcript,
@@ -136,6 +136,10 @@ class DictationLog(
     companion object {
         /** Commands and dictations share it: room for a session of trying commands out. */
         const val DEFAULT_CAPACITY = 50
+
+        /** [lastDictation] of [records] (newest first), for a screen that collects them. */
+        fun lastDictation(records: List<DictationRecord>): DictationRecord? =
+            records.firstOrNull { !it.command && it.text.isNotBlank() }
     }
 }
 

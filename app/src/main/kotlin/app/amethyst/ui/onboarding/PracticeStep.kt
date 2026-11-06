@@ -213,6 +213,7 @@ private fun readiness(settings: AmethystSettings, setup: SetupState, content: On
             needsModel = engine?.let(ModelDownloads::downloadsModel) == true,
             modelReady = modelReady,
         ),
+        hasLastDictation = content.hasLastDictation,
     )
 }
 
