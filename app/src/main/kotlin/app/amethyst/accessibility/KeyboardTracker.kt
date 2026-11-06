@@ -57,9 +57,12 @@ class KeyboardTracker(
 
     /**
      * Window changes come in bursts - the bubble's own moves report as window changes too - so
-     * they collapse into one lookup instead of one round trip each.
+     * they collapse into one lookup instead of one round trip each. Without a field, a keyboard
+     * or a dictation there is nothing to look for ([KeyboardPolicy.wantsWindowChanges]); a
+     * recheck already due stays due.
      */
-    fun windowsChanged() {
+    fun windowsChanged(dictating: Boolean, fromKeyboardApp: Boolean = false) {
+        if (!policy.wantsWindowChanges(dictating, fromKeyboardApp)) return
         handler.removeCallbacks(check)
         handler.postDelayed(check, COALESCE_MS)
     }

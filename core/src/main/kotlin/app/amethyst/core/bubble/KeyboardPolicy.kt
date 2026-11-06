@@ -88,6 +88,23 @@ class KeyboardPolicy(
     /** When a keyboard that was up stopped being reported; a short gap is not a close. */
     private var missingSince: Long? = null
 
+    /**
+     * The last look found a keyboard window, in any state. True before the first look: at a
+     * start a keyboard may already be up, so the first window change is looked at.
+     */
+    private var windowSeen = true
+
+    /**
+     * Whether a window change is worth a look at the window list (a round trip per look).
+     * Not with no field focused, no keyboard on screen at the last look and no dictation
+     * running: then a window change - an app switch, the notification shade, the bubble's own
+     * moves - cannot move the bubble. Whatever is still settling asks for its own recheck and
+     * does not depend on this. [fromKeyboardApp]: the change came from the keyboard app itself,
+     * the one sign of a keyboard opening for a view that is no field.
+     */
+    fun wantsWindowChanges(dictating: Boolean, fromKeyboardApp: Boolean): Boolean =
+        focused || dictating || fromKeyboardApp || windowSeen || current != null
+
     fun onFocusChanged(isFocused: Boolean, now: Long, screenHeight: Int): Decision {
         if (isFocused != focused) {
             focused = isFocused
@@ -110,6 +127,7 @@ class KeyboardPolicy(
             (reading.bottom > screenHeight + TOLERANCE_PX || reading.bottom <= reading.top || reading.top < 0)
         if (!moving) movingSince = null
         if (reading != Reading.Absent) missingSince = null
+        windowSeen = reading != Reading.Absent
         return read(reading, now, screenHeight)
     }
 

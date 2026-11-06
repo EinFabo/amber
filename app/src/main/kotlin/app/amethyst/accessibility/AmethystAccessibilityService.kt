@@ -193,7 +193,8 @@ class AmethystAccessibilityService : AccessibilityService() {
         val event = incoming ?: return
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                if (bubbleShown) keyboard?.windowsChanged()
+                val fromKeyboard = event.packageName?.toString()?.let(::isKeyboard) == true
+                if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, fromKeyboardApp = fromKeyboard)
                 event.packageName?.toString()?.let { pkg ->
                     if (pkg != packageName) foregroundPackage = pkg
                     // The keyboard and the system bars send window changes too; they are not
@@ -202,7 +203,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                     // switched off drag-to-hide for the next drag and let the bubble back into
                     // hidden apps. Only Amber's main screen counts.
                     val ownOverlay = pkg == packageName && event.className?.toString() != MainActivity::class.java.name
-                    if (pkg != SYSTEM_UI && !isKeyboard(pkg) && !ownOverlay) {
+                    if (pkg != SYSTEM_UI && !fromKeyboard && !ownOverlay) {
                         appInFront = pkg
                         bubble?.setCurrentApp(pkg)
                     }
@@ -219,7 +220,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged()
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning)
         }
     }
 

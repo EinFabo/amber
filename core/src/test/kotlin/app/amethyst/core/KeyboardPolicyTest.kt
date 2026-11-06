@@ -209,4 +209,92 @@ class KeyboardPolicyTest {
         assertNotNull(policy.onReading(Reading.Window(-50, 900), now = 60, screenHeight = screen).recheckInMs)
         assertNull(policy.onReading(Reading.Window(-50, 900), now = 60_000, screenHeight = screen).recheckInMs)
     }
+
+    // Window changes: looked at only while a keyboard can matter.
+
+    private fun wanted(dictating: Boolean = false, fromKeyboardApp: Boolean = false) =
+        policy.wantsWindowChanges(dictating, fromKeyboardApp)
+
+    /** A field had the keyboard, focus left, and the keyboard is gone. */
+    private fun keyboardGoneAfterFocus() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        policy.onReading(Reading.Window(1500, 2400), now = 300, screenHeight = screen)
+        policy.onFocusChanged(false, now = 1_000, screenHeight = screen)
+        policy.onReading(Reading.Absent, now = 1_060, screenHeight = screen)
+    }
+
+    @Test
+    fun `at a start the first window change is looked at - a keyboard may be up already`() {
+        assertTrue(wanted())
+    }
+
+    @Test
+    fun `no field, no keyboard and no dictation - window changes are not looked at`() {
+        keyboardGoneAfterFocus()
+        assertFalse(wanted())
+        assertTrue(wanted(dictating = true), "a dictation keeps the bubble, and its place")
+        assertTrue(wanted(fromKeyboardApp = true), "the keyboard app itself says something opened")
+    }
+
+    @Test
+    fun `nothing seen at the first look ends the start-up look`() {
+        assertNull(policy.onReading(Reading.Absent, now = 0, screenHeight = screen).top)
+        assertFalse(wanted())
+    }
+
+    @Test
+    fun `a focused field always looks - Back closes its keyboard while it keeps focus`() {
+        keyboardGoneAfterFocus()
+        policy.onFocusChanged(true, now = 5_000, screenHeight = screen)
+        policy.onReading(Reading.Window(1500, 2400), now = 5_300, screenHeight = screen)
+        assertTrue(wanted())
+
+        // Unreported but within the grace: still focused, still looked at, then closed.
+        assertEquals(1500, policy.onReading(Reading.Absent, now = 8_000, screenHeight = screen).top)
+        assertTrue(wanted())
+        assertNull(policy.onReading(Reading.Absent, now = 8_300, screenHeight = screen).top)
+        assertTrue(wanted(), "the field still has focus: the keyboard can come back")
+    }
+
+    @Test
+    fun `a keyboard still up after focus left is followed until it is gone`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        policy.onReading(Reading.Window(1500, 2400), now = 300, screenHeight = screen)
+        policy.onFocusChanged(false, now = 1_000, screenHeight = screen)
+        assertTrue(wanted(), "the bubble is still held above the keyboard")
+
+        // The keyboard stays a while (focus went to a button), then leaves on its own.
+        assertEquals(1500, policy.onReading(Reading.Window(1500, 2400), now = 1_060, screenHeight = screen).top)
+        assertTrue(wanted(), "only a window change can tell that it left")
+        assertNull(policy.onReading(Reading.Window(1700, 2600), now = 9_000, screenHeight = screen).top)
+        assertTrue(wanted())
+        assertNull(policy.onReading(Reading.Absent, now = 9_060, screenHeight = screen).top)
+        assertFalse(wanted())
+    }
+
+    @Test
+    fun `focus moving from field to field keeps looking`() {
+        policy.onFocusChanged(true, now = 0, screenHeight = screen)
+        policy.onReading(Reading.Window(1500, 2400), now = 300, screenHeight = screen)
+        policy.onFocusChanged(false, now = 1_000, screenHeight = screen)
+        assertTrue(wanted())
+        policy.onFocusChanged(true, now = 1_001, screenHeight = screen)
+        assertTrue(wanted())
+    }
+
+    @Test
+    fun `a floating keyboard without a field is followed`() {
+        keyboardGoneAfterFocus()
+        policy.onReading(Reading.Floating(Box(100, 900, 900, 1500)), now = 2_000, screenHeight = screen)
+        assertTrue(wanted())
+        policy.onReading(Reading.Absent, now = 3_000, screenHeight = screen)
+        assertFalse(wanted())
+    }
+
+    @Test
+    fun `a keyboard window parked below the screen is still watched`() {
+        keyboardGoneAfterFocus()
+        policy.onReading(Reading.Window(2500, 3300), now = 2_000, screenHeight = screen)
+        assertTrue(wanted(), "it may still come up")
+    }
 }
