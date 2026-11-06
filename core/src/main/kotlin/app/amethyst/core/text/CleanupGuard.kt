@@ -364,7 +364,10 @@ object CleanupGuard {
         return null
     }
 
-    /** "dreiundzwanzig", "zweihundertvier", "zweitausendsechsundzwanzig"; null for any other word. */
+    /**
+     * "dreiundzwanzig", "zweihundertvier", "zweitausendsechsundzwanzig",
+     * "dreihundertfünfzigtausend"; null for any other word.
+     */
     private fun germanCompound(word: String): Long? {
         if (word.length < 7) return null
         for ((scale, name) in listOf(1000L to "tausend", 100L to "hundert")) {
@@ -372,7 +375,9 @@ object CleanupGuard {
             if (at < 0) continue
             val left = word.substring(0, at)
             val right = word.substring(at + name.length)
-            val factor = if (left.isEmpty()) 1L else GERMAN_COMPOUND_UNITS[left] ?: germanBelowHundred(left) ?: return null
+            // Before "tausend" also hundreds: "zweihundert-", "hundert-", "zweihundertdrei-".
+            val factor = if (left.isEmpty()) 1L else GERMAN_COMPOUND_UNITS[left] ?: germanBelowHundred(left)
+                ?: germanCompound(left)?.takeIf { scale == 1000L && it < 1000L } ?: return null
             val rest = if (right.isEmpty()) 0L else GERMAN_NUMBERS[right]?.takeIf { it < scale } ?: germanBelowHundred(right)
                 ?: germanCompound(right)?.takeIf { it < scale } ?: return null
             return factor * scale + rest
