@@ -20,12 +20,8 @@ class QuickMenuView(context: Context) : View(context) {
 
     var side: BubbleSide = BubbleSide.RIGHT
 
-    /** The bubble's centre in screen pixels, where the menu opened. */
-    var centreX = 0f
-    var centreY = 0f
-
-    /** How far out the labels sit. */
-    var radius = 0f
+    /** Where the buttons sit around the bubble, in screen pixels. */
+    var fan: QuickMenuGeometry.Fan? = null
 
     var slots: List<QuickSlot?> = emptyList()
         set(value) {
@@ -43,7 +39,7 @@ class QuickMenuView(context: Context) : View(context) {
 
     private val density = resources.displayMetrics.density
 
-    private val fan = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = FAN }
+    private val backdrop = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = FAN }
     private val pill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = sp(14f)
@@ -58,20 +54,24 @@ class QuickMenuView(context: Context) : View(context) {
     private val box = RectF()
 
     override fun onDraw(canvas: Canvas) {
+        val fan = fan ?: return
         if (slots.isEmpty()) return
-        canvas.drawCircle(centreX, centreY, radius * FAN_REACH, fan)
+        val centreX = fan.cx
+        val centreY = fan.cy
+        val radius = fan.radius
+        canvas.drawCircle(centreX, centreY, radius * FAN_REACH, backdrop)
         val padX = 14 * density
         val halfHeight = 18 * density
         slots.forEachIndexed { index, slot ->
             if (slot == null) {
-                val dot = QuickMenuGeometry.labelCentre(side, index, centreX, centreY, radius, width, height, 4 * density, 4 * density)
+                val dot = fan.orbs[index]
                 pill.color = EMPTY
                 canvas.drawCircle(dot.x, dot.y, 4 * density, pill)
                 return@forEachIndexed
             }
             val label = slot.action.label
             val halfWidth = text.measureText(label) / 2 + padX
-            val at = QuickMenuGeometry.labelCentre(side, index, centreX, centreY, radius, width, height, halfWidth, halfHeight)
+            val at = fan.orbs[index]
             val on = index == lit && slot.enabled
             pill.color = when {
                 on -> Fire.AMBER

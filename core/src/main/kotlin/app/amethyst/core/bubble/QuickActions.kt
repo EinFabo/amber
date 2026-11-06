@@ -31,7 +31,7 @@ enum class CleanupHere {
     NOT_SET_UP,
 }
 
-/** What the quick menu can do. [label]: the name the menu shows, verb first. */
+/** What the quick menu can do. [label]: the name the menu shows, verb first, short. */
 enum class QuickAction(val label: String, private val phases: Set<QuickPhase>) {
     INSERT_AGAIN("Insert again", setOf(QuickPhase.IDLE)),
     COPY_LAST("Copy last", setOf(QuickPhase.IDLE)),
@@ -43,13 +43,13 @@ enum class QuickAction(val label: String, private val phases: Set<QuickPhase>) {
     CANCEL("Cancel", setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
 
     /** Stops the recording; the words go in as recognized, without the cleanup. */
-    SEND_AS_SPOKEN("Send as spoken", setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
+    SEND_WITHOUT_CLEANUP("No cleanup", setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
 
     /** Throws the recording away and starts a new one. */
     START_OVER("Start over", setOf(QuickPhase.RECORDING)),
 
     /** The text goes in as recognized; a cleanup on its way is dropped. */
-    KEEP_AS_HEARD("Keep as heard", setOf(QuickPhase.WORKING)),
+    KEEP_AS_RECOGNIZED("As recognized", setOf(QuickPhase.WORKING)),
     ;
 
     fun validIn(phase: QuickPhase): Boolean = phase in phases
@@ -75,10 +75,10 @@ data class QuickMenuContext(
 )
 
 /**
- * Which action sits in which slot of the quick menu ([QuickMenuGeometry]: 0 up, 1 up-inward,
- * 2 down-inward, 3 down). The most used ones go to the two inner slots, the easiest thumb
- * moves; a slot keeps its place whether its action can run or not, and an unused slot stays
- * empty, so a place never moves under the thumb.
+ * Which action sits in which slot of the quick menu ([QuickMenuGeometry]: slot 0 at the top,
+ * slot 3 at the bottom, on both edges). Cancel keeps the top slot from listening to working;
+ * a slot keeps its place whether its action can run or not, and an unused slot stays empty,
+ * so a place never moves under the thumb.
  */
 object QuickActions {
 
@@ -86,22 +86,22 @@ object QuickActions {
         QuickPhase.IDLE -> {
             val cleanup = if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE
             listOf(
-                QuickSlot(cleanup, context.otherAppInFront && context.cleanupHere != CleanupHere.NOT_SET_UP),
                 QuickSlot(QuickAction.INSERT_AGAIN, context.hasLastDictation && context.fieldFocused),
                 QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation),
+                QuickSlot(cleanup, context.otherAppInFront && context.cleanupHere != CleanupHere.NOT_SET_UP),
                 QuickSlot(QuickAction.HIDE_HERE, context.otherAppInFront),
             )
         }
         QuickPhase.RECORDING -> listOf(
-            QuickSlot(QuickAction.START_OVER, true),
             QuickSlot(QuickAction.CANCEL, true),
-            QuickSlot(QuickAction.SEND_AS_SPOKEN, context.cleanupPlanned && !context.command),
+            QuickSlot(QuickAction.SEND_WITHOUT_CLEANUP, context.cleanupPlanned && !context.command),
+            QuickSlot(QuickAction.START_OVER, true),
             null,
         )
         QuickPhase.WORKING -> listOf(
-            null,
             QuickSlot(QuickAction.CANCEL, true),
-            QuickSlot(QuickAction.KEEP_AS_HEARD, context.cleanupPlanned && !context.command),
+            QuickSlot(QuickAction.KEEP_AS_RECOGNIZED, context.cleanupPlanned && !context.command),
+            null,
             null,
         )
     }

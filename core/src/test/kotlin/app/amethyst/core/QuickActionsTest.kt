@@ -45,7 +45,7 @@ class QuickActionsTest {
     @Test
     fun `idle offers the last result, the cleanup here and hiding`() {
         assertEquals(
-            listOf(QuickAction.CLEANUP_OFF_HERE, QuickAction.INSERT_AGAIN, QuickAction.COPY_LAST, QuickAction.HIDE_HERE),
+            listOf(QuickAction.INSERT_AGAIN, QuickAction.COPY_LAST, QuickAction.CLEANUP_OFF_HERE, QuickAction.HIDE_HERE),
             actions(idle),
         )
         assertTrue(QuickActions.slots(idle).all { it!!.enabled })
@@ -74,28 +74,28 @@ class QuickActionsTest {
 
     @Test
     fun `the cleanup slot says what it would do`() {
-        assertEquals(QuickAction.CLEANUP_ON_HERE, actions(idle.copy(cleanupHere = CleanupHere.OFF))[0])
+        assertEquals(QuickAction.CLEANUP_ON_HERE, actions(idle.copy(cleanupHere = CleanupHere.OFF))[2])
         assertTrue(enabled(idle.copy(cleanupHere = CleanupHere.OFF), QuickAction.CLEANUP_ON_HERE))
         val noCleanup = idle.copy(cleanupHere = CleanupHere.NOT_SET_UP)
-        assertEquals(QuickAction.CLEANUP_OFF_HERE, actions(noCleanup)[0])
+        assertEquals(QuickAction.CLEANUP_OFF_HERE, actions(noCleanup)[2])
         assertFalse(enabled(noCleanup, QuickAction.CLEANUP_OFF_HERE), "no cleanup to switch off")
     }
 
     @Test
-    fun `listening offers cancel, send as spoken and start over`() {
+    fun `listening offers cancel, no cleanup and start over`() {
         val listening = idle.copy(phase = QuickPhase.RECORDING)
-        assertEquals(listOf(QuickAction.START_OVER, QuickAction.CANCEL, QuickAction.SEND_AS_SPOKEN, null), actions(listening))
-        assertTrue(enabled(listening, QuickAction.SEND_AS_SPOKEN))
-        assertFalse(enabled(listening.copy(cleanupPlanned = false), QuickAction.SEND_AS_SPOKEN), "no cleanup to skip")
-        assertFalse(enabled(listening.copy(command = true), QuickAction.SEND_AS_SPOKEN), "a command is never cleaned up")
+        assertEquals(listOf(QuickAction.CANCEL, QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.START_OVER, null), actions(listening))
+        assertTrue(enabled(listening, QuickAction.SEND_WITHOUT_CLEANUP))
+        assertFalse(enabled(listening.copy(cleanupPlanned = false), QuickAction.SEND_WITHOUT_CLEANUP), "no cleanup to skip")
+        assertFalse(enabled(listening.copy(command = true), QuickAction.SEND_WITHOUT_CLEANUP), "a command is never cleaned up")
     }
 
     @Test
     fun `working offers cancel and keeping the text as recognized`() {
         val working = idle.copy(phase = QuickPhase.WORKING)
-        assertEquals(listOf(null, QuickAction.CANCEL, QuickAction.KEEP_AS_HEARD, null), actions(working))
+        assertEquals(listOf(QuickAction.CANCEL, QuickAction.KEEP_AS_RECOGNIZED, null, null), actions(working))
         assertTrue(enabled(working, QuickAction.CANCEL))
-        assertFalse(enabled(working.copy(cleanupPlanned = false), QuickAction.KEEP_AS_HEARD))
+        assertFalse(enabled(working.copy(cleanupPlanned = false), QuickAction.KEEP_AS_RECOGNIZED))
     }
 
     @Test
@@ -108,10 +108,10 @@ class QuickActionsTest {
     @Test
     fun `an action taken from a menu of an earlier state is checked against the state now`() {
         assertTrue(QuickActions.stillValid(QuickAction.CANCEL, QuickPhase.WORKING), "cancel works while working too")
-        assertTrue(QuickActions.stillValid(QuickAction.SEND_AS_SPOKEN, QuickPhase.WORKING), "the cleanup is still skipped")
+        assertTrue(QuickActions.stillValid(QuickAction.SEND_WITHOUT_CLEANUP, QuickPhase.WORKING), "the cleanup is still skipped")
         assertFalse(QuickActions.stillValid(QuickAction.START_OVER, QuickPhase.WORKING))
         assertFalse(QuickActions.stillValid(QuickAction.CANCEL, QuickPhase.IDLE), "the run ended meanwhile")
-        assertFalse(QuickActions.stillValid(QuickAction.KEEP_AS_HEARD, QuickPhase.IDLE))
+        assertFalse(QuickActions.stillValid(QuickAction.KEEP_AS_RECOGNIZED, QuickPhase.IDLE))
         assertFalse(QuickActions.stillValid(QuickAction.INSERT_AGAIN, QuickPhase.RECORDING))
         assertTrue(QuickActions.stillValid(QuickAction.COPY_LAST, QuickPhase.IDLE))
     }
@@ -123,7 +123,8 @@ class QuickActionsTest {
 
     @Test
     fun `an empty slot stays empty`() {
-        assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[0])
+        assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[2])
+        assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[3])
     }
 
     private val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)

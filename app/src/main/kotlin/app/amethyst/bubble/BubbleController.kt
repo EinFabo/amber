@@ -94,7 +94,7 @@ class BubbleController(
     /** What a touch means; see [BubbleGesture]. */
     private val gesture = BubbleGesture(
         touchSlop = ViewConfiguration.get(service).scaledTouchSlop.toFloat(),
-        deadZone = dp(settings.sizeDp) * MENU_DEAD_ZONE,
+        deadZone = dp(MENU_DEAD_ZONE_DP).toFloat(),
     )
 
     /** The quick menu, in a window of its own that takes no touches; added while it is open. */
@@ -570,7 +570,7 @@ class BubbleController(
                     startY = layoutParams.y
                     mayHide = false
                     overTarget = false
-                    gesture.down(event.rawX, event.rawY, event.eventTime, side)
+                    gesture.down(event.rawX, event.rawY, event.eventTime)
                     // A finger held perfectly still produces no move events at all.
                     v.removeCallbacks(holdCheck)
                     v.postDelayed(holdCheck, BubbleGesture.HOLD_MS)
@@ -660,11 +660,6 @@ class BubbleController(
                 BubbleGesture.Event.MenuOpen -> openMenu(startX + layoutParams.width / 2f, startY + layoutParams.height / 2f)
 
                 is BubbleGesture.Event.Menu -> {
-                    // The bubble leans toward the finger, at most a third of its size.
-                    val lean = QuickMenuGeometry.rubberBand(event.dx, event.dy, layoutParams.width * LEAN)
-                    layoutParams.x = startX + lean.x.roundToInt()
-                    layoutParams.y = startY + lean.y.roundToInt()
-                    update()
                     if (event.slotChanged) {
                         menuView.lit = event.slot
                         val slot = event.slot?.let { menuSlots.getOrNull(it) }
@@ -731,14 +726,13 @@ class BubbleController(
     private fun openMenu(cx: Float, cy: Float) {
         val windows = windowManager ?: return
         menuSlots = quickMenu(currentApp)
+        val fan = fanAt(cx, cy)
+        gesture.fanShown(fan, menuSlots.map { it != null })
         haptic(HapticFeedbackConstants.LONG_PRESS)
         if (menuParams != null) return
         val (width, height) = screenSize()
-        val size = params?.width ?: dp(settings.sizeDp)
         menuView.side = side
-        menuView.centreX = cx
-        menuView.centreY = cy
-        menuView.radius = size * MENU_RADIUS
+        menuView.fan = fan
         menuView.lit = null
         menuView.slots = menuSlots
         val menu = WindowManager.LayoutParams(
@@ -764,6 +758,30 @@ class BubbleController(
                 Log.i(TAG, "quick menu: ${menuSlots.joinToString { it?.let { slot -> slot.action.name + if (slot.enabled) "" else " (off)" } ?: "-" }}")
             }
             .onFailure { Log.w(TAG, "could not show the quick menu", it) }
+    }
+
+    /**
+     * The menu's fan around a bubble centred at ([cx], [cy]), kept below the status bar, above
+     * the keyboard or the gesture bar and inside the screen's sides ([QuickMenuGeometry.fan]).
+     */
+    private fun fanAt(cx: Float, cy: Float): QuickMenuGeometry.Fan {
+        val screen = screen()
+        val bottom = screen.height - screen.safe.bottom
+        val area = QuickMenuGeometry.Area(
+            left = screen.safe.left.toFloat(),
+            top = screen.safe.top.toFloat(),
+            right = (screen.width - screen.safe.right).toFloat(),
+            bottom = minOf(bottom, keyboardTop ?: bottom).toFloat(),
+        )
+        return QuickMenuGeometry.fan(
+            side,
+            cx,
+            cy,
+            radius = dp(MENU_RADIUS_DP).toFloat(),
+            orbRadius = dp(MENU_ORB_DP) / 2f,
+            margin = dp(MENU_MARGIN_DP).toFloat(),
+            area = area,
+        )
     }
 
     private fun closeMenu() {
@@ -996,14 +1014,13 @@ class BubbleController(
         const val MAX_FRAME_MS = 32L
         val KEYBOARD_EASING = PathInterpolator(0.2f, 0f, 0f, 1f)
 
-        /** Inside this share of the bubble's size around the press nothing in the menu is lit. */
-        const val MENU_DEAD_ZONE = 0.5f
+        /** Inside this radius around the bubble's centre nothing in the menu is lit. */
+        const val MENU_DEAD_ZONE_DP = 26
 
-        /** How far out the menu's labels sit, in bubble sizes. */
-        const val MENU_RADIUS = 1.9f
+        /** The menu's buttons: their size, how far out they sit, how far from any edge they stay. */
+        const val MENU_ORB_DP = 46
+        const val MENU_RADIUS_DP = 84
+        const val MENU_MARGIN_DP = 6
         const val MENU_FADE_MS = 120L
-
-        /** How far the bubble leans toward the finger while the menu is open, in bubble sizes. */
-        const val LEAN = 0.35f
     }
 }

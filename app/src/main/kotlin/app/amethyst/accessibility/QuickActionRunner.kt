@@ -45,9 +45,9 @@ class QuickActionRunner(
             QuickAction.CLEANUP_ON_HERE -> app != null && cleanupHere(app, on = true)
             QuickAction.HIDE_HERE -> app?.let { hideIn(it); true } ?: false
             QuickAction.CANCEL -> true.also { dictation.cancel() }
-            QuickAction.SEND_AS_SPOKEN -> true.also { dictation.sendWithoutCleanup() }
+            QuickAction.SEND_WITHOUT_CLEANUP -> true.also { dictation.sendWithoutCleanup() }
             QuickAction.START_OVER -> true.also { dictation.startOver() }
-            QuickAction.KEEP_AS_HEARD -> true.also { dictation.keepAsRecognized() }
+            QuickAction.KEEP_AS_RECOGNIZED -> true.also { dictation.keepAsRecognized() }
         }
     }
 

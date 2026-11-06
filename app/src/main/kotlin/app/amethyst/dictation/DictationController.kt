@@ -112,8 +112,8 @@ class DictationController(
     private var selfCapturing: SelfCapturingSttEngine? = null
 
     /**
-     * Completed when this run's text is to go in as recognized - "Send as spoken" or "Keep as
-     * heard" from the bubble's quick menu. A cleanup on its way is dropped at that moment.
+     * Completed when this run's text is to go in as recognized - "No cleanup" or "As
+     * recognized" from the bubble's quick menu. A cleanup on its way is dropped at that moment.
      */
     @Volatile
     private var skipCleanup = CompletableDeferred<Unit>()
@@ -993,7 +993,7 @@ class DictationController(
                         language = language,
                     ) { done -> wait?.report(WaitProgress.Step.CLEANUP, done) }
                 }
-                // "Keep as heard" from the quick menu wins over a cleanup still on its way.
+                // "As recognized" from the quick menu wins over a cleanup still on its way.
                 select {
                     work.onAwait { it }
                     skip.onAwait {

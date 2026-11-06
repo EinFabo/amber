@@ -10,9 +10,10 @@ import kotlin.math.abs
  * - A short still touch is a tap. A second one right after a tap that started a recording is
  *   a double tap - only while [doubleTapCommands] is on.
  * - Moving past the touch slop before the hold is a drag: the bubble follows the finger.
- * - Holding still for [holdMs] opens the quick menu. Sliding out of the dead zone lights the
- *   slot the finger points to; lifting runs it. Lifting in the middle - before leaving it or
- *   after coming back - only closes the menu. There is no hold-to-talk.
+ * - Holding still for [holdMs] opens the quick menu; the caller lays out its fan and hands it
+ *   over with [fanShown]. Sliding out of the dead zone lights the slot the finger points to
+ *   (QuickMenuGeometry.Fan.slotAt); lifting runs it. Lifting in the middle - before leaving it
+ *   or after coming back - only closes the menu. There is no hold-to-talk.
  * - A cancelled touch runs nothing.
  *
  * The hold is timed by the caller ([hold]) as well as checked on every move: a finger held
@@ -43,7 +44,7 @@ class BubbleGesture(
         data object MenuOpen : Event
 
         /** The finger moved in the open menu; [slot] is lit (null: none), [slotChanged] when that changed. */
-        data class Menu(val dx: Float, val dy: Float, val slot: Int?, val slotChanged: Boolean) : Event
+        data class Menu(val slot: Int?, val slotChanged: Boolean) : Event
 
         /** Lifted over [slot]: run it. */
         data class Select(val slot: Int) : Event
@@ -55,12 +56,15 @@ class BubbleGesture(
     private enum class Phase { UP, PRESSED, DRAGGING, MENU }
 
     private var phase = Phase.UP
-    private var side = BubbleSide.RIGHT
     private var downX = 0f
     private var downY = 0f
     private var downAt = 0L
     private var doubleTap = false
     private var slot: Int? = null
+
+    /** The open menu's fan and which of its slots hold an action; null until [fanShown]. */
+    private var fan: QuickMenuGeometry.Fan? = null
+    private var selectable: List<Boolean> = emptyList()
 
     /** Where the finger was last seen, from where it pressed - for a drag the system cancels. */
     private var lastDx = 0f
@@ -70,9 +74,8 @@ class BubbleGesture(
     private var lastTapUpAt: Long? = null
     private var lastTapStarted = false
 
-    /** A finger touched the bubble, docked on [side]. A gesture still open is dropped. */
-    fun down(x: Float, y: Float, at: Long, side: BubbleSide): Event {
-        this.side = side
+    /** A finger touched the bubble. A gesture still open is dropped. */
+    fun down(x: Float, y: Float, at: Long): Event {
         downX = x
         downY = y
         downAt = at
@@ -102,10 +105,10 @@ class BubbleGesture(
             }
             Phase.DRAGGING -> Event.Drag(dx, dy, started = false)
             Phase.MENU -> {
-                val now = QuickMenuGeometry.slotAt(side, dx, dy, deadZone)
+                val now = slotAt(x, y)
                 val changed = now != slot
                 slot = now
-                Event.Menu(dx, dy, now, changed)
+                Event.Menu(now, changed)
             }
         }
     }
@@ -119,8 +122,7 @@ class BubbleGesture(
             Phase.UP -> Event.None
             Phase.PRESSED -> Event.Tap(doubleTap)
             Phase.DRAGGING -> Event.DragEnd(x - downX, y - downY, cancelled = false)
-            Phase.MENU -> QuickMenuGeometry.slotAt(side, x - downX, y - downY, deadZone)
-                ?.let { Event.Select(it) } ?: Event.MenuClosed
+            Phase.MENU -> slotAt(x, y)?.let { Event.Select(it) } ?: Event.MenuClosed
         }
         phase = Phase.UP
         return event
@@ -143,9 +145,24 @@ class BubbleGesture(
         lastTapStarted = startedRecording
     }
 
+    /**
+     * The menu that [Event.MenuOpen] asked for is laid out as [fan]; [selectable] says which
+     * slots hold an action - an empty one is never picked.
+     */
+    fun fanShown(fan: QuickMenuGeometry.Fan, selectable: List<Boolean>) {
+        if (phase != Phase.MENU) return
+        this.fan = fan
+        this.selectable = selectable
+    }
+
+    private fun slotAt(x: Float, y: Float): Int? =
+        fan?.slotAt(x, y, deadZone) { selectable.getOrElse(it) { false } }
+
     private fun openMenu(): Event {
         phase = Phase.MENU
         slot = null
+        fan = null
+        selectable = emptyList()
         return Event.MenuOpen
     }
 
