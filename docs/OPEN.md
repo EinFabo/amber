@@ -28,6 +28,11 @@ series and one store release per phase, each after his OK.
       (Fabi, 2026-11-06).
 - [x] **The introduction explains holding the bubble** (Fabi, 2026-11-06): the flame step lists
       Tap, Hold (the quick menu and what is in it) and Drag (edges, the X to hide).
+- [ ] **Practice step "Try it" in the introduction** (Fabi, 2026-11-06; built): after the flame
+      step, with the real bubble over a practice field - tap to dictate, hold to "Copy last", drag
+      to the other edge; each ticked from the bubble's events (`Practice` in :core), each
+      skippable; plain hints when the service, the microphone or a ready model is missing.
+      Open: the device test.
 - [ ] **Pause / Resume while dictating** (Fabi, 2026-11-06; built): from the quick menu while
       listening; the microphone stays open, paused audio is dropped, auto-stop and the time limit
       count only recorded time; a tap on the paused bubble sends; off for Android's own recognizer.
