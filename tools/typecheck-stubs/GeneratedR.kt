@@ -6,21 +6,6 @@ package app.amethyst
 object R {
     object string {
         const val app_name = 0
-        const val bubble_action_cancel_command = 0
-        const val bubble_action_hide_here = 0
-        const val bubble_action_start_command = 0
-        const val bubble_action_start_dictation = 0
-        const val bubble_action_stop_dictation = 0
-        const val bubble_action_stop_listening = 0
-        const val bubble_action_voice_command = 0
-        const val bubble_name = 0
-        const val bubble_state_done = 0
-        const val bubble_state_failed = 0
-        const val bubble_state_failed_reason = 0
-        const val bubble_state_listening = 0
-        const val bubble_state_listening_command = 0
-        const val bubble_state_processing = 0
-        const val bubble_state_ready = 0
         const val clipboard_after_lost_commit = 0
         const val clipboard_fallback = 0
         const val notification_channel_description = 0
