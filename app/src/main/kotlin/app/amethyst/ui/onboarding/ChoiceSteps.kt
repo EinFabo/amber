@@ -152,7 +152,7 @@ internal fun BubbleStep(settings: AmethystSettings, content: OnboardingContent, 
     val bubble = settings.bubble
     StepPage(
         title = "The flame",
-        lead = "It floats over other apps. Tap it to dictate, hold it to talk.",
+        lead = "It floats over other apps. Tap it to dictate, hold it for the quick menu.",
         buttons = { ContinueButton(onNext) },
     ) {
         RadioRow(

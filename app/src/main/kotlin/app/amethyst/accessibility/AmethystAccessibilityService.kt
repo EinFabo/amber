@@ -16,7 +16,6 @@ import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import app.amethyst.core.capture.TriggerSource
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -100,21 +99,15 @@ class AmethystAccessibilityService : AccessibilityService() {
         textInserter = TextInserter(this, graph.strategyStore)
         commands = CommandExecutor(this, graph)
 
+        val quickActions = QuickActionRunner(this, graph, ::hideBubbleIn)
         // Attaching is left to the settings collector below, so the bubble switch is the
         // single place that decides whether the overlay exists.
         bubble = BubbleController(
             service = this,
             onTap = { graph.dictation.toggle() },
             onDoubleTap = { graph.dictation.commandInstead() },
-            onHoldStart = {
-                if (graph.dictation.isRunning) {
-                    false
-                } else {
-                    graph.dictation.start(TriggerSource.BUBBLE, holdToTalk = true)
-                    true
-                }
-            },
-            onHoldEnd = { graph.dictation.stop() },
+            quickMenu = quickActions::slots,
+            onQuickAction = quickActions::run,
             onMoved = { side, edgeY, aboveKeyboardDp ->
                 graph.appScope.launch {
                     graph.settingsStore.update {
@@ -128,15 +121,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                     }
                 }
             },
-            onHideIn = { pkg ->
-                graph.appScope.launch {
-                    graph.settingsStore.update {
-                        it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + pkg).distinct()))
-                    }
-                }
-                val name = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager) }.getOrNull() ?: pkg
-                Toast.makeText(this, "Bubble hidden in $name. Show it again in Amber → Settings → Bubble.", Toast.LENGTH_LONG).show()
-            },
+            onHideIn = ::hideBubbleIn,
         )
 
         defaultKeyboard.start()
@@ -382,6 +367,17 @@ class AmethystAccessibilityService : AccessibilityService() {
     private val fieldCheck = FieldCheck()
 
     override fun onInterrupt() = Unit
+
+    /** The bubble stays out of [pkg] from now on - dropped on the hide target, or "Hide here". */
+    private fun hideBubbleIn(pkg: String) {
+        graph.appScope.launch {
+            graph.settingsStore.update {
+                it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + pkg).distinct()))
+            }
+        }
+        val name = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager) }.getOrNull() ?: pkg
+        Toast.makeText(this, "Bubble hidden in $name. Show it again in Amber → Settings → Bubble.", Toast.LENGTH_LONG).show()
+    }
 
     /** A rotation: the bubble goes back to its edge, at the same share of the height. */
     override fun onConfigurationChanged(newConfig: Configuration) {

@@ -382,7 +382,7 @@ fun BubbleScreen(
     SubPage(modifier) {
         MainSwitch(
             label = "Use the bubble",
-            summary = "Tap to dictate, hold to talk.",
+            summary = "Tap to dictate, hold for the quick menu.",
             checked = bubble.enabled,
             onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) } },
         )

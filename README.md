@@ -45,9 +45,15 @@ Controls:
 
 - **Tap** starts a dictation; tap again to stop and send it. A pause does not end it unless
   switched on under Settings → Recording (advanced).
-- **Hold** dictates while your finger stays down; lifting it sends.
-- **Drag** moves the bubble at any time, even mid-dictation. It stays where you drop it and
-  steps above an open keyboard.
+- **Hold** opens the quick menu: four actions fanned out toward the middle of the screen. Slide
+  toward one and let go to run it; let go in the middle to close it. At rest: insert the last
+  dictation again, copy it, switch the cleanup off or on for this app, hide the bubble here.
+  While listening: cancel, send as spoken (without the cleanup), start over. While the text is
+  being written: cancel, keep it as heard.
+- **Drag** moves the bubble at any time, even mid-dictation. Let go, it docks at the nearer
+  left or right edge - a sideways fling throws it to the other one. With a keyboard up it
+  keeps its own height above the keys, clear of the app's input bar; dragging it then sets
+  that height.
 - **Voice commands** ("zurück", "öffne WhatsApp", "zehnmal runter") are built but hidden in
   this version: no settings row, no double tap, and no command is carried out - also not for
   someone who had them on before. The code stays as the base of a later phone remote-control mode; one switch in `:core`

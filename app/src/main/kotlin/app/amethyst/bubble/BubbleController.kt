@@ -7,6 +7,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -19,17 +20,19 @@ import android.view.WindowManager
 import android.view.animation.PathInterpolator
 import app.amethyst.DebugLog
 import app.amethyst.core.bubble.BubbleDock
+import app.amethyst.core.bubble.BubbleGesture
 import app.amethyst.core.bubble.BubblePlacement
 import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.bubble.BubbleSpring
 import app.amethyst.core.bubble.BubbleVisibility
+import app.amethyst.core.bubble.QuickAction
+import app.amethyst.core.bubble.QuickMenuGeometry
+import app.amethyst.core.bubble.QuickSlot
 import app.amethyst.core.bubble.SafeArea
 import app.amethyst.core.bubble.Screen
-import app.amethyst.core.commands.CommandTrigger
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -44,10 +47,10 @@ class BubbleController(
     private val onTap: () -> Boolean,
     /** A second tap right after a tap that started recording; false when it made no command. */
     private val onDoubleTap: () -> Boolean,
-    /** Press and hold: start dictating. Returns false when nothing was started. */
-    private val onHoldStart: () -> Boolean,
-    /** Finger lifted after a hold that started a dictation. */
-    private val onHoldEnd: () -> Unit,
+    /** The quick menu's slots for the state now, in the app in front ([currentApp]). */
+    private val quickMenu: (currentApp: String?) -> List<QuickSlot?>,
+    /** Runs a quick menu action; false when it could not (the run moved on, nothing to do). */
+    private val onQuickAction: (action: QuickAction, currentApp: String?) -> Boolean,
     /**
      * The bubble was let go and docked on [side]. [edgeY]: its new height along the edge
      * without a keyboard ([BubbleSettings.edgeY]); [aboveKeyboardDp]: its new height above a
@@ -87,6 +90,19 @@ class BubbleController(
     }
     private var settings = BubbleSettings()
     private var commandsOn = false
+
+    /** What a touch means; see [BubbleGesture]. */
+    private val gesture = BubbleGesture(
+        touchSlop = ViewConfiguration.get(service).scaledTouchSlop.toFloat(),
+        deadZone = dp(settings.sizeDp) * MENU_DEAD_ZONE,
+    )
+
+    /** The quick menu, in a window of its own that takes no touches; added while it is open. */
+    private val menuView = QuickMenuView(service)
+    private var menuParams: WindowManager.LayoutParams? = null
+
+    /** The open menu's slots, as they were when it opened. */
+    private var menuSlots: List<QuickSlot?> = emptyList()
     private var hapticsEnabled = true
 
     private var textFieldFocused = false
@@ -137,8 +153,6 @@ class BubbleController(
 
     /** A finger is on the bubble; it owns the position until it lifts. */
     private var touching = false
-
-    private val touchSlop = ViewConfiguration.get(service).scaledTouchSlop
 
     fun attach() {
         if (attached) return
@@ -252,6 +266,7 @@ class BubbleController(
 
     fun detach() {
         removeHideTarget()
+        closeMenu()
         view.removeCallbacks(hideLater)
         view.removeCallbacks(sparkAfterAppear)
         moveAnimator?.cancel()
@@ -271,9 +286,10 @@ class BubbleController(
      * Safe to call before [attach]: the settings are stored either way, so a later attach
      * builds the window from them instead of from defaults.
      */
-    fun applySettings(bubbleSettings: BubbleSettings, commands: Boolean) {
+    fun applySettings(bubbleSettings: BubbleSettings, commands: Boolean, doubleTapCommands: Boolean = commands) {
         settings = bubbleSettings
         commandsOn = commands
+        gesture.doubleTapCommands = doubleTapCommands
         hapticsEnabled = bubbleSettings.haptics
         view.restingOpacity = bubbleSettings.restingOpacity
         if (shown) view.settleAlpha()
@@ -523,26 +539,15 @@ class BubbleController(
     }
 
     /**
-     * Tap toggles a dictation. Press and hold dictates until the finger lifts, and lifting
-     * sends it - push to talk. Dragging moves the bubble at any time: idle, during a toggled
-     * dictation, and during a hold, which keeps recording while the bubble travels.
-     *
-     * The hold is timed with a callback rather than detected in ACTION_MOVE: a finger held
-     * perfectly still produces no move events at all. A drag that begins before the hold
-     * fires is only a move and starts nothing.
+     * Tap toggles a dictation; a quick second tap may make it a voice command. Holding still
+     * opens the quick menu ([BubbleGesture]); sliding to a slot and lifting runs it. Dragging
+     * moves the bubble at any time, idle or mid-dictation, and docks it at an edge on release.
+     * What a touch means is decided by [gesture]; this only moves windows and buzzes.
      */
     private inner class TouchHandler : View.OnTouchListener {
-        private var downX = 0f
-        private var downY = 0f
+        /** Where the bubble was when the finger came down. */
         private var startX = 0
         private var startY = 0
-        private var dragging = false
-        private var holding = false
-
-        /** The last tap's lift, and whether that tap started a recording - for the double tap. */
-        private var lastTapUpAt: Long? = null
-        private var lastTapStarted = false
-        private var secondTap = false
 
         /** This drag may end on the hide target: idle, and an app other than Amber in front. */
         private var mayHide = false
@@ -550,11 +555,7 @@ class BubbleController(
 
         private var velocity: VelocityTracker? = null
 
-        private val holdStarted = Runnable {
-            if (dragging) return@Runnable
-            holding = onHoldStart()
-            if (holding) haptic(HapticFeedbackConstants.LONG_PRESS)
-        }
+        private val holdCheck = Runnable { handle(gesture.hold(SystemClock.uptimeMillis()), SystemClock.uptimeMillis()) }
 
         override fun onTouch(v: View, event: MotionEvent): Boolean {
             val layoutParams = params ?: return false
@@ -563,64 +564,86 @@ class BubbleController(
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     moveAnimator?.cancel()
+                    closeMenu()
                     touching = true
-                    downX = event.rawX
-                    downY = event.rawY
                     startX = layoutParams.x
                     startY = layoutParams.y
-                    dragging = false
-                    holding = false
-                    secondTap = CommandTrigger.isDoubleTap(lastTapUpAt, lastTapStarted, event.eventTime, commandsOn)
-                    v.postDelayed(holdStarted, HOLD_MS)
-                    return true
+                    mayHide = false
+                    overTarget = false
+                    gesture.down(event.rawX, event.rawY, event.eventTime, side)
+                    // A finger held perfectly still produces no move events at all.
+                    v.removeCallbacks(holdCheck)
+                    v.postDelayed(holdCheck, BubbleGesture.HOLD_MS)
                 }
 
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - downX
-                    val dy = event.rawY - downY
-                    if (!dragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
-                        dragging = true
-                        // Before the hold fired this is a plain move; after, the hold goes on.
-                        if (!holding) v.removeCallbacks(holdStarted)
-                        mayHide = !holding && !dictating && currentApp.let { it != null && it != service.packageName }
+                MotionEvent.ACTION_MOVE -> handle(gesture.move(event.rawX, event.rawY, event.eventTime), event.eventTime)
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.removeCallbacks(holdCheck)
+                    touching = false
+                    val result = if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        gesture.up(event.rawX, event.rawY, event.eventTime)
+                    } else {
+                        gesture.cancel()
+                    }
+                    handle(result, event.eventTime)
+                    removeHideTarget()
+                    mayHide = false
+                    overTarget = false
+                    velocity?.recycle()
+                    velocity = null
+                    // A hide that was held back while the finger was down.
+                    applyVisibility(immediate = false)
+                }
+
+                else -> return false
+            }
+            return true
+        }
+
+        private fun handle(event: BubbleGesture.Event, at: Long) {
+            val layoutParams = params ?: return
+            when (event) {
+                BubbleGesture.Event.None -> Unit
+
+                is BubbleGesture.Event.Tap -> {
+                    // A keyboard that came or went while the finger was down was not followed.
+                    moveTo(layoutParams, targetY())
+                    haptic(HapticFeedbackConstants.CONTEXT_CLICK)
+                    // The recording the first tap started becomes a command instead of stopping.
+                    val wasDoubleTap = event.doubleTap && onDoubleTap()
+                    gesture.tapDone(at, startedRecording = !wasDoubleTap && onTap())
+                }
+
+                is BubbleGesture.Event.Drag -> {
+                    if (event.started) {
+                        mayHide = !dictating && currentApp.let { it != null && it != service.packageName }
                         Log.i(
                             TAG,
                             "drag in ${DebugLog.redact(currentApp)}: " + when {
                                 mayHide -> "hide target shown"
-                                holding -> "no hide target, dictating while held"
                                 dictating -> "no hide target, a dictation is running"
                                 else -> "no hide target, no other app in front"
                             },
                         )
                         if (mayHide) showHideTarget()
                     }
-                    if (dragging) {
-                        val (width, height) = screenSize()
-                        layoutParams.x = (startX + dx).roundToInt().coerceIn(0, width - layoutParams.width)
-                        layoutParams.y = (startY + dy).roundToInt().coerceIn(0, height - layoutParams.height)
-                        update()
-                        if (mayHide) {
-                            val over = isOverHideTarget(layoutParams)
-                            if (over != overTarget) {
-                                overTarget = over
-                                hideTarget.active = over
-                                if (over) haptic(HapticFeedbackConstants.CONTEXT_CLICK)
-                            }
+                    val (width, height) = screenSize()
+                    layoutParams.x = (startX + event.dx).roundToInt().coerceIn(0, width - layoutParams.width)
+                    layoutParams.y = (startY + event.dy).roundToInt().coerceIn(0, height - layoutParams.height)
+                    update()
+                    if (mayHide) {
+                        val over = isOverHideTarget(layoutParams)
+                        if (over != overTarget) {
+                            overTarget = over
+                            hideTarget.active = over
+                            if (over) haptic(HapticFeedbackConstants.CONTEXT_CLICK)
                         }
                     }
-                    return true
                 }
 
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.removeCallbacks(holdStarted)
-                    touching = false
-                    val tapped = event.actionMasked == MotionEvent.ACTION_UP && !holding && !dragging
-                    if (holding) {
-                        haptic(HapticFeedbackConstants.CONTEXT_CLICK)
-                        onHoldEnd()
-                    }
-                    val hideIn = currentApp.takeIf { mayHide && overTarget && event.actionMasked == MotionEvent.ACTION_UP }
-                    removeHideTarget()
+                is BubbleGesture.Event.DragEnd -> {
+                    val hideIn = currentApp.takeIf { mayHide && overTarget && !event.cancelled }
                     if (hideIn != null) {
                         // Back to where it was: the place the user chose stays for other apps.
                         haptic(confirmConstant())
@@ -628,34 +651,48 @@ class BubbleController(
                         layoutParams.y = startY
                         update()
                         onHideIn(hideIn)
-                    } else if (dragging) {
-                        val (vx, vy) = flingVelocity()
+                    } else {
+                        val (vx, vy) = if (event.cancelled) 0f to 0f else flingVelocity()
                         dropped(layoutParams, vx, vy)
-                    } else {
-                        // A keyboard that came or went while the finger was down was not followed.
-                        moveTo(layoutParams, targetY())
                     }
-                    mayHide = false
-                    overTarget = false
-                    if (tapped) {
-                        haptic(HapticFeedbackConstants.CONTEXT_CLICK)
-                        // The recording the first tap started becomes a command instead of stopping.
-                        val wasDoubleTap = secondTap && onDoubleTap()
-                        lastTapStarted = !wasDoubleTap && onTap()
-                        lastTapUpAt = if (wasDoubleTap) null else event.eventTime
-                    } else {
-                        lastTapUpAt = null
+                }
+
+                BubbleGesture.Event.MenuOpen -> openMenu(startX + layoutParams.width / 2f, startY + layoutParams.height / 2f)
+
+                is BubbleGesture.Event.Menu -> {
+                    // The bubble leans toward the finger, at most a third of its size.
+                    val lean = QuickMenuGeometry.rubberBand(event.dx, event.dy, layoutParams.width * LEAN)
+                    layoutParams.x = startX + lean.x.roundToInt()
+                    layoutParams.y = startY + lean.y.roundToInt()
+                    update()
+                    if (event.slotChanged) {
+                        menuView.lit = event.slot
+                        val slot = event.slot?.let { menuSlots.getOrNull(it) }
+                        when {
+                            event.slot == null -> haptic(HapticFeedbackConstants.CLOCK_TICK)
+                            slot?.enabled == true -> haptic(segmentConstant())
+                            else -> Unit
+                        }
                     }
-                    holding = false
-                    dragging = false
-                    velocity?.recycle()
-                    velocity = null
-                    // A hide that was held back while the finger was down.
-                    applyVisibility(immediate = false)
-                    return true
+                }
+
+                is BubbleGesture.Event.Select -> {
+                    val slot = menuSlots.getOrNull(event.slot)
+                    closeMenu()
+                    settleAfterMenu(layoutParams)
+                    if (slot == null || !slot.enabled) {
+                        haptic(rejectConstant())
+                    } else {
+                        Log.i(TAG, "quick menu: ${slot.action.name}")
+                        haptic(if (onQuickAction(slot.action, currentApp)) confirmConstant() else rejectConstant())
+                    }
+                }
+
+                BubbleGesture.Event.MenuClosed -> {
+                    closeMenu()
+                    settleAfterMenu(layoutParams)
                 }
             }
-            return false
         }
 
         /**
@@ -680,6 +717,60 @@ class BubbleController(
             tracker.computeCurrentVelocity(1000)
             return tracker.xVelocity to tracker.yVelocity
         }
+    }
+
+    /** Back from leaning toward the finger, to its edge - wherever a keyboard has put that meanwhile. */
+    private fun settleAfterMenu(layoutParams: WindowManager.LayoutParams) {
+        springTo(layoutParams, targetX(), targetY(), 0f, 0f)
+    }
+
+    /**
+     * Shows the quick menu around a bubble centred at ([cx], [cy]). Its slots are taken now
+     * and not rebuilt under the finger; the action is checked again when it runs.
+     */
+    private fun openMenu(cx: Float, cy: Float) {
+        val windows = windowManager ?: return
+        menuSlots = quickMenu(currentApp)
+        haptic(HapticFeedbackConstants.LONG_PRESS)
+        if (menuParams != null) return
+        val (width, height) = screenSize()
+        val size = params?.width ?: dp(settings.sizeDp)
+        menuView.side = side
+        menuView.centreX = cx
+        menuView.centreY = cy
+        menuView.radius = size * MENU_RADIUS
+        menuView.lit = null
+        menuView.slots = menuSlots
+        val menu = WindowManager.LayoutParams(
+            width,
+            height,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            screenCoordinates()
+            x = 0
+            y = 0
+        }
+        menuView.alpha = 0f
+        runCatching { windows.addView(menuView, menu) }
+            .onSuccess {
+                menuParams = menu
+                menuView.animate().alpha(1f).setDuration(MENU_FADE_MS).start()
+                Log.i(TAG, "quick menu: ${menuSlots.joinToString { it?.let { slot -> slot.action.name + if (slot.enabled) "" else " (off)" } ?: "-" }}")
+            }
+            .onFailure { Log.w(TAG, "could not show the quick menu", it) }
+    }
+
+    private fun closeMenu() {
+        if (menuParams == null) return
+        menuParams = null
+        menuView.animate().cancel()
+        runCatching { windowManager?.removeView(menuView) }
     }
 
     private fun hideTargetFrame(): Triple<Int, Int, Int> {
@@ -863,6 +954,14 @@ class BubbleController(
             HapticFeedbackConstants.CONTEXT_CLICK
         }
 
+    /** Entering a slot of the menu: a light tick, the segment one where it exists (API 34). */
+    private fun segmentConstant(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            HapticFeedbackConstants.SEGMENT_TICK
+        } else {
+            HapticFeedbackConstants.CLOCK_TICK
+        }
+
     private fun rejectConstant(): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             HapticFeedbackConstants.REJECT
@@ -897,11 +996,14 @@ class BubbleController(
         const val MAX_FRAME_MS = 32L
         val KEYBOARD_EASING = PathInterpolator(0.2f, 0f, 0f, 1f)
 
-        /**
-         * Long enough that a quick tap is never taken for a hold, short enough that push to
-         * talk starts without a noticeable wait. The system long-press timeout (400-500 ms)
-         * felt sluggish for this.
-         */
-        const val HOLD_MS = 300L
+        /** Inside this share of the bubble's size around the press nothing in the menu is lit. */
+        const val MENU_DEAD_ZONE = 0.5f
+
+        /** How far out the menu's labels sit, in bubble sizes. */
+        const val MENU_RADIUS = 1.9f
+        const val MENU_FADE_MS = 120L
+
+        /** How far the bubble leans toward the finger while the menu is open, in bubble sizes. */
+        const val LEAN = 0.35f
     }
 }

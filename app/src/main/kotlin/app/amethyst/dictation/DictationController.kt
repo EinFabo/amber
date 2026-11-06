@@ -112,13 +112,6 @@ class DictationController(
     private var selfCapturing: SelfCapturingSttEngine? = null
 
     /**
-     * Push to talk: recording runs until the finger lifts, so a pause to think must not end
-     * it. Survives the hand-over to the proxy activity, which calls start() again.
-     */
-    @Volatile
-    private var holdToTalk = false
-
-    /**
      * Completed when this run's text is to go in as recognized - "Send as spoken" or "Keep as
      * heard" from the bubble's quick menu. A cleanup on its way is dropped at that moment.
      */
@@ -221,7 +214,7 @@ class DictationController(
         return _state.value is DictationState.Starting
     }
 
-    fun start(source: TriggerSource = TriggerSource.BUBBLE, holdToTalk: Boolean = false) {
+    fun start(source: TriggerSource = TriggerSource.BUBBLE) {
         if (isRunning) return
         // The engine chosen in the introduction may still be downloading: say so and record
         // nothing, rather than taking the words and failing - and never hand them to another engine.
@@ -236,7 +229,6 @@ class DictationController(
             commandRecorded = false
             runEngineId = graph.settings.value.activeEngine?.id
             skipCleanup = CompletableDeferred()
-            this.holdToTalk = holdToTalk
             stopDuringHandover.set(false)
             fellBack = null
             fellBackFrom = null
@@ -288,8 +280,8 @@ class DictationController(
 
         graph.dictationStarting()
 
-        // Re-entry from the proxy keeps a release that happened while it was starting -
-        // otherwise a held-then-released bubble would record until the duration cap.
+        // Re-entry from the proxy keeps a stop that came while it was starting - otherwise a
+        // tap that stopped the dictation meanwhile would leave it recording until the cap.
         stopRequested.set(source == TriggerSource.PROXY_ACTIVITY && stopDuringHandover.getAndSet(false))
         // Also set here, synchronously: anything watching the state must see the dictation
         // begin before the coroutine gets its first dispatch.
@@ -496,7 +488,6 @@ class DictationController(
         } finally {
             selfCapturing = null
             stopRequested.set(false)
-            holdToTalk = false
             runCatching { engine.close() }
             graph.scheduleModelRelease()
         }
@@ -547,9 +538,7 @@ class DictationController(
             // dictations. One a double tap turned into a command keeps the recording it began
             // with: it ends on silence if dictations do, else by a tap or after the cap.
             if (_mode.value == RunMode.COMMAND) capture.copy(autoStopOnSilence = true, maxDurationMs = CommandTrigger.COMMAND_MAX_MS) else capture
-        }.toVadConfig().let { config ->
-            if (holdToTalk) config.copy(silenceTimeoutMs = Int.MAX_VALUE) else config
-        }
+        }.toVadConfig()
         // Finished parts of a longer dictation are recognized while the user is still speaking,
         // so stopping leaves only the last part to wait for.
         // A child of this dictation's job: cancelling the dictation stops the chunk work too.
