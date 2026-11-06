@@ -45,6 +45,14 @@ class VadPolicy(private val config: VadConfig = VadConfig()) {
     }
 
     /**
+     * The recording goes on after a pause: the silence before it no longer counts toward
+     * stopping on silence - whoever resumes needs a moment to begin speaking.
+     */
+    fun resumed() {
+        silenceMs = 0
+    }
+
+    /**
      * Feeds one frame of [VadConfig.frameMs] length and returns what the recorder should do.
      */
     fun onFrame(rms: Double): VadDecision {

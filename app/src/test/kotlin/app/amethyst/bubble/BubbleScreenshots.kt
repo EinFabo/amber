@@ -81,6 +81,36 @@ class BubbleScreenshots {
     @Test
     fun menuKeyboardUsual() = shoot("menu-9-keyboard-usual", idle, keyboardTop = 1500, centreY = 1500f - dp(108), lit = 1)
 
+    @Test
+    fun menuPaused() = shoot("menu-10-paused-resume-lit", idle.copy(phase = QuickPhase.RECORDING, paused = true, canPause = true), visual = BubbleVisual.PAUSED, lit = 3)
+
+    @Test
+    fun menuListeningPauseLit() = shoot("menu-11-listening-pause-lit", idle.copy(phase = QuickPhase.RECORDING, canPause = true), visual = BubbleVisual.LISTENING, lit = 3)
+
+    /** The bubble on its own: listening, paused, at rest - side by side. */
+    @Test
+    fun bubbleStates() {
+        val states = listOf(BubbleVisual.IDLE, BubbleVisual.LISTENING, BubbleVisual.PAUSED, BubbleVisual.TRANSCRIBING)
+        val bitmap = Bitmap.createBitmap(bubble * 2 * states.size, bubble * 2, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(BACKGROUND)
+        states.forEachIndexed { i, visual ->
+            val view = bubbleView(visual)
+            canvas.save()
+            canvas.translate(bubble * 2f * i + bubble / 2f, bubble / 2f)
+            view.draw(canvas)
+            canvas.restore()
+        }
+        save("bubble-states-idle-listening-paused-working", bitmap)
+        val paused = Bitmap.createBitmap(bubble * 3, bubble * 3, Bitmap.Config.ARGB_8888)
+        Canvas(paused).apply {
+            drawColor(BACKGROUND)
+            translate(bubble.toFloat(), bubble.toFloat())
+            bubbleView(BubbleVisual.PAUSED).draw(this)
+        }
+        save("bubble-paused", paused)
+    }
+
     /** The ring filling while the finger holds, two thirds of the way. */
     @Test
     fun holdRing() {

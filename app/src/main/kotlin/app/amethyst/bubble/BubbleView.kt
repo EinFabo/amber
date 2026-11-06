@@ -19,7 +19,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /** The visual states of the bubble. */
-enum class BubbleVisual { IDLE, LISTENING, TRANSCRIBING, DONE, FAILED }
+enum class BubbleVisual { IDLE, LISTENING, PAUSED, TRANSCRIBING, DONE, FAILED }
 
 /**
  * The bubble, drawn by hand on a Canvas.
@@ -33,6 +33,8 @@ enum class BubbleVisual { IDLE, LISTENING, TRANSCRIBING, DONE, FAILED }
  * fills as a progress ring with a spark at its head (Fuse); success closes the ring, draws a
  * tick and lets one short burst of sparks go. The rising sparks while listening are drawn by
  * [SparkView] in a window of their own, because they leave this one. Nothing moves at rest.
+ * Paused, the fire is banked: a dark disc in a ring of cooling ember, the level bars stopped
+ * as two amber bars, no sparks.
  */
 class BubbleView(context: Context) : View(context) {
 
@@ -121,14 +123,21 @@ class BubbleView(context: Context) : View(context) {
         val r = discRadius
 
         val inverted = command && visual != BubbleVisual.FAILED
+        val banked = visual == BubbleVisual.PAUSED
         disc.color = when {
             visual == BubbleVisual.FAILED -> Fire.ERROR
+            banked -> RAISED
             inverted -> Fire.INK
             else -> Fire.AMBER
         }
-        glyph.color = if (inverted) Fire.AMBER else Fire.INK
+        glyph.color = if (inverted || banked) Fire.AMBER else Fire.INK
         canvas.drawCircle(cx, cy, r, disc)
         if (inverted) canvas.drawCircle(cx, cy, r, fuse.apply { alpha = 255 })
+        if (banked) {
+            fuse.color = EMBER
+            canvas.drawCircle(cx, cy, r - fuse.strokeWidth / 2, fuse.apply { alpha = 255 })
+            fuse.color = Fire.AMBER
+        }
 
         when (visual) {
             BubbleVisual.TRANSCRIBING -> {
@@ -155,6 +164,7 @@ class BubbleView(context: Context) : View(context) {
         when (visual) {
             BubbleVisual.IDLE -> drawFlame(canvas, r)
             BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
+            BubbleVisual.PAUSED -> drawPause(canvas, r)
             BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else elapsed)
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             BubbleVisual.FAILED -> drawBang(canvas, r)
@@ -335,6 +345,14 @@ class BubbleView(context: Context) : View(context) {
         }
     }
 
+    /** The level bars stopped: two even bars, the pause sign. */
+    private fun drawPause(canvas: Canvas, r: Float) {
+        glyph.style = Paint.Style.STROKE
+        glyph.strokeWidth = r * 0.14f
+        val half = r * 0.24f
+        for (x in floatArrayOf(cx - r * 0.17f, cx + r * 0.17f)) canvas.drawLine(x, cy - half, x, cy + half, glyph)
+    }
+
     /** The tick draws itself from left to right as [progress] goes 0..1. */
     private fun drawCheck(canvas: Canvas, r: Float, progress: Float) {
         glyph.style = Paint.Style.STROKE
@@ -440,6 +458,10 @@ class BubbleView(context: Context) : View(context) {
         const val WORKING_FRAME_MS = 33L
         const val MIN_OPACITY = 0.2f
         const val STILL_PROGRESS_MS = 250L
+
+        /** Paused: the raised surface for the disc, its ring an ember cooling from amber. */
+        const val RAISED = 0xFF1F1F1F.toInt()
+        val EMBER = Fire.mix(Fire.AMBER, Fire.EMBER_RED, 0.35f)
 
         /** The glyph under a finger, and how fast it gets there. */
         const val PRESSED_SCALE = 0.88f

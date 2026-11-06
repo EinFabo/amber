@@ -29,6 +29,8 @@ class QuickActionsTest {
         cleanupHere = CleanupHere.ON,
         cleanupPlanned = true,
         command = false,
+        canPause = true,
+        paused = false,
     )
 
     private fun actions(context: QuickMenuContext) = QuickActions.slots(context).map { it?.action }
@@ -82,9 +84,9 @@ class QuickActionsTest {
     }
 
     @Test
-    fun `listening offers cancel, no cleanup and start over`() {
+    fun `listening offers cancel, no cleanup, start over and pause`() {
         val listening = idle.copy(phase = QuickPhase.RECORDING)
-        assertEquals(listOf(QuickAction.CANCEL, QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.START_OVER, null), actions(listening))
+        assertEquals(listOf(QuickAction.CANCEL, QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.START_OVER, QuickAction.PAUSE), actions(listening))
         assertTrue(enabled(listening, QuickAction.SEND_WITHOUT_CLEANUP))
         assertFalse(enabled(listening.copy(cleanupPlanned = false), QuickAction.SEND_WITHOUT_CLEANUP), "no cleanup to skip")
         assertFalse(enabled(listening.copy(command = true), QuickAction.SEND_WITHOUT_CLEANUP), "a command is never cleaned up")
@@ -106,6 +108,20 @@ class QuickActionsTest {
     }
 
     @Test
+    fun `paused, the same slot offers to go on`() {
+        val paused = idle.copy(phase = QuickPhase.RECORDING, paused = true)
+        assertEquals(listOf(QuickAction.CANCEL, QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.START_OVER, QuickAction.RESUME), actions(paused))
+        assertTrue(enabled(paused, QuickAction.RESUME))
+    }
+
+    @Test
+    fun `where the recording cannot pause the slot is there but off`() {
+        // Android's own recognizer holds the microphone itself; a voice command is a few words.
+        val listening = idle.copy(phase = QuickPhase.RECORDING, canPause = false)
+        assertFalse(enabled(listening, QuickAction.PAUSE))
+    }
+
+    @Test
     fun `an action taken from a menu of an earlier state is checked against the state now`() {
         assertTrue(QuickActions.stillValid(QuickAction.CANCEL, QuickPhase.WORKING), "cancel works while working too")
         assertTrue(QuickActions.stillValid(QuickAction.SEND_WITHOUT_CLEANUP, QuickPhase.WORKING), "the cleanup is still skipped")
@@ -114,6 +130,9 @@ class QuickActionsTest {
         assertFalse(QuickActions.stillValid(QuickAction.KEEP_AS_RECOGNIZED, QuickPhase.IDLE))
         assertFalse(QuickActions.stillValid(QuickAction.INSERT_AGAIN, QuickPhase.RECORDING))
         assertTrue(QuickActions.stillValid(QuickAction.COPY_LAST, QuickPhase.IDLE))
+        assertFalse(QuickActions.stillValid(QuickAction.PAUSE, QuickPhase.WORKING), "the recording ended meanwhile")
+        assertFalse(QuickActions.stillValid(QuickAction.RESUME, QuickPhase.IDLE))
+        assertTrue(QuickActions.stillValid(QuickAction.RESUME, QuickPhase.RECORDING))
     }
 
     @Test

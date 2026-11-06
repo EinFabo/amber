@@ -366,7 +366,7 @@ private fun StatusLine(
                 DictationState.Starting -> Hint("Opening microphone …", AmberPalette.Text)
 
                 is DictationState.Listening -> {
-                    Hint("Listening. Tap to stop.", AmberPalette.Text)
+                    Hint(if (current.paused) "Paused. Tap to send." else "Listening. Tap to stop.", AmberPalette.Text)
                     current.partial?.takeIf { it.isNotBlank() }?.let { partial ->
                         Text(
                             partial,

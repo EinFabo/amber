@@ -12,7 +12,8 @@ sealed interface DictationState {
     /** Permissions checked, engine being built, microphone opening. */
     data object Starting : DictationState
 
-    data class Listening(val amplitude: Float = 0f, val partial: String? = null) : DictationState
+    /** [paused]: from the bubble's menu; the microphone stays open, nothing is kept until it goes on. */
+    data class Listening(val amplitude: Float = 0f, val partial: String? = null, val paused: Boolean = false) : DictationState
 
     /**
      * Turning the recording into text, and cleaning it. [progress] is how far that has come,

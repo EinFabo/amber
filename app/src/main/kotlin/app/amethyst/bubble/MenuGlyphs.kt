@@ -22,6 +22,8 @@ val QuickAction.glyph: MenuGlyph
         QuickAction.SEND_WITHOUT_CLEANUP -> MenuGlyph.NO_CLEANUP
         QuickAction.START_OVER -> MenuGlyph.START_OVER
         QuickAction.KEEP_AS_RECOGNIZED -> MenuGlyph.AS_RECOGNIZED
+        QuickAction.PAUSE -> MenuGlyph.PAUSE
+        QuickAction.RESUME -> MenuGlyph.RESUME
     }
 
 /**

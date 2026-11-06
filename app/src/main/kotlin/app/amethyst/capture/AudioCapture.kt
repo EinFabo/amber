@@ -12,7 +12,9 @@ import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
 import app.amethyst.core.capture.ChunkPlanner
+import app.amethyst.core.capture.PausableRecording
 import app.amethyst.core.capture.PcmAccumulator
+import app.amethyst.core.capture.RecordingPause
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -53,6 +55,11 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         onChunk: ((PcmAudio) -> Unit)? = null,
         /** The shortest chunk worth cutting off; see EngineCapabilities.minChunkMs. */
         minChunkMs: Int = 4_000,
+        /**
+         * Paused from the bubble's menu: the microphone stays open, what it hears is dropped
+         * ([PausableRecording]) and the recording goes on seamlessly after it.
+         */
+        pause: RecordingPause = RecordingPause(),
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -88,6 +95,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         }
 
         val vad = VadPolicy(config)
+        val gate = PausableRecording(vad, pause)
         val recorded = PcmAccumulator(sampleRate)
         val planner = onChunk?.let { ChunkPlanner(sampleRate, config.frameMs, minChunkMs = minChunkMs) }
         var chunks = 0
@@ -114,15 +122,23 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     continue
                 }
 
-                recorded.append(frame, read)
-
                 val rms = PcmAudio.rms(frame, 0, read)
-                onAmplitude(PcmAccumulator.normalizeLoudness(rms))
-
-                val decision = if (stopRequested()) vad.onManualStop() else vad.onFrame(rms)
-                planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->
-                    onChunk?.invoke(recorded.slice(chunk.start, chunk.end))
-                    chunks++
+                val decision = when (val step = gate.onFrame(rms, stopRequested())) {
+                    // Paused: never stored, never chunked, the level shown as silence.
+                    PausableRecording.Step.Drop -> {
+                        onAmplitude(0f)
+                        continue
+                    }
+                    is PausableRecording.Step.End -> step.decision
+                    is PausableRecording.Step.Keep -> {
+                        recorded.append(frame, read)
+                        onAmplitude(PcmAccumulator.normalizeLoudness(rms))
+                        planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->
+                            onChunk?.invoke(recorded.slice(chunk.start, chunk.end))
+                            chunks++
+                        }
+                        step.decision
+                    }
                 }
                 when (decision) {
                     is VadDecision.Continue -> Unit

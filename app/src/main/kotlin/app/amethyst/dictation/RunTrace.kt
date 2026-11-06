@@ -63,8 +63,12 @@ internal class RunTrace(val route: String) {
     /** The engine whose server ran [cleanupModel] - the cleanup is priced by its provider. */
     var cleanupEngineId: String? = null
 
-    /** How long the user spoke. */
-    val recordingMs: Long get() = if (recordingTo > 0) recordingTo - recordingFrom else 0
+    /** How long the recording was paused, and the line saying so ("paused 4.2 s"). */
+    var pausedMs = 0L
+    var paused: String? = null
+
+    /** How long the user spoke - the paused time not counted. */
+    val recordingMs: Long get() = if (recordingTo > 0) (recordingTo - recordingFrom - pausedMs).coerceAtLeast(0) else 0
 
     /** From the stop until now: what the user has waited for the text. */
     val sinceStopMs: Long get() = if (recordingTo > 0) now() - recordingTo else 0
@@ -93,7 +97,8 @@ internal class RunTrace(val route: String) {
     fun summary(namesApps: Boolean = true): String = buildList {
         add("route $route")
         if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
-        if (recordingTo > 0) add("recording ${ms(recordingTo - recordingFrom)}")
+        if (recordingTo > 0) add("recording ${ms(recordingMs)}")
+        paused?.let(::add)
         if (transcribingTo > 0) {
             val warm = when (modelWarm) {
                 true -> ", model was loaded"

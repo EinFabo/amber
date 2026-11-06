@@ -50,6 +50,10 @@ enum class QuickAction(val label: String, private val phases: Set<QuickPhase>) {
 
     /** The text goes in as recognized; a cleanup on its way is dropped. */
     KEEP_AS_RECOGNIZED("As recognized", setOf(QuickPhase.WORKING)),
+
+    /** Nothing heard is kept until [RESUME]; the microphone stays open. A tap still sends. */
+    PAUSE("Pause", setOf(QuickPhase.RECORDING)),
+    RESUME("Resume", setOf(QuickPhase.RECORDING)),
     ;
 
     fun validIn(phase: QuickPhase): Boolean = phase in phases
@@ -72,6 +76,13 @@ data class QuickMenuContext(
     val cleanupPlanned: Boolean,
     /** The run in progress is a voice command, which is never cleaned up. */
     val command: Boolean,
+    /**
+     * The recording in progress can pause: Amber's own recorder holds the microphone (not
+     * Android's recognizer), and it is a dictation, not a command of a few words.
+     */
+    val canPause: Boolean = false,
+    /** The recording in progress is paused. */
+    val paused: Boolean = false,
 )
 
 /**
@@ -96,7 +107,7 @@ object QuickActions {
             QuickSlot(QuickAction.CANCEL, true),
             QuickSlot(QuickAction.SEND_WITHOUT_CLEANUP, context.cleanupPlanned && !context.command),
             QuickSlot(QuickAction.START_OVER, true),
-            null,
+            if (context.paused) QuickSlot(QuickAction.RESUME, true) else QuickSlot(QuickAction.PAUSE, context.canPause),
         )
         QuickPhase.WORKING -> listOf(
             QuickSlot(QuickAction.CANCEL, true),

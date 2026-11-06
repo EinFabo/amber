@@ -560,7 +560,7 @@ class BubbleController(
         view.visual = when (state) {
             DictationState.Idle -> BubbleVisual.IDLE
             DictationState.Starting -> BubbleVisual.LISTENING
-            is DictationState.Listening -> BubbleVisual.LISTENING
+            is DictationState.Listening -> if (state.paused) BubbleVisual.PAUSED else BubbleVisual.LISTENING
             is DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
             is DictationState.Done -> BubbleVisual.DONE
             is DictationState.Commanded -> BubbleVisual.DONE
@@ -573,8 +573,10 @@ class BubbleController(
             sparkView.amplitude = state.amplitude
         }
         if (state is DictationState.Transcribing) view.work = state.progress
-        if (state is DictationState.Listening) showSparks()
-        sparkView.listening = state is DictationState.Listening
+        // Paused, the fire throws no sparks.
+        val listening = state is DictationState.Listening && !state.paused
+        if (listening) showSparks()
+        sparkView.listening = listening
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
             is DictationState.Done, is DictationState.Commanded -> haptic(confirmConstant())

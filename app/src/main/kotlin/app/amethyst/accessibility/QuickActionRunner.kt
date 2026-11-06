@@ -49,6 +49,8 @@ class QuickActionRunner(
             QuickAction.SEND_WITHOUT_CLEANUP -> done("Sending without the cleanup.") { dictation.sendWithoutCleanup() }
             QuickAction.START_OVER -> done("Recording again from the start.") { dictation.startOver() }
             QuickAction.KEEP_AS_RECOGNIZED -> done("Keeping the text as recognized.") { dictation.keepAsRecognized() }
+            QuickAction.PAUSE -> dictation.pause().also { if (it) toast("Paused. Tap the bubble to send.") }
+            QuickAction.RESUME -> dictation.resume().also { if (it) toast("Listening again.") }
         }
     }
 
@@ -70,6 +72,8 @@ class QuickActionRunner(
             cleanupHere = QuickActions.cleanupHere(settings, app, hasKey),
             cleanupPlanned = CleanupRouting.decide(settings, service.targetPackage(), fellBackFrom = null, hasKey = hasKey).choice != null,
             command = graph.dictation.mode.value == RunMode.COMMAND,
+            canPause = graph.dictation.canPause,
+            paused = (graph.dictation.state.value as? DictationState.Listening)?.paused == true,
         )
     }
 

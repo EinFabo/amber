@@ -18,6 +18,8 @@ import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
+import app.amethyst.core.capture.RecordingPause
+import app.amethyst.core.capture.withPausableTimeout
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.engine.ListenCallbacks
 import app.amethyst.core.insert.InputTarget
@@ -76,6 +78,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -103,6 +106,10 @@ class DictationController(
 
     private val capture = AudioCapture()
     private val stopRequested = AtomicBoolean(false)
+
+    /** This run's pause from the bubble's menu ([pause]); a new one for every run. */
+    @Volatile
+    private var recordingPause = RecordingPause()
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
@@ -366,6 +373,33 @@ class DictationController(
         }
     }
 
+    /**
+     * Whether the recording in progress can pause: Amber's own recorder holds the microphone
+     * (Android's recognizer does not stop listening on request), and it is a dictation.
+     */
+    val canPause: Boolean
+        get() = _state.value is DictationState.Listening && selfCapturing == null && _mode.value == RunMode.DICTATION
+
+    /**
+     * Pauses the recording: the microphone stays open - going on needs no new start from the
+     * background - but nothing it hears is kept, sent or counted toward stopping on silence
+     * or the time limits. A tap still ends the recording and sends what came before.
+     */
+    fun pause(): Boolean {
+        if (!canPause || !recordingPause.pause(SystemClock.elapsedRealtime())) return false
+        updateListening { it.copy(paused = true, amplitude = 0f) }
+        Log.i(TAG, "recording paused")
+        return true
+    }
+
+    /** Goes on recording after [pause], seamlessly: the text is what was said before and after. */
+    fun resume(): Boolean {
+        if (_state.value !is DictationState.Listening || !recordingPause.resume(SystemClock.elapsedRealtime())) return false
+        updateListening { it.copy(paused = false) }
+        Log.i(TAG, "recording resumed")
+        return true
+    }
+
     /** Ends the recording; the words go in as recognized, without the cleanup. */
     fun sendWithoutCleanup() {
         skipCleanup.complete(Unit)
@@ -418,6 +452,7 @@ class DictationController(
 
     private suspend fun run(source: TriggerSource) {
         _state.value = DictationState.Starting
+        val pause = RecordingPause().also { recordingPause = it }
         wait = null
         stoppedByTap = false
         commandSteps = null
@@ -452,12 +487,12 @@ class DictationController(
         try {
             // A recognizer that never calls back, or a server that accepts the upload and
             // goes quiet, would otherwise leave the bubble spinning with no way out but
-            // force-stopping the app.
-            val finished = withTimeoutOrNull(settings.capture.effectiveTotalTimeoutMs()) {
+            // force-stopping the app. Time spent paused does not count.
+            val finished = withPausableTimeout(settings.capture.effectiveTotalTimeoutMs(), pause, SystemClock::elapsedRealtime) {
                 val transcript = when (engine) {
                     is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels)
-                } ?: return@withTimeoutOrNull Unit // the failure was already reported
+                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels, pause)
+                } ?: return@withPausableTimeout Unit // the failure was already reported
 
                 if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else deliver(cleanUp(transcript), settings, engineConfig.id)
             }
@@ -529,6 +564,8 @@ class DictationController(
         estimateKey: String,
         /** The installed apps' labels for a command's app names, read once per run ([appLabelsOnce]). */
         appLabels: () -> List<String>,
+        /** This run's pause from the bubble's menu. */
+        pause: RecordingPause,
     ): Transcript? {
         _state.value = DictationState.Listening()
 
@@ -559,6 +596,7 @@ class DictationController(
                 onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
                 onChunk = chunkSink?.let { it::submit },
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
+                pause = pause,
             )
         } catch (e: Throwable) {
             chunked?.cancel()
@@ -602,6 +640,10 @@ class DictationController(
 
             is AudioCapture.Outcome.Captured -> {
                 trace?.recordingEnds()
+                // Ended while paused: the pause ends with the recording.
+                pause.resume(SystemClock.elapsedRealtime())
+                trace?.pausedMs = pause.pausedMs(SystemClock.elapsedRealtime())
+                trace?.paused = pause.summary(SystemClock.elapsedRealtime())
                 // Decided now, not when recording began: a double tap may have turned the
                 // dictation into a command meanwhile. A command is heard whole, a language at
                 // a time, so chunks the dictation began with are dropped - and stopped before
@@ -1303,9 +1345,9 @@ class DictationController(
         Log.i(TAG, "waited ${waited + FOCUS_SETTLE_MS} ms for the proxy to hand focus back")
     }
 
+    /** Atomic: the recorder's level and the menu's pause may arrive at once from two threads. */
     private fun updateListening(transform: (DictationState.Listening) -> DictationState.Listening) {
-        val current = _state.value
-        if (current is DictationState.Listening) _state.value = transform(current)
+        _state.update { if (it is DictationState.Listening) transform(it) else it }
     }
 
     /** A short note over whatever app is open, from the quick menu's actions. */
