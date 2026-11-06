@@ -59,6 +59,18 @@ series and one store release per phase, each after his OK.
       (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
 - [ ] **P8 - Light mode**: System/Light/Dark, colours through a CompositionLocal.
 
+## Releases of 2026-11-06
+
+- [x] 0.27.0, 0.27.1, 0.27.2 in Fabi's store (0.27.2: the nine fixes from the review of
+      v0.26.3..0.27.1 - proxy handover on cancel, correction markers, hundreds before "tausend",
+      a 5 min pause limit, insert again after a failed insertion, keyboard with the bubble shown
+      everywhere, the words decide the cleanup's language, the practice hint, the German
+      accessibility text). Not taken: the six example turns per cleanup request - decide after
+      the eval.
+- [ ] GitHub release v0.27.2: APK signed with the GitHub key and notes ready; waits for Fabi's go.
+- [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
+      app in front), a pause left for 5 min, keyboard with "Always" and a WebView field.
+
 ## In progress: bubble and keyboard
 
 - [ ] **Set up wireless debugging**, so the keyboard measurements can be read live with
