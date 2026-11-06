@@ -115,12 +115,26 @@ with the release key, the enclave path solid. Each finding was checked against t
       other language pair are not measured.
 - [ ] **Custom voice commands** (Fabi, 2026-11-01): voice commands of one's own, beside the fixed
       rules. What exactly they should do is still to ask him.
-- [ ] A cleanup with an own instruction per app skips the word test (`ChatCleanup.plausible`), so
-      a translation of about the same length still passes there; only the prompt guards it.
+- [x] A cleanup with an own instruction per app skipped the word test (`ChatCleanup.plausible`), so
+      a translation of about the same length passed there. Now the word test stays on with an own
+      instruction (share 0.4), and the language check (`CleanupGuard`) holds for every cleanup.
 - [ ] **The cleanup leaves a spoken self-correction in** (Fabi, 2026-11-02): "bitte ein paar Namen
       raus, ohne Überprüfung erstmal. Nein, obwohl, stopp, mach mit Überprüfungen ..." reached the
       field as said; only what the speaker settled on should remain ("bitte ein paar Namen raus,
       mit Überprüfungen ..."). Which engine and cleanup model it ran through is not known yet.
+      Built (plan [`2026-11-06-cleanup-prompt.md`](plans/2026-11-06-cleanup-prompt.md)): a
+      self-correction rule and worked examples in the prompt, and a guard that lets a correction
+      drop the taken-back negation or number but never adds one. Open: the eval
+      (`tools/cleanup-eval/run.sh`, variant AB on the plan's models, keys from Fabi) and the device
+      test with Tinfoil and Amber PC in WhatsApp, Gmail and Keep.
+- [ ] **Cleanup prompt in Amber PC** (follow-up of the plan above): Amber PC keeps its own copy of
+      the prompt ("from Amber for Android") and its guard; its dictations stay on the old prompt
+      until the same change - hard rules first, the language named, the self-correction rule, the
+      style limits, the fenced instructions, the examples, the new guard checks - is made there.
+- [ ] **Commas before "und"** (2026-11-06): wrong ones were seen; the normalizer now drops them
+      between list items and main clauses and keeps them where they may close a clause, an
+      apposition or an insertion (`GermanCommas.dropBeforeJoiners`). Open: watch real dictations
+      for commas it should have kept.
 - [ ] **Scan a server's QR code in the app** (Fabi, 2026-11-01): for example an own server's
       address from the QR code Amber PC shows on its Phone page, instead of typing it.
 - [ ] **The bubble only after the keyboard's microphone** (Fabi, 2026-11-01, uses Gboard): hidden
@@ -208,9 +222,10 @@ with the release key, the enclave path solid. Each finding was checked against t
 - [ ] Local cleanup, step 3: fine-tune a ~1B model on German dictation cleanup (FLEURS plus
       synthetic fillers, stutters and self-corrections) - the likeliest way to fast and good.
 - [ ] Gemini Nano Proofreading (ML Kit GenAI): ask `checkFeatureStatus()` on the Pixel 9a.
-- [ ] **Language guard for every cleanup** (found in the local test): `ChatCleanup.plausible`
-      only compares lengths, so a translated answer passes. Add a check that the cleaned text
-      keeps most of the input's words (or its language) - cheap insurance for server models too.
+- [x] **Language guard for every cleanup** (found in the local test): `ChatCleanup.plausible`
+      only compared lengths, so a translated answer passed. Now the reply must keep most of the
+      dictation's words, and `CleanupGuard` rejects a reply that is clearly in another language
+      than the dictation (`LanguageGuess`), with or without an own instruction.
 
 ## Fabi's plan: terminal mode and everyday fixes (2026-10-29)
 
