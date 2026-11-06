@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
+import app.amethyst.core.bubble.BubbleAccess
 import app.amethyst.core.bubble.BubblePlacement
 import app.amethyst.core.bubble.BubbleVisibility
 import app.amethyst.core.commands.CommandTrigger
@@ -115,6 +116,18 @@ class BubbleController(
 
     private val touchSlop = ViewConfiguration.get(service).scaledTouchSlop
 
+    /** Where the run stands for a screen reader, and why the last one failed. */
+    private var accessPhase = BubbleAccess.Phase.READY
+    private var failure: String? = null
+
+    /** The bubble for TalkBack: its state, its double tap and its actions menu. */
+    private val access = BubbleAccessibility(
+        view = view,
+        onTap = { onTap() },
+        onAction = ::accessAction,
+        canSpeak = { attached && shown && !capturing },
+    )
+
     fun attach() {
         if (attached) return
 
@@ -152,6 +165,8 @@ class BubbleController(
         if (!shown) layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         vanished = !shown
         applyWindowVisibility()
+        access.setHidden(!shown)
+        refreshAccess()
 
         // Sparks first: overlays of one type stack in the order they are added, so the bubble
         // comes out on top and the sparks rise from behind its disc, not across it.
@@ -266,6 +281,7 @@ class BubbleController(
             update()
         }
         applyVisibility(immediate = true)
+        refreshAccess()
     }
 
     /**
@@ -335,6 +351,7 @@ class BubbleController(
     fun setTextFieldFocused(focused: Boolean) {
         textFieldFocused = focused
         applyVisibility(immediate = false)
+        refreshAccess()
     }
 
     /** The app in front changed; in an app on the hidden list the bubble steps aside. */
@@ -342,6 +359,7 @@ class BubbleController(
         if (packageName == currentApp) return
         currentApp = packageName
         applyVisibility(immediate = false)
+        refreshAccess()
     }
 
     private fun wantsVisible(): Boolean =
@@ -350,6 +368,32 @@ class BubbleController(
     /** The run in progress is a voice command; see [BubbleView.command]. */
     fun setCommand(on: Boolean) {
         view.command = on
+        refreshAccess()
+    }
+
+    /** Hands the current state to [access]; cheap when nothing it says changed. */
+    private fun refreshAccess() {
+        val canHide = !dictating && currentApp.let { it != null && it != service.packageName }
+        access.update(
+            accessPhase,
+            BubbleAccess.node(accessPhase, view.command, failure, commandsOn, textFieldFocused, canHide),
+        )
+    }
+
+    /**
+     * TalkBack's actions beyond the tap. The voice command does what the double tap does:
+     * the recording a tap starts - or the one running - becomes a command. Hiding is the drop
+     * on the hide target, without the drag; [BubbleAccess] offers it under the same rule.
+     */
+    private fun accessAction(action: BubbleAccess.Action) {
+        when (action) {
+            BubbleAccess.Action.VOICE_COMMAND ->
+                if (accessPhase == BubbleAccess.Phase.LISTENING) onDoubleTap() else if (onTap()) onDoubleTap()
+            BubbleAccess.Action.HIDE_HERE -> currentApp?.let { app ->
+                if (!dictating && app != service.packageName) onHideIn(app)
+            }
+            else -> onTap()
+        }
     }
 
     /** Invisible at once, sparks included, without the vanish animation - for a screenshot. */
@@ -398,6 +442,7 @@ class BubbleController(
                 update()
                 vanished = false
                 applyWindowVisibility()
+                access.setHidden(false)
                 view.appear()
                 // Ember arrives alight: one spark once the bubble is mostly in.
                 view.removeCallbacks(sparkAfterAppear)
@@ -410,6 +455,8 @@ class BubbleController(
                 return
             }
             shown = false
+            // Out for screen readers at once, not only once the fade is over.
+            access.setHidden(true)
             view.removeCallbacks(sparkAfterAppear)
             sparkView.extinguish()
             view.vanish {
@@ -452,6 +499,15 @@ class BubbleController(
             is DictationState.Failed -> haptic(rejectConstant())
             else -> Unit
         }
+        accessPhase = when (state) {
+            DictationState.Idle -> BubbleAccess.Phase.READY
+            DictationState.Starting, is DictationState.Listening -> BubbleAccess.Phase.LISTENING
+            is DictationState.Transcribing -> BubbleAccess.Phase.WORKING
+            is DictationState.Done, is DictationState.Commanded -> BubbleAccess.Phase.DONE
+            is DictationState.Failed -> BubbleAccess.Phase.FAILED
+        }
+        failure = (state as? DictationState.Failed)?.message
+        refreshAccess()
     }
 
     /**
