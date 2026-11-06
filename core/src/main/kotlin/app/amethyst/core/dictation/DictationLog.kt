@@ -36,9 +36,13 @@ class DictationLog(
 
     val last: DictationRecord? get() = _records.value.firstOrNull()
 
-    /** The newest dictation that put text somewhere - not a failure, not a command. */
+    /**
+     * The newest dictation with recognized words - also one whose insertion failed ("You
+     * switched to another app meanwhile"): Insert again and Copy last are for just that. Not a
+     * failure without words, not a command.
+     */
     val lastDictation: DictationRecord?
-        get() = _records.value.firstOrNull { it.error == null && !it.command && it.text.isNotBlank() }
+        get() = _records.value.firstOrNull { !it.command && it.text.isNotBlank() }
 
     fun recordSuccess(
         transcript: Transcript,
@@ -65,16 +69,20 @@ class DictationLog(
         ),
     )
 
-    /** [details]: for a command, what happened before it could be read ([DictationRecord.details]). */
+    /**
+     * [details]: for a command, what happened before it could be read ([DictationRecord.details]).
+     * [text]: a dictation's words when they were recognized but did not go in.
+     */
     fun recordFailure(
         message: String,
         engineId: String? = null,
         timing: String? = null,
         command: Boolean = false,
         details: List<String> = emptyList(),
+        text: String = "",
     ) = add(
         DictationRecord(
-            text = "",
+            text = text,
             engineId = engineId,
             trustLevel = null,
             latencyMs = null,

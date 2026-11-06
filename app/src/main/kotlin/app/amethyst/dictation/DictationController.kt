@@ -1276,13 +1276,15 @@ class DictationController(
             // user allows the clipboard at all; else the text stays in the diagnostics.
             val copied = verdict != TargetCheck.Verdict.SECRET &&
                 settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
+            // The words stay in the record: Insert again and Copy last take them.
             if (copied) {
-                fail("$why - the text is on the clipboard instead.", engineId)
+                fail("$why - the text is on the clipboard instead.", engineId, text = cleaned)
             } else {
                 fail(
-                    "$why - not inserted: \u201C$cleaned\u201D",
+                    "$why - not inserted.",
                     engineId,
                     brief = "$why - not inserted. The text is in Amber's diagnostics.",
+                    text = cleaned,
                 )
             }
             return
@@ -1304,14 +1306,15 @@ class DictationController(
         )
 
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
-            // Neither the field nor the clipboard took it. Quote the words in the message so
-            // they survive in the diagnostics card instead of being lost.
+            // Neither the field nor the clipboard took it. The words stay in the record, so
+            // they survive in the diagnostics card and Insert again can still take them.
             val what = if (insertion.uncertain) "The text was typed but never showed up in the field"
             else "No text field accepted the text"
             fail(
-                "$what: \u201C$cleaned\u201D [${inserter.lastTrace}]",
+                "$what [${inserter.lastTrace}]",
                 engineId,
                 brief = "$what. It is in Amber's diagnostics.",
+                text = cleaned,
             )
             return
         }
@@ -1422,6 +1425,8 @@ class DictationController(
         logAs: String = brief,
         // For a command's Diagnostics: what went wrong before or around it, never logged.
         details: List<String> = emptyList(),
+        // A dictation's words that were recognized but did not go in: kept in the record.
+        text: String = "",
     ) {
         Log.w(TAG, "dictation failed: $logAs")
         if (record) {
@@ -1434,7 +1439,7 @@ class DictationController(
                 commandRecorded = true
                 graph.dictationLog.recordFailure(message, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
             } else {
-                graph.dictationLog.recordFailure(message, engineId, trace?.summary())
+                graph.dictationLog.recordFailure(message, engineId, trace?.summary(), text = text)
             }
         }
         _state.value = DictationState.Failed(message, remedy)

@@ -173,4 +173,18 @@ class DictationLogTest {
         log.recordCommand("öffne WhatsApp", CommandOutcome.Done("Opened WhatsApp"), engineId = "parakeet")
         assertEquals("Bis morgen", log.lastDictation?.text)
     }
+
+    @Test
+    fun `a dictation recognized but not inserted is still the last one`() {
+        val log = log(capacity = 10)
+        log.recordSuccess(transcript("Bis morgen"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        log.recordFailure("You switched to another app, chat or field meanwhile - not inserted.", engineId = "parakeet", text = "Bis gleich")
+        assertEquals("Bis gleich", log.lastDictation?.text, "Insert again and Copy last take the newest words")
+        assertEquals("Bis gleich", log.last?.text)
+        assertTrue(log.last!!.failed)
+        // A failure with no words, or a command, does not hide it.
+        log.recordFailure("Nothing heard - try again a little closer to the phone.")
+        log.recordCommand("öffne WhatsApp", CommandOutcome.Done("Opened WhatsApp"), engineId = "parakeet")
+        assertEquals("Bis gleich", log.lastDictation?.text)
+    }
 }
