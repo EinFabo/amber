@@ -135,6 +135,106 @@ object GermanCommas {
         }
     }
 
+    // --- Commas that do not belong: ", und" ---------------------------------------------
+
+    /** Joiners before which a list or two main clauses take no comma (Duden: "und", "oder", "sowie"). */
+    private val LIST_JOINERS = setOf("und", "oder", "sowie")
+
+    /**
+     * After the joiner these make what follows an addition ("und zwar um acht", "und das gern",
+     * "oder nicht"), where the comma belongs - or might.
+     */
+    private val ADDITION_AFTER_JOINER = setOf(
+        "zwar", "das", "dies", "dazu", "sogar", "besser", "vielmehr", "eher", "lieber", "umgekehrt", "so",
+        "nicht", "auch", "noch",
+    )
+
+    /**
+     * Words that make a stretch a subordinate clause, an infinitive group, a comparison or a
+     * question - whose closing comma stays even before "und".
+     */
+    private val CLAUSE_WORDS = SUBORDINATORS + setOf(
+        "während", "da", "damit", "seit", "seitdem", "bis", "als", "wie", "je", "um", "ohne", "anstatt", "statt",
+        "zu", "was", "wer", "wo", "wohin", "woher", "warum", "wieso", "weshalb", "wann", "welche", "welcher",
+        "welches", "welchen", "welchem", "deren", "dessen", "denen",
+    )
+
+    /** A comma after these at a sentence's start is theirs ("Ja, und dann?", "Na gut, und du?"). */
+    private val INTERJECTIONS = setOf(
+        "ja", "nein", "nee", "ach", "oh", "okay", "ok", "gut", "also", "na", "so", "hallo", "hey", "hi", "danke",
+        "bitte", "genau", "klar", "stimmt", "tja", "naja", "jo", "super", "prima", "toll", "ne", "gell", "sorry",
+    )
+
+    /** One-word insertions whose closing comma stays ("Er kommt, vermutlich, und bringt Kuchen"). */
+    private val INSERTIONS = setOf(
+        "natürlich", "vermutlich", "übrigens", "jedenfalls", "allerdings", "wahrscheinlich", "leider",
+        "hoffentlich", "eigentlich", "sicher", "bestimmt", "sozusagen", "quasi", "ehrlich", "selbstverständlich",
+        "offenbar", "anscheinend", "tatsächlich", "zumindest", "wenigstens", "jedoch", "trotzdem", "dennoch",
+        "außerdem", "ebenfalls", "glaube", "finde", "denke", "meine", "schätze", "hoffe", "weißt", "verstehst",
+    )
+
+    /** Marks of a quotation, a bracket or a dash: something inserted, whose commas are left alone. */
+    private const val INSERTION_MARKS = "()[]\"„“”»«‚‘’–—"
+
+    /**
+     * Drops the comma before "und", "oder" and "sowie" where Duden has none: between the items
+     * of a list ("Tomaten, Gurken, und Käse") and between two main clauses ("Ich komme morgen,
+     * und du bringst Kuchen mit" - a comma there is allowed, but never needed). Recognition and
+     * cleanup models set it; [apply] never does.
+     *
+     * The comma stays wherever it closes something: a subordinate clause ("Er sagt, dass er
+     * kommt, und geht"), an infinitive group, a relative clause, an apposition ("Mein Bruder,
+     * ein Arzt, und ...") or an insertion; after an interjection ("Ja, und dann?"); before an
+     * addition ("und zwar"); and wherever quotes, brackets or another comma after the joiner
+     * make it unclear. When unsure, it keeps the comma.
+     */
+    fun dropBeforeJoiners(text: String): String {
+        val tokens = text.split(' ')
+        if (tokens.size < 3 || tokens.any { it.isEmpty() }) return text
+        val drop = BooleanArray(tokens.size)
+
+        for (i in 1 until tokens.lastIndex) {
+            if (tokens[i] !in LIST_JOINERS) continue // lower case, nothing attached: "oder?" is a question
+            val before = tokens[i - 1]
+            if (!before.endsWith(',') || before.length < 2 || !before[before.lastIndex - 1].isLetterOrDigit()) continue
+            val next = tokens[i + 1]
+            if (next.first() in INSERTION_MARKS || core(next).lowercase() in ADDITION_AFTER_JOINER) continue
+
+            // The stretch before the comma, back to the previous mark - or the sentence's start.
+            var start = i - 1
+            while (start > 0 && tokens[start - 1].last() !in ",;:.!?") start--
+            val boundary = if (start == 0) null else tokens[start - 1].last()
+            val stretch = tokens.subList(start, i)
+            val words = stretch.map { core(it).lowercase() }
+            if (stretch.any { token -> token == "-" || token.any { it in INSERTION_MARKS } }) continue
+            if (words.any { it in CLAUSE_WORDS || INFINITIVE.matches(it) }) continue
+
+            val opensSentence = boundary == null || boundary in ".!?;:"
+            val fits = if (opensSentence) {
+                // Two main clauses, or a list of two: long enough to be no interjection or
+                // address, and nothing after the joiner that a comma might close.
+                words.size >= 3 && words.first() !in INTERJECTIONS && !commaFollows(tokens, i + 1)
+            } else {
+                // One more item of a list: a word or two, no article (an apposition) or pronoun
+                // (a clause), no interjection or insertion.
+                words.size <= 2 && words.none { it in ARTICLES || it in PRONOUNS || it in INTERJECTIONS || it in INSERTIONS }
+            }
+            if (fits) drop[i - 1] = true
+        }
+
+        return tokens.indices.joinToString(" ") { k -> if (drop[k]) tokens[k].dropLast(1) else tokens[k] }
+    }
+
+    /** Whether a comma or semicolon comes between [from] and the end of its sentence ("2,5" counts: unsure). */
+    private fun commaFollows(tokens: List<String>, from: Int): Boolean {
+        for (k in from..tokens.lastIndex) {
+            val token = tokens[k]
+            if (token.any { it == ',' || it == ';' }) return true
+            if (token.last() in SENTENCE_END) return false
+        }
+        return false
+    }
+
     /** "um ... zu gehen" or "um ... einzukaufen" within the same sentence, a few words on. */
     private fun opensInfinitive(i: Int, tokens: List<String>, words: List<String>): Boolean {
         for (k in i + 1..minOf(i + 8, tokens.lastIndex)) {

@@ -95,7 +95,9 @@ object TranscriptNormalizer {
             .trim()
 
         if (options.germanCommas && german && text.isNotEmpty()) {
-            text = GermanCommas.apply(text)
+            // The commas German needs, then out with the ones it has none for (", und" in a
+            // list) - set by the engine or the cleanup model, never by apply().
+            text = GermanCommas.dropBeforeJoiners(GermanCommas.apply(text))
         }
         return text
     }
@@ -115,6 +117,9 @@ data class NormalizeOptions(
     val collapseWhitespace: Boolean = true,
     val stripFillers: Boolean = true,
     val fillers: Set<String> = TranscriptNormalizer.DEFAULT_FILLERS,
-    /** The commas German needs before "dass", "weil", "um ... zu"; see [GermanCommas]. */
+    /**
+     * The commas German needs before "dass", "weil", "um ... zu", and none before a list's
+     * "und"; see [GermanCommas].
+     */
     val germanCommas: Boolean = true,
 )
