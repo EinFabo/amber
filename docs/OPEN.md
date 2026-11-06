@@ -67,7 +67,9 @@ series and one store release per phase, each after his OK.
       everywhere, the words decide the cleanup's language, the practice hint, the German
       accessibility text). Not taken: the six example turns per cleanup request - decide after
       the eval.
-- [ ] GitHub release v0.27.2: APK signed with the GitHub key and notes ready; waits for Fabi's go.
+- [x] GitHub release v0.27.2 (2026-11-06, Latest): signed with the GitHub key (`CN=Amber`), APK SHA-256
+      `19daaa73eb2dcbf2620854c0d158dd0f10f65e445dde150183fb02255653d889`. Open: the update check from
+      a 0.26.3 GitHub install should now announce it (first real run of that device test).
 - [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
       app in front), a pause left for 5 min, keyboard with "Always" and a WebView field.
 
