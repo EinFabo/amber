@@ -150,12 +150,14 @@ fun DiagnosticsScreen(
     SubPage(modifier) {
         if (otherAmbers.isNotEmpty()) OtherAmbersCard(otherAmbers, onOpenAccessibility)
 
-        if (records.isNotEmpty()) {
+        // Without voice commands every entry is a dictation: no filter to offer.
+        val filters = DiagnosticsReport.filters()
+        if (records.isNotEmpty() && filters.isNotEmpty()) {
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                DiagnosticsReport.Filter.entries.forEach { option ->
+                filters.forEach { option ->
                     ChoiceChip(option.label, note = null, on = option == filter) { filter = option }
                 }
             }
@@ -166,7 +168,11 @@ fun DiagnosticsScreen(
                 Text(emptyTitle(filter, records.isEmpty()), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
                 Hint(
                     when (filter) {
-                        DiagnosticsReport.Filter.ALL -> "After the first dictation or voice command, what was heard and what came of it show up here."
+                        DiagnosticsReport.Filter.ALL -> if (filters.isEmpty()) {
+                            "After the first dictation, what was heard and what came of it show up here."
+                        } else {
+                            "After the first dictation or voice command, what was heard and what came of it show up here."
+                        }
                         DiagnosticsReport.Filter.DICTATIONS -> "After the first dictation, engine, duration and insertion method show up here."
                         DiagnosticsReport.Filter.COMMANDS -> "After the first voice command, what was heard and every step it took show up here."
                     },

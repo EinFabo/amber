@@ -175,7 +175,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                 if (settings.bubble.enabled) {
                     // Settings first: attach() builds the window from them, so applying
                     // afterwards would create it at the default position every time.
-                    controller.applySettings(settings.bubble, commands = settings.commands.enabled)
+                    controller.applySettings(settings.bubble, commands = settings.commandsEnabled)
                     controller.attach()
                 } else {
                     controller.detach()

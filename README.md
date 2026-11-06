@@ -43,30 +43,17 @@ needs **no** "display over other apps" and **no** `SYSTEM_ALERT_WINDOW`.
 
 Controls:
 
-- **Tap** starts a dictation; tap again to stop and send it.
+- **Tap** starts a dictation; tap again to stop and send it. A pause does not end it unless
+  switched on under Settings → Recording (advanced).
 - **Hold** dictates while your finger stays down; lifting it sends.
 - **Drag** moves the bubble at any time, even mid-dictation. It stays where you drop it and
   steps above an open keyboard.
-- **Double-tap** gives a voice command instead - once switched on under Settings → Voice
-  commands: "zurück", "öffne WhatsApp", "zehnmal runter", "ganz nach unten", "lauter",
-  "Taschenlampe an", "WLAN-Einstellungen", "lösche das letzte Wort", "go home", "swipe left".
-  Up to five go in one sentence - "alles markieren und kopieren", "zweimal zurück, dann öffne
-  WhatsApp" - and run in that order; the first that cannot be done stops the rest. Without "und"
-  or "dann" between them only text, media, volume and flashlight commands are told apart
-  ("select all copy"), and select all is never followed by cut or paste in one go. Without a text
-  field one tap is enough, and the bubble then shows in every app. Understood by
-  fixed rules on the phone; Amber reads which parts of the screen can scroll and, in the one it
-  scrolls, where the items sit - to tell whether it moved, never what they show - and for a text
-  command the field you started it in, never a password field. A tap on the bubble stops a
-  command that is still running. Settings pages only open; it never switches Wi-Fi or
-  Bluetooth, never taps buttons or confirms dialogs - but a swipe does what your own swipe would
-  do in that app (in a mail list it may archive a mail). Switched off, Amber never acts for
-  you. A command is too short for Whisper to guess its language, so it is heard in one language
-  at a time - the phone's first. Diagnostics keep each command: what was heard in each language
-  tried, what the rules made of it, every step and why it failed or stopped - "Copy" gives that
-  as text to paste into a chat. Android 17's Advanced Protection takes the accessibility
-  service - bubble and commands - away from every app that is not an accessibility tool, Amber
-  included.
+- **Voice commands** ("zurück", "öffne WhatsApp", "zehnmal runter") are built but hidden in
+  this version: no settings row, no double tap, and no command is carried out - also not for
+  someone who had them on before. The code stays as the base of a later phone remote-control mode; one switch in `:core`
+  (`Features.VOICE_COMMANDS`) brings them back. Android 17's Advanced Protection takes the
+  accessibility service - and so the bubble - away from every app that is not an
+  accessibility tool, Amber included.
 
 Look: fire, kept minimal. A flat amber disc with one dark glyph - a flame at rest, three level
 bars while listening, with a few sparks rising off the disc as loud as you speak ("Ember").

@@ -213,7 +213,7 @@ class Graph(app: Application) {
         appScope.launch(Dispatchers.IO) {
             runCatching { engineFactory }
                 .onFailure { android.util.Log.w("Amber", "warm-up of the engine factory failed: ${it.javaClass.simpleName}") }
-            if (loadedSettings.filterNotNull().first().commands.enabled) {
+            if (loadedSettings.filterNotNull().first().commandsEnabled) {
                 runCatching { launcherList.appsBlocking() }
                     .onFailure { android.util.Log.w("Amber", "warm-up of the launcher list failed: ${it.javaClass.simpleName}") }
             }

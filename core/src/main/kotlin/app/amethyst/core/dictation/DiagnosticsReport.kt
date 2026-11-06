@@ -1,5 +1,6 @@
 package app.amethyst.core.dictation
 
+import app.amethyst.core.settings.Features
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -24,6 +25,13 @@ object DiagnosticsReport {
             COMMANDS -> records.filter { it.command }
         }
     }
+
+    /**
+     * The filters Diagnostics offers: none without voice commands - every entry is then a
+     * dictation (a command left from before shows among them).
+     */
+    fun filters(voiceCommands: Boolean = Features.VOICE_COMMANDS): List<Filter> =
+        if (voiceCommands) Filter.entries else emptyList()
 
     private val TIME = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")

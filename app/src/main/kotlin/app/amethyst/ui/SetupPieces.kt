@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.amethyst.R
+import app.amethyst.core.settings.Features
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
@@ -53,7 +54,14 @@ fun AccessibilityDisclosure(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun DisclosureRows() {
-    Fact(AmberIcons.Apps, "Which app is in front", "To show or hide the bubble - and, with voice commands on, to see that an app it opened came up.")
+    // Voice commands are out of this build (Features.VOICE_COMMANDS): the description says
+    // nothing of them, so neither do the rows. With them back, both say it again.
+    val commands = Features.VOICE_COMMANDS
+    Fact(
+        AmberIcons.Apps,
+        "Which app is in front",
+        if (commands) "To show or hide the bubble - and, with voice commands on, to see that an app it opened came up." else "To show or hide the bubble.",
+    )
     RowDivider()
     Fact(AmberIcons.TextFields, "Whether a text field has focus", "To show the bubble when you can type.")
     RowDivider()
@@ -62,7 +70,11 @@ private fun DisclosureRows() {
     Fact(
         AmberIcons.Subject,
         "The text in the field",
-        "Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field.",
+        if (commands) {
+            "Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field."
+        } else {
+            "Only while inserting a dictation, so the new words fit in at the cursor."
+        },
     )
     RowDivider()
     Fact(
@@ -70,6 +82,12 @@ private fun DisclosureRows() {
         "Brings you back to Amber",
         "Right after you switch on what Amber sent you to Android's settings for: this service, battery use without limits.",
     )
+    if (commands) CommandDisclosureRows()
+}
+
+/** What the service reads and does for voice commands; shown while they are in the build. */
+@Composable
+private fun CommandDisclosureRows() {
     RowDivider()
     Fact(
         AmberIcons.VoiceCommand,

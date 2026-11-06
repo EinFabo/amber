@@ -70,7 +70,7 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
      * field the recording began in, not the one an earlier step left.
      */
     suspend fun execute(command: Command, startedIn: InputTarget?, trace: CommandTrace): CommandOutcome {
-        if (!graph.settings.value.commands.enabled) {
+        if (!graph.settings.value.commandsEnabled) {
             trace.note("gate: voice commands are switched off")
             return CommandOutcome.Refused("Voice commands are off.")
         }

@@ -41,6 +41,7 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.Features
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
@@ -101,7 +102,7 @@ fun SettingsScreen(
     val reliabilityOpen = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
     // Folded, "Advanced" passes on what Reliability needs; open, the Reliability row says it itself.
     val advancedFlags = if (advancedOpen) 0 else reliabilityOpen
-    val commandsWithoutBubble = settings.commands.enabled && !settings.bubble.enabled
+    val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
 
     SubPage(modifier) {
@@ -114,11 +115,13 @@ fun SettingsScreen(
             NavRow("Cleanup", SettingsSummaries.cleanup(settings), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
             RowDivider()
             NavRow("Bubble", SettingsSummaries.onOff(settings.bubble.enabled), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
-            RowDivider()
-            NavRow(
-                "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
-                summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
-            ) { onOpen(SettingsPage.COMMANDS) }
+            if (Features.VOICE_COMMANDS) {
+                RowDivider()
+                NavRow(
+                    "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
+                    summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
+                ) { onOpen(SettingsPage.COMMANDS) }
+            }
         }
 
         SettingsGroup("Per app") {
@@ -402,7 +405,7 @@ fun BubbleScreen(
                     }
                 },
             )
-            if (settings.commands.enabled && bubble.onlyWithTextField) {
+            if (settings.commandsEnabled && bubble.onlyWithTextField) {
                 ToggleRow(
                     label = "Also without a text field, for voice commands",
                     description = "So “open WhatsApp” works from anywhere - the bubble then stays on screen",

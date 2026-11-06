@@ -231,7 +231,7 @@ class DictationController(
             startTarget = graph.accessibilityService?.focusedTarget()
             _mode.value = CommandTrigger.modeAtStart(
                 source,
-                commandsOn = graph.settings.value.commands.enabled,
+                commandsOn = graph.settings.value.commandsEnabled,
                 textFieldFocused = graph.accessibilityService?.editableFieldFocused == true,
             )
             if (_mode.value == RunMode.COMMAND) capCommand()
@@ -309,7 +309,7 @@ class DictationController(
      * no recording that is still listening.
      */
     fun commandInstead(): Boolean {
-        if (!graph.settings.value.commands.enabled || stopRequested.get()) return false
+        if (!graph.settings.value.commandsEnabled || stopRequested.get()) return false
         val state = _state.value
         if (state !is DictationState.Starting && state !is DictationState.Listening) return false
         if (_mode.value != RunMode.COMMAND) {
@@ -824,7 +824,7 @@ class DictationController(
      * one ([app.amethyst.apps.LauncherList]), read again only after a package changed.
      */
     private fun appLabelsOnce(): () -> List<String> {
-        val enabled = graph.settings.value.commands.enabled
+        val enabled = graph.settings.value.commandsEnabled
         val labels by lazy { if (enabled) graph.launcherList.appsBlocking().map { it.label } else emptyList() }
         return { labels }
     }
@@ -967,7 +967,7 @@ class DictationController(
         }
         // A bare app name ("WhatsApp") is a command only if it names an installed app ([appLabels]:
         // read once, and not while commands are off).
-        val enabled = graph.settings.value.commands.enabled
+        val enabled = graph.settings.value.commandsEnabled
         // From reading the words to the last step, a tap may stop it: the record then says so.
         var chain: CommandChain.Run? = null
         val (understanding, outcome) = try {

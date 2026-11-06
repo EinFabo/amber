@@ -144,8 +144,9 @@ data class BubbleSettings(
      */
     val onlyWithTextField: Boolean = true,
     /**
-     * With voice commands on, the bubble shows also where no text field is, so "open WhatsApp"
-     * works from anywhere. Off by default: a bubble that never leaves surprised its user.
+     * With voice commands on ([AmethystSettings.commandsEnabled]), the bubble shows also where
+     * no text field is, so "open WhatsApp" works from anywhere. Off by default: a bubble that
+     * never leaves surprised its user.
      */
     val everywhereForCommands: Boolean = false,
     /** How visible the bubble is at rest, 0.2..1; while dictating it is always fully there. */
@@ -219,6 +220,13 @@ data class AmethystSettings(
 ) {
     val activeEngine: EngineConfig?
         get() = engines.firstOrNull { it.id == activeEngineId }
+
+    /**
+     * Whether voice commands work - the one place to ask, never [commands] directly: off while
+     * the feature is out of the build ([Features.VOICE_COMMANDS]), whatever was stored.
+     */
+    val commandsEnabled: Boolean
+        get() = commands.effective()
 
     /**
      * The list [engine]'s Amber server sent last - only while the engine still points at the
@@ -437,7 +445,13 @@ data class UpdateSettings(
  * on and agrees to what they do: while off, Amber never acts for the user.
  */
 @Serializable
-data class CommandSettings(val enabled: Boolean = false)
+data class CommandSettings(val enabled: Boolean = false) {
+    /**
+     * Switched on, and in the build ([featureOn]). Read through
+     * [AmethystSettings.commandsEnabled]; [enabled] alone is only the stored switch.
+     */
+    fun effective(featureOn: Boolean = Features.VOICE_COMMANDS): Boolean = featureOn && enabled
+}
 
 @Serializable
 enum class FallbackMode {
