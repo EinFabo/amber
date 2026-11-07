@@ -75,8 +75,8 @@ series and one store release per phase, each after his OK.
       Amber list keeps only plain model ids (no paths) and one-line labels. Already in place and
       checked: http to public addresses refused (`CleartextGuard`), every request with a key
       through `OkHttpTransport` (no redirects, 8 MiB cap). Open: header auth after the amberPC
-      review; the device test (install over 0.28.0 keeps every server and key, add a second
-      server, change an address and see the key asked for again).
+      review; the device test of 0.29.0 in Fabi's store (install over 0.28.0 keeps every server
+      and key, add a second server, change an address and see the key asked for again).
 - [ ] **P6 - Languages everywhere + recognition per app**: one language-chips component for every
       engine, Parakeet "detects itself", per-app engine like per-app cleanup. Done ahead
       (2026-11-06): new engines default to the phone's languages (`PhoneLanguages`).
