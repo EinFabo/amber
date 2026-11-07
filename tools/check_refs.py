@@ -63,8 +63,8 @@ res_ids = collections.defaultdict(set)
 for f in res.rglob('*.xml'):
     kind = f.parent.name.split('-')[0]
     if kind == 'values':
-        for m in re.finditer(r'<(string|color|style)\s+name="([^"]+)"', f.read_text()):
-            res_ids[{'string': 'string', 'color': 'color', 'style': 'style'}[m.group(1)]].add(m.group(2))
+        for m in re.finditer(r'<(string|plurals|color|style)\s+name="([^"]+)"', f.read_text()):
+            res_ids[m.group(1)].add(m.group(2))
     else:
         res_ids[kind].add(f.stem)
 

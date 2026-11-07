@@ -73,10 +73,16 @@ COMPILER_CP="$(find "$WORK/jars" -name '*.jar' | tr '\n' ':')"
 
 mapfile -t SOURCES < <(find "$ROOT/app/src/main/kotlin" -name '*.kt' -not -path '*/ui/*')
 
+# The R class AAPT2 would generate, from the resources themselves: every string, plural and
+# drawable, so a text moved into strings.xml needs no hand-kept stub.
+GEN="$WORK/generated"
+mkdir -p "$GEN"
+python3 -I "$ROOT/tools/gen_r_stub.py" "$ROOT/app/src/main/res" > "$GEN/GeneratedR.kt"
+
 echo "==> type-checking ${#SOURCES[@]} sources against android-all $ANDROID_ALL"
 java -cp "$COMPILER_CP" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
   -nowarn -no-reflect -no-stdlib \
   -classpath "$CLASSPATH" \
   -d "$WORK/classes" \
-  "${SOURCES[@]}" "$ROOT"/tools/typecheck-stubs/*.kt
+  "${SOURCES[@]}" "$ROOT"/tools/typecheck-stubs/*.kt "$GEN/GeneratedR.kt"
 echo "==> clean"

@@ -70,6 +70,15 @@ android {
         }
     }
 
+    androidResources {
+        // The app follows the phone's language: English, and German from values-de. Android 13+
+        // also offers this list per app in its settings (the locale config generated from res/,
+        // with res/resources.properties naming the default). Only these two: a library's
+        // French text next to Amber's English would be a mix nobody asked for.
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "de")
+    }
+
     buildFeatures {
         compose = true
         // BuildConfig.DEBUG keeps user data out of a release build's logcat (DebugLog).
