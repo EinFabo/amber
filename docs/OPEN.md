@@ -57,7 +57,10 @@ series and one store release per phase, each after his OK.
       failed dictation is recorded in English, shown in the phone's language.
       `tools/check_strings.py` (same keys and placeholders, no English sentence in a screen,
       catalog texts still in :core); German screenshots in `app/build/screenshots-de`.
-      Open: the device test on a German and an English phone, and Android's per-app language.
+      Pixel 9a, 2026-11-07 (debug build): English phone fine; Android's "App language" lists only
+      Deutsch and English, switching to German takes effect at once; introduction, Home and
+      Settings read right in German. Open: a dictation's messages (toast, bubble, quick menu)
+      in German - needs Amber's accessibility service on, not tested yet.
 - [ ] **Voice commands in German too**, once they come back (Fabi, 2026-11-07): `Commands.kt`,
       `CommandExecutor`, the command toasts in `DictationController` stay English while hidden.
 - [ ] **P5 - One "Server" entry + app-side security** (schema 13): one addable Server with
