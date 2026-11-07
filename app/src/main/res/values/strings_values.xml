@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Words for the values :core gives (Summary, UpdateSummary, LastCheck, EngineName,
+     QuickAction ...), put together in ui/Texts.kt. -->
+<resources>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="summary_none_selected">None selected</string>
+    <string name="summary_on_bubble_off">On · the bubble is off</string>
+    <string name="summary_apps_none">None yet</string>
+    <plurals name="summary_apps">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="summary_not_needed">Not needed</string>
+    <string name="summary_fallback_automatic">Parakeet, then Whisper</string>
+    <string name="summary_prepared">%1$s · prepared</string>
+    <string name="summary_stops_after">Stops after %1$s s silence</string>
+    <string name="summary_runs_until_tap">Runs until you tap</string>
+    <string name="summary_as_recognized">As recognized</string>
+    <string name="insert_part_spaces">spaces</string>
+    <string name="insert_part_capitals">capitals</string>
+    <string name="insert_part_punctuation">punctuation</string>
+    <string name="insert_part_clipboard">clipboard</string>
+    <string name="summary_all_set">All set</string>
+    <plurals name="summary_things_open">
+        <item quantity="one">%d thing open</item>
+        <item quantity="other">%d things open</item>
+    </plurals>
+    <string name="summary_nothing_dictated">Nothing dictated yet</string>
+    <plurals name="summary_last_dictations">
+        <item quantity="one">Last %d dictation</item>
+        <item quantity="other">Last %d dictations</item>
+    </plurals>
+    <plurals name="summary_more_settings">
+        <item quantity="one">%d more setting</item>
+        <item quantity="other">%d more settings</item>
+    </plurals>
+    <string name="summary_reliability_open">Reliability: %1$s</string>
+    <plurals name="summary_models">
+        <item quantity="one">%d model</item>
+        <item quantity="other">%d models</item>
+    </plurals>
+
+    <string name="place_on_device">On this phone</string>
+    <string name="place_enclave">Enclave</string>
+    <string name="place_cloud">Cloud</string>
+
+    <string name="updates_from_installer">From where you installed Amber</string>
+    <string name="updates_available">%1$s available</string>
+    <string name="updates_daily">Checks GitHub once a day</string>
+    <string name="last_check_not_yet">Not yet</string>
+    <string name="last_check_failed">Failed %1$s</string>
+    <string name="last_check_offline">No connection %1$s</string>
+    <string name="last_check_retry_hour">%1$s · retried within an hour</string>
+    <string name="last_check_retry_day">%1$s · retried within a day</string>
+    <string name="last_check_up_to_date">%1$s · up to date</string>
+    <string name="last_check_found">%1$s · %2$s available</string>
+    <string name="ago_just_now">just now</string>
+    <plurals name="ago_minutes">
+        <item quantity="one">%d minute ago</item>
+        <item quantity="other">%d minutes ago</item>
+    </plurals>
+    <plurals name="ago_hours">
+        <item quantity="one">%d hour ago</item>
+        <item quantity="other">%d hours ago</item>
+    </plurals>
+    <plurals name="ago_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <string name="engine_name_android">Android\'s recognizer</string>
+    <string name="engine_name_server">A server with your own key</string>
+
+    <string name="quick_insert_again">Insert again</string>
+    <string name="quick_copy_last">Copy last</string>
+    <string name="quick_cleanup_off_here">Cleanup off here</string>
+    <string name="quick_cleanup_on_here">Cleanup on here</string>
+    <string name="quick_hide_here">Hide here</string>
+    <string name="quick_cancel">Cancel</string>
+    <string name="quick_no_cleanup">No cleanup</string>
+    <string name="quick_start_over">Start over</string>
+    <string name="quick_as_recognized">As recognized</string>
+    <string name="quick_pause">Pause</string>
+    <string name="quick_resume">Resume</string>
+
+    <string name="download_running">Model downloading - %1$d %%</string>
+    <string name="download_waiting_for_wifi">Waiting for Wi-Fi</string>
+    <string name="download_at_start">%1$s. Amber is ready when it is done.</string>
+
+    <string name="other_ambers_one">%1$s is also on - switch one off.</string>
+    <string name="other_ambers_many">%1$s and %2$s are also on - keep only one on.</string>
+
+    <string name="not_offered_by_pc">Not offered by the PC any more - it uses its default instead</string>
+    <string name="not_offered_by_server">Not offered by the server any more - it uses its default instead</string>
+    <string name="machine_pc">the PC</string>
+    <string name="machine_server">the server</string>
+</resources>

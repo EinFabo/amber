@@ -77,7 +77,7 @@ class OpenAiCompatibleEngine(
         if (capabilities.needsApiKey && apiKey.isNullOrBlank()) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "No API key is stored for \"$displayName\".",
+                    problem = Problem.NoApiKey(displayName),
                     technical = "missing api key for engine $id",
                 ),
             )
@@ -143,7 +143,7 @@ class OpenAiCompatibleEngine(
         } catch (e: Exception) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "The answer from \"$displayName\" could not be read.",
+                    problem = Problem.AnswerUnreadable(displayName),
                     technical = "unparseable body: ${response.bodyAsText().take(200)}",
                     statusCode = response.code,
                     cause = e,
@@ -154,7 +154,7 @@ class OpenAiCompatibleEngine(
         if (parsed.text.isBlank()) {
             return Result.failure(
                 SttFailure(
-                    userMessage = SttFailure.NOTHING_RECOGNIZED,
+                    problem = Problem.NothingRecognized,
                     technical = "engine returned empty text",
                     statusCode = response.code,
                 ),
@@ -187,23 +187,23 @@ class OpenAiCompatibleEngine(
      */
     override suspend fun warmUp(): Result<Unit> =
         if (channel.warmUp(apiRoot(baseUrl))) Result.success(Unit)
-        else Result.failure(SttFailure(userMessage = "No connection to \"$displayName\".", technical = "warm-up failed"))
+        else Result.failure(SttFailure(problem = Problem.NoConnection(displayName), technical = "warm-up failed"))
 
     /** The current attestation, or null if this engine has no verifier configured. */
     suspend fun attestation(): AttestationResult? = channel.attestation()
 
     private fun failureFor(response: HttpResponse): SttFailure {
         val snippet = response.bodyAsText().take(300)
-        val message = when (response.code) {
-            401, 403 -> "The API key was rejected."
-            404 -> "Endpoint not found - check the base URL."
-            413 -> "The recording was too long for this service."
-            422 -> "The service rejected the audio format."
-            429 -> "Rate limit reached, wait a moment."
-            in 500..599 -> "The service is not responding (${response.code})."
-            else -> "Error ${response.code} from \"$displayName\"."
+        val problem = when (response.code) {
+            401, 403 -> Problem.KeyRejected
+            404 -> Problem.AddressNotFound
+            413 -> Problem.RecordingTooLong
+            422 -> Problem.AudioFormatRefused
+            429 -> Problem.RateLimited
+            in 500..599 -> Problem.ServiceDown(response.code)
+            else -> Problem.ServerError(response.code, displayName)
         }
-        return SttFailure(message, "HTTP ${response.code}: $snippet", response.code)
+        return SttFailure(problem, "HTTP ${response.code}: $snippet", response.code)
     }
 
     private data class ParsedResponse(val text: String, val language: String?)

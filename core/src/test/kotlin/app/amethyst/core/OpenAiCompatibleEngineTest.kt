@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.Fallback
@@ -132,7 +133,7 @@ class OpenAiCompatibleEngineTest {
         val result = engine(transport, apiKey = null).transcribe(audio)
 
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertContains(failure.userMessage, "API key")
+        assertIs<Problem.NoApiKey>(failure.problem)
         assertTrue(transport.requests.isEmpty(), "must not call the API without a key")
     }
 
@@ -142,10 +143,10 @@ class OpenAiCompatibleEngineTest {
             .transcribe(audio)
         val failure = assertIs<SttFailure>(unauthorized.exceptionOrNull())
         assertEquals(401, failure.statusCode)
-        assertContains(failure.userMessage, "rejected")
+        assertEquals(Problem.KeyRejected, failure.problem)
 
         val notFound = engine(FakeHttpTransport.json("nope", 404)).transcribe(audio)
-        assertContains(assertIs<SttFailure>(notFound.exceptionOrNull()).userMessage, "base URL")
+        assertEquals(Problem.AddressNotFound, assertIs<SttFailure>(notFound.exceptionOrNull()).problem)
     }
 
     @Test
@@ -153,7 +154,7 @@ class OpenAiCompatibleEngineTest {
         val result = engine(FakeHttpTransport.failing(java.io.IOException("unreachable")))
             .transcribe(audio)
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertContains(failure.userMessage, "No connection")
+        assertIs<Problem.NoConnection>(failure.problem)
     }
 
     @Test
@@ -162,7 +163,7 @@ class OpenAiCompatibleEngineTest {
         assertTrue(assertIs<SttFailure>(empty.exceptionOrNull()).nothingRecognized)
 
         val garbage = engine(FakeHttpTransport.json("<html>502</html>")).transcribe(audio)
-        assertContains(assertIs<SttFailure>(garbage.exceptionOrNull()).userMessage, "could not be read")
+        assertIs<Problem.AnswerUnreadable>(assertIs<SttFailure>(garbage.exceptionOrNull()).problem)
     }
 
     private fun proof(key: String, host: String = "inference.tinfoil.sh") = EnclaveProof(
@@ -216,7 +217,7 @@ class OpenAiCompatibleEngineTest {
             val transport = FakePinnableTransport(serverKey = keyA) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
             val result = engine(transport.asFake(), verifier = verifier, pinnable = transport).transcribe(audio)
 
-            assertContains(assertIs<SttFailure>(result.exceptionOrNull()).userMessage, "not sent")
+            assertEquals(Problem.Payload.RECORDING, assertIs<Problem.EnclaveNotVerified>(assertIs<SttFailure>(result.exceptionOrNull()).problem).payload)
             assertTrue(transport.requests.isEmpty() && transport.pinnedRequests.isEmpty())
         }
     }
@@ -266,7 +267,7 @@ class OpenAiCompatibleEngineTest {
         val transport = FakePinnableTransport(serverKey = "c".repeat(64)) { HttpResponse(200, """{"text":"x"}""".encodeToByteArray()) }
         val result = engine(transport.asFake(), verifier = ScriptedVerifier(listOf(keyA, keyB)), pinnable = transport).transcribe(audio)
 
-        assertContains(assertIs<SttFailure>(result.exceptionOrNull()).userMessage, "not sent")
+        assertEquals(Problem.Payload.RECORDING, assertIs<Problem.EnclaveKeyMismatch>(assertIs<SttFailure>(result.exceptionOrNull()).problem).payload)
         assertTrue(transport.pinnedRequests.isEmpty())
     }
 

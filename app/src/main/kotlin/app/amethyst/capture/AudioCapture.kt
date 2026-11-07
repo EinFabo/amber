@@ -1,5 +1,6 @@
 package app.amethyst.capture
 
+import app.amethyst.R
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -41,7 +42,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             val chunks: Int,
         ) : Outcome
         data class Discarded(val reason: DiscardReason) : Outcome
-        data class Failed(val message: String, val technical: String) : Outcome
+        /** [message]: a string resource for the user; [technical] for the log. */
+        data class Failed(val message: Int, val technical: String) : Outcome
     }
 
     @SuppressLint("MissingPermission")
@@ -70,7 +72,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         )
         if (minBufferSize <= 0) {
             return@withContext Outcome.Failed(
-                "The microphone does not support 16 kHz.",
+                R.string.capture_no_16khz,
                 "getMinBufferSize returned $minBufferSize",
             )
         }
@@ -84,13 +86,13 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 maxOf(minBufferSize, frameSamples * 2 * 8),
             )
         } catch (e: Exception) {
-            return@withContext Outcome.Failed("The microphone could not be opened.", e.toString())
+            return@withContext Outcome.Failed(R.string.capture_not_opened, e.toString())
         }
 
         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
             recorder.release()
             return@withContext Outcome.Failed(
-                "The microphone is busy or not permitted.",
+                R.string.capture_busy,
                 "AudioRecord state ${recorder.state}",
             )
         }
@@ -106,7 +108,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             recorder.startRecording()
             if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                 return@withContext Outcome.Failed(
-                    "The system refused the recording.",
+                    R.string.capture_refused,
                     "recordingState ${recorder.recordingState} - likely a background mic block",
                 )
             }
@@ -116,7 +118,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 if (read <= 0) {
                     if (read == AudioRecord.ERROR_INVALID_OPERATION || read == AudioRecord.ERROR_DEAD_OBJECT) {
                         return@withContext Outcome.Failed(
-                            "The microphone was interrupted.",
+                            R.string.capture_interrupted,
                             "AudioRecord.read returned $read",
                         )
                     }

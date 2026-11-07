@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What went wrong, as the user is told: ui/Texts.kt picks one for each Problem, ConfigIssue
+     and FileProblem from :core. Names (%1$s) are a speech recognition's or a server's. -->
+<resources>
+    <string name="problem_nothing_recognized">Nothing was recognized.</string>
+    <string name="problem_no_api_key">No API key is stored for “%1$s”.</string>
+    <string name="problem_answer_unreadable">The answer from “%1$s” could not be read.</string>
+    <string name="problem_no_connection">No connection to “%1$s”.</string>
+    <string name="problem_no_answer_in_time">“%1$s” did not answer in time.</string>
+    <string name="problem_key_rejected">The API key was rejected.</string>
+    <string name="problem_address_not_found">Address not found - check the address.</string>
+    <string name="problem_recording_too_long">The recording was too long for this service.</string>
+    <string name="problem_audio_format_refused">The service rejected the audio format.</string>
+    <string name="problem_rate_limited">Too many requests - wait a moment.</string>
+    <string name="problem_service_down">The service is not responding (%1$d).</string>
+    <string name="problem_server_error">Error %1$d from “%2$s”.</string>
+    <string name="problem_out_of_memory">Not enough memory for the model on the phone.</string>
+    <string name="problem_local_model_failed">The model on the phone failed to run. Download it again in the settings.</string>
+    <string name="problem_processor_too_old">This phone\'s processor is too old for Whisper on the phone. Parakeet or a server still work.</string>
+    <string name="problem_whisper_model_missing">The selected Whisper model is not downloaded yet.</string>
+    <string name="problem_parakeet_model_missing">The Parakeet model is not downloaded yet.</string>
+    <string name="problem_not_supported">This speech recognition is not supported.</string>
+    <string name="problem_not_ready">“%1$s” is not ready yet. %2$s</string>
+    <string name="problem_records_by_itself">“%1$s” records by itself and cannot take a recording.</string>
+    <string name="problem_not_to_verified_enclave_recording">The request did not go to the verified enclave. The recording was not sent.</string>
+    <string name="problem_not_to_verified_enclave_text">The request did not go to the verified enclave. The text was not sent.</string>
+    <string name="problem_enclave_key_mismatch_recording">The server of “%1$s” does not hold the verified enclave key. The recording was not sent.</string>
+    <string name="problem_enclave_key_mismatch_text">The server of “%1$s” does not hold the verified enclave key. The text was not sent.</string>
+    <string name="problem_enclave_not_verified_recording">The enclave of “%1$s” could not be verified. The recording was not sent.</string>
+    <string name="problem_enclave_not_verified_text">The enclave of “%1$s” could not be verified. The text was not sent.</string>
+    <string name="problem_enclave_other_address">The verified enclave does not belong to the address you set.</string>
+    <string name="problem_enclave_cannot_bind">This connection cannot be bound to the enclave.</string>
+    <string name="problem_unencrypted_refused">Refused an unencrypted connection to a public address - use https.</string>
+    <string name="problem_cleanup_failed">Cleanup failed (%1$d).</string>
+    <string name="problem_cleanup_unreadable">The cleanup\'s answer could not be read.</string>
+    <string name="problem_cleanup_cut_off">The cleanup was cut off; kept the original.</string>
+    <string name="problem_cleanup_changed_too_much">The cleanup changed too much; kept the original.</string>
+    <string name="problem_no_system_recognizer">This phone has no system recognizer. Pick another speech recognition in the settings.</string>
+    <string name="problem_language_not_installed">This language is not installed for offline use.</string>
+    <string name="problem_microphone_unreadable">The microphone could not be read.</string>
+    <string name="problem_microphone_permission_missing">Microphone permission is missing.</string>
+    <string name="problem_recognizer_offline">The system recognizer tried to go online and could not get through.</string>
+    <string name="problem_no_speech_heard">No speech heard.</string>
+    <string name="problem_recognizer_busy">The recognizer is busy.</string>
+    <string name="problem_recognizer_crashed">The system recognizer crashed.</string>
+    <string name="problem_recognition_failed">Recognition failed.</string>
+
+    <string name="issue_no_model_selected">No model is selected.</string>
+    <string name="issue_not_supported">This speech recognition is not supported.</string>
+    <string name="issue_model_name_missing">The model name is missing.</string>
+    <string name="issue_api_key_missing">The API key is missing.</string>
+    <string name="issue_enclave_address_only">This speech recognition only sends to its verifiable enclave address (%1$s).</string>
+    <string name="issue_invalid_language_code">“%1$s” is not a valid language code (e.g. de-DE or de).</string>
+    <string name="issue_address_missing">The address is missing.</string>
+    <string name="issue_address_scheme">The address must start with %1$s.</string>
+    <string name="issue_address_scheme_or">%1$s or %2$s</string>
+    <string name="issue_address_no_host">The address has no host.</string>
+    <string name="issue_address_has_space">The address contains a space.</string>
+    <string name="issue_http_only_in_own_network">http:// only works for servers in your own network - use https://.</string>
+
+    <string name="file_incomplete">Download incomplete: %1$s of %2$s.</string>
+    <string name="file_checksum_mismatch">The checksum does not match - the file is damaged or was altered.</string>
+    <string name="file_could_not_save">The model could not be saved.</string>
+    <string name="file_interrupted">The transfer was interrupted.</string>
+    <string name="file_no_model_installed">No model installed.</string>
+    <string name="file_not_enough_storage">Not enough storage: %1$d MB needed.</string>
+    <string name="file_not_enough_storage_free">Not enough storage: %1$d MB needed, %2$d MB free.</string>
+    <string name="file_server_answered">The server answered %1$d.</string>
+    <string name="file_empty_answer">Empty answer from the server.</string>
+    <string name="file_no_connection">No connection.</string>
+    <string name="file_cannot_open">The file cannot be opened.</string>
+    <string name="file_too_small_for_whisper">The file is too small to be a Whisper model.</string>
+    <string name="file_not_whisper_cpp">This is not a whisper.cpp model. Expected a .bin file in ggml format, e.g. from FUTO.</string>
+    <string name="file_not_whisper">The file has a ggml header but does not look like Whisper.</string>
+    <string name="file_other">Download failed.</string>
+</resources>

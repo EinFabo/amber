@@ -1,8 +1,11 @@
 package app.amethyst.core.engine.sherpa
 
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.SttEngine
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.whisper.ModelInstall
@@ -69,18 +72,18 @@ object ParakeetModel {
             }
             when {
                 copied.bytes != file.sizeBytes -> Result.failure(
-                    IllegalStateException("Download incomplete: ${copied.bytes} of ${file.sizeBytes} bytes."),
+                    ModelFileException(FileProblem.Incomplete(copied.bytes, file.sizeBytes), "Download incomplete: ${copied.bytes} of ${file.sizeBytes} bytes."),
                 )
                 !copied.sha256.equals(file.sha256, ignoreCase = true) -> Result.failure(
-                    IllegalStateException("The checksum does not match - the file is damaged or was altered."),
+                    ModelFileException(FileProblem.ChecksumMismatch),
                 )
                 partial.renameTo(target) || (target.delete() && partial.renameTo(target)) -> Result.success(Unit)
-                else -> Result.failure(IllegalStateException("The model could not be saved."))
+                else -> Result.failure(ModelFileException(FileProblem.CouldNotSave))
             }
         } catch (e: InterruptedException) {
             Result.failure(e)
         } catch (e: IOException) {
-            Result.failure(IllegalStateException("Transfer interrupted: ${e.message}", e))
+            Result.failure(ModelFileException(FileProblem.Interrupted, "Transfer interrupted: ${e.message}", e))
         } finally {
             partial.delete()
         }
@@ -143,11 +146,11 @@ class ParakeetEngine(
     } catch (e: CancellationException) {
         throw e
     } catch (e: OutOfMemoryError) {
-        Result.failure(SttFailure("Not enough memory for the local model.", "parakeet: out of memory"))
+        Result.failure(SttFailure(Problem.OutOfMemory, "parakeet: out of memory"))
     } catch (e: Exception) {
         Result.failure(
             SttFailure(
-                userMessage = "The local model failed to run. Download it again in the settings.",
+                problem = Problem.LocalModelFailed,
                 technical = "parakeet: ${e.message}",
                 cause = e,
             ),

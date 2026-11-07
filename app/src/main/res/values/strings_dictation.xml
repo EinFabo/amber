@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What a dictation says on the bubble, in a toast and on Amber's screen
+     (dictation/DictationController, capture/AudioCapture, the model stores). -->
+<resources>
+    <string name="dictation_mic_permission">Microphone permission is missing. Please grant it in Amber.</string>
+    <string name="dictation_mic_not_opened">The microphone could not be opened. Open Amber once, then the bubble works directly.</string>
+    <string name="dictation_no_field">No text field to insert into.</string>
+    <string name="dictation_not_inserted_here">The text could not be inserted here.</string>
+    <string name="dictation_copied">Last dictation copied.</string>
+    <string name="dictation_no_engine">No speech recognition selected. Please pick one in the settings.</string>
+    <string name="dictation_timed_out">Timed out - the dictation was cancelled.</string>
+    <string name="dictation_unexpected">Unexpected error: %1$s</string>
+    <string name="dictation_too_short">Too short - please speak a little longer.</string>
+    <string name="dictation_nothing_heard">Nothing heard - try again a little closer to the phone.</string>
+    <string name="dictation_service_off">The accessibility service is off - the text could not be inserted.</string>
+    <string name="dictation_why_password">The field now is a password field</string>
+    <string name="dictation_why_no_field">No text field has focus any more</string>
+    <string name="dictation_why_switched">You switched to another app, chat or field meanwhile</string>
+    <string name="dictation_on_clipboard_instead">%1$s - the text is on the clipboard instead.</string>
+    <string name="dictation_not_inserted">%1$s - not inserted.</string>
+    <string name="dictation_not_inserted_in_diagnostics">%1$s - not inserted. The text is in Amber\'s diagnostics.</string>
+    <string name="dictation_typed_never_showed">The text was typed but never showed up in the field</string>
+    <string name="dictation_no_field_accepted">No text field accepted the text</string>
+    <string name="dictation_in_diagnostics">%1$s. It is in Amber\'s diagnostics.</string>
+
+    <string name="fallback_server_too_slow">The server took too long - used the text recognized on the phone.</string>
+    <string name="fallback_no_connection">No connection - recognized on the phone with %1$s.</string>
+    <string name="fallback_no_answer_on_phone">The server did not answer - recognized on the phone with %1$s. The recording may have reached the server.</string>
+    <string name="fallback_other_server">%1$s did not answer - recognized by %2$s instead.</string>
+
+    <string name="capture_no_16khz">The microphone does not support 16 kHz.</string>
+    <string name="capture_not_opened">The microphone could not be opened.</string>
+    <string name="capture_busy">The microphone is busy or not permitted.</string>
+    <string name="capture_refused">The system refused the recording.</string>
+    <string name="capture_interrupted">The microphone was interrupted.</string>
+
+    <string name="slot_downloading">Downloading</string>
+    <string name="slot_copying">Copying</string>
+    <string name="quick_too_late">Too late - the dictation has moved on.</string>
+    <string name="quick_done_inserted">Last dictation inserted.</string>
+    <string name="quick_done_cancelled">Dictation cancelled.</string>
+    <string name="quick_done_no_cleanup">Sending without the cleanup.</string>
+    <string name="quick_done_start_over">Recording again from the start.</string>
+    <string name="quick_done_as_recognized">Keeping the text as recognized.</string>
+    <string name="quick_done_paused">Paused. Tap the bubble to send.</string>
+    <string name="quick_done_resumed">Listening again.</string>
+    <string name="quick_done_cleanup_on">Cleanup on in %1$s.</string>
+    <string name="quick_done_cleanup_off">Cleanup off in %1$s.</string>
+    <string name="bubble_hidden_in">Bubble hidden in %1$s. Show it again in Amber → Settings → Bubble.</string>
+</resources>

@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.Fallback
@@ -19,7 +20,7 @@ import kotlin.test.assertTrue
 
 class EngineTrustTest {
 
-    private fun failure(cause: Throwable? = null, status: Int? = null) = SttFailure("x", "t", statusCode = status, cause = cause)
+    private fun failure(cause: Throwable? = null, status: Int? = null) = SttFailure(Problem.RecognitionFailed, "t", statusCode = status, cause = cause)
 
     @Test
     fun `a text recognized on the phone keeps the server's label when the upload may have happened`() {

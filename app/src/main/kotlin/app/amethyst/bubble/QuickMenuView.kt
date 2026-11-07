@@ -1,5 +1,6 @@
 package app.amethyst.bubble
 
+import app.amethyst.Texts
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -182,7 +183,7 @@ class QuickMenuView(context: Context) : View(context) {
     /** One button, grown by [h] (0..1) into a pill toward the middle of the screen. */
     private fun drawOrb(canvas: Canvas, slot: QuickSlot, x: Float, y: Float, h: Float, alpha: Float) {
         val d = orbRadius * 2
-        val label = slot.action.label
+        val label = Texts.quickAction(context, slot.action)
         val full = (d + PAD_OUTER * density + text.measureText(label) + PAD_INNER * density).coerceAtMost(width - 2 * EDGE * density)
         val w = d + (full - d) * h
         val towardLeft = side == BubbleSide.RIGHT

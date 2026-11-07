@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="on">An</string>
+    <string name="off">Aus</string>
+    <string name="summary_none_selected">Keine gewählt</string>
+    <string name="summary_on_bubble_off">An · die Bubble ist aus</string>
+    <string name="summary_apps_none">Noch keine</string>
+    <plurals name="summary_apps">
+        <item quantity="one">%d App</item>
+        <item quantity="other">%d Apps</item>
+    </plurals>
+    <string name="summary_not_needed">Nicht nötig</string>
+    <string name="summary_fallback_automatic">Parakeet, dann Whisper</string>
+    <string name="summary_prepared">%1$s · vorbereitet</string>
+    <string name="summary_stops_after">Stoppt nach %1$s s Stille</string>
+    <string name="summary_runs_until_tap">Läuft, bis du tippst</string>
+    <string name="summary_as_recognized">Wie erkannt</string>
+    <string name="insert_part_spaces">Leerzeichen</string>
+    <string name="insert_part_capitals">Großschreibung</string>
+    <string name="insert_part_punctuation">Satzzeichen</string>
+    <string name="insert_part_clipboard">Zwischenablage</string>
+    <string name="summary_all_set">Alles bereit</string>
+    <plurals name="summary_things_open">
+        <item quantity="one">%d Punkt offen</item>
+        <item quantity="other">%d Punkte offen</item>
+    </plurals>
+    <string name="summary_nothing_dictated">Noch nichts diktiert</string>
+    <plurals name="summary_last_dictations">
+        <item quantity="one">Letztes Diktat</item>
+        <item quantity="other">Letzte %d Diktate</item>
+    </plurals>
+    <plurals name="summary_more_settings">
+        <item quantity="one">%d weitere Einstellung</item>
+        <item quantity="other">%d weitere Einstellungen</item>
+    </plurals>
+    <string name="summary_reliability_open">Zuverlässigkeit: %1$s</string>
+    <plurals name="summary_models">
+        <item quantity="one">%d Modell</item>
+        <item quantity="other">%d Modelle</item>
+    </plurals>
+
+    <string name="place_on_device">Auf dem Handy</string>
+    <string name="place_enclave">Enklave</string>
+    <string name="place_cloud">Cloud</string>
+
+    <string name="updates_from_installer">Von dort, wo du Amber installiert hast</string>
+    <string name="updates_available">%1$s verfügbar</string>
+    <string name="updates_daily">Prüft GitHub einmal am Tag</string>
+    <string name="last_check_not_yet">Noch nicht</string>
+    <string name="last_check_failed">Fehlgeschlagen %1$s</string>
+    <string name="last_check_offline">Keine Verbindung %1$s</string>
+    <string name="last_check_retry_hour">%1$s · neuer Versuch innerhalb einer Stunde</string>
+    <string name="last_check_retry_day">%1$s · neuer Versuch innerhalb eines Tages</string>
+    <string name="last_check_up_to_date">%1$s · aktuell</string>
+    <string name="last_check_found">%1$s · %2$s verfügbar</string>
+    <string name="ago_just_now">gerade eben</string>
+    <plurals name="ago_minutes">
+        <item quantity="one">vor %d Minute</item>
+        <item quantity="other">vor %d Minuten</item>
+    </plurals>
+    <plurals name="ago_hours">
+        <item quantity="one">vor %d Stunde</item>
+        <item quantity="other">vor %d Stunden</item>
+    </plurals>
+    <plurals name="ago_days">
+        <item quantity="one">vor %d Tag</item>
+        <item quantity="other">vor %d Tagen</item>
+    </plurals>
+
+    <string name="engine_name_android">Spracherkennung von Android</string>
+    <string name="engine_name_server">Ein Server mit deinem eigenen Schlüssel</string>
+
+    <string name="quick_insert_again">Nochmal einfügen</string>
+    <string name="quick_copy_last">Letztes kopieren</string>
+    <string name="quick_cleanup_off_here">Hier nicht bereinigen</string>
+    <string name="quick_cleanup_on_here">Hier bereinigen</string>
+    <string name="quick_hide_here">Hier ausblenden</string>
+    <string name="quick_cancel">Abbrechen</string>
+    <string name="quick_no_cleanup">Ohne Bereinigung</string>
+    <string name="quick_start_over">Neu anfangen</string>
+    <string name="quick_as_recognized">Wie erkannt</string>
+    <string name="quick_pause">Pause</string>
+    <string name="quick_resume">Weiter</string>
+
+    <string name="download_running">Modell wird geladen - %1$d %%</string>
+    <string name="download_waiting_for_wifi">Wartet auf WLAN</string>
+    <string name="download_at_start">%1$s. Amber ist bereit, sobald es fertig ist.</string>
+
+    <string name="other_ambers_one">%1$s ist auch an - schalte eins aus.</string>
+    <string name="other_ambers_many">%1$s und %2$s sind auch an - lass nur eins an.</string>
+
+    <string name="not_offered_by_pc">Der PC bietet es nicht mehr an - er nimmt stattdessen sein Standardmodell</string>
+    <string name="not_offered_by_server">Der Server bietet es nicht mehr an - er nimmt stattdessen sein Standardmodell</string>
+    <string name="machine_pc">der PC</string>
+    <string name="machine_server">der Server</string>
+</resources>

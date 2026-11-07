@@ -57,10 +57,11 @@ class CleartextGuard internal constructor(
 
 /** Plain http to a public address, refused before a single byte of the request went out. */
 class CleartextRefusedException(
-    /** Where it would have gone, for the log; the message is the user's. */
+    /** Where it would have gone, for the log; the user is told [app.amethyst.core.engine.Problem.UnencryptedRefused]. */
     val detail: String,
 ) : NotSentException(MESSAGE) {
     companion object {
+        /** For the log. */
         const val MESSAGE = "Refused unencrypted connection to a public address - use https."
     }
 }

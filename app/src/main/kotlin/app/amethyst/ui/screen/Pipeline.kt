@@ -23,10 +23,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.Fallback
@@ -44,7 +48,6 @@ import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.ExpandChevron
-import app.amethyst.ui.foldState
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
@@ -52,9 +55,13 @@ import app.amethyst.ui.SectionCard
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.Unfold
+import app.amethyst.ui.catalog
+import app.amethyst.ui.engineName
+import app.amethyst.ui.foldState
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeLabel
+import app.amethyst.ui.words
 import kotlinx.coroutines.delay
 
 /**
@@ -76,12 +83,11 @@ fun CleanupScreen(
 
     SubPage(modifier) {
         SectionCard(
-            title = "Who tidies the text",
-            subtitle = "A chat model tidies the text before it is typed.",
-            learnMore = "It fixes punctuation, filler words and mis-hearings, and writes in each app's style. " +
-                "If the cleanup fails or changes too much, the dictation goes in as recognized.",
+            title = stringResource(R.string.cleanup_who),
+            subtitle = stringResource(R.string.cleanup_who_subtitle),
+            learnMore = stringResource(R.string.cleanup_who_more),
         ) {
-            RadioRow("Off", "Text goes in as recognized", selected = current == null, onSelect = { choose(null) })
+            RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = current == null, onSelect = { choose(null) })
             CleanupModelChoices(settings, ready, current, ::choose)
             CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), settings.cleanupEngine()?.trustLevelForDisplay())
         }
@@ -110,17 +116,16 @@ private fun CleanupInstructionCard(
     }
 
     SectionCard(
-        title = "Your addition",
-        subtitle = "For every app, before an app's own instruction.",
-        learnMore = "Tone and form only, e.g. \"write numbers as digits\". The fixed rules come first: " +
-            "the cleanup never translates, answers, or changes what you said, whatever this says.",
+        title = stringResource(R.string.cleanup_addition),
+        subtitle = stringResource(R.string.cleanup_addition_subtitle),
+        learnMore = stringResource(R.string.cleanup_addition_more),
     ) {
         OutlinedTextField(
             value = addition,
             onValueChange = { addition = it.take(ChatCleanup.INSTRUCTION_CHARS) },
-            label = { Text("Own addition (optional)") },
-            placeholder = { Text("e.g. write numbers as digits") },
-            supportingText = { Text("${addition.length} / ${ChatCleanup.INSTRUCTION_CHARS}") },
+            label = { Text(stringResource(R.string.cleanup_addition_label)) },
+            placeholder = { Text(stringResource(R.string.cleanup_addition_placeholder)) },
+            supportingText = { Text(stringResource(R.string.char_count, addition.length, ChatCleanup.INSTRUCTION_CHARS)) },
             minLines = 2,
             maxLines = 8,
             shape = AmberShapes.Inner,
@@ -136,7 +141,7 @@ private fun CleanupInstructionCard(
                 .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("View system prompt", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.cleanup_view_prompt), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text, modifier = Modifier.weight(1f))
             ExpandChevron(showPrompt)
         }
         Unfold(showPrompt) {
@@ -156,11 +161,7 @@ private fun CleanupInstructionCard(
                         .background(AmberPalette.Elevated)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 )
-                Hint(
-                    "Shown for the As spoken style. Each app's style and own instruction take their place at the end, " +
-                        "the dictation's language is named when it is known, and ${ChatCleanup.EXAMPLES.size} worked " +
-                        "examples follow before the dictation.",
-                )
+                Hint(stringResource(R.string.cleanup_prompt_note, ChatCleanup.EXAMPLES.size))
             }
         }
     }
@@ -198,7 +199,7 @@ internal fun CleanupModelChoices(
 ) {
     val servers = settings.engines.filter { it.kind == EngineKind.OPENAI_COMPATIBLE }
     if (servers.isEmpty()) {
-        Hint("Add a server engine under Recognition (Tinfoil, Groq, OpenAI or your own) to use one of its models.")
+        Hint(stringResource(R.string.cleanup_no_server))
     }
     servers.forEach { engine ->
         val model = selected?.takeIf { it.engineId == engine.id }?.model
@@ -210,12 +211,12 @@ internal fun CleanupModelChoices(
             EngineFold(
                 engine = engine,
                 note = when {
-                    !isReady -> "Set up first"
-                    listed && provider.cleanupModels.isEmpty() -> "None offered right now"
+                    !isReady -> stringResource(R.string.cleanup_set_up_first)
+                    listed && provider.cleanupModels.isEmpty() -> stringResource(R.string.cleanup_none_offered)
                     // Named, since the engine is still called "Own server".
-                    provider.listsItself -> "${provider.name} · ${SettingsSummaries.models(provider.cleanupModels.size)}"
-                    listed -> SettingsSummaries.models(provider.cleanupModels.size)
-                    else -> model ?: "Your own model"
+                    provider.listsItself -> "${provider.name} · ${words(SettingsSummaries.models(provider.cleanupModels.size))}"
+                    listed -> words(SettingsSummaries.models(provider.cleanupModels.size))
+                    else -> model ?: stringResource(R.string.cleanup_own_model)
                 },
                 open = open,
                 onToggle = { open = !open },
@@ -223,16 +224,16 @@ internal fun CleanupModelChoices(
             Unfold(open) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when {
-                        !isReady -> Hint("Set this engine up first (address, key).")
+                        !isReady -> Hint(stringResource(R.string.cleanup_set_up_engine))
                         listed -> {
                             ModelPicker(
                                 choices = provider.cleanupModels,
                                 selected = model,
                                 noneLabel = null,
-                                notOffered = provider.notOfferedNote(model, provider.cleanupModels),
+                                notOffered = provider.notOfferedBy(model, provider.cleanupModels)?.let { Texts.notOffered(LocalContext.current, it) },
                                 onSelect = { id -> id?.let { onChoose(CleanupChoice(engine.id, it)) } },
                             )
-                            if (provider.cleanupModels.isEmpty()) Hint("${provider.name} offers no cleanup model right now.")
+                            if (provider.cleanupModels.isEmpty()) Hint(stringResource(R.string.cleanup_no_model, catalog(provider.name)))
                         }
                         else -> OwnCleanupModel(model) { typed -> onChoose(CleanupChoice(engine.id, typed)) }
                     }
@@ -256,7 +257,7 @@ private fun EngineFold(engine: EngineConfig, note: String, open: Boolean, onTogg
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(engine.displayName, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            Text(engineName(engine), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
             TrustBadge(engine.trustLevelForDisplay(), detail = note)
         }
         ExpandChevron(open)
@@ -267,11 +268,7 @@ private fun EngineFold(engine: EngineConfig, note: String, open: Boolean, onTogg
 @Composable
 internal fun CleanupLeavesPhoneHint(recognition: TrustLevel?, cleanup: TrustLevel?) {
     if (recognition != null && cleanup != null && cleanup.strictness > recognition.strictness) {
-        Hint(
-            "The recognized text leaves the phone for the cleanup - your recording does not. " +
-                "Dictations are labelled with where the text went.",
-            AmberPalette.Primary,
-        )
+        Hint(stringResource(R.string.cleanup_leaves_phone), AmberPalette.Primary)
     }
 }
 
@@ -282,7 +279,7 @@ private fun OwnCleanupModel(selected: String?, onUse: (String) -> Unit) {
     OutlinedTextField(
         value = model,
         onValueChange = { model = it },
-        label = { Text("Chat model") },
+        label = { Text(stringResource(R.string.cleanup_chat_model)) },
         placeholder = { Text("llama3.2") },
         singleLine = true,
         shape = AmberShapes.Inner,
@@ -291,8 +288,8 @@ private fun OwnCleanupModel(selected: String?, onUse: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     )
     val trimmed = model.trim()
-    if (trimmed.isNotEmpty() && trimmed != selected) GhostButton("Use $trimmed", { onUse(trimmed) })
-    if (selected != null && trimmed == selected) Hint("In use for cleanup.", AmberPalette.TrustOnDevice)
+    if (trimmed.isNotEmpty() && trimmed != selected) GhostButton(stringResource(R.string.cleanup_use_model, trimmed), { onUse(trimmed) })
+    if (selected != null && trimmed == selected) Hint(stringResource(R.string.cleanup_in_use), AmberPalette.TrustOnDevice)
 }
 
 /**
@@ -312,32 +309,27 @@ fun FallbackScreen(
 
     SubPage(modifier) {
         SectionCard(
-            title = "Who steps in",
-            subtitle = "When the server can't take a recording.",
-            learnMore = "No connection, a timeout or a server down: the engine chosen here recognizes the " +
-                "recording instead. Never one less private than the one it stands in for.",
+            title = stringResource(R.string.fallback_who),
+            subtitle = stringResource(R.string.fallback_who_subtitle),
+            learnMore = stringResource(R.string.fallback_who_more),
         ) {
             if (primary != null && primary.runsOnPhone()) {
-                Hint(
-                    "${primary.displayName} runs on this phone, so there is no server to fail. " +
-                        "This applies once you recognize with a server engine.",
-                    AmberPalette.Primary,
-                )
+                Hint(stringResource(R.string.fallback_runs_on_phone, engineName(primary)), AmberPalette.Primary)
             }
             RadioRow(
-                "Automatic", "Parakeet, then Whisper - if downloaded",
+                stringResource(R.string.fallback_automatic), stringResource(R.string.fallback_automatic_note),
                 selected = fallback.mode == FallbackMode.AUTOMATIC,
                 onSelect = { choose(FallbackSettings(FallbackMode.AUTOMATIC)) },
             )
             RadioRow(
-                "Off", "The dictation fails",
+                stringResource(R.string.off), stringResource(R.string.fallback_off_note),
                 selected = fallback.mode == FallbackMode.OFF,
                 onSelect = { choose(FallbackSettings(FallbackMode.OFF)) },
             )
             val choices = primary?.let { Fallback.choices(settings.engines, it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
             choices.forEach { engine ->
                 RadioRow(
-                    engine.displayName,
+                    engineName(engine),
                     engine.trustLevelForDisplay().badgeLabel(),
                     selected = fallback.mode == FallbackMode.ENGINE && fallback.engineId == engine.id,
                     onSelect = { choose(FallbackSettings(FallbackMode.ENGINE, engine.id)) },
@@ -345,28 +337,22 @@ fun FallbackScreen(
             }
             val chosen = fallback.engineId?.let { id -> settings.engines.firstOrNull { it.id == id } }
             if (fallback.mode == FallbackMode.ENGINE && primary != null && chosen != null && chosen !in choices) {
-                Hint(
-                    "${chosen.displayName} is less private than ${primary.displayName}, so it never takes over " +
-                        "from it - a failed dictation stays failed.",
-                    AmberPalette.Primary,
-                )
+                Hint(stringResource(R.string.fallback_less_private, engineName(chosen), engineName(primary)), AmberPalette.Primary)
             }
         }
         if (ReadyFallback.preparable(fallback, settings.engines) && (primary == null || !primary.runsOnPhone())) {
             SectionCard(
-                title = "Ready in advance",
-                subtitle = "So taking over is quick.",
-                learnMore = "While you dictate, the model on the phone already recognizes the recording in parts. " +
-                    "If the server fails, or takes much longer than usual, the text from the phone is used at once " +
-                    "instead of the whole recording being recognized afterwards.",
+                title = stringResource(R.string.fallback_ready),
+                subtitle = stringResource(R.string.fallback_ready_subtitle),
+                learnMore = stringResource(R.string.fallback_ready_more),
             ) {
                 ToggleRow(
-                    "Prepare on the phone while you speak",
-                    "Uses the phone's processor and battery while you dictate. Only with a downloaded model.",
+                    stringResource(R.string.fallback_prepare),
+                    stringResource(R.string.fallback_prepare_note),
                     checked = fallback.prepare,
                     onChange = { on -> onUpdateSettings { it.copy(fallback = it.fallback.copy(prepare = on)) } },
                 )
-                if (fallback.prepare) Hint("If the server takes much longer than usual, the text from the phone is used.")
+                if (fallback.prepare) Hint(stringResource(R.string.fallback_prepare_on))
             }
         }
     }
@@ -377,11 +363,12 @@ internal fun AmethystSettings.cleanupEngine(choice: CleanupChoice? = cleanup): E
     choice?.let { engines.firstOrNull { engine -> engine.id == it.engineId } }
 
 /** A cleanup in a few words - "DeepSeek V4.1 Flash · Tinfoil (Enclave)" - or null when off. */
+@Composable
 internal fun AmethystSettings.cleanupSummary(choice: CleanupChoice? = cleanup): String? {
     if (choice == null) return null
     val engine = cleanupEngine(choice) ?: return null
     val model = ServerProviders.forEngine(engine, this).cleanupModel(choice.model)?.label ?: choice.model
-    return "$model · ${engine.displayName}"
+    return "$model · ${engineName(engine)}"
 }
 
 /** A recording that never leaves the phone has no server that could fail. */

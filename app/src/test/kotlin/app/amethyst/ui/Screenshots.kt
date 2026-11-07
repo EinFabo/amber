@@ -51,6 +51,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.util.Locale
 import java.time.Duration
 import org.junit.Assert.assertTrue
 
@@ -65,9 +66,10 @@ private val PHONE = listOf("de-DE", "en-US")
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w360dp-h780dp-xxhdpi")
-class Screenshots {
+open class Screenshots {
 
-    private val out = File("build/screenshots").apply { mkdirs() }
+    /** English into build/screenshots, a German run ([ScreenshotsGerman]) beside it. */
+    private val out = File(if (Locale.getDefault().language == "de") "build/screenshots-de" else "build/screenshots").apply { mkdirs() }
 
     private val ready = SetupState(
         microphoneGranted = true,
@@ -781,3 +783,10 @@ class Screenshots {
         private const val ICON_PX = 108
     }
 }
+
+/**
+ * The same screens with the phone set to German (values-de), into build/screenshots-de. The tall
+ * variants set their own size and stay English.
+ */
+@Config(qualifiers = "+de")
+class ScreenshotsGerman : Screenshots()

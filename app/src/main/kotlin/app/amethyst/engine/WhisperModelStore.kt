@@ -1,5 +1,8 @@
 package app.amethyst.engine
 
+import app.amethyst.R
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -74,14 +77,11 @@ class WhisperModelStore(
     /** Imported files that matched no catalog entry are treated as stock Whisper. */
     fun shortContextFor(id: String): Boolean = WhisperModels.byId(id)?.shortContext ?: false
 
-    fun download(spec: WhisperModelSpec) = slots.run(spec.id, "Downloading") { report, isCancelled ->
+    fun download(spec: WhisperModelSpec) = slots.run(spec.id, context.getString(R.string.slot_downloading)) { report, isCancelled ->
         val free = directory.apply { mkdirs() }.usableSpace
         if (free < spec.sizeBytes + SPACE_MARGIN_BYTES) {
             return@run Result.failure(
-                IllegalStateException(
-                    "Not enough storage: ${spec.sizeBytes / 1_000_000} MB needed, " +
-                        "${free / 1_000_000} MB free.",
-                ),
+                ModelFileException(FileProblem.NotEnoughStorage(spec.sizeBytes / 1_000_000, free / 1_000_000)),
             )
         }
         val call = http.newCall(Request.Builder().url(spec.url).build())
@@ -89,15 +89,15 @@ class WhisperModelStore(
         try {
             call.execute().use { response ->
                 if (!response.isSuccessful) {
-                    return@run Result.failure(IllegalStateException("The server answered ${response.code}."))
+                    return@run Result.failure(ModelFileException(FileProblem.ServerAnswered(response.code)))
                 }
                 val body = response.body
-                    ?: return@run Result.failure(IllegalStateException("Empty answer from the server."))
+                    ?: return@run Result.failure(ModelFileException(FileProblem.EmptyAnswer))
                 install(body.byteStream(), spec.id, spec, spec.sizeBytes, report, isCancelled)
             }
         } catch (e: IOException) {
             if (isCancelled()) Result.failure(InterruptedException("cancelled"))
-            else Result.failure(IllegalStateException("No connection: ${e.message}", e))
+            else Result.failure(ModelFileException(FileProblem.NoConnection, "No connection: ${e.message}", e))
         } finally {
             calls.remove(spec.id)
         }
@@ -116,9 +116,9 @@ class WhisperModelStore(
         val known = WhisperModels.matchingSize(size)
         val id = known?.id ?: WhisperModels.IMPORTED_ID
 
-        slots.run(id, "Copying") { report, isCancelled ->
+        slots.run(id, context.getString(R.string.slot_copying)) { report, isCancelled ->
             val input = context.contentResolver.openInputStream(uri)
-                ?: return@run Result.failure(IllegalStateException("The file cannot be opened."))
+                ?: return@run Result.failure(ModelFileException(FileProblem.CannotOpen))
             input.use { install(it, id, known, size, report, isCancelled) }
         }
     }

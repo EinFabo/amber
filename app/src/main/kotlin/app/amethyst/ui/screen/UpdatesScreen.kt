@@ -2,6 +2,8 @@ package app.amethyst.ui.screen
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import app.amethyst.R
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.update.GithubReleases
 import app.amethyst.core.update.ReleaseChannel
@@ -13,14 +15,9 @@ import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.words
 
 /** What the check sends and what GitHub learns from it - said where it is switched on or off. */
-private const val WHAT_IT_ASKS =
-    "Checking asks GitHub which Amber release is the latest, and nothing else: no account, no ID, nothing " +
-        "about your dictations. GitHub sees your IP address, that Amber asks, and which version."
-
-/** What installing a newer release does, said the same way on Home and on the Updates page. */
-internal const val INSTALLS_OVER = "Installs over this one; your settings stay."
 
 /**
  * The update check of the GitHub build: the main switch, what it asks, how the last check went
@@ -45,11 +42,11 @@ fun UpdatesScreen(
         } else {
             SettingsGroup(label = null) {
                 NavRow(
-                    "Updates", "This Amber gets its updates from where you installed it. It never looks for them itself.",
+                    stringResource(R.string.settings_updates), stringResource(R.string.updates_elsewhere),
                     icon = AmberIcons.Update, summaryMaxLines = Int.MAX_VALUE, trailing = null, onClick = null,
                 )
                 RowDivider()
-                NavRow("This version", installedVersion.ifBlank { "Unknown" }, icon = AmberIcons.Info, trailing = null, onClick = null)
+                NavRow(stringResource(R.string.updates_this_version), installedVersion.ifBlank { stringResource(R.string.unknown) }, icon = AmberIcons.Info, trailing = null, onClick = null)
             }
         }
     }
@@ -68,30 +65,30 @@ private fun CheckedUpdates(
     val updates = settings.updates
     val available = UpdatePolicy.available(ReleaseChannel.GITHUB, updates, installedVersion)
     MainSwitch(
-        label = "Check for updates",
-        summary = "Once a day, on GitHub.",
+        label = stringResource(R.string.updates_check),
+        summary = stringResource(R.string.updates_check_summary),
         checked = updates.enabled,
         onChange = { on -> onUpdateSettings { it.copy(updates = it.updates.copy(enabled = on)) } },
     )
-    GroupFootnote(WHAT_IT_ASKS, AmberIcons.Lock)
+    GroupFootnote(stringResource(R.string.updates_what_it_asks), AmberIcons.Lock)
 
-    SettingsGroup("Status") {
-        NavRow("This version", installedVersion.ifBlank { "Unknown" }, icon = AmberIcons.Info, trailing = null, onClick = null)
+    SettingsGroup(stringResource(R.string.updates_status)) {
+        NavRow(stringResource(R.string.updates_this_version), installedVersion.ifBlank { stringResource(R.string.unknown) }, icon = AmberIcons.Info, trailing = null, onClick = null)
         RowDivider()
         if (available != null) {
             NavRow(
-                "Amber ${available.version}", INSTALLS_OVER,
+                stringResource(R.string.updates_amber_version, available.version), stringResource(R.string.installs_over),
                 icon = AmberIcons.Download, summaryMaxLines = 2,
-                trailing = { GhostButton("Download", { onOpenUrl(available.url) }) },
+                trailing = { GhostButton(stringResource(R.string.download), { onOpenUrl(available.url) }) },
                 onClick = { onOpenUrl(available.url) },
             )
             RowDivider()
         }
         NavRow(
-            "Last check", UpdatePolicy.lastCheck(updates, installedVersion, now),
+            stringResource(R.string.updates_last_check), words(UpdatePolicy.lastCheck(updates, installedVersion, now)),
             icon = AmberIcons.Update, summaryMaxLines = 2,
             trailing = {
-                GhostButton(if (checking) "Checking …" else "Check now", onCheckNow, enabled = updates.enabled && !checking)
+                GhostButton(stringResource(if (checking) R.string.updates_checking else R.string.updates_check_now), onCheckNow, enabled = updates.enabled && !checking)
             },
             onClick = null,
         )
@@ -99,7 +96,7 @@ private fun CheckedUpdates(
 
     SettingsGroup(label = null) {
         NavRow(
-            "All releases", "What changed in each version", icon = AmberIcons.OpenInNew,
+            stringResource(R.string.updates_all_releases), stringResource(R.string.updates_all_releases_summary), icon = AmberIcons.OpenInNew,
         ) { onOpenUrl(GithubReleases.RELEASES_URL) }
     }
 }

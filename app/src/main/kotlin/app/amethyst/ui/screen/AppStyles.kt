@@ -27,18 +27,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
+import app.amethyst.apps.InstalledApp
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
+import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
-import app.amethyst.apps.InstalledApp
-import app.amethyst.core.settings.SettingsSummaries
-import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.Hint
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.RowDivider
@@ -46,6 +49,7 @@ import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.words
 import kotlin.math.roundToInt
 
 /** Silence before stopping and the longest dictation; part of the Recording page. */
@@ -56,8 +60,8 @@ fun RecordingLimits(
 ) {
     val capture = settings.capture
     StepSlider(
-        label = "Silence before stopping",
-        valueText = "${capture.silenceTimeoutMs} ms",
+        label = stringResource(R.string.limits_silence),
+        valueText = stringResource(R.string.duration_ms, capture.silenceTimeoutMs),
         value = capture.silenceTimeoutMs,
         range = 500..2_500,
         step = 100,
@@ -65,8 +69,8 @@ fun RecordingLimits(
         onChange = { ms -> onUpdateSettings { it.copy(capture = it.capture.copy(silenceTimeoutMs = ms)) } },
     )
     StepSlider(
-        label = "Longest dictation",
-        valueText = "${capture.maxDurationMs / 1000} s",
+        label = stringResource(R.string.limits_longest),
+        valueText = stringResource(R.string.seconds, capture.maxDurationMs / 1000),
         value = capture.maxDurationMs / 1000,
         range = 30..300,
         step = 30,
@@ -82,14 +86,14 @@ fun ChunkingSettings(
 ) {
     val capture = settings.capture
     ToggleRow(
-        label = "Recognize in parts",
-        description = "Local engines only",
+        label = stringResource(R.string.chunking),
+        description = stringResource(R.string.chunking_note),
         checked = capture.chunking,
         onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
     )
     StepSlider(
-        label = "Shortest part",
-        valueText = capture.chunkMinMs?.let { "${it / 1000} s" } ?: "engine default",
+        label = stringResource(R.string.chunking_shortest),
+        valueText = capture.chunkMinMs?.let { stringResource(R.string.seconds, it / 1000) } ?: stringResource(R.string.chunking_default),
         value = (capture.chunkMinMs ?: 0) / 1000,
         range = 0..30,
         step = 2,
@@ -116,19 +120,17 @@ fun AppStylesScreen(
     SubPage(modifier) {
         val styled = settings.cleanup != null || ownModels
         SettingsGroup(
-            "Your apps",
+            stringResource(R.string.styles_your_apps),
             note = when {
-                settings.cleanup != null -> "Each app gets the text in its own style."
-                ownModels -> "Only apps with a model of their own are tidied."
-                else -> "Styles need a cleanup model."
+                settings.cleanup != null -> stringResource(R.string.styles_note_cleanup)
+                ownModels -> stringResource(R.string.styles_note_own)
+                else -> stringResource(R.string.styles_note_none)
             },
             noteColor = if (styled) AmberPalette.Muted else AmberPalette.Primary,
             learnMore = when {
-                settings.cleanup != null -> "The cleanup chosen under Settings → Cleanup writes in each app's style, " +
-                    "unless an app has a model of its own. Apps without a style get the text tidied as spoken."
-                ownModels -> "For the other apps, pick a cleanup under Settings → Cleanup."
-                else -> "Pick one under Settings → Cleanup - a model on Tinfoil, Groq, OpenAI or your own server - " +
-                    "or one for a single app on its page. Until then the text goes in as recognized."
+                settings.cleanup != null -> stringResource(R.string.styles_more_cleanup)
+                ownModels -> stringResource(R.string.styles_more_own)
+                else -> stringResource(R.string.styles_more_none)
             },
         ) {
             settings.profiles.forEach { profile ->
@@ -139,13 +141,13 @@ fun AppStylesScreen(
                 ) { onOpenApp(profile.packageName) }
                 RowDivider()
             }
-            NavRow("Add app", summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
+            NavRow(stringResource(R.string.styles_add_app), summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
         }
     }
 
     if (picking) {
         AppPickerDialog(
-            title = "Style for which app?",
+            title = stringResource(R.string.styles_which_app),
             existing = settings.profiles.map { it.packageName }.toSet(),
             apps = apps,
             usage = usage,
@@ -197,28 +199,35 @@ internal fun StepSlider(
     }
 }
 
-internal fun WritingStyle.label(): String = when (this) {
-    WritingStyle.AS_SPOKEN -> "As spoken"
-    WritingStyle.CASUAL -> "Casual"
-    WritingStyle.FORMAL -> "Formal"
-    WritingStyle.CONCISE -> "Concise"
-}
+@Composable
+internal fun WritingStyle.label(): String = stringResource(
+    when (this) {
+        WritingStyle.AS_SPOKEN -> R.string.writing_as_spoken
+        WritingStyle.CASUAL -> R.string.writing_casual
+        WritingStyle.FORMAL -> R.string.writing_formal
+        WritingStyle.CONCISE -> R.string.writing_concise
+    },
+)
 
-internal fun WritingStyle.note(): String = when (this) {
-    WritingStyle.AS_SPOKEN -> "only tidied"
-    WritingStyle.CASUAL -> "chat-like"
-    WritingStyle.FORMAL -> "for email"
-    WritingStyle.CONCISE -> "short notes"
-}
+@Composable
+internal fun WritingStyle.note(): String = stringResource(
+    when (this) {
+        WritingStyle.AS_SPOKEN -> R.string.writing_as_spoken_note
+        WritingStyle.CASUAL -> R.string.writing_casual_note
+        WritingStyle.FORMAL -> R.string.writing_formal_note
+        WritingStyle.CONCISE -> R.string.writing_concise_note
+    },
+)
 
 /** An app's style and what it has of its own: "Concise · own instruction · Gemma 4 31B". */
+@Composable
 private fun AppProfile.summary(settings: AmethystSettings): String =
     listOfNotNull(
         style.label(),
-        instruction?.takeIf { it.isNotBlank() }?.let { "own instruction" },
+        instruction?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.styles_own_instruction) },
         when (appCleanup.mode) {
-            AppCleanupMode.OFF -> "cleanup off"
-            AppCleanupMode.MODEL -> appCleanup.choice?.let { SettingsSummaries.cleanup(settings, it) }
+            AppCleanupMode.OFF -> stringResource(R.string.styles_cleanup_off)
+            AppCleanupMode.MODEL -> appCleanup.choice?.let { words(SettingsSummaries.cleanup(settings, it)) }
             AppCleanupMode.DEFAULT -> null
         },
     ).joinToString(" · ")
@@ -236,8 +245,9 @@ internal fun AppPickerDialog(
     onDismiss: () -> Unit,
     onPick: (List<InstalledApp>) -> Unit,
     multiple: Boolean = false,
-    confirmLabel: (Int) -> String = { "Add" },
+    confirmLabel: ((Int) -> String)? = null,
 ) {
+    val addLabel = stringResource(R.string.add)
     var all by remember { mutableStateOf<List<InstalledApp>?>(null) }
     var query by remember { mutableStateOf("") }
     var picked by remember { mutableStateOf(emptyList<InstalledApp>()) }
@@ -261,7 +271,7 @@ internal fun AppPickerDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search apps") },
+                    placeholder = { Text(stringResource(R.string.apps_search)) },
                     singleLine = true,
                     shape = AmberShapes.Inner,
                     colors = fieldColors(),
@@ -269,7 +279,7 @@ internal fun AppPickerDialog(
                 )
                 val loaded = all
                 if (loaded == null) {
-                    Hint("Loading apps …")
+                    Hint(stringResource(R.string.apps_loading))
                     return@Column
                 }
                 val grouped = remember(loaded, usage) {
@@ -279,16 +289,16 @@ internal fun AppPickerDialog(
                 val frequent = grouped.frequent.filter { AppChoice.matches(query, it.label, it.packageName) }
                 val rest = grouped.rest.filter { AppChoice.matches(query, it.label, it.packageName) }
                 if (frequent.isEmpty() && rest.isEmpty()) {
-                    Hint(if (searching) "No app matches \u201C${query.trim()}\u201D." else "Every app is added already.")
+                    Hint(if (searching) stringResource(R.string.apps_no_match, query.trim()) else stringResource(R.string.apps_all_added))
                     return@Column
                 }
                 LazyColumn(Modifier.heightIn(max = 420.dp)) {
                     if (frequent.isNotEmpty()) {
-                        if (!searching) item(key = "h-frequent") { GroupLabel("Where you dictate") }
+                        if (!searching) item(key = "h-frequent") { GroupLabel(stringResource(R.string.apps_where_you_dictate)) }
                         items(frequent, key = { "f-" + it.packageName }) { app ->
                             AppPickRow(app, apps, usage[app.packageName], multiple, app in picked) { choose(app) }
                         }
-                        if (!searching && rest.isNotEmpty()) item(key = "h-all") { GroupLabel("All apps") }
+                        if (!searching && rest.isNotEmpty()) item(key = "h-all") { GroupLabel(stringResource(R.string.apps_all)) }
                     }
                     items(rest, key = { it.packageName }) { app ->
                         AppPickRow(app, apps, null, multiple, app in picked) { choose(app) }
@@ -299,12 +309,12 @@ internal fun AppPickerDialog(
         confirmButton = {
             if (multiple) {
                 TextButton(onClick = { onPick(picked) }, enabled = picked.isNotEmpty()) {
-                    Text(confirmLabel(picked.size), color = if (picked.isNotEmpty()) AmberPalette.Primary else AmberPalette.Muted)
+                    Text(confirmLabel?.invoke(picked.size) ?: addLabel, color = if (picked.isNotEmpty()) AmberPalette.Primary else AmberPalette.Muted)
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = AmberPalette.Muted) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
         },
     )
 }
@@ -339,7 +349,7 @@ private fun AppPickRow(
         AppIcon(app.packageName, apps)
         Column(Modifier.weight(1f)) {
             Text(app.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-            dictations?.let { Hint(if (it == 1) "1 dictation" else "$it dictations") }
+            dictations?.let { Hint(pluralStringResource(R.plurals.apps_dictations, it, it)) }
         }
         if (multiple) {
             Checkbox(

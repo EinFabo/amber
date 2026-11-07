@@ -1,66 +1,68 @@
 package app.amethyst.ui.screen
 
+import android.net.Uri
 import android.os.Build
 import android.speech.SpeechRecognizer
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import app.amethyst.core.engine.AmberCatalog
-import app.amethyst.core.engine.AmberCatalogs
-import app.amethyst.core.engine.ServerProviders
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
+import app.amethyst.Texts
+import app.amethyst.core.engine.AmberCatalog
+import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
+import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.whisper.WhisperModelSpec
 import app.amethyst.core.engine.whisper.WhisperModels
@@ -68,24 +70,28 @@ import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.EnclaveProof
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
-import app.amethyst.core.engine.whisper.ModelSlots.SlotState
-import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
-import app.amethyst.ui.ProgressLine
-import app.amethyst.ui.RadioRow
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PageGutter
 import app.amethyst.ui.PrimaryButton
+import app.amethyst.ui.ProgressLine
+import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.TrustBadge
+import app.amethyst.ui.catalog
+import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.placeExplanation
+import app.amethyst.ui.words
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
 @Composable
@@ -123,6 +129,7 @@ fun EngineDetailScreen(
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val preset = EnginePresets.byId(config.id)
     val local = config.kind == EngineKind.WHISPER_CPP
 
@@ -154,48 +161,35 @@ fun EngineDetailScreen(
     ) {
         val problems = EngineConfigValidator.validate(edited(), hasApiKey = apiKey.isNotBlank())
 
-        SectionCard(title = config.displayName) {
+        SectionCard(title = engineName(config)) {
             TrustBadge(config.trustLevelForDisplay())
             Hint(config.trustLevelForDisplay().placeExplanation())
             if (EngineTrust.unencrypted(edited())) {
-                Hint(
-                    "Unencrypted (http): anyone on the same network can read and change what is sent. " +
-                        "Only safe in your own network - on another Wi-Fi with the same addresses, " +
-                        "someone else may answer.",
-                    AmberPalette.Error,
-                )
+                Hint(stringResource(R.string.engine_unencrypted), AmberPalette.Error)
             }
-            if (preset?.note?.isNotBlank() == true) Hint(preset.note)
+            if (preset?.note?.isNotBlank() == true) Hint(catalog(preset.note))
 
             if (problems.isEmpty()) {
-                Hint("Settings complete.", AmberPalette.TrustOnDevice)
+                Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
             } else {
                 // Listed while typing, so the user is never left guessing which field the
                 // engine is still waiting for.
-                problems.forEach { problem -> Hint(problem, AmberPalette.Error) }
+                problems.forEach { problem -> Hint(words(problem), AmberPalette.Error) }
             }
-            if (!active) PrimaryButton("Use as active engine", onActivate)
+            if (!active) PrimaryButton(stringResource(R.string.engine_use_active), onActivate)
         }
 
         when (config.kind) {
             EngineKind.ANDROID_ON_DEVICE -> SectionCard(
-                title = "Configuration",
+                title = stringResource(R.string.engine_configuration),
             ) {
-                Hint(
-                    "Uses the system recognizer. Which languages are available offline is up to " +
-                        "the system settings.",
-                )
-                val context = LocalContext.current
+                Hint(stringResource(R.string.engine_android_note))
                 val onDevice = remember {
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
                 }
                 if (!onDevice) {
-                    Hint(
-                        "This phone has no on-device recognizer: the system one may send your voice to " +
-                            "its servers, and such dictations are marked as cloud. Parakeet or Whisper stay on the phone.",
-                        AmberPalette.Primary,
-                    )
+                    Hint(stringResource(R.string.engine_android_cloud), AmberPalette.Primary)
                 }
                 LanguageField(language) { language = it }
             }
@@ -213,12 +207,8 @@ fun EngineDetailScreen(
                     onCancel = onCancelModel,
                     onDelete = onDeleteModel,
                 )
-                SectionCard(title = "Languages") {
-                    Hint(
-                        "The languages you dictate in. With several, Whisper detects per dictation " +
-                            "which one was spoken. A single one is forced: " +
-                            "anything said in another language is then translated.",
-                    )
+                SectionCard(title = stringResource(R.string.engine_languages)) {
+                    Hint(stringResource(R.string.engine_whisper_languages))
                     WhisperLanguagePicker(language) { picked ->
                         language = picked
                         onSave(edited())
@@ -243,15 +233,15 @@ fun EngineDetailScreen(
                     }
                 }
                 SectionCard(
-                    title = "Connection",
-                    subtitle = if (fixedAddress) "${provider.name} · ${baseUrl.trim()}"
-                    else "Anything with /v1/audio/transcriptions - Speaches, LocalAI, whisper.cpp's server.",
+                    title = stringResource(R.string.engine_connection),
+                    subtitle = if (fixedAddress) "${catalog(provider.name)} · ${baseUrl.trim()}"
+                    else stringResource(R.string.engine_connection_subtitle),
                 ) {
                     if (!fixedAddress) {
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { baseUrl = it },
-                            label = { Text("Address") },
+                            label = { Text(stringResource(R.string.engine_address)) },
                             placeholder = { Text("http://192.168.1.20:8000/v1") },
                             singleLine = true,
                             shape = AmberShapes.Inner,
@@ -259,20 +249,22 @@ fun EngineDetailScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Hint("With or without /v1. http:// only for servers in your own network.")
+                        Hint(stringResource(R.string.engine_address_hint))
                         // Typed only while the server lists no speech model to pick, so an empty
                         // list never leaves the engine without one.
                         if (catalog != null && provider.listsItself && provider.speechModels.isNotEmpty()) {
                             Hint(
-                                listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" ") +
-                                    " - its models are listed below.",
+                                stringResource(
+                                    R.string.engine_models_below,
+                                    listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" "),
+                                ),
                                 AmberPalette.TrustOnDevice,
                             )
                         } else {
                             OutlinedTextField(
                                 value = modelId,
                                 onValueChange = { modelId = it },
-                                label = { Text("Speech model") },
+                                label = { Text(stringResource(R.string.engine_speech_model)) },
                                 placeholder = { Text("Systran/faster-whisper-large-v3") },
                                 singleLine = true,
                                 shape = AmberShapes.Inner,
@@ -286,7 +278,7 @@ fun EngineDetailScreen(
                         OutlinedTextField(
                             value = apiKey,
                             onValueChange = { apiKey = it },
-                            label = { Text("API key") },
+                            label = { Text(stringResource(R.string.engine_api_key)) },
                             singleLine = true,
                             shape = AmberShapes.Inner,
                             colors = fieldColors(),
@@ -295,46 +287,43 @@ fun EngineDetailScreen(
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Hint("Stored encrypted on this phone only.")
+                        Hint(stringResource(R.string.engine_key_stored))
                     }
                 }
                 if (provider.hasModelList) {
                     SectionCard(
-                        title = "Speech model",
-                        subtitle = "Which of ${provider.name}'s models turns your voice into text.",
+                        title = stringResource(R.string.engine_speech_model),
+                        subtitle = stringResource(R.string.engine_speech_model_subtitle, catalog(provider.name)),
                     ) {
                         ModelPicker(
                             choices = provider.speechModels,
                             selected = modelId.trim(),
                             noneLabel = null,
-                            notOffered = provider.notOfferedNote(modelId, provider.speechModels),
+                            notOffered = provider.notOfferedBy(modelId, provider.speechModels)?.let { Texts.notOffered(context, it) },
                             onSelect = { id ->
                                 modelId = id ?: modelId
                                 onSave(edited())
                             },
                         )
-                        if (provider.speechModels.isEmpty()) Hint("${provider.name} offers no speech model right now.")
+                        if (provider.speechModels.isEmpty()) Hint(stringResource(R.string.engine_no_speech_model, catalog(provider.name)))
                     }
                 }
                 // An Amber server takes several languages and picks among them; a plain API
                 // takes one code or none.
                 val amber = catalog?.takeIf { AmberCatalogs.isCandidate(config) }
                 if (amber != null) {
-                    SectionCard(title = "Languages") {
-                        Hint(
-                            "The languages you dictate in. Several: ${amber.machine} picks among them for each " +
-                                "dictation; a very short one can still land in the wrong one and come out translated. " +
-                                "A single one is forced: anything said in another language is then translated.",
-                        )
-                        WhisperLanguagePicker(language, noneHint = "None picked: ${amber.machine} guesses among all languages.") { picked ->
+                    SectionCard(title = stringResource(R.string.engine_languages)) {
+                        val machine = Texts.machine(context, amber.machine)
+                        Hint(stringResource(R.string.engine_amber_languages, machine))
+                        WhisperLanguagePicker(language, noneHint = stringResource(R.string.engine_amber_none_picked, machine)) { picked ->
                             language = picked
                             onSave(edited())
                         }
                     }
                 } else {
                     SectionCard(
-                        title = "Language",
-                        subtitle = "Automatic works for most. One fixed language helps with short dictations.",
+                        title = stringResource(R.string.engine_language),
+                        subtitle = stringResource(R.string.engine_language_subtitle),
                     ) {
                         ServerLanguagePicker(language.substringBefore('-').lowercase()) { picked ->
                             language = picked
@@ -342,22 +331,22 @@ fun EngineDetailScreen(
                         }
                     }
                 }
-                Hint("Cleanup models of this server are picked under Settings → Cleanup, for any recognition engine.")
+                Hint(stringResource(R.string.engine_cleanup_elsewhere))
                 if (provider == ServerProviders.TINFOIL) EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
             }
 
             EngineKind.LOCAL_SHERPA -> ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
 
-            EngineKind.ELEVENLABS_REALTIME -> SectionCard(title = "Not supported") {
-                Hint("ElevenLabs Realtime was never finished. Remove this engine.")
+            EngineKind.ELEVENLABS_REALTIME -> SectionCard(title = stringResource(R.string.engine_not_supported)) {
+                Hint(stringResource(R.string.engine_elevenlabs))
             }
         }
 
-        SectionCard(title = "Check") {
+        SectionCard(title = stringResource(R.string.engine_check)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryButton("Save", { persist() })
+                PrimaryButton(stringResource(R.string.save), { persist() })
                 GhostButton(
-                    text = if (local) "Test model" else "Test connection",
+                    text = stringResource(if (local) R.string.engine_test_model else R.string.engine_test_connection),
                     enabled = !testing,
                     onClick = {
                         persist()
@@ -373,7 +362,7 @@ fun EngineDetailScreen(
 
             if (config.kind == EngineKind.OPENAI_COMPATIBLE) {
                 val price = ServerProviders.forUrl(baseUrl).speechModel(modelId.trim())?.usdPerRequest ?: 0.0
-                if (price > 0) Hint("A test is billed like a dictation (\$${"%.2f".format(java.util.Locale.US, price)}).")
+                if (price > 0) Hint(stringResource(R.string.engine_test_billed, String.format(Texts.locale(context), "%.2f", price)))
             }
             AnimatedVisibility(visible = testing, enter = fadeIn(), exit = fadeOut()) {
                 ProgressLine(fraction = null)
@@ -387,7 +376,7 @@ fun EngineDetailScreen(
         }
 
         if (config.id != EnginePresets.ANDROID_ON_DEVICE.id) {
-            GhostButton("Remove engine", { confirmRemove = true }, color = AmberPalette.Error)
+            GhostButton(stringResource(R.string.engine_remove), { confirmRemove = true }, color = AmberPalette.Error)
         }
     }
 
@@ -402,18 +391,18 @@ fun EngineDetailScreen(
             onDismissRequest = { confirmRemove = false },
             containerColor = AmberPalette.Surface,
             shape = AmberShapes.Card,
-            title = { Text("Remove ${config.displayName}?", color = AmberPalette.Text) },
-            text = { Hint("Its settings and stored key are deleted. Downloaded models stay until you delete them.") },
+            title = { Text(stringResource(R.string.engine_remove_title, engineName(config)), color = AmberPalette.Text) },
+            text = { Hint(stringResource(R.string.engine_remove_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmRemove = false
                     removed = true
                     config.apiKeyAlias?.let { alias -> onSaveKey(alias, "") }
                     onDelete()
-                }) { Text("Remove", color = AmberPalette.Error) }
+                }) { Text(stringResource(R.string.remove), color = AmberPalette.Error) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmRemove = false }) { Text("Cancel", color = AmberPalette.Muted) }
+                TextButton(onClick = { confirmRemove = false }) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
             },
         )
     }
@@ -439,16 +428,16 @@ private fun WhisperModelsCard(
     }
 
     SectionCard(
-        title = "Models",
-        subtitle = "Bigger means more accurate but slower. Download, then \"Use\".",
+        title = stringResource(R.string.models_title),
+        subtitle = stringResource(R.string.models_subtitle),
         modifier = modifier,
     ) {
         WhisperModels.all.forEach { spec ->
             ModelRow(
-                title = spec.displayName,
-                tier = spec.tier,
-                sizeLabel = "${spec.sizeBytes / 1_000_000} MB",
-                note = spec.note,
+                title = catalog(spec.displayName),
+                tier = catalog(spec.tier),
+                sizeLabel = stringResource(R.string.megabytes, (spec.sizeBytes / 1_000_000).toInt()),
+                note = catalog(spec.note),
                 state = states[spec.id] ?: SlotState.Missing,
                 selected = spec.id == selectedId,
                 onSelect = { onSelect(spec.id) },
@@ -461,10 +450,10 @@ private fun WhisperModelsCard(
         val imported = states[WhisperModels.IMPORTED_ID] ?: SlotState.Missing
         if (imported !is SlotState.Missing) {
             ModelRow(
-                title = "Own file",
+                title = stringResource(R.string.model_own_file),
                 tier = "",
-                sizeLabel = (imported as? SlotState.Ready)?.let { "${it.sizeBytes / 1_000_000} MB" } ?: "",
-                note = "A whisper.cpp model you picked yourself. Runs with the full context.",
+                sizeLabel = (imported as? SlotState.Ready)?.let { stringResource(R.string.megabytes, (it.sizeBytes / 1_000_000).toInt()) } ?: "",
+                note = stringResource(R.string.model_own_file_note),
                 state = imported,
                 selected = selectedId == WhisperModels.IMPORTED_ID,
                 onSelect = { onSelect(WhisperModels.IMPORTED_ID) },
@@ -474,8 +463,8 @@ private fun WhisperModelsCard(
             )
         }
 
-        GhostButton("Pick own file", { picker.launch(arrayOf("*/*")) })
-        Hint("Already downloaded from FUTO? Pick the .bin file, it is recognized and checked.")
+        GhostButton(stringResource(R.string.model_pick_file), { picker.launch(arrayOf("*/*")) })
+        Hint(stringResource(R.string.model_pick_file_hint))
     }
 }
 
@@ -532,12 +521,12 @@ private fun ModelRow(
         ) { current ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (current) {
-                    SlotState.Missing -> GhostButton("Download", onDownload)
+                    SlotState.Missing -> GhostButton(stringResource(R.string.download), onDownload)
 
                     is SlotState.Busy -> {
-                        Hint(current.label + " … " + progressText(current), AmberPalette.Text)
+                        Hint(stringResource(R.string.model_busy, current.label, progressText(current)), AmberPalette.Text)
                         ProgressLine(current.fraction)
-                        GhostButton("Cancel", onCancel)
+                        GhostButton(stringResource(R.string.cancel), onCancel)
                     }
 
                     is SlotState.Ready -> Row(
@@ -545,21 +534,21 @@ private fun ModelRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         if (selected) {
-                            Hint("In use", AmberPalette.Primary)
+                            Hint(stringResource(R.string.model_in_use), AmberPalette.Primary)
                         } else {
-                            PrimaryButton("Use", onSelect)
+                            PrimaryButton(stringResource(R.string.use), onSelect)
                         }
                         Spacer(Modifier.weight(1f))
-                        GhostButton("Delete", onDelete, color = AmberPalette.Error)
+                        GhostButton(stringResource(R.string.delete), onDelete, color = AmberPalette.Error)
                     }
 
                     is SlotState.Failed -> {
-                        Hint(current.message, AmberPalette.Error)
-                        GhostButton("Try again", onDownload)
+                        Hint(words(current.problem), AmberPalette.Error)
+                        GhostButton(stringResource(R.string.try_again), onDownload)
                     }
                 }
                 if (current is SlotState.Ready && !current.info.multilingual) {
-                    Hint("This model only understands English.", AmberPalette.Error)
+                    Hint(stringResource(R.string.model_english_only), AmberPalette.Error)
                 }
             }
         }
@@ -572,10 +561,12 @@ private fun TierPill(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = AmberPalette.Muted)
 }
 
+@Composable
 private fun progressText(busy: SlotState.Busy): String {
-    val mb = busy.received / 1_000_000
+    val mb = (busy.received / 1_000_000).toInt()
     val total = busy.total
-    return if (total != null && total > 0) "$mb of ${total / 1_000_000} MB" else "$mb MB"
+    return if (total != null && total > 0) stringResource(R.string.progress_of, mb, (total / 1_000_000).toInt())
+    else stringResource(R.string.megabytes, mb)
 }
 
 /** Parakeet's one model: download with progress, then checked and ready, or delete. */
@@ -587,29 +578,26 @@ private fun ParakeetCard(
     onDelete: () -> Unit,
 ) {
     SectionCard(
-        title = "Model",
-        subtitle = "${ParakeetModel.DISPLAY_NAME} · ${ParakeetModel.TOTAL_BYTES / 1_000_000} MB · runs on this phone",
+        title = stringResource(R.string.model_title),
+        subtitle = stringResource(R.string.parakeet_subtitle, ParakeetModel.DISPLAY_NAME, (ParakeetModel.TOTAL_BYTES / 1_000_000).toInt()),
     ) {
         when (state) {
             ParakeetState.Missing -> {
-                Hint(
-                    "A one-time download; Wi-Fi recommended. While you dictate it holds about 700 MB " +
-                        "of memory, freed again after three idle minutes.",
-                )
-                PrimaryButton("Download", onDownload)
+                Hint(stringResource(R.string.parakeet_missing))
+                PrimaryButton(stringResource(R.string.download), onDownload)
             }
             is ParakeetState.Busy -> {
-                Hint("Downloading … ${state.received / 1_000_000} of ${state.total / 1_000_000} MB", AmberPalette.Text)
+                Hint(stringResource(R.string.parakeet_busy, (state.received / 1_000_000).toInt(), (state.total / 1_000_000).toInt()), AmberPalette.Text)
                 ProgressLine(state.received.toFloat() / state.total)
-                GhostButton("Cancel", onCancel)
+                GhostButton(stringResource(R.string.cancel), onCancel)
             }
             is ParakeetState.Ready -> {
-                Hint("Downloaded and checked.", AmberPalette.TrustOnDevice)
-                GhostButton("Delete", onDelete, color = AmberPalette.Error)
+                Hint(stringResource(R.string.parakeet_ready), AmberPalette.TrustOnDevice)
+                GhostButton(stringResource(R.string.delete), onDelete, color = AmberPalette.Error)
             }
             is ParakeetState.Failed -> {
-                Hint(state.message, AmberPalette.Error)
-                GhostButton("Try again", onDownload)
+                Hint(words(state.problem), AmberPalette.Error)
+                GhostButton(stringResource(R.string.try_again), onDownload)
             }
         }
     }
@@ -633,7 +621,11 @@ internal fun ModelPicker(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (noneLabel != null) RadioRow(noneLabel, null, selected = selected == null, onSelect = { onSelect(null) })
         choices.forEach { choice ->
-            val note = if (choice.recommended) "Recommended · ${choice.note}".trimEnd(' ', '·') else choice.note
+            val note = when {
+                !choice.recommended -> catalog(choice.note)
+                choice.note.isBlank() -> stringResource(R.string.model_recommended_only)
+                else -> stringResource(R.string.model_recommended, catalog(choice.note))
+            }
             RadioRow(choice.label, note, selected = choice.id == selected, onSelect = { onSelect(choice.id) })
         }
         if (notOffered != null && selected != null && choices.none { it.id == selected }) {
@@ -643,16 +635,16 @@ internal fun ModelPicker(
 }
 
 /** The languages offered as chips; anything else can still be typed into the old field. */
-private val WHISPER_LANGUAGES = listOf(
-    "de" to "German",
-    "en" to "English",
-    "fr" to "French",
-    "es" to "Spanish",
-    "it" to "Italian",
-    "nl" to "Dutch",
-    "pl" to "Polish",
-    "tr" to "Turkish",
-)
+private val WHISPER_LANGUAGE_CODES = listOf("de", "en", "fr", "es", "it", "nl", "pl", "tr")
+
+/** Each code with its name in the phone's language: "Deutsch", "Englisch" or "German", "English". */
+@Composable
+private fun whisperLanguages(): List<Pair<String, String>> {
+    val locale = Texts.locale(LocalContext.current)
+    return WHISPER_LANGUAGE_CODES.map { code ->
+        code to java.util.Locale.forLanguageTag(code).getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }
+    }
+}
 
 /**
  * Toggles languages in a "de,en" list, in the order picked. None picked means Whisper detects
@@ -662,7 +654,7 @@ private val WHISPER_LANGUAGES = listOf(
 @Composable
 private fun WhisperLanguagePicker(
     value: String,
-    noneHint: String = "None picked: Whisper guesses among all languages.",
+    noneHint: String = stringResource(R.string.whisper_none_picked),
     onChange: (String) -> Unit,
 ) {
     val picked = WhisperInput.languageCodes(value)
@@ -670,7 +662,7 @@ private fun WhisperLanguagePicker(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        WHISPER_LANGUAGES.forEach { (code, name) ->
+        whisperLanguages().forEach { (code, name) ->
             val on = code in picked
             Text(
                 name,
@@ -695,8 +687,8 @@ private fun ServerLanguagePicker(value: String, onChange: (String) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ChoiceChip("Automatic", null, on = value.isBlank()) { onChange("") }
-        WHISPER_LANGUAGES.forEach { (code, name) ->
+        ChoiceChip(stringResource(R.string.language_automatic), null, on = value.isBlank()) { onChange("") }
+        whisperLanguages().forEach { (code, name) ->
             ChoiceChip(name, null, on = value == code) { onChange(code) }
         }
     }
@@ -707,8 +699,8 @@ private fun LanguageField(value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text("Language (BCP-47)") },
-        placeholder = { Text("de-DE, empty = automatic") },
+        label = { Text(stringResource(R.string.language_field)) },
+        placeholder = { Text(stringResource(R.string.language_field_placeholder)) },
         singleLine = true,
         shape = AmberShapes.Inner,
         colors = fieldColors(),
@@ -735,12 +727,11 @@ private fun EnclaveSection(
     val scope = rememberCoroutineScope()
 
     SectionCard(
-        title = "Enclave verification",
-        subtitle = "Recordings only go to a verified enclave, over a connection bound to " +
-            "its verified key. Otherwise nothing is sent.",
+        title = stringResource(R.string.enclave_title),
+        subtitle = stringResource(R.string.enclave_subtitle),
     ) {
         PrimaryButton(
-            text = if (checking) "Verifying …" else "Verify now",
+            text = stringResource(if (checking) R.string.enclave_verifying else R.string.enclave_verify),
             enabled = !checking,
             onClick = {
                 checking = true
@@ -762,7 +753,7 @@ private fun EnclaveSection(
 
         if (log.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("History", style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
+                Text(stringResource(R.string.enclave_history), style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
                 log.forEach { Hint(it) }
             }
         }
@@ -771,22 +762,23 @@ private fun EnclaveSection(
 
 @Composable
 private fun ProofDetails(proof: EnclaveProof) {
-    val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
+    val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault()) // English: a format
     // Selectable, so a fingerprint can be copied and compared with Tinfoil's own tools.
     SelectionContainer {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ProofRow("Status", "Verified", AmberPalette.TrustOnDevice)
-            ProofRow("Host", proof.host)
-            ProofRow("Release", "${proof.repo}@${proof.codeTag ?: "?"}")
-            ProofRow("Platform", proof.platform)
-            ProofRow("Code digest", proof.codeDigest, mono = true)
+            ProofRow(stringResource(R.string.proof_status), stringResource(R.string.proof_verified), AmberPalette.TrustOnDevice)
+            ProofRow(stringResource(R.string.proof_host), proof.host)
+            ProofRow(stringResource(R.string.proof_release), "${proof.repo}@${proof.codeTag ?: "?"}")
+            ProofRow(stringResource(R.string.proof_platform), proof.platform)
+            ProofRow(stringResource(R.string.proof_digest), proof.codeDigest, mono = true)
+            val measurements = stringResource(R.string.proof_measurements)
             proof.registers.forEachIndexed { index, register ->
-                ProofRow(if (index == 0) "Measurements" else "", register.ifEmpty { "–" }, mono = true)
+                ProofRow(if (index == 0) measurements else "", register.ifEmpty { "–" }, mono = true)
             }
-            ProofRow("TLS key", proof.tlsKeySha256Hex, mono = true)
-            proof.hpkePublicKey?.let { ProofRow("HPKE key", it, mono = true) }
-            ProofRow("Verified at", time.format(Instant.ofEpochMilli(proof.verifiedAtMillis)))
-            ProofRow("Valid until", time.format(Instant.ofEpochMilli(proof.freshUntilMillis)))
+            ProofRow(stringResource(R.string.proof_tls), proof.tlsKeySha256Hex, mono = true)
+            proof.hpkePublicKey?.let { ProofRow(stringResource(R.string.proof_hpke), it, mono = true) }
+            ProofRow(stringResource(R.string.proof_verified_at), time.format(Instant.ofEpochMilli(proof.verifiedAtMillis)))
+            ProofRow(stringResource(R.string.proof_valid_until), time.format(Instant.ofEpochMilli(proof.freshUntilMillis)))
         }
     }
 }

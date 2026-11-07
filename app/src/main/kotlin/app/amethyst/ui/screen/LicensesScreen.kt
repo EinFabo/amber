@@ -8,7 +8,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import app.amethyst.R
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.theme.AmberPalette
@@ -25,18 +27,18 @@ fun LicensesScreen(modifier: Modifier = Modifier) {
     val texts by produceState<Pair<String, String>?>(null) {
         value = withContext(Dispatchers.IO) {
             fun read(name: String) = runCatching { context.assets.open(name).bufferedReader().use { it.readText() } }.getOrDefault("")
-            read("NOTICE") to read("LICENSE")
+            read("NOTICE") to read("LICENSE") // English: asset names
         }
     }
     SubPage(modifier) {
-        SectionCard(title = "Amber", subtitle = "Free software under the Apache License 2.0.") {
+        SectionCard(title = "Amber", subtitle = stringResource(R.string.licenses_subtitle)) { // English: the app's name
             val notice = texts?.first
-            if (notice.isNullOrBlank()) Hint(if (texts == null) "Loading …" else "The notice could not be read.")
+            if (notice.isNullOrBlank()) Hint(stringResource(if (texts == null) R.string.loading else R.string.licenses_notice_unreadable))
             else LicenseText(notice)
         }
-        SectionCard(title = "Apache License 2.0") {
+        SectionCard(title = "Apache License 2.0") { // English: the license's name
             val license = texts?.second
-            if (license.isNullOrBlank()) Hint(if (texts == null) "Loading …" else "The license text could not be read.")
+            if (license.isNullOrBlank()) Hint(stringResource(if (texts == null) R.string.loading else R.string.licenses_text_unreadable))
             else LicenseText(license)
         }
     }

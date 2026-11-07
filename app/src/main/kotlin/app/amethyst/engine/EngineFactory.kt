@@ -10,6 +10,8 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SttEngine
+import app.amethyst.core.engine.ConfigIssue
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
@@ -56,8 +58,8 @@ class EngineFactory(
             val modelId = config.modelId?.trim()
             when {
                 problems.isNotEmpty() -> incomplete(config, problems)
-                baseUrl.isNullOrBlank() -> incomplete(config, listOf("The base URL is missing."))
-                modelId.isNullOrBlank() -> incomplete(config, listOf("The model name is missing."))
+                baseUrl.isNullOrBlank() -> incomplete(config, listOf(ConfigIssue.AddressMissing))
+                modelId.isNullOrBlank() -> incomplete(config, listOf(ConfigIssue.ModelNameMissing))
                 else -> Result.success(
                     OpenAiCompatibleEngine(
                         id = config.id,
@@ -113,7 +115,7 @@ class EngineFactory(
             } else {
                 Result.failure(
                     SttFailure(
-                        userMessage = "The selected Whisper model is not downloaded yet.",
+                        problem = Problem.WhisperModelMissing,
                         technical = "WHISPER_CPP model $modelId is not usable",
                         remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
                     ),
@@ -134,7 +136,7 @@ class EngineFactory(
         } else {
             Result.failure(
                 SttFailure(
-                    userMessage = "The Parakeet model is not downloaded yet.",
+                    problem = Problem.ParakeetModelMissing,
                     technical = "LOCAL_SHERPA model missing",
                     remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
                 ),
@@ -143,7 +145,7 @@ class EngineFactory(
 
         EngineKind.ELEVENLABS_REALTIME -> Result.failure(
             SttFailure(
-                userMessage = "Streaming through ElevenLabs comes in stage 4.",
+                problem = Problem.NotSupported,
                 technical = "ELEVENLABS_REALTIME not implemented in stage 1",
             ),
         )
@@ -185,11 +187,10 @@ class EngineFactory(
         )
     }
 
-    private fun incomplete(config: EngineConfig, problems: List<String>): Result<SttEngine> =
+    private fun incomplete(config: EngineConfig, problems: List<ConfigIssue>): Result<SttEngine> =
         Result.failure(
             SttFailure(
-                userMessage = "\"${config.displayName}\" is not ready yet. " +
-                    problems.joinToString(" "),
+                problem = Problem.NotReady(config.displayName, problems),
                 technical = "incomplete config for ${config.id}: $problems",
             ),
         )

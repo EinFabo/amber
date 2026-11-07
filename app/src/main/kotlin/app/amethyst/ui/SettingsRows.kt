@@ -36,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -43,12 +44,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
@@ -305,7 +308,7 @@ internal fun AmberSwitch(checked: Boolean) {
 
 /** An explanation longer than a line or two, one tap away instead of in the way. */
 @Composable
-fun LearnMore(text: String, modifier: Modifier = Modifier, label: String = "Learn more") {
+fun LearnMore(text: String, modifier: Modifier = Modifier, label: String = stringResource(R.string.learn_more)) {
     var open by rememberSaveable(text) { mutableStateOf(false) }
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -345,8 +348,10 @@ fun Unfold(visible: Boolean, content: @Composable () -> Unit) {
 }
 
 /** Tells a screen reader whether a row that folds something away is open. */
-fun Modifier.foldState(open: Boolean): Modifier =
-    semantics { stateDescription = if (open) "Expanded" else "Collapsed" }
+fun Modifier.foldState(open: Boolean): Modifier = composed {
+    val state = stringResource(if (open) R.string.expanded else R.string.collapsed)
+    semantics { stateDescription = state }
+}
 
 /** Points down while folded and up while open. */
 @Composable

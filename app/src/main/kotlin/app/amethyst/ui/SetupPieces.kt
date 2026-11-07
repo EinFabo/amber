@@ -32,8 +32,6 @@ import app.amethyst.ui.theme.AmberShapes
  * on it.
  */
 
-/** The consent button's words, the same wherever the service is asked for. */
-const val AGREE_AND_OPEN = "I agree - open settings"
 
 /**
  * What the accessibility service reads and does, said row by row before Android asks, with
@@ -42,7 +40,7 @@ const val AGREE_AND_OPEN = "I agree - open settings"
 @Composable
 fun AccessibilityDisclosure(modifier: Modifier = Modifier) {
     Column(modifier) {
-        SettingsGroup("What Amber reads and does") { DisclosureRows() }
+        SettingsGroup(stringResource(R.string.disclosure_title)) { DisclosureRows() }
         NothingStoredLine()
         FullDisclosure()
     }
@@ -59,28 +57,24 @@ private fun DisclosureRows() {
     val commands = Features.VOICE_COMMANDS
     Fact(
         AmberIcons.Apps,
-        "Which app is in front",
-        if (commands) "To show or hide the bubble - and, with voice commands on, to see that an app it opened came up." else "To show or hide the bubble.",
+        stringResource(R.string.disclosure_app),
+        stringResource(if (commands) R.string.disclosure_app_note_commands else R.string.disclosure_app_note),
     )
     RowDivider()
-    Fact(AmberIcons.TextFields, "Whether a text field has focus", "To show the bubble when you can type.")
+    Fact(AmberIcons.TextFields, stringResource(R.string.disclosure_field), stringResource(R.string.disclosure_field_note))
     RowDivider()
-    Fact(AmberIcons.Keyboard, "Where the keyboard is", "To keep the bubble above it.")
+    Fact(AmberIcons.Keyboard, stringResource(R.string.disclosure_keyboard), stringResource(R.string.disclosure_keyboard_note))
     RowDivider()
     Fact(
         AmberIcons.Subject,
-        "The text in the field",
-        if (commands) {
-            "Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field."
-        } else {
-            "Only while inserting a dictation, so the new words fit in at the cursor."
-        },
+        stringResource(R.string.disclosure_text),
+        stringResource(if (commands) R.string.disclosure_text_note_commands else R.string.disclosure_text_note),
     )
     RowDivider()
     Fact(
         AmberIcons.Replay,
-        "Brings you back to Amber",
-        "Right after you switch on what Amber sent you to Android's settings for: this service, battery use without limits.",
+        stringResource(R.string.disclosure_back),
+        stringResource(R.string.disclosure_back_note),
     )
     if (commands) CommandDisclosureRows()
 }
@@ -91,18 +85,14 @@ private fun CommandDisclosureRows() {
     RowDivider()
     Fact(
         AmberIcons.VoiceCommand,
-        "With voice commands on",
-        "It reads your list of apps, which parts of the screen can scroll and where the items sit in the one it scrolls - to tell " +
-            "whether it moved, never what they show - the volume and whether the flashlight is on.",
+        stringResource(R.string.disclosure_commands),
+        stringResource(R.string.disclosure_commands_note),
     )
     RowDivider()
     Fact(
         AmberIcons.Tune,
-        "Acts on the command you spoke",
-        "Only that one: back, home, recent apps, quick settings, notifications, lock, screenshot, split screen, power " +
-            "menu; open an app or a settings page; scroll, page, swipe; media keys and volume; the flashlight; edit the " +
-            "field you started the command in, never a password field. It never taps buttons or confirms dialogs; a " +
-            "swipe does what your own swipe would do in that app.",
+        stringResource(R.string.disclosure_acts),
+        stringResource(R.string.disclosure_acts_note),
     )
 }
 
@@ -114,14 +104,14 @@ private fun Fact(icon: ImageVector, title: String, detail: String) {
 @Composable
 private fun NothingStoredLine() {
     GroupFootnote(
-        "Nothing is stored or sent - only your recording, and with cleanup its text, goes to the engine you chose.",
+        stringResource(R.string.disclosure_nothing_stored),
         AmberIcons.Lock,
     )
 }
 
 /** The description Android shows too, word for word. */
 @Composable
-fun FullDisclosure(label: String = "Full text") {
+fun FullDisclosure(label: String = stringResource(R.string.full_text)) {
     LearnMore(stringResource(R.string.accessibility_description), label = label)
 }
 
@@ -130,7 +120,7 @@ fun FullDisclosure(label: String = "Full text") {
 fun SwitchOnNote() {
     val name = stringResource(R.string.accessibility_label)
     GroupFootnote(
-        "In Android's settings, tap $name, switch it on and allow it. Amber then comes back here by itself.",
+        stringResource(R.string.switch_on_note, name),
         AmberIcons.OpenInNew,
     )
 }
@@ -151,7 +141,7 @@ fun RestrictedSettingsNote(modifier: Modifier = Modifier) {
     ) {
         Icon(AmberIcons.Info, contentDescription = null, tint = AmberPalette.Primary, modifier = Modifier.size(20.dp))
         Text(
-            "If Android blocks the switch, come back here for the way past it - it may do that for an app it did not get from a store it knows.",
+            stringResource(R.string.restricted_note),
             style = MaterialTheme.typography.bodyMedium,
             color = AmberPalette.Text,
         )
@@ -162,12 +152,12 @@ fun RestrictedSettingsNote(modifier: Modifier = Modifier) {
 @Composable
 fun SwitchOnSteps() {
     val name = stringResource(R.string.accessibility_label)
-    SettingsGroup("In Android's settings") {
-        Step(1, "Tap $name", "In the list, if Android shows one.")
+    SettingsGroup(stringResource(R.string.switch_on_group)) {
+        Step(1, stringResource(R.string.switch_on_step1, name), stringResource(R.string.switch_on_step1_note))
         RowDivider()
-        Step(2, "Switch on \"Use $name\"", null)
+        Step(2, stringResource(R.string.switch_on_step2, name), null)
         RowDivider()
-        Step(3, "Tap \"Allow\"", "Amber comes back here by itself.")
+        Step(3, stringResource(R.string.switch_on_step3), stringResource(R.string.switch_on_step3_note))
     }
 }
 
@@ -178,19 +168,19 @@ fun SwitchOnSteps() {
 @Composable
 fun RestrictedSettingsSteps(onOpenAppInfo: () -> Unit, modifier: Modifier = Modifier) {
     SettingsGroup(
-        "If Android said \"Restricted setting\"",
+        stringResource(R.string.restricted_group),
         modifier,
-        note = "Android locks it for apps installed from a file. To lift the lock, once:",
+        note = stringResource(R.string.restricted_group_note),
     ) {
-        Step(1, "Open Amber's app info", "With the button below.")
+        Step(1, stringResource(R.string.restricted_step1), stringResource(R.string.restricted_step1_note))
         RowDivider()
-        Step(2, "Tap ⋮ at the top right", "It has the next item only after you tried the switch.")
+        Step(2, stringResource(R.string.restricted_step2), stringResource(R.string.restricted_step2_note))
         RowDivider()
-        Step(3, "Tap \"Allow restricted settings\"", "And confirm if Android asks.")
+        Step(3, stringResource(R.string.restricted_step3), stringResource(R.string.restricted_step3_note))
         RowDivider()
-        Step(4, "Then open the settings again", "From here - now the switch turns on.")
+        Step(4, stringResource(R.string.restricted_step4), stringResource(R.string.restricted_step4_note))
         PrimaryButton(
-            "Open app info",
+            stringResource(R.string.open_app_info),
             onOpenAppInfo,
             Modifier
                 .fillMaxWidth()
@@ -225,8 +215,8 @@ fun AccessibilityConsentDialog(restricted: Boolean, onAgree: () -> Unit, onDismi
                     .padding(top = 20.dp),
             ) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("What Amber reads and does", style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
-                    Hint("The accessibility service shows the bubble and types your dictation into the field you are in. Here is what it reads and does:")
+                    Text(stringResource(R.string.disclosure_title), style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
+                    Hint(stringResource(R.string.consent_intro))
                 }
                 DisclosureRows()
                 NothingStoredLine()
@@ -242,8 +232,8 @@ fun AccessibilityConsentDialog(restricted: Boolean, onAgree: () -> Unit, onDismi
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GhostButton("Not now", onDismiss, color = AmberPalette.Muted)
-                GhostButton(AGREE_AND_OPEN, onAgree)
+                GhostButton(stringResource(R.string.not_now), onDismiss, color = AmberPalette.Muted)
+                GhostButton(stringResource(R.string.agree_and_open), onAgree)
             }
         }
     }

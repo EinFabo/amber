@@ -16,17 +16,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
-import app.amethyst.core.privacy.TrustLevel
-import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.onboarding.CleanupPick
 import app.amethyst.core.onboarding.EngineNames
+import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.PhoneLocales
@@ -46,6 +50,7 @@ import app.amethyst.ui.screen.label
 import app.amethyst.ui.screen.trustLevelForDisplay
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.words
 
 /**
  * Tidy the text? Off, or Tinfoil with a key (see [CleanupPick]). [onNextWith] moves on as the
@@ -72,28 +77,28 @@ internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent,
     }
 
     StepPage(
-        title = "Tidy the text?",
-        lead = "A chat model can fix punctuation, filler words and mis-hearings before the text is typed.",
+        title = stringResource(R.string.cleanup_step_title),
+        lead = stringResource(R.string.cleanup_step_lead),
         buttons = { ContinueButton(::apply) },
     ) {
-        RadioRow("Off", "Text goes in as recognized", selected = pick == CleanupPick.OFF, onSelect = { pick = CleanupPick.OFF })
+        RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = pick == CleanupPick.OFF, onSelect = { pick = CleanupPick.OFF })
         RadioRow(
-            "Tinfoil",
-            "A private enclave: the text is checked there and never stored. Needs a key.",
+            "Tinfoil", // English: a name
+            stringResource(R.string.cleanup_step_tinfoil_note),
             selected = pick == CleanupPick.TINFOIL,
             onSelect = { pick = CleanupPick.TINFOIL },
         )
         if (current != null && current.engineId != tinfoil.id) {
-            RadioRow("Keep as it is", settings.cleanupSummary(), selected = pick == CleanupPick.KEEP, onSelect = { pick = CleanupPick.KEEP })
+            RadioRow(stringResource(R.string.cleanup_step_keep), settings.cleanupSummary(), selected = pick == CleanupPick.KEEP, onSelect = { pick = CleanupPick.KEEP })
         }
         if (pick == CleanupPick.TINFOIL) {
             if (hasKey) {
-                Hint("Your Tinfoil key is stored.", AmberPalette.TrustOnDevice)
+                Hint(stringResource(R.string.cleanup_step_key_stored), AmberPalette.TrustOnDevice)
             } else {
                 OutlinedTextField(
                     value = key,
                     onValueChange = { key = it },
-                    label = { Text("Tinfoil key") },
+                    label = { Text(stringResource(R.string.cleanup_step_key)) },
                     singleLine = true,
                     shape = AmberShapes.Inner,
                     colors = fieldColors(),
@@ -101,12 +106,12 @@ internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Hint("Stored encrypted on this phone only.")
-                GhostButton("Get a key at tinfoil.sh", { runCatching { uri.openUri("https://tinfoil.sh") } })
-                if (key.isBlank()) Hint("Without a key, cleanup stays off. You can add one later in Settings → Cleanup.")
+                Hint(stringResource(R.string.engine_key_stored))
+                GhostButton(stringResource(R.string.cleanup_step_get_key), { runCatching { uri.openUri("https://tinfoil.sh") } })
+                if (key.isBlank()) Hint(stringResource(R.string.cleanup_step_no_key))
             }
             if (settings.activeEngine?.trustLevelForDisplay() == TrustLevel.ON_DEVICE) {
-                Hint("The recognized text leaves the phone for the cleanup - your recording does not.", AmberPalette.Primary)
+                Hint(stringResource(R.string.cleanup_step_leaves), AmberPalette.Primary)
             }
         }
     }
@@ -119,14 +124,14 @@ internal fun AppStylesStep(settings: AmethystSettings, content: OnboardingConten
         value = content.apps.all().map { it.packageName }.toSet()
     }
     StepPage(
-        title = "Style per app",
-        lead = "The cleanup writes casually in messengers, formally in mail and briefly in notes.",
+        title = stringResource(R.string.settings_app_styles),
+        lead = stringResource(R.string.styles_step_lead),
         buttons = { ContinueButton(onNext) },
     ) {
         val here = installed?.let { apps -> AppProfiles.DEFAULTS.filter { it.packageName in apps } }
         when {
             here == null -> Unit
-            here.isEmpty() -> Hint("None of the usual apps are on this phone.")
+            here.isEmpty() -> Hint(stringResource(R.string.styles_step_none))
             else -> here.forEach { profile ->
                 val on = settings.profiles.any { it.packageName == profile.packageName }
                 ToggleRow(
@@ -143,7 +148,7 @@ internal fun AppStylesStep(settings: AmethystSettings, content: OnboardingConten
                 )
             }
         }
-        Hint("Add more apps any time in Settings → App styles.")
+        Hint(stringResource(R.string.styles_step_more))
     }
 }
 
@@ -151,31 +156,25 @@ internal fun AppStylesStep(settings: AmethystSettings, content: OnboardingConten
 internal fun BubbleStep(settings: AmethystSettings, content: OnboardingContent, onNext: () -> Unit) {
     val bubble = settings.bubble
     StepPage(
-        title = "The flame",
-        lead = "It floats over other apps, at the edge of the screen.",
+        title = stringResource(R.string.bubble_step_title),
+        lead = stringResource(R.string.bubble_step_lead),
         buttons = { ContinueButton(onNext) },
     ) {
         RadioRow(
-            "Only when you type", "Appears when a text field is active",
+            stringResource(R.string.bubble_step_typing), stringResource(R.string.bubble_step_typing_note),
             selected = bubble.onlyWithTextField,
             onSelect = { content.onUpdateSettings { it.copy(bubble = it.bubble.copy(onlyWithTextField = true)) } },
         )
         RadioRow(
-            "Always", "Stays on screen in every app",
+            stringResource(R.string.bubble_step_always), stringResource(R.string.bubble_step_always_note),
             selected = !bubble.onlyWithTextField,
             onSelect = { content.onUpdateSettings { it.copy(bubble = it.bubble.copy(onlyWithTextField = false)) } },
         )
         BubbleSizeRow(sizeDp = bubble.sizeDp, onChange = { size -> content.onUpdateSettings { it.copy(bubble = it.bubble.copy(sizeDp = size)) } })
         Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Gesture("Tap", "Start dictating. Tap again and the text goes in.")
-            Gesture(
-                "Hold",
-                "The quick menu: four buttons fan out. Slide toward one and let go - " +
-                    "insert or copy the last dictation again, cleanup off for this app, hide here. " +
-                    "While you speak: pause, cancel, start over, or send without the cleanup. " +
-                    "Let go in the middle to close it.",
-            )
-            Gesture("Drag", "Move it up or down, or to the other edge. Drop it on the X to hide it in this app.")
+            Gesture(stringResource(R.string.gesture_tap), stringResource(R.string.gesture_tap_note))
+            Gesture(stringResource(R.string.gesture_hold), stringResource(R.string.gesture_hold_note))
+            Gesture(stringResource(R.string.gesture_drag), stringResource(R.string.gesture_drag_note))
         }
     }
 }
@@ -192,8 +191,8 @@ private fun Gesture(gesture: String, what: String) {
 @Composable
 internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {
     StepPage(
-        title = "Keep Amber ready",
-        lead = "Optional. Some phones cut the microphone off in the background otherwise.",
+        title = stringResource(R.string.ready_step_title),
+        lead = stringResource(R.string.ready_step_lead),
         buttons = { ContinueButton(onNext) },
     ) {
         ReliabilityRows(setup, actions)
@@ -204,24 +203,28 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
 @Composable
 internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFinish: () -> Unit) {
     StepPage(
-        title = "All set",
-        lead = "Change any of this in Settings, top right on the home screen.",
-        buttons = { ContinueButton(onFinish, "Try it") },
+        title = stringResource(R.string.done_title),
+        lead = stringResource(R.string.done_lead),
+        buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },
     ) {
         // By the name the engine step gave it, not the one Settings lists it under.
-        Chosen("Recognition", settings.activeEngine?.let(EngineNames::of) ?: "None", "Settings → Recognition")
-        Chosen("Cleanup", settings.cleanupSummary() ?: "Off", "Settings → Cleanup")
         Chosen(
-            "Flame",
-            if (settings.bubble.onlyWithTextField) "Only when you type" else "Always",
-            "Settings → Bubble",
+            stringResource(R.string.settings_recognition),
+            settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
+            stringResource(R.string.done_where_recognition),
         )
-        Chosen("Everything else", "Recording, inserting, statistics, diagnostics", "Settings → Advanced settings")
+        Chosen(stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup))
+        Chosen(
+            stringResource(R.string.settings_bubble),
+            stringResource(if (settings.bubble.onlyWithTextField) R.string.bubble_step_typing else R.string.bubble_step_always),
+            stringResource(R.string.done_where_bubble),
+        )
+        Chosen(stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_advanced))
         if (download != null) {
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Hint(DownloadNotice.short(download), AmberPalette.Text)
+                Hint(Texts.download(LocalContext.current, download), AmberPalette.Text)
                 ProgressLine((download as? ModelDownload.Running)?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f })
-                Hint("Amber is ready when it is done; until then the flame says so.")
+                Hint(stringResource(R.string.done_download_note))
             }
         }
     }

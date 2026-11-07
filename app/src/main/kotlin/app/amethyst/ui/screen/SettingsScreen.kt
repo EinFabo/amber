@@ -34,9 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
+import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.privacy.TrustLevel
@@ -51,8 +55,8 @@ import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
-import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AmberSwitch
+import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -68,9 +72,12 @@ import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
+import app.amethyst.ui.catalog
+import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.placeExplanation
+import app.amethyst.ui.words
 import kotlin.math.roundToInt
 
 /** Where a settings row leads. */
@@ -105,36 +112,36 @@ fun SettingsScreen(
     @Composable
     fun ItemRow(item: SettingsItem) = when (item) {
         SettingsItem.RECOGNITION -> NavRow(
-            "Recognition", SettingsSummaries.recognition(engine, trust), icon = AmberIcons.Mic,
+            stringResource(R.string.settings_recognition), words(SettingsSummaries.recognition(engine, trust)), icon = AmberIcons.Mic,
             summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RECOGNITION) }
-        SettingsItem.CLEANUP -> NavRow("Cleanup", SettingsSummaries.cleanup(settings), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
-        SettingsItem.BUBBLE -> NavRow("Bubble", SettingsSummaries.onOff(settings.bubble.enabled), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
+        SettingsItem.CLEANUP -> NavRow(stringResource(R.string.settings_cleanup), words(SettingsSummaries.cleanup(settings)), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
+        SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
         SettingsItem.VOICE_COMMANDS -> NavRow(
-            "Voice commands", SettingsSummaries.commands(settings), icon = AmberIcons.VoiceCommand,
+            stringResource(R.string.settings_voice_commands), words(SettingsSummaries.commands(settings)), icon = AmberIcons.VoiceCommand,
             summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.COMMANDS) }
-        SettingsItem.APP_STYLES -> NavRow("App styles", SettingsSummaries.appStyles(settings.profiles.size), icon = AmberIcons.Palette) {
+        SettingsItem.APP_STYLES -> NavRow(stringResource(R.string.settings_app_styles), words(SettingsSummaries.appStyles(settings.profiles.size)), icon = AmberIcons.Palette) {
             onOpen(SettingsPage.APP_STYLES)
         }
-        SettingsItem.FALLBACK -> NavRow("When the server fails", SettingsSummaries.fallback(settings, trust), icon = AmberIcons.CloudOff) {
+        SettingsItem.FALLBACK -> NavRow(stringResource(R.string.settings_fallback), words(SettingsSummaries.fallback(settings, trust)), icon = AmberIcons.CloudOff) {
             onOpen(SettingsPage.FALLBACK)
         }
-        SettingsItem.RECORDING -> NavRow("Recording", SettingsSummaries.recording(settings.capture), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
-        SettingsItem.INSERTING -> NavRow("Inserting", SettingsSummaries.inserting(settings.insertion), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
+        SettingsItem.RECORDING -> NavRow(stringResource(R.string.settings_recording), words(SettingsSummaries.recording(settings.capture)), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
+        SettingsItem.INSERTING -> NavRow(stringResource(R.string.settings_inserting), words(SettingsSummaries.inserting(settings.insertion)), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
         SettingsItem.RELIABILITY -> NavRow(
-            "Reliability", SettingsSummaries.reliability(reliabilityOpen), icon = AmberIcons.Battery,
+            stringResource(R.string.settings_reliability), words(SettingsSummaries.reliability(reliabilityOpen)), icon = AmberIcons.Battery,
             summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RELIABILITY) }
-        SettingsItem.STATISTICS -> NavRow("Statistics", SettingsSummaries.onOff(settings.stats.keep), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
-        SettingsItem.DIAGNOSTICS -> NavRow("Diagnostics", SettingsSummaries.diagnostics(diagnosticsCount), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
+        SettingsItem.STATISTICS -> NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
+        SettingsItem.DIAGNOSTICS -> NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
         SettingsItem.UPDATES -> NavRow(
-            "Updates", releaseChannel?.let { UpdatePolicy.summary(it, settings.updates, version) }, icon = AmberIcons.Update,
+            stringResource(R.string.settings_updates), releaseChannel?.let { words(UpdatePolicy.summary(it, settings.updates, version)) }, icon = AmberIcons.Update,
             summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.UPDATES) }
-        SettingsItem.LICENSES -> NavRow("Licenses", "Apache 2.0, and what Amber is built from", icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
+        SettingsItem.LICENSES -> NavRow(stringResource(R.string.settings_licenses), stringResource(R.string.settings_licenses_summary), icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
         SettingsItem.INTRODUCTION -> NavRow(
-            "Show the introduction again", "The setup steps, with your choices", icon = AmberIcons.Replay, onClick = onReplayIntroduction,
+            stringResource(R.string.settings_introduction), stringResource(R.string.settings_introduction_summary), icon = AmberIcons.Replay, onClick = onReplayIntroduction,
         )
         // A part of the Cleanup page, never a row here.
         SettingsItem.CLEANUP_INSTRUCTION -> Unit
@@ -151,9 +158,9 @@ fun SettingsScreen(
             SettingsGroup(
                 label = when (group.kind) {
                     SettingsGroupKind.MAIN -> null
-                    SettingsGroupKind.PER_APP -> "Per app"
-                    SettingsGroupKind.ADVANCED -> "Advanced"
-                    SettingsGroupKind.AMBER -> "Amber"
+                    SettingsGroupKind.PER_APP -> stringResource(R.string.settings_group_per_app)
+                    SettingsGroupKind.ADVANCED -> stringResource(R.string.settings_group_advanced)
+                    SettingsGroupKind.AMBER -> "Amber" // English: the app's name
                 },
             ) {
                 group.items.forEachIndexed { i, item ->
@@ -165,7 +172,7 @@ fun SettingsScreen(
         if (!switchShown) AdvancedSwitch(advanced, reliabilityOpen, onAdvancedChange)
 
         Text(
-            "Amber $version",
+            stringResource(R.string.settings_version, version),
             style = MaterialTheme.typography.labelSmall,
             color = AmberPalette.Muted,
             textAlign = TextAlign.Center,
@@ -183,8 +190,8 @@ private fun AdvancedSwitch(advanced: Boolean, reliabilityOpen: Int, onChange: (B
     val flagged = !advanced && reliabilityOpen > 0
     SettingsGroup(label = null) {
         NavRow(
-            "Advanced settings",
-            if (advanced) "Every setting is shown" else SettingsSummaries.advanced(SettingsLayout.hiddenRows(), reliabilityOpen),
+            stringResource(R.string.settings_advanced),
+            if (advanced) stringResource(R.string.settings_advanced_all) else words(SettingsSummaries.advanced(SettingsLayout.hiddenRows(), reliabilityOpen)),
             Modifier.toggleable(value = advanced, role = Role.Switch, onValueChange = onChange),
             icon = AmberIcons.Tune,
             summaryColor = if (flagged) AmberPalette.Primary else AmberPalette.Muted,
@@ -224,9 +231,9 @@ fun RecognitionScreen(
     SubPage(modifier) {
         val groups = settings.engines.groupBy { it.trustLevelForDisplay() }
         listOf(
-            TrustLevel.ON_DEVICE to "On this phone",
-            TrustLevel.ENCLAVE_VERIFIED to "Verified enclave",
-            TrustLevel.CLOUD to "Server",
+            TrustLevel.ON_DEVICE to stringResource(R.string.recognition_group_phone),
+            TrustLevel.ENCLAVE_VERIFIED to stringResource(R.string.recognition_group_enclave),
+            TrustLevel.CLOUD to stringResource(R.string.recognition_group_server),
         ).forEach { (level, title) ->
             val engines = groups[level].orEmpty()
             if (engines.isNotEmpty()) {
@@ -245,7 +252,7 @@ fun RecognitionScreen(
             }
         }
         SettingsGroup(label = null) {
-            NavRow("Add engine", summary = null, icon = AmberIcons.Add, trailing = null) { showPresets = true }
+            NavRow(stringResource(R.string.recognition_add), summary = null, icon = AmberIcons.Add, trailing = null) { showPresets = true }
         }
     }
 
@@ -272,10 +279,10 @@ fun RecordingScreen(
     modifier: Modifier = Modifier,
 ) {
     SubPage(modifier) {
-        SectionCard(title = "Ending") {
+        SectionCard(title = stringResource(R.string.recording_ending)) {
             ToggleRow(
-                label = "Stop automatically on silence",
-                description = "Off: it runs until the next tap.",
+                label = stringResource(R.string.recording_auto_stop),
+                description = stringResource(R.string.recording_auto_stop_note),
                 checked = settings.capture.autoStopOnSilence,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = value)) }
@@ -284,22 +291,20 @@ fun RecordingScreen(
             RecordingLimits(settings, onUpdateSettings)
         }
         SectionCard(
-            title = "Text",
-            learnMore = "Both work by rules, without a language model, so nothing is made up. The commas go before " +
-                "\"dass\", \"weil\", \"wenn\" or \"um ... zu\", where recognition often leaves them out - " +
-                "they never change a word.",
+            title = stringResource(R.string.recording_text),
+            learnMore = stringResource(R.string.recording_text_more),
         ) {
             ToggleRow(
-                label = "Remove filler words",
-                description = "\"ähm\", \"äh\", \"um\" and the like",
+                label = stringResource(R.string.recording_fillers),
+                description = stringResource(R.string.recording_fillers_note),
                 checked = settings.capture.stripFillers,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(stripFillers = value)) }
                 },
             )
             ToggleRow(
-                label = "Add missing commas",
-                description = "German only",
+                label = stringResource(R.string.recording_commas),
+                description = stringResource(R.string.recording_commas_note),
                 checked = settings.capture.germanCommas,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(germanCommas = value)) }
@@ -307,9 +312,8 @@ fun RecordingScreen(
             )
         }
         SectionCard(
-            title = "Recognize while speaking",
-            learnMore = "Longer dictations are cut at pauses and recognized while you keep talking, " +
-                "so stopping only waits for the last part.",
+            title = stringResource(R.string.recording_while_speaking),
+            learnMore = stringResource(R.string.recording_while_speaking_more),
         ) {
             ChunkingSettings(settings, onUpdateSettings)
         }
@@ -326,30 +330,28 @@ fun InsertingScreen(
     SubPage(modifier) {
         SectionCard(
             title = null,
-            subtitle = "How the text arrives at the cursor.",
-            learnMore = "Off, text is only typed straight into the field and the clipboard stays untouched - a " +
-                "dictation that cannot be typed is reported. On, it is pasted instead, or copied as a last " +
-                "resort, and then shows up in the clipboard history.",
+            subtitle = stringResource(R.string.inserting_subtitle),
+            learnMore = stringResource(R.string.inserting_more),
         ) {
             ToggleRow(
-                label = "Add spaces",
-                description = "Apart from the word before",
+                label = stringResource(R.string.inserting_spaces),
+                description = stringResource(R.string.inserting_spaces_note),
                 checked = settings.insertion.autoSpace,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoSpace = value)) }
                 },
             )
             ToggleRow(
-                label = "Capitalize sentence starts",
-                description = "At the start of a field and after . ! ?",
+                label = stringResource(R.string.inserting_capitals),
+                description = stringResource(R.string.inserting_capitals_note),
                 checked = settings.insertion.autoCapitalize,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(autoCapitalize = value)) }
                 },
             )
             ToggleRow(
-                label = "Attach punctuation",
-                description = "\"Hello , world\" becomes \"Hello, world\"",
+                label = stringResource(R.string.inserting_punctuation),
+                description = stringResource(R.string.inserting_punctuation_note),
                 checked = settings.insertion.gluePunctuation,
                 onChange = { value ->
                     onUpdateSettings {
@@ -358,8 +360,8 @@ fun InsertingScreen(
                 },
             )
             ToggleRow(
-                label = "Clipboard as a fallback",
-                description = "When typing into the field fails",
+                label = stringResource(R.string.inserting_clipboard),
+                description = stringResource(R.string.inserting_clipboard_note),
                 checked = settings.insertion.allowClipboard,
                 onChange = { value ->
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
@@ -379,19 +381,19 @@ fun BubbleScreen(
 ) {
     var picking by remember { mutableStateOf(false) }
     val bubble = settings.bubble
+    val hideLabel = stringResource(R.string.hide)
+    val resources = LocalContext.current.resources
+    val hideInApps = { n: Int -> resources.getQuantityString(R.plurals.bubble_hide_in_n, n, n) }
     SubPage(modifier) {
         MainSwitch(
-            label = "Use the bubble",
-            summary = "Tap to dictate, hold for the quick menu.",
+            label = stringResource(R.string.bubble_use),
+            summary = stringResource(R.string.bubble_use_summary),
             checked = bubble.enabled,
             onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) } },
         )
-        LearnMore(
-            "Off hides the bubble without turning off the accessibility service - dictating in the test " +
-                "field keeps working. While you dictate, the bubble is always fully visible.",
-        )
+        LearnMore(stringResource(R.string.bubble_use_more))
 
-        SectionCard(title = "Look") {
+        SectionCard(title = stringResource(R.string.bubble_look)) {
             BubbleSizeRow(
                 sizeDp = bubble.sizeDp,
                 onChange = { value ->
@@ -399,8 +401,8 @@ fun BubbleScreen(
                 },
             )
             StepSlider(
-                label = "Opacity at rest",
-                valueText = "${(bubble.restingOpacity * 100).roundToInt()} %",
+                label = stringResource(R.string.bubble_opacity),
+                valueText = stringResource(R.string.percent, (bubble.restingOpacity * 100).roundToInt()),
                 value = (bubble.restingOpacity * 100).roundToInt(),
                 range = 20..100,
                 step = 10,
@@ -409,10 +411,10 @@ fun BubbleScreen(
             BubbleOpacityPreview(bubble.restingOpacity)
         }
 
-        SectionCard(title = "Behavior") {
+        SectionCard(title = stringResource(R.string.bubble_behavior)) {
             ToggleRow(
-                label = "Only with a text field",
-                description = "Appears when you tap into a field",
+                label = stringResource(R.string.bubble_only_field),
+                description = stringResource(R.string.bubble_only_field_note),
                 checked = bubble.onlyWithTextField,
                 onChange = { value ->
                     onUpdateSettings {
@@ -422,8 +424,8 @@ fun BubbleScreen(
             )
             if (settings.commandsEnabled && bubble.onlyWithTextField) {
                 ToggleRow(
-                    label = "Also without a text field, for voice commands",
-                    description = "So “open WhatsApp” works from anywhere - the bubble then stays on screen",
+                    label = stringResource(R.string.bubble_everywhere_commands),
+                    description = stringResource(R.string.bubble_everywhere_commands_note),
                     checked = bubble.everywhereForCommands,
                     onChange = { value ->
                         onUpdateSettings { it.copy(bubble = it.bubble.copy(everywhereForCommands = value)) }
@@ -431,8 +433,8 @@ fun BubbleScreen(
                 )
             }
             ToggleRow(
-                label = "Vibrate",
-                description = "On start, success and failure",
+                label = stringResource(R.string.bubble_vibrate),
+                description = stringResource(R.string.bubble_vibrate_note),
                 checked = bubble.haptics,
                 onChange = { value ->
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
@@ -440,10 +442,10 @@ fun BubbleScreen(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Position", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-                    Hint("Docks at the left or right edge, wherever you drop it")
+                    Text(stringResource(R.string.bubble_position), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+                    Hint(stringResource(R.string.bubble_position_note))
                 }
-                GhostButton("Reset", {
+                GhostButton(stringResource(R.string.reset), {
                     onUpdateSettings {
                         it.copy(
                             bubble = it.bubble.copy(
@@ -457,13 +459,13 @@ fun BubbleScreen(
             }
         }
 
-        SettingsGroup("Hidden in", note = "Games, or apps with their own voice input.") {
+        SettingsGroup(stringResource(R.string.bubble_hidden_group), note = stringResource(R.string.bubble_hidden_note)) {
             bubble.hiddenIn.forEach { pkg ->
                 NavRow(
                     apps.label(pkg), summary = null,
                     leading = { AppIcon(pkg, apps) },
                     trailing = {
-                        GhostButton("Show again", {
+                        GhostButton(stringResource(R.string.bubble_show_again), {
                             onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
                         })
                     },
@@ -471,7 +473,7 @@ fun BubbleScreen(
                 )
                 RowDivider()
             }
-            NavRow("Add apps", summary = if (bubble.hiddenIn.isEmpty()) "None hidden yet" else null, icon = AmberIcons.Add, trailing = null) {
+            NavRow(stringResource(R.string.add_apps), summary = if (bubble.hiddenIn.isEmpty()) stringResource(R.string.bubble_none_hidden) else null, icon = AmberIcons.Add, trailing = null) {
                 picking = true
             }
         }
@@ -479,12 +481,12 @@ fun BubbleScreen(
 
     if (picking) {
         AppPickerDialog(
-            title = "Hide the bubble in",
+            title = stringResource(R.string.bubble_hide_in_title),
             existing = bubble.hiddenIn.toSet(),
             apps = apps,
             usage = usage,
             multiple = true,
-            confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
+            confirmLabel = { n -> if (n <= 1) hideLabel else hideInApps(n) },
             onDismiss = { picking = false },
             onPick = { chosen ->
                 picking = false
@@ -508,7 +510,7 @@ private fun BubbleOpacityPreview(opacity: Float) {
     ) {
         // The disc sits on the text, as the bubble does over an app.
         Text(
-            "Hi, I'll be there in ten minutes - bring the key, I left mine at home again.",
+            stringResource(R.string.bubble_preview_text),
             style = MaterialTheme.typography.bodyMedium,
             color = AmberPalette.Text,
             modifier = Modifier.fillMaxWidth(),
@@ -525,10 +527,8 @@ fun ReliabilityScreen(setup: SetupState, actions: SetupActions, modifier: Modifi
     SubPage(modifier) {
         SectionCard(
             title = null,
-            subtitle = "Optional. Keeps Android from cutting off the microphone.",
-            learnMore = "Android may cut off the microphone of an app in the background. The microphone service " +
-                "keeps it ready while you are in other apps, its silent notification says so, and unrestricted " +
-                "battery stops some manufacturers from killing the service.",
+            subtitle = stringResource(R.string.reliability_subtitle),
+            learnMore = stringResource(R.string.reliability_more),
         ) {
             ReliabilityRows(setup, actions)
         }
@@ -552,22 +552,25 @@ internal fun SubPage(modifier: Modifier = Modifier, content: @Composable ColumnS
 private fun EngineRow(
     config: EngineConfig,
     active: Boolean,
-    problems: List<String>,
+    problems: List<ConfigIssue>,
     measuredWaitMs: Long?,
     onSelect: () -> Unit,
     onOpen: () -> Unit,
 ) {
     RadioRow(
-        label = config.displayName,
+        label = engineName(config),
         // Name the first missing thing rather than a generic "not configured":
         // the user should not have to open the detail screen to find out.
-        note = problems.firstOrNull()
-            ?: listOfNotNull(config.modelId ?: "System model", measuredWaitMs?.let { "typically ${formatSeconds(it)} here" }).joinToString(" · "),
+        note = problems.firstOrNull()?.let { words(it) }
+            ?: listOfNotNull(
+                config.modelId ?: stringResource(R.string.engine_system_model),
+                measuredWaitMs?.let { stringResource(R.string.engine_typically, formatSeconds(it)) },
+            ).joinToString(" · "),
         selected = active,
         onSelect = onSelect,
         noteColor = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
     ) {
-        GhostButton("Open", onOpen)
+        GhostButton(stringResource(R.string.open), onOpen)
     }
 }
 
@@ -587,11 +590,11 @@ internal fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Size",
+                text = stringResource(R.string.bubble_size),
                 style = MaterialTheme.typography.bodyLarge,
                 color = AmberPalette.Text,
             )
-            Hint("$shown dp")
+            Hint(stringResource(R.string.dp, shown))
             Slider(
                 value = dragging,
                 onValueChange = { dragging = it },
@@ -635,7 +638,7 @@ private fun PresetDialog(
         onDismissRequest = onDismiss,
         containerColor = AmberPalette.Surface,
         shape = AmberShapes.Card,
-        title = { Text("Add engine", color = AmberPalette.Text) },
+        title = { Text(stringResource(R.string.recognition_add), color = AmberPalette.Text) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -655,20 +658,20 @@ private fun PresetDialog(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    text = preset.displayName,
+                                    text = catalog(preset.displayName),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = AmberPalette.Text,
                                 )
                                 TrustBadge(preset.trustLevel)
                             }
-                            if (preset.note.isNotBlank()) Hint(preset.note)
+                            if (preset.note.isNotBlank()) Hint(catalog(preset.note))
                         }
                     }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = AmberPalette.Primary)
+                Text(stringResource(R.string.cancel), color = AmberPalette.Primary)
             }
         },
     )

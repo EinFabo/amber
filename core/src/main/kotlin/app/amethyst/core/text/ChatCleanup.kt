@@ -1,6 +1,7 @@
 package app.amethyst.core.text
 
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpRequest
@@ -108,20 +109,20 @@ class ChatCleanup(
             onReceive = if (stream && onProgress != null) StreamProgress(expectedChars(text, style), onProgress)::take else null,
         )
 
-        val sent = channel.send(request, what = "text").getOrElse { return Result.failure(it) }
+        val sent = channel.send(request, what = Problem.Payload.TEXT).getOrElse { return Result.failure(it) }
         val response = sent.response
         if (!response.isSuccessful) {
-            return Result.failure(SttFailure("Cleanup failed (${response.code}).", "HTTP ${response.code}: ${response.bodyAsText().take(200)}"))
+            return Result.failure(SttFailure(Problem.CleanupFailed(response.code), "HTTP ${response.code}: ${response.bodyAsText().take(200)}"))
         }
         val reply = runCatching { replyOf(response.bodyAsText()) }.getOrNull()
-            ?: return Result.failure(SttFailure("Cleanup answer could not be read.", "unparseable reply, ${response.body.size} bytes"))
+            ?: return Result.failure(SttFailure(Problem.CleanupUnreadable, "unparseable reply, ${response.body.size} bytes"))
         // A reply cut off at max_tokens has lost the end of the dictation; an empty one (all
         // tokens spent on reasoning) would otherwise be typed as nothing - or as "null".
         // Servers name a normal end in several ways; anything else (length, content_filter,
         // abort, error...) may have lost text, and losing the dictation is worse than not
         // cleaning it.
         if (reply.finishReason !in NORMAL_ENDS) {
-            return Result.failure(SttFailure("Cleanup was cut off; kept the original.", "finish_reason=${reply.finishReason}"))
+            return Result.failure(SttFailure(Problem.CleanupCutOff, "finish_reason=${reply.finishReason}"))
         }
         val cleaned = unwrap(reply.content ?: "")
         val ownInstruction = !instruction.isNullOrBlank() || !generalInstruction.isNullOrBlank()
@@ -130,7 +131,7 @@ class ChatCleanup(
             // The reason, never the reply: that would put the dictation into the diagnostics.
             return Result.failure(
                 SttFailure(
-                    "Cleanup changed too much (${verdict.reason}); kept the original.",
+                    Problem.CleanupChangedTooMuch(verdict.reason),
                     "rejected: ${verdict.reason}, in=${text.length} out=${cleaned.length}",
                 ),
             )

@@ -12,23 +12,23 @@ import app.amethyst.core.settings.EngineConfig
  */
 object EngineConfigValidator {
 
-    /** Empty means ready to use. Each entry is a user-facing sentence. */
-    fun validate(config: EngineConfig, hasApiKey: Boolean): List<String> = buildList {
+    /** Empty means ready to use. Each entry is worded for the user by the app (ui/Texts.kt). */
+    fun validate(config: EngineConfig, hasApiKey: Boolean): List<ConfigIssue> = buildList {
         when (config.kind) {
             EngineKind.ANDROID_ON_DEVICE -> Unit
 
             EngineKind.LOCAL_SHERPA, EngineKind.WHISPER_CPP -> {
-                if (config.modelId.isNullOrBlank()) add("No model is selected.")
+                if (config.modelId.isNullOrBlank()) add(ConfigIssue.NoModelSelected)
             }
 
-            EngineKind.ELEVENLABS_REALTIME -> add("ElevenLabs Realtime is not supported.")
+            EngineKind.ELEVENLABS_REALTIME -> add(ConfigIssue.NotSupported)
 
             EngineKind.OPENAI_COMPATIBLE -> {
                 addAll(validateUrl(config))
-                if (config.modelId.isNullOrBlank()) add("The model name is missing.")
-                if (config.apiKeyAlias != null && !hasApiKey) add("The API key is missing.")
+                if (config.modelId.isNullOrBlank()) add(ConfigIssue.ModelNameMissing)
+                if (config.apiKeyAlias != null && !hasApiKey) add(ConfigIssue.ApiKeyMissing)
                 if (config.requireEnclave && !EnginePresets.isEnclaveHost(config.baseUrl)) {
-                    add("This engine only sends to its verifiable enclave address (${EnginePresets.TINFOIL_BASE_URL}).")
+                    add(ConfigIssue.EnclaveAddressOnly(EnginePresets.TINFOIL_BASE_URL))
                 }
             }
         }
@@ -42,7 +42,7 @@ object EngineConfigValidator {
             listOfNotNull(config.languageTag)
         }
         tags?.filterNot(::isPlausibleLanguageTag)?.forEach { tag ->
-            add("\"$tag\" is not a valid language code (e.g. de-DE or de).")
+            add(ConfigIssue.InvalidLanguageCode(tag))
         }
     }
 
@@ -50,11 +50,11 @@ object EngineConfigValidator {
         validate(config, hasApiKey).isEmpty()
 
     /** What is wrong with the address alone; empty when requests may go to it. */
-    fun addressProblems(config: EngineConfig): List<String> = validateUrl(config)
+    fun addressProblems(config: EngineConfig): List<ConfigIssue> = validateUrl(config)
 
-    private fun validateUrl(config: EngineConfig): List<String> {
+    private fun validateUrl(config: EngineConfig): List<ConfigIssue> {
         val url = config.baseUrl?.trim()
-        if (url.isNullOrBlank()) return listOf("The base URL is missing.")
+        if (url.isNullOrBlank()) return listOf(ConfigIssue.AddressMissing)
 
         val expectedSchemes = if (config.kind == EngineKind.ELEVENLABS_REALTIME) {
             // Streaming runs over a WebSocket, so ws:// and wss:// are the right schemes
@@ -66,15 +66,15 @@ object EngineConfigValidator {
 
         return buildList {
             if (expectedSchemes.none { url.startsWith(it, ignoreCase = true) }) {
-                add("The base URL must start with ${expectedSchemes.joinToString(" or ")}.")
+                add(ConfigIssue.AddressScheme(expectedSchemes))
                 return@buildList
             }
             val afterScheme = url.substringAfter("//")
             if (afterScheme.isBlank() || afterScheme.startsWith("/")) {
-                add("The base URL has no host.")
+                add(ConfigIssue.AddressNoHost)
             }
             if (url.any { it.isWhitespace() }) {
-                add("The base URL contains a space.")
+                add(ConfigIssue.AddressHasSpace)
             }
             // Plain http only inside the user's own network: a recording should not cross the
             // internet unencrypted. CleartextGuard holds the same rule at request time, on the
@@ -82,7 +82,7 @@ object EngineConfigValidator {
             if (url.startsWith("http://", ignoreCase = true)) {
                 val host = runCatching { java.net.URI(url).host }.getOrNull()
                 if (!ServerProviders.isPrivateHost(host)) {
-                    add("http:// only works for servers in your own network - use https://.")
+                    add(ConfigIssue.HttpOnlyInOwnNetwork)
                 }
             }
         }

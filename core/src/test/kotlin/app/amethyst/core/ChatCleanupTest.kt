@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.SecureChannel
@@ -203,7 +204,7 @@ class ChatCleanupTest {
     fun `a rejected reply names the reason, never the reply`() = runTest {
         val result = cleanup(FakeHttpTransport.json(reply("Ich komme morgen."))).clean("ich komme morgen nicht")
         val failure = assertIs<app.amethyst.core.engine.SttFailure>(result.exceptionOrNull())
-        assertEquals("Cleanup changed too much (negation dropped); kept the original.", failure.userMessage)
+        assertEquals(Problem.CleanupChangedTooMuch("negation dropped"), failure.problem)
         assertFalse("komme" in failure.technical)
     }
 

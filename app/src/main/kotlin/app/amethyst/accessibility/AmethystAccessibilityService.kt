@@ -1,5 +1,6 @@
 package app.amethyst.accessibility
 
+import app.amethyst.R
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.app.KeyguardManager
@@ -382,7 +383,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
         }
         val name = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager) }.getOrNull() ?: pkg
-        Toast.makeText(this, "Bubble hidden in $name. Show it again in Amber → Settings → Bubble.", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, getString(R.string.bubble_hidden_in, name), Toast.LENGTH_LONG).show()
     }
 
     /** A rotation: the bubble goes back to its edge, at the same share of the height. */

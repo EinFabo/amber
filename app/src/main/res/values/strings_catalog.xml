@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Names and notes of the speech recognitions and models :core offers (EnginePresets,
+     ServerProviders, WhisperModels). Each English text here is exactly the one in :core:
+     ui/Texts.catalog() finds it by that text and shows the phone's language instead. A
+     catalog a server sends about its own models is shown as sent.
+     tools/check_strings.py checks that every English text still occurs in :core. -->
+<resources>
+    <string name="catalog_android_name">Android (on device)</string>
+    <string name="catalog_android_note">Uses the system recognizer. No download, no key - quality depends on the manufacturer.</string>
+    <string name="catalog_whisper_name">Whisper local (FUTO)</string>
+    <string name="catalog_whisper_note">Fully offline through whisper.cpp, no Google language pack. Needs a one-time 82 MB model download.</string>
+    <string name="catalog_parakeet_name">Parakeet TDT (local)</string>
+    <string name="catalog_parakeet_note">Close to Whisper large-v3 accuracy, but fast on a phone: it reads the whole recording at once instead of in 30 s windows. 25 European languages, detected by itself, with punctuation. One-time 670 MB download, ~700 MB memory while in use.</string>
+    <string name="catalog_tinfoil_name">Tinfoil (Enclave)</string>
+    <string name="catalog_tinfoil_note">Confidential computing in an enclave. Shows \"Enclave verified\" only once the attestation is confirmed.</string>
+    <string name="catalog_own_server">Own server</string>
+    <string name="catalog_own_server_note">Speaches, faster-whisper-server, LocalAI or whisper.cpp\'s server - anything with /v1/audio/transcriptions. http:// works for addresses in your own network.</string>
+    <string name="catalog_groq_note">Very fast and cheap (about $0.04 per hour of audio), no privacy guarantee.</string>
+    <string name="catalog_openai_note">Accurate, about $0.003 per minute of audio, no privacy guarantee.</string>
+
+    <string name="catalog_voxtral">most accurate · ~$0.0001 per dictation</string>
+    <string name="catalog_tinfoil_whisper">90+ languages · $0.01 per dictation</string>
+    <string name="catalog_gemma">cheapest · ~$0.00016</string>
+    <string name="catalog_gpt_oss_120b">always reasons, slower · ~$0.0002</string>
+    <string name="catalog_llama_tinfoil">steady · ~$0.0006</string>
+    <string name="catalog_glm">reasons, pricier · ~$0.0008+</string>
+    <string name="catalog_kimi">overkill here · ~$0.0023</string>
+    <string name="catalog_deepseek">smart and fast · ~$0.00025</string>
+    <string name="catalog_groq_turbo">fast · $0.04 per hour</string>
+    <string name="catalog_groq_large">a little more accurate · $0.11 per hour</string>
+    <string name="catalog_groq_llama70">no reasoning, steady</string>
+    <string name="catalog_groq_llama8">fastest, simplest</string>
+    <string name="catalog_groq_gpt_oss">cheap and quick</string>
+    <string name="catalog_openai_mini_transcribe">$0.003 per minute</string>
+    <string name="catalog_openai_transcribe">most accurate · $0.006 per minute</string>
+    <string name="catalog_openai_whisper">$0.006 per minute</string>
+    <string name="catalog_nano">cheapest · ~$0.0001</string>
+    <string name="catalog_gpt4o_mini">~$0.0001</string>
+    <string name="catalog_gpt41_mini">smarter · ~$0.0004</string>
+
+    <string name="catalog_futo39_note">Whisper tiny. Fastest and smallest, but only fair at German.</string>
+    <string name="catalog_futo74_note">Whisper base, fine-tuned for short dictations. FUTO\'s pick for German.</string>
+    <string name="catalog_futo244_note">Whisper small, fine-tuned. Noticeably more accurate, still quick on current phones.</string>
+    <string name="catalog_acft_note">The large OpenAI model, tuned to stop where your speech stops. As accurate as the stock large model, about three times faster on short dictations.</string>
+    <string name="catalog_old_large_name">Whisper large-v3-turbo (old)</string>
+    <string name="catalog_old_large_note">The previous large model: always works through a full 30 s, so even a short dictation waits several seconds. The tuned large-v3-turbo above is as accurate and about three times faster - switch and delete this one.</string>
+    <string name="catalog_tier_fastest">fastest</string>
+    <string name="catalog_tier_fast">fast</string>
+    <string name="catalog_tier_more_accurate">more accurate</string>
+    <string name="catalog_tier_most_accurate">most accurate</string>
+    <string name="catalog_tier_replaced">replaced</string>
+</resources>

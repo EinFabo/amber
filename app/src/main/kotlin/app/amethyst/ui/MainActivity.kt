@@ -39,58 +39,61 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.amethyst.AmethystApp
 import app.amethyst.Graph
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.capture.MicForegroundService
+import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
-import app.amethyst.core.settings.AmethystSettings
-import app.amethyst.core.settings.EngineConfig
-import app.amethyst.data.PhoneLocales
-import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
-import app.amethyst.core.engine.EngineOption
-import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.stats.StatsSummary
+import app.amethyst.core.update.UpdatePolicy
+import app.amethyst.data.PhoneLocales
+import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.ParakeetState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import app.amethyst.ui.AndroidAppSource
 import app.amethyst.ui.onboarding.OnboardingContent
 import app.amethyst.ui.onboarding.OnboardingScreen
-import app.amethyst.ui.screen.EngineDetailScreen
-import app.amethyst.ui.screen.HomeScreen
-import app.amethyst.ui.screen.LicensesScreen
-import app.amethyst.ui.screen.SettingsScreen
-import app.amethyst.ui.screen.StatsScreen
-import app.amethyst.ui.screen.SettingsPage
-import app.amethyst.ui.screen.ReliabilityScreen
-import app.amethyst.ui.screen.RecordingScreen
-import app.amethyst.ui.screen.InsertingScreen
-import app.amethyst.ui.screen.RecognitionScreen
-import app.amethyst.ui.screen.CleanupScreen
-import app.amethyst.ui.screen.FallbackScreen
-import app.amethyst.ui.screen.DiagnosticsScreen
-import app.amethyst.ui.screen.BubbleScreen
-import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
+import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.CleanupScreen
+import app.amethyst.ui.screen.DiagnosticsScreen
+import app.amethyst.ui.screen.EngineDetailScreen
+import app.amethyst.ui.screen.FallbackScreen
+import app.amethyst.ui.screen.HomeScreen
+import app.amethyst.ui.screen.InsertingScreen
+import app.amethyst.ui.screen.LicensesScreen
+import app.amethyst.ui.screen.RecognitionScreen
+import app.amethyst.ui.screen.RecordingScreen
+import app.amethyst.ui.screen.ReliabilityScreen
+import app.amethyst.ui.screen.SettingsPage
+import app.amethyst.ui.screen.SettingsScreen
+import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.UpdatesScreen
-import app.amethyst.core.update.UpdatePolicy
-import app.amethyst.core.stats.StatsSummary
-import app.amethyst.core.apps.AppChoice
-import app.amethyst.ui.AndroidAppSource
+import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -178,7 +181,7 @@ class MainActivity : ComponentActivity() {
             accessibilityTried = true
         } else {
             back.cancel()
-            Toast.makeText(this, "Android's accessibility settings did not open. Find them under Settings → Accessibility.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.accessibility_not_opened, Toast.LENGTH_LONG).show()
         }
         refreshSetup()
     }
@@ -189,7 +192,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun openAccessibilityList() {
         if (!Setup.openAccessibilitySettings(this)) {
-            Toast.makeText(this, "Android's accessibility settings did not open. Find them under Settings → Accessibility.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.accessibility_not_opened, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -225,18 +228,14 @@ class MainActivity : ComponentActivity() {
      */
     private fun installLanguage(languageTag: String?) {
         if (AndroidOnDeviceEngine.requestLanguageDownload(this, languageTag)) {
-            Toast.makeText(this, "Download started. Android will report back shortly.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.language_download_started, Toast.LENGTH_LONG).show()
             return
         }
         val opened = runCatching {
             startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
         }.isSuccess
         if (!opened) Setup.openAppSettings(this)
-        Toast.makeText(
-            this,
-            "Download the language under Speech recognition → Offline speech recognition.",
-            Toast.LENGTH_LONG,
-        ).show()
+        Toast.makeText(this, R.string.language_download_by_hand, Toast.LENGTH_LONG).show()
     }
 
     private fun refreshSetup() {
@@ -274,27 +273,30 @@ private sealed interface Screen {
     data class AppStyle(val packageName: String) : Screen
 }
 
+@Composable
 private fun Screen.title(): String = when (this) {
     Screen.Onboarding -> ""
-    Screen.Home -> "Amber"
-    Screen.Settings -> "Settings"
-    is Screen.EngineDetail -> "Engine"
-    is Screen.AppStyle -> "App style"
-    is Screen.Page -> when (page) {
-        SettingsPage.RECOGNITION -> "Recognition"
-        SettingsPage.CLEANUP -> "Cleanup"
-        SettingsPage.FALLBACK -> "When the server fails"
-        SettingsPage.RECORDING -> "Recording"
-        SettingsPage.INSERTING -> "Inserting"
-        SettingsPage.APP_STYLES -> "App styles"
-        SettingsPage.BUBBLE -> "Bubble"
-        SettingsPage.COMMANDS -> "Voice commands"
-        SettingsPage.STATS -> "Statistics"
-        SettingsPage.RELIABILITY -> "Reliability"
-        SettingsPage.DIAGNOSTICS -> "Diagnostics"
-        SettingsPage.UPDATES -> "Updates"
-        SettingsPage.LICENSES -> "Licenses"
-    }
+    Screen.Home -> "Amber" // English: the app's name
+    Screen.Settings -> stringResource(R.string.title_settings)
+    is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
+    is Screen.AppStyle -> stringResource(R.string.title_app_style)
+    is Screen.Page -> stringResource(
+        when (page) {
+            SettingsPage.RECOGNITION -> R.string.settings_recognition
+            SettingsPage.CLEANUP -> R.string.settings_cleanup
+            SettingsPage.FALLBACK -> R.string.settings_fallback
+            SettingsPage.RECORDING -> R.string.settings_recording
+            SettingsPage.INSERTING -> R.string.settings_inserting
+            SettingsPage.APP_STYLES -> R.string.settings_app_styles
+            SettingsPage.BUBBLE -> R.string.settings_bubble
+            SettingsPage.COMMANDS -> R.string.settings_voice_commands
+            SettingsPage.STATS -> R.string.settings_statistics
+            SettingsPage.RELIABILITY -> R.string.settings_reliability
+            SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics
+            SettingsPage.UPDATES -> R.string.settings_updates
+            SettingsPage.LICENSES -> R.string.settings_licenses
+        },
+    )
 }
 
 @Composable
@@ -328,7 +330,8 @@ private fun AmethystScreens(
     val screen = stack.last()
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
-    val tester = remember(graph) { ConnectionTester(graph) }
+    val testContext = LocalContext.current
+    val tester = remember(graph, testContext) { ConnectionTester(graph, testContext) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -377,7 +380,7 @@ private fun AmethystScreens(
         val opened = runCatching {
             context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.isSuccess
-        if (!opened) Toast.makeText(context, "No browser found to open $url", Toast.LENGTH_LONG).show()
+        if (!opened) Toast.makeText(context, context.getString(R.string.no_browser, url), Toast.LENGTH_LONG).show()
     }
 
     fun open(next: Screen) {
@@ -560,7 +563,7 @@ private fun AmethystScreens(
                                 settings = settings,
                                 stats = stats,
                                 today = today,
-                                engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
+                                engineName = { id -> settings.engines.firstOrNull { it.id == id }?.let { Texts.engineName(context, it) } ?: id },
                                 appName = apps::label,
                                 onUpdateSettings = ::updateSettings,
                                 onClear = { graph.stats.clear() },
@@ -602,7 +605,7 @@ private fun AmethystScreens(
                                         graph.dictationLog.clear()
                                         graph.keyboardLog.value = emptyList()
                                     },
-                                    appTitle = "Amber $version".trim(),
+                                    appTitle = "Amber $version".trim(), // English: the report's heading
                                 )
                             }
                         }
@@ -720,14 +723,14 @@ internal fun TopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (showBack) IconAction(onClick = onBack, contentDescription = "Back", glyph = BackGlyph)
+        if (showBack) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph)
         Text(
             title,
             style = MaterialTheme.typography.headlineMedium,
             color = AmberPalette.Text,
             modifier = Modifier.weight(1f),
         )
-        if (showSettings) IconAction(onClick = onSettings, contentDescription = "Settings", glyph = GearGlyph)
+        if (showSettings) IconAction(onClick = onSettings, contentDescription = stringResource(R.string.title_settings), glyph = GearGlyph)
     }
 }
 

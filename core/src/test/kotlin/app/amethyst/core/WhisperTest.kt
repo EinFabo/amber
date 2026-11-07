@@ -1,5 +1,8 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -68,7 +71,7 @@ class WhisperTest {
     fun `a file that is not ggml is rejected with a reason`() {
         val zip = "PK\u0003\u0004".toByteArray() + ByteArray(60)
         val error = WhisperModelFile.inspect(zip).exceptionOrNull()
-        assertTrue(error?.message.orEmpty().contains("not a whisper.cpp model"))
+        assertEquals(FileProblem.NotWhisperCpp, FileProblem.of(error))
     }
 
     @Test
@@ -232,14 +235,14 @@ class WhisperTest {
         val result = engine(FakeRuntime(answer = " Untertitel der Amara.org-Community"))
             .transcribe(speech(2))
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertEquals(SttFailure.NOTHING_RECOGNIZED, failure.userMessage)
+        assertEquals(Problem.NothingRecognized, failure.problem)
     }
 
     @Test
     fun `a native failure becomes a user message instead of a crash`() = runTest {
         val result = engine(FakeRuntime(fail = true)).transcribe(speech(2))
         val failure = assertIs<SttFailure>(result.exceptionOrNull())
-        assertTrue(failure.userMessage.contains("local model"))
+        assertEquals(Problem.LocalModelFailed, failure.problem)
         assertTrue(failure.technical.contains("-7"))
     }
 
@@ -252,7 +255,7 @@ class WhisperTest {
             override fun abort() = Unit
         }
         val failure = assertIs<SttFailure>(engine(oldCpu).transcribe(speech(2)).exceptionOrNull())
-        assertTrue(failure.userMessage.contains("processor"), failure.userMessage)
+        assertEquals(Problem.ProcessorTooOld, failure.problem)
     }
 
     @Test
@@ -321,7 +324,7 @@ class WhisperTest {
 
         val result = ModelInstall.install(ByteArrayInputStream(tampered), target, specFor(bytes))
 
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("checksum"))
+        assertEquals(FileProblem.ChecksumMismatch, FileProblem.of(result.exceptionOrNull()))
         assertEquals(3, target.length(), "the existing file must not be replaced")
         assertFalse(File(target.parentFile, "whisper.bin.part").exists())
     }

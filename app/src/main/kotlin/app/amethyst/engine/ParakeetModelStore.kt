@@ -1,5 +1,7 @@
 package app.amethyst.engine
 
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import android.content.Context
 import android.util.Log
 import app.amethyst.core.engine.sherpa.ParakeetModel
@@ -24,7 +26,7 @@ sealed interface ParakeetState {
     data object Missing : ParakeetState
     data class Busy(val received: Long, val total: Long) : ParakeetState
     data class Ready(val sizeBytes: Long) : ParakeetState
-    data class Failed(val message: String) : ParakeetState
+    data class Failed(val problem: FileProblem) : ParakeetState
 }
 
 /**
@@ -72,7 +74,7 @@ class ParakeetModelStore(
         val missing = ParakeetModel.FILES.filter { File(dir, it.name).length() != it.sizeBytes }
         val needed = missing.sumOf { it.sizeBytes }
         if (free < needed + SPACE_MARGIN_BYTES) {
-            _state.value = ParakeetState.Failed("Not enough storage: ${needed / 1_000_000} MB needed, ${free / 1_000_000} MB free.")
+            _state.value = ParakeetState.Failed(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000))
             return
         }
         var done = ParakeetModel.TOTAL_BYTES - needed
@@ -83,7 +85,7 @@ class ParakeetModelStore(
             }
             if (result.isFailure) {
                 val error = result.exceptionOrNull()
-                _state.value = if (error is InterruptedException) currentState() else ParakeetState.Failed(error?.message ?: "Download failed.")
+                _state.value = if (error is InterruptedException) currentState() else ParakeetState.Failed(FileProblem.of(error)).also { Log.w(TAG, "parakeet download failed: ${error?.message}") }
                 return
             }
             done += file.sizeBytes
@@ -119,13 +121,13 @@ class ParakeetModelStore(
         val current = http.newCall(request).also { call = it }
         return try {
             current.execute().use { response ->
-                if (!response.isSuccessful) return Result.failure(IllegalStateException("The server answered ${response.code}."))
-                val body = response.body ?: return Result.failure(IllegalStateException("Empty answer from the server."))
+                if (!response.isSuccessful) return Result.failure(ModelFileException(FileProblem.ServerAnswered(response.code)))
+                val body = response.body ?: return Result.failure(ModelFileException(FileProblem.EmptyAnswer))
                 ParakeetModel.install(body.byteStream(), dir, file, onProgress, isCancelled = { current.isCanceled() })
             }
         } catch (e: IOException) {
             if (current.isCanceled()) Result.failure(InterruptedException("cancelled"))
-            else Result.failure(IllegalStateException("No connection: ${e.message}", e))
+            else Result.failure(ModelFileException(FileProblem.NoConnection, "No connection: ${e.message}", e))
         } finally {
             call = null
         }

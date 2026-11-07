@@ -1,5 +1,7 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import app.amethyst.core.engine.whisper.ModelSlots
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.whisper.WhisperModelInfo
@@ -80,9 +82,9 @@ class ModelSlotsTest {
     @Test
     fun `a failure is shown and can be retried`() = runTest {
         val slots = slots()
-        slots.run("b", "Downloading") { _, _ -> Result.failure(IllegalStateException("The server answered 503.")) }
+        slots.run("b", "Downloading") { _, _ -> Result.failure(ModelFileException(FileProblem.ServerAnswered(503))) }
         advanceUntilIdle()
-        assertEquals(SlotState.Failed("The server answered 503."), slots.state("b"))
+        assertEquals(SlotState.Failed(FileProblem.ServerAnswered(503)), slots.state("b"))
 
         slots.run("b", "Downloading") { _, _ -> Result.success(info to 1L) }
         advanceUntilIdle()
@@ -94,6 +96,6 @@ class ModelSlotsTest {
         val slots = slots()
         slots.run("a", "Downloading") { _, _ -> throw java.io.IOException("unexpected end of stream") }
         advanceUntilIdle()
-        assertIs<SlotState.Failed>(slots.state("a"))
+        assertEquals(SlotState.Failed(FileProblem.Other), slots.state("a"))
     }
 }

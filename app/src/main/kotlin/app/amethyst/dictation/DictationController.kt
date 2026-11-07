@@ -56,7 +56,9 @@ import app.amethyst.core.net.ConnectionWarmUp
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.engine.AndroidOnDeviceEngine
-import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.R
+import app.amethyst.Texts
+import app.amethyst.core.engine.Problem
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.EnginePresets
@@ -243,7 +245,7 @@ class DictationController(
         // The engine chosen in the introduction may still be downloading: say so and record
         // nothing, rather than taking the words and failing - and never hand them to another engine.
         graph.settings.value.activeEngine?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
-            notice(DownloadNotice.atStart(download))
+            notice(Texts.downloadAtStart(context, download))
             return
         }
         if (source != TriggerSource.PROXY_ACTIVITY) {
@@ -277,7 +279,7 @@ class DictationController(
 
         when (route) {
             MicrophoneRoute.NEEDS_PERMISSION -> {
-                fail("Microphone permission is missing. Please grant it in Amber.", details = listOf("microphone permission missing"))
+                fail(say(R.string.dictation_mic_permission), details = listOf("microphone permission missing"))
                 return
             }
 
@@ -328,8 +330,7 @@ class DictationController(
             if (!isRunning && _state.value is DictationState.Starting) {
                 handover.lost()
                 fail(
-                    "The microphone could not be opened. Open Amber once, " +
-                        "then the bubble works directly.",
+                    say(R.string.dictation_mic_not_opened),
                     details = listOf("the invisible microphone activity did not start within $PROXY_HANDOVER_TIMEOUT_MS ms"),
                 )
             }
@@ -445,14 +446,14 @@ class DictationController(
         val service = graph.accessibilityService ?: return false
         val target = service.focusedTarget()
         if (target == null || target.kind == TextFieldKind.SECRET) {
-            toast("No text field to insert into.")
+            toast(R.string.dictation_no_field)
             return false
         }
         val settings = graph.settings.value
         val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard)
         Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
-            toast("The text could not be inserted here.")
+            toast(R.string.dictation_not_inserted_here)
             return false
         }
         return true
@@ -469,7 +470,7 @@ class DictationController(
         if (!inserter.copyToClipboard(text)) return false
         // From Android 13 the system confirms a copy itself.
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
-            toast("Last dictation copied.")
+            toast(R.string.dictation_copied)
         }
         return true
     }
@@ -486,12 +487,12 @@ class DictationController(
         val engineConfig = settings.activeEngine
         runEngineId = engineConfig?.id
         if (engineConfig == null) {
-            fail("No engine selected. Please pick one in the settings.", details = listOf("no engine selected"))
+            fail(say(R.string.dictation_no_engine), details = listOf("no engine selected"))
             return
         }
 
         val engine = graph.engineFactory.create(engineConfig).getOrElse { error ->
-            fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
+            fail(failureOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
             return
         }
         warmUpConnections(engine, engineConfig, settings)
@@ -523,7 +524,7 @@ class DictationController(
 
             if (finished == null) {
                 val limit = settings.capture.effectiveTotalTimeoutMs()
-                fail("Timed out - the dictation was cancelled.", engineConfig.id, details = listOf("stopped: the run's time limit of $limit ms ran out"))
+                fail(say(R.string.dictation_timed_out), engineConfig.id, details = listOf("stopped: the run's time limit of $limit ms ran out"))
             }
         } catch (e: CancellationException) {
             // A command a tap stopped that has no record yet - while it was still being
@@ -543,7 +544,7 @@ class DictationController(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "dictation failed", e)
-            fail("Unexpected error: ${e.message ?: e::class.simpleName}", details = listOf("unexpected ${e::class.java.name}"))
+            fail(say(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()), details = listOf("unexpected ${e::class.java.name}"))
         } finally {
             selfCapturing = null
             stopRequested.set(false)
@@ -574,7 +575,7 @@ class DictationController(
         trace?.transcribingEnds()
         _state.value = DictationState.Transcribing()
         return result.getOrElse { error ->
-            fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
+            fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
             null
         }
     }
@@ -660,8 +661,8 @@ class DictationController(
                 // looks exactly like a bug. Both cases get a message and a diagnostics line.
                 fail(
                     when (outcome.reason) {
-                        DiscardReason.TOO_SHORT -> "Too short - please speak a little longer."
-                        DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> "Nothing heard - try again a little closer to the phone."
+                        DiscardReason.TOO_SHORT -> say(R.string.dictation_too_short)
+                        DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> say(R.string.dictation_nothing_heard)
                     },
                     details = listOf(
                         when (outcome.reason) {
@@ -681,7 +682,7 @@ class DictationController(
                     Log.i(TAG, "retrying capture via proxy activity")
                     if (handover.begin(SystemClock.elapsedRealtime())) MicProxyActivity.launch(context)
                 } else {
-                    fail(outcome.message, details = listOf("capture failed: ${outcome.technical}"))
+                    fail(say(outcome.message), details = listOf("capture failed: ${outcome.technical}"))
                 }
                 return null
             }
@@ -787,7 +788,7 @@ class DictationController(
                     ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, skip = ready?.config?.id) }
                     ?.let { Result.success(it) } ?: result
                 return recovered.getOrElse { error ->
-                    fail(userMessageOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
+                    fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
                     null
                 }
             }
@@ -897,11 +898,11 @@ class DictationController(
         fellBackFrom = primary?.id
         val why = if (local.serverTooSlow) "server too slow" else "server unreachable"
         trace?.fallback = "$why, recognized by ${config.displayName} during the recording, label $trust"
+        val name = Texts.engineName(context, config)
         val message = when {
-            local.serverTooSlow -> "The server took too long - used the text recognized on the phone."
-            trust == TrustLevel.ON_DEVICE -> "No connection - recognized on the phone with ${config.displayName}."
-            else -> "The server did not answer - recognized on the phone with ${config.displayName}. " +
-                "The recording may have reached the server."
+            local.serverTooSlow -> context.getString(R.string.fallback_server_too_slow)
+            trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
+            else -> context.getString(R.string.fallback_no_answer_on_phone, name)
         }
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         return transcript.copy(trustLevel = trust)
@@ -1020,11 +1021,11 @@ class DictationController(
                 fellBackFrom = primary.id
                 trace?.fallback = "server unreachable, recognized by ${config.displayName}, label $trust"
                 val local = transcript.trustLevel == TrustLevel.ON_DEVICE
+                val name = Texts.engineName(context, config)
                 val message = when {
-                    trust == TrustLevel.ON_DEVICE -> "No connection - recognized on the phone with ${config.displayName}."
-                    local -> "The server did not answer - recognized on the phone with ${config.displayName}. " +
-                        "The recording may have reached the server."
-                    else -> "${primary.displayName} did not answer - recognized by ${config.displayName} instead."
+                    trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
+                    local -> context.getString(R.string.fallback_no_answer_on_phone, name)
+                    else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)
                 }
                 mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
                 return transcript.copy(trustLevel = trust)
@@ -1114,7 +1115,7 @@ class DictationController(
                 )
             },
             onFailure = { error ->
-                trace?.cleanup = "cleanup skipped: ${userMessageOf(error)}"
+                trace?.cleanup = "cleanup skipped: ${Texts.failure(english, error)}"
                 // The error's own text may quote the model's reply, i.e. the dictation.
                 Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.take(80) ?: error.javaClass.simpleName}")
                 transcript
@@ -1137,7 +1138,7 @@ class DictationController(
         val steps = commandSteps ?: CommandTrace().also { commandSteps = it }
         val heard = transcript.text.trim()
         if (heard.isEmpty()) {
-            fail("Nothing heard - say the command again.", transcript.engineId, details = listOf("the engine recognized no words"))
+            fail(plain("Nothing heard - say the command again."), transcript.engineId, details = listOf("the engine recognized no words"))
             return
         }
         // A bare app name ("WhatsApp") is a command only if it names an installed app ([appLabels]:
@@ -1188,7 +1189,7 @@ class DictationController(
         graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
-            fail(outcome.message, transcript.engineId, record = false, logAs = "command not done")
+            fail(plain(outcome.message), transcript.engineId, record = false, logAs = "command not done")
             return
         }
         _state.value = DictationState.Commanded(heard, outcome.message)
@@ -1251,13 +1252,13 @@ class DictationController(
             keepLineBreaks = transcript.formatted,
         )
         if (cleaned.isBlank()) {
-            fail(SttFailure.NOTHING_RECOGNIZED, engineId)
+            fail(said(Problem.NothingRecognized), engineId)
             return
         }
 
         val inserter = graph.accessibilityService?.textInserter
         if (inserter == null) {
-            fail("The accessibility service is off - the text could not be inserted.", engineId)
+            fail(say(R.string.dictation_service_off), engineId)
             return
         }
 
@@ -1268,9 +1269,9 @@ class DictationController(
         if (verdict != TargetCheck.Verdict.INSERT) {
             Log.i(TAG, "not inserting: $verdict (start ${DebugLog.redact(startTarget?.packageName)}, now ${DebugLog.redact(now?.packageName)})")
             val why = when (verdict) {
-                TargetCheck.Verdict.SECRET -> "The field now is a password field"
-                TargetCheck.Verdict.NO_FIELD -> "No text field has focus any more"
-                else -> "You switched to another app, chat or field meanwhile"
+                TargetCheck.Verdict.SECRET -> R.string.dictation_why_password
+                TargetCheck.Verdict.NO_FIELD -> R.string.dictation_why_no_field
+                else -> R.string.dictation_why_switched
             }
             // Never into a password field, not even via the clipboard. Otherwise only when the
             // user allows the clipboard at all; else the text stays in the diagnostics.
@@ -1278,12 +1279,12 @@ class DictationController(
                 settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
             // The words stay in the record: Insert again and Copy last take them.
             if (copied) {
-                fail("$why - the text is on the clipboard instead.", engineId, text = cleaned)
+                fail({ it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) }, engineId, text = cleaned)
             } else {
                 fail(
-                    "$why - not inserted.",
+                    { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
                     engineId,
-                    brief = "$why - not inserted. The text is in Amber's diagnostics.",
+                    brief = { it.getString(R.string.dictation_not_inserted_in_diagnostics, it.getString(why)) },
                     text = cleaned,
                 )
             }
@@ -1308,12 +1309,12 @@ class DictationController(
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
             // Neither the field nor the clipboard took it. The words stay in the record, so
             // they survive in the diagnostics card and Insert again can still take them.
-            val what = if (insertion.uncertain) "The text was typed but never showed up in the field"
-            else "No text field accepted the text"
+            val what = if (insertion.uncertain) R.string.dictation_typed_never_showed else R.string.dictation_no_field_accepted
+            val lastTrace = inserter.lastTrace
             fail(
-                "$what [${inserter.lastTrace}]",
+                { "${it.getString(what)} [$lastTrace]" },
                 engineId,
-                brief = "$what. It is in Amber's diagnostics.",
+                brief = { it.getString(R.string.dictation_in_diagnostics, it.getString(what)) },
                 text = cleaned,
             )
             return
@@ -1403,7 +1404,7 @@ class DictationController(
     }
 
     /** A short note over whatever app is open, from the quick menu's actions. */
-    private fun toast(message: String) {
+    private fun toast(message: Int) {
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
 
@@ -1413,21 +1414,27 @@ class DictationController(
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
     }
 
+    /**
+     * [words] are put into words twice: in the phone's language for the bubble, the toast and
+     * Amber's screen, in English for Diagnostics and logcat, which get shared.
+     */
     private fun fail(
-        message: String,
+        words: Words,
         engineId: String? = null,
         remedy: SttFailure.Remedy? = null,
         // For the toast and logcat when the message quotes the dictated text: the toast is
         // drawn over whatever app is open, and the words stay private to Amber's own screen.
-        brief: String = message,
+        brief: Words = words,
         record: Boolean = true,
         // Logcat never gets a heard command's words, which the message may quote.
-        logAs: String = brief,
+        logAs: String = brief(english),
         // For a command's Diagnostics: what went wrong before or around it, never logged.
         details: List<String> = emptyList(),
         // A dictation's words that were recognized but did not go in: kept in the record.
         text: String = "",
     ) {
+        val message = words(context)
+        val logged = words(english)
         Log.w(TAG, "dictation failed: $logAs")
         if (record) {
             val command = _mode.value == RunMode.COMMAND
@@ -1437,9 +1444,9 @@ class DictationController(
                 val steps = commandSteps ?: CommandTrace()
                 details.forEach(steps::note)
                 commandRecorded = true
-                graph.dictationLog.recordFailure(message, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
+                graph.dictationLog.recordFailure(logged, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
             } else {
-                graph.dictationLog.recordFailure(message, engineId, trace?.summary(), text = text)
+                graph.dictationLog.recordFailure(logged, engineId, trace?.summary(), text = text)
             }
         }
         _state.value = DictationState.Failed(message, remedy)
@@ -1447,7 +1454,7 @@ class DictationController(
         // While dictating into another app the bubble is the only visible surface, and a red
         // ring does not say why. A toast does, without making the user switch back.
         mainHandler.post {
-            Toast.makeText(context, brief, Toast.LENGTH_LONG).show()
+            Toast.makeText(context, brief(context), Toast.LENGTH_LONG).show()
         }
 
         scope.launch {
@@ -1461,10 +1468,17 @@ class DictationController(
     /** What an engine said went wrong, for a command's Diagnostics - the technical side. */
     private fun technicalOf(error: Throwable): String = (error as? SttFailure)?.technical ?: error.toString()
 
-    private fun userMessageOf(error: Throwable): String = when (error) {
-        is SttFailure -> error.userMessage
-        else -> error.message ?: "Unknown error"
-    }
+    private fun failureOf(error: Throwable): Words = { Texts.failure(it, error) }
+
+    private fun say(id: Int, vararg args: Any): Words = { it.getString(id, *args) }
+
+    private fun said(problem: Problem): Words = { Texts.problem(it, problem) }
+
+    /** For the voice commands, English while they are hidden (Features.VOICE_COMMANDS). */
+    private fun plain(text: String): Words = { text }
+
+    /** English resources, for Diagnostics and logcat. */
+    private val english: Context by lazy { Texts.english(context) }
 
     private fun hasMicrophonePermission(): Boolean =
         ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) ==
@@ -1502,3 +1516,6 @@ class DictationController(
         const val SHOWN_CHARS = 60
     }
 }
+
+/** A sentence for the user, put into words when shown: see DictationController.fail. */
+private typealias Words = (Context) -> String

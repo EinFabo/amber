@@ -8,7 +8,10 @@ import app.amethyst.core.update.LatestRelease
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdateFetch
 import app.amethyst.core.update.UpdateNotice
+import app.amethyst.core.update.Ago
+import app.amethyst.core.update.LastCheck
 import app.amethyst.core.update.UpdatePolicy
+import app.amethyst.core.update.UpdateSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
@@ -302,40 +305,40 @@ class UpdatePolicyTest {
     @Test
     fun `the settings row says what the check does in a few words`() {
         val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now)
-        assertEquals("Checks GitHub once a day", UpdatePolicy.summary(github, UpdateSettings(), "0.23.0"))
-        assertEquals("Checks GitHub once a day", UpdatePolicy.summary(github, seen, "0.24.0"))
-        assertEquals("Checks GitHub once a day", UpdatePolicy.summary(github, UpdateSettings(lastCheckFailed = true, lastCheckedAt = now), "0.23.0"))
-        assertEquals("0.24.0 available", UpdatePolicy.summary(github, seen, "0.23.0"))
-        assertEquals("Off", UpdatePolicy.summary(github, seen.copy(enabled = false), "0.23.0"))
-        assertEquals("From where you installed Amber", UpdatePolicy.summary(ReleaseChannel.OTHER, seen, "0.23.0"))
+        assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, UpdateSettings(), "0.23.0"))
+        assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, seen, "0.24.0"))
+        assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, UpdateSettings(lastCheckFailed = true, lastCheckedAt = now), "0.23.0"))
+        assertEquals(UpdateSummary.Available("0.24.0"), UpdatePolicy.summary(github, seen, "0.23.0"))
+        assertEquals(UpdateSummary.Off, UpdatePolicy.summary(github, seen.copy(enabled = false), "0.23.0"))
+        assertEquals(UpdateSummary.FromInstaller, UpdatePolicy.summary(ReleaseChannel.OTHER, seen, "0.23.0"))
     }
 
     @Test
     fun `the updates page tells when the last check was and how it went`() {
-        assertEquals("Not yet", UpdatePolicy.lastCheck(UpdateSettings(), "0.23.0", now))
+        assertEquals(LastCheck.NotYet, UpdatePolicy.lastCheck(UpdateSettings(), "0.23.0", now))
         val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now - 3 * hour)
-        assertEquals("3 hours ago · 0.24.0 available", UpdatePolicy.lastCheck(seen, "0.23.0", now))
-        assertEquals("3 hours ago · up to date", UpdatePolicy.lastCheck(seen, "0.24.0", now))
+        assertEquals(LastCheck.Done(Ago(3, Ago.Scale.HOURS), "0.24.0"), UpdatePolicy.lastCheck(seen, "0.23.0", now))
+        assertEquals(LastCheck.Done(Ago(3, Ago.Scale.HOURS), ""), UpdatePolicy.lastCheck(seen, "0.24.0", now))
         val failed = UpdatePolicy.afterCheck(seen, UpdateFetch.Failed("HTTP 503"), now - 2 * hour)
-        assertEquals("Failed 2 hours ago · retried within a day", UpdatePolicy.lastCheck(failed, "0.23.0", now))
+        assertEquals(LastCheck.Failed(Ago(2, Ago.Scale.HOURS), offline = false, retried = true), UpdatePolicy.lastCheck(failed, "0.23.0", now))
         val offline = UpdatePolicy.afterCheck(seen, UpdateFetch.NoAnswer("UnknownHostException"), now - 20 * 60_000)
-        assertEquals("No connection 20 minutes ago · retried within an hour", UpdatePolicy.lastCheck(offline, "0.23.0", now))
+        assertEquals(LastCheck.Failed(Ago(20, Ago.Scale.MINUTES), offline = true, retried = true), UpdatePolicy.lastCheck(offline, "0.23.0", now))
         // Switched off, nothing is retried and nothing is available.
-        assertEquals("Failed 2 hours ago", UpdatePolicy.lastCheck(failed.copy(enabled = false), "0.23.0", now))
-        assertEquals("No connection 20 minutes ago", UpdatePolicy.lastCheck(offline.copy(enabled = false), "0.23.0", now))
-        assertEquals("3 hours ago", UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.23.0", now))
-        assertEquals("3 hours ago", UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.24.0", now))
+        assertEquals(LastCheck.Failed(Ago(2, Ago.Scale.HOURS), offline = false, retried = false), UpdatePolicy.lastCheck(failed.copy(enabled = false), "0.23.0", now))
+        assertEquals(LastCheck.Failed(Ago(20, Ago.Scale.MINUTES), offline = true, retried = false), UpdatePolicy.lastCheck(offline.copy(enabled = false), "0.23.0", now))
+        assertEquals(LastCheck.Done(Ago(3, Ago.Scale.HOURS), null), UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.23.0", now))
+        assertEquals(LastCheck.Done(Ago(3, Ago.Scale.HOURS), null), UpdatePolicy.lastCheck(seen.copy(enabled = false), "0.24.0", now))
     }
 
     @Test
     fun `how long ago, in words`() {
-        assertEquals("just now", UpdatePolicy.ago(now - 20_000, now))
-        assertEquals("just now", UpdatePolicy.ago(now + 5 * hour, now), "a clock set back")
-        assertEquals("1 minute ago", UpdatePolicy.ago(now - 60_000, now))
-        assertEquals("59 minutes ago", UpdatePolicy.ago(now - 59 * 60_000, now))
-        assertEquals("1 hour ago", UpdatePolicy.ago(now - hour, now))
-        assertEquals("23 hours ago", UpdatePolicy.ago(now - 23 * hour - 59 * 60_000, now))
-        assertEquals("1 day ago", UpdatePolicy.ago(now - day, now))
-        assertEquals("12 days ago", UpdatePolicy.ago(now - 12 * day, now))
+        assertEquals(Ago(0, Ago.Scale.JUST_NOW), UpdatePolicy.ago(now - 20_000, now))
+        assertEquals(Ago(0, Ago.Scale.JUST_NOW), UpdatePolicy.ago(now + 5 * hour, now), "a clock set back")
+        assertEquals(Ago(1, Ago.Scale.MINUTES), UpdatePolicy.ago(now - 60_000, now))
+        assertEquals(Ago(59, Ago.Scale.MINUTES), UpdatePolicy.ago(now - 59 * 60_000, now))
+        assertEquals(Ago(1, Ago.Scale.HOURS), UpdatePolicy.ago(now - hour, now))
+        assertEquals(Ago(23, Ago.Scale.HOURS), UpdatePolicy.ago(now - 23 * hour - 59 * 60_000, now))
+        assertEquals(Ago(1, Ago.Scale.DAYS), UpdatePolicy.ago(now - day, now))
+        assertEquals(Ago(12, Ago.Scale.DAYS), UpdatePolicy.ago(now - 12 * day, now))
     }
 }

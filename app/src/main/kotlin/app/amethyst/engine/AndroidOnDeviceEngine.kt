@@ -15,6 +15,7 @@ import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ListenCallbacks
 import app.amethyst.core.engine.SelfCapturingSttEngine
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
@@ -74,8 +75,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return@withContext Result.failure(
                 SttFailure(
-                    userMessage = "This device has no system recognizer. " +
-                        "Pick another engine in the settings.",
+                    problem = Problem.NoSystemRecognizer,
                     technical = "SpeechRecognizer.isRecognitionAvailable == false",
                 ),
             )
@@ -119,7 +119,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                     if (text.isNullOrBlank()) {
                         settle(
                             Result.failure(
-                                SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty RESULTS_RECOGNITION"),
+                                SttFailure(Problem.NothingRecognized, "empty RESULTS_RECOGNITION"),
                             ),
                         )
                     } else {
@@ -241,24 +241,21 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED
         ) {
             return SttFailure(
-                userMessage = "This language is not installed for offline use.",
+                problem = Problem.LanguageNotInstalled,
                 technical = "SpeechRecognizer error $error",
                 remedy = SttFailure.Remedy.INSTALL_LANGUAGE,
             )
         }
-        val message = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "The microphone could not be read."
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                "Microphone permission is missing."
-            SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                "The system recognizer tried to go online and could not get through."
-            SpeechRecognizer.ERROR_NO_MATCH -> SttFailure.NOTHING_RECOGNIZED
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech heard."
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "The recognizer is busy."
-            SpeechRecognizer.ERROR_SERVER, SpeechRecognizer.ERROR_SERVER_DISCONNECTED ->
-                "The system recognizer crashed."
-            else -> "Recognition failed."
+        val problem = when (error) {
+            SpeechRecognizer.ERROR_AUDIO -> Problem.MicrophoneUnreadable
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> Problem.MicrophonePermissionMissing
+            SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> Problem.RecognizerOffline
+            SpeechRecognizer.ERROR_NO_MATCH -> Problem.NothingRecognized
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> Problem.NoSpeechHeard
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> Problem.RecognizerBusy
+            SpeechRecognizer.ERROR_SERVER, SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> Problem.RecognizerCrashed
+            else -> Problem.RecognitionFailed
         }
-        return SttFailure(message, "SpeechRecognizer error $error")
+        return SttFailure(problem, "SpeechRecognizer error $error")
     }
 }

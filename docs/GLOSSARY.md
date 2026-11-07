@@ -39,7 +39,8 @@ Names stay as they are: Amber, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI
 
 ## What stays English
 
-- Diagnostics, logs, traces and tool output (reports get shared).
+- Diagnostics, logs, traces and tool output (reports get shared). A failed dictation is shown
+  in the phone's language and recorded in Diagnostics in English.
 - The cleanup's system prompt, also on "View system prompt": it is what the model gets.
 - The voice commands' texts while the feature is hidden (`Commands.kt`, `CommandExecutor`) -
   on the list in `docs/OPEN.md`.

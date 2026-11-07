@@ -87,19 +87,20 @@ data class TranscribeOptions(
 
 /**
  * Why a dictation failed, in terms the UI can show without leaking stack traces.
- * [userMessage] is user-facing; [technical] goes to the log.
+ * [problem] is what the user is told (as a value, worded by the app in the phone's language);
+ * [technical] goes to the log.
  */
 class SttFailure(
-    val userMessage: String,
+    val problem: Problem,
     val technical: String,
     val statusCode: Int? = null,
     cause: Throwable? = null,
     /** Something the user can do about it, so the UI can offer a button instead of prose. */
     val remedy: Remedy? = null,
-) : Exception("$userMessage ($technical)", cause) {
+) : Exception("$problem ($technical)", cause) {
 
     /** The audio reached the engine and it found no speech - a working round trip. */
-    val nothingRecognized: Boolean get() = userMessage == NOTHING_RECOGNIZED
+    val nothingRecognized: Boolean get() = problem == Problem.NothingRecognized
 
     /**
      * The server could not be reached, did not answer, or is down - worth recognizing the
@@ -137,7 +138,7 @@ class SttFailure(
     }
 
     companion object {
-        const val NOTHING_RECOGNIZED = "Nothing was recognized."
+        val NOTHING_RECOGNIZED: Problem = Problem.NothingRecognized
     }
 }
 

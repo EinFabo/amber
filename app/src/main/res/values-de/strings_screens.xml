@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="test_runs_on_phone">Läuft auf dem Handy - kein Verbindungstest nötig.</string>
+    <string name="test_enclave_verified">Enklave geprüft: %1$s.</string>
+    <string name="test_answer">Antwort nach %1$d ms: „%2$s“.</string>
+    <string name="test_answer_via">Antwort nach %1$d ms (über %3$s): „%2$s“.</string>
+    <string name="test_model_runs">Das Modell läuft. Der Testclip enthält keine Sprache, also kam kein Text zurück, aber es hat gerechnet.</string>
+    <string name="test_connection_works">Die Verbindung steht. Der Testclip enthält keine Sprache, also kam kein Text zurück.</string>
+    <string name="trust_on_device">Auf dem Handy</string>
+    <string name="trust_enclave_verified">Enklave geprüft</string>
+    <string name="trust_cloud">Cloud</string>
+    <string name="trust_place_on_device">Deine Stimme verlässt nie das Handy.</string>
+    <string name="trust_place_enclave">Wird erst gesendet, wenn der Code der Enklave geprüft ist.</string>
+    <string name="trust_place_cloud">Geht an einen Server, ohne weitere Garantie.</string>
+    <string name="trust_went_on_device">Die Aufnahme hat das Handy nie verlassen.</string>
+    <string name="trust_went_enclave">Die Aufnahme ging an eine Enklave, deren Nachweis geprüft wurde.</string>
+    <string name="trust_went_cloud">Die Aufnahme ging an einen Server, ohne weitere Garantie.</string>
+    <string name="learn_more">Mehr erfahren</string>
+    <string name="expanded">Ausgeklappt</string>
+    <string name="collapsed">Eingeklappt</string>
+    <string name="stop_dictation">Diktat stoppen</string>
+    <string name="start_test_dictation">Testdiktat starten</string>
+    <string name="back">Zurück</string>
+    <string name="step_of">Schritt %1$d von %2$d</string>
+    <string name="skip">Überspringen</string>
+    <string name="accessibility_not_opened">Die Bedienungshilfen von Android haben sich nicht geöffnet. Du findest sie unter Einstellungen → Bedienungshilfen.</string>
+    <string name="language_download_started">Download gestartet. Android meldet sich gleich.</string>
+    <string name="language_download_by_hand">Lade die Sprache unter Spracherkennung → Offline-Spracherkennung herunter.</string>
+    <string name="title_settings">Einstellungen</string>
+    <string name="title_app_style">App-Stil</string>
+    <string name="no_browser">Kein Browser gefunden, um %1$s zu öffnen</string>
+</resources>

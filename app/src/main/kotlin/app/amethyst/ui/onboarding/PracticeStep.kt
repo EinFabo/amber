@@ -23,8 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.ModelDownload
@@ -86,27 +90,27 @@ internal fun PracticeStep(
     // Above the keyboard, so the tasks and the buttons can still be reached while it is up.
     Box(Modifier.imePadding()) {
         StepPage(
-            title = "Try it",
-            lead = "The real flame, above the keyboard. Each try ticks off when Amber sees it.",
+            title = stringResource(R.string.practice_title),
+            lead = stringResource(R.string.practice_lead),
             buttons = {
                 when {
                     noFlame == PracticeBlock.NO_SERVICE -> {
-                        ContinueButton(onSwitchServiceOn, "Switch it on")
-                        LaterButton("Not now", onNext)
+                        ContinueButton(onSwitchServiceOn, stringResource(R.string.practice_switch_on))
+                        LaterButton(stringResource(R.string.not_now), onNext)
                     }
                     noFlame == PracticeBlock.BUBBLE_OFF -> {
-                        ContinueButton({ content.onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = true)) } }, "Show the flame")
-                        LaterButton("Not now", onNext)
+                        ContinueButton({ content.onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = true)) } }, stringResource(R.string.practice_show_bubble))
+                        LaterButton(stringResource(R.string.not_now), onNext)
                     }
                     practice.finished -> ContinueButton(onNext)
-                    else -> LaterButton("Not now", onNext)
+                    else -> LaterButton(stringResource(R.string.not_now), onNext)
                 }
             },
         ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Your words land here …", color = AmberPalette.Muted) },
+                placeholder = { Text(stringResource(R.string.practice_field), color = AmberPalette.Muted) },
                 minLines = 2,
                 shape = AmberShapes.Inner,
                 textStyle = MaterialTheme.typography.bodyLarge,
@@ -114,11 +118,8 @@ internal fun PracticeStep(
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
             when (noFlame) {
-                PracticeBlock.NO_SERVICE -> Hint(
-                    "No flame yet: Amber's accessibility service is off. Switch it on, or skip this for now.",
-                    AmberPalette.Primary,
-                )
-                PracticeBlock.BUBBLE_OFF -> Hint("No flame: it is switched off in Settings → Bubble.", AmberPalette.Primary)
+                PracticeBlock.NO_SERVICE -> Hint(stringResource(R.string.practice_no_service), AmberPalette.Primary)
+                PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
                 else -> Unit
             }
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -135,7 +136,7 @@ internal fun PracticeStep(
                 }
             }
             if (practice.allDone) {
-                Text("All three done - that is all the flame needs.", style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+                Text(stringResource(R.string.practice_all_done), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
             }
         }
     }
@@ -160,39 +161,47 @@ private fun TaskRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(task.title(), style = MaterialTheme.typography.bodyLarge, color = if (state == TaskState.SKIPPED) AmberPalette.Muted else AmberPalette.Text)
             when {
-                state == TaskState.DONE && task == PracticeTask.DRAG -> Hint("Done. Put it back wherever you like.")
-                state == TaskState.DONE -> Hint("Done.")
-                state == TaskState.SKIPPED -> Hint("Skipped.")
+                state == TaskState.DONE && task == PracticeTask.DRAG -> Hint(stringResource(R.string.practice_done_drag))
+                state == TaskState.DONE -> Hint(stringResource(R.string.practice_done))
+                state == TaskState.SKIPPED -> Hint(stringResource(R.string.practice_skipped))
                 block != null -> Hint(block.say(download), AmberPalette.Primary)
                 else -> Hint(task.how())
             }
             if (block == PracticeBlock.NO_MICROPHONE && state != TaskState.DONE) {
-                GhostButton("Allow the microphone", onAllowMicrophone, Modifier.padding(top = 2.dp))
+                GhostButton(stringResource(R.string.practice_allow_mic), onAllowMicrophone, Modifier.padding(top = 2.dp))
             }
         }
-        if (onSkip != null) GhostButton("Skip", onSkip, color = AmberPalette.Muted)
+        if (onSkip != null) GhostButton(stringResource(R.string.skip), onSkip, color = AmberPalette.Muted)
     }
 }
 
-private fun PracticeTask.title(): String = when (this) {
-    PracticeTask.TAP -> "Tap to dictate"
-    PracticeTask.HOLD -> "Hold for the quick menu"
-    PracticeTask.DRAG -> "Drag to the other edge"
-}
+@Composable
+private fun PracticeTask.title(): String = stringResource(
+    when (this) {
+        PracticeTask.TAP -> R.string.practice_tap
+        PracticeTask.HOLD -> R.string.practice_hold
+        PracticeTask.DRAG -> R.string.practice_drag
+    },
+)
 
 // Amber's own screen greys out "Hide here" and the cleanup switch: the hold points at Copy last.
+@Composable
 private fun PracticeTask.how(): String = when (this) {
-    PracticeTask.TAP -> "Tap the flame, say a few words, tap it again. The text lands in the field above."
-    PracticeTask.HOLD -> "Hold the flame, slide to \"Copy last\" and let go."
-    PracticeTask.DRAG -> "Drag the flame across to the other side and let go - or throw it there."
+    PracticeTask.TAP -> stringResource(R.string.practice_tap_how)
+    PracticeTask.HOLD -> stringResource(R.string.practice_hold_how, stringResource(R.string.quick_copy_last))
+    PracticeTask.DRAG -> stringResource(R.string.practice_drag_how)
 }
 
+@Composable
 private fun PracticeBlock.say(download: ModelDownload?): String = when (this) {
-    PracticeBlock.NO_MICROPHONE -> "Amber may not use the microphone yet."
-    PracticeBlock.DOWNLOADING -> listOfNotNull(download?.let(DownloadNotice::short), "Try this once the download is done.").joinToString(". ")
-    PracticeBlock.NO_RECOGNITION -> "No speech recognition is ready yet. Try this once it is."
-    PracticeBlock.NEEDS_DICTATION -> "Needs a dictation first - try it after the tap."
-    PracticeBlock.NO_SERVICE, PracticeBlock.BUBBLE_OFF -> "No flame yet."
+    PracticeBlock.NO_MICROPHONE -> stringResource(R.string.practice_no_mic)
+    PracticeBlock.DOWNLOADING -> listOfNotNull(
+        download?.let { Texts.download(LocalContext.current, it) },
+        stringResource(R.string.practice_after_download),
+    ).joinToString(". ")
+    PracticeBlock.NO_RECOGNITION -> stringResource(R.string.practice_no_recognition)
+    PracticeBlock.NEEDS_DICTATION -> stringResource(R.string.practice_needs_dictation)
+    PracticeBlock.NO_SERVICE, PracticeBlock.BUBBLE_OFF -> stringResource(R.string.practice_no_bubble)
 }
 
 /** What the phone allows right now: the service, the flame's switch, the microphone, a recognition. */

@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
@@ -22,6 +23,7 @@ import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.settings.Summary
 import app.amethyst.core.settings.StoredCatalog
 import app.amethyst.core.text.ChatCleanup
 import kotlinx.coroutines.test.runTest
@@ -247,14 +249,14 @@ class AmberCatalogTest {
     @Test
     fun `a chosen model the server no longer lists is said so`() {
         val provider = ServerProviders.forUrl(own.baseUrl, pc)
-        assertNull(provider.notOfferedNote("acft-large-v3-turbo-q8_0", provider.speechModels))
-        assertNull(provider.notOfferedNote(null, provider.speechModels))
-        assertNull(provider.notOfferedNote(" ", provider.speechModels))
-        assertContains(assertNotNull(provider.notOfferedNote("large-v2", provider.speechModels)), "Not offered by the PC any more")
+        assertNull(provider.notOfferedBy("acft-large-v3-turbo-q8_0", provider.speechModels))
+        assertNull(provider.notOfferedBy(null, provider.speechModels))
+        assertNull(provider.notOfferedBy(" ", provider.speechModels))
+        assertEquals(AmberMachine.PC, provider.notOfferedBy("large-v2", provider.speechModels))
         val server = ServerProviders.forUrl(own.baseUrl, pc.copy(service = "amber-server"))
-        assertContains(assertNotNull(server.notOfferedNote("gone", server.cleanupModels)), "Not offered by the server any more")
+        assertEquals(AmberMachine.SERVER, server.notOfferedBy("gone", server.cleanupModels))
         // A model typed for Groq is the user's own business.
-        assertNull(ServerProviders.GROQ.notOfferedNote("whisper-large-v2", ServerProviders.GROQ.speechModels))
+        assertNull(ServerProviders.GROQ.notOfferedBy("whisper-large-v2", ServerProviders.GROQ.speechModels))
     }
 
     @Test
@@ -263,8 +265,8 @@ class AmberCatalogTest {
             serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)),
             cleanup = CleanupChoice(own.id, "qwen3-4b-instruct-2507-q4km"),
         )
-        assertEquals("Qwen3 4B Instruct", SettingsSummaries.cleanup(settings))
-        assertEquals("qwen3-4b-instruct-2507-q4km", SettingsSummaries.cleanup(settings.copy(serverCatalogs = emptyMap())))
+        assertEquals(Summary.Name("Qwen3 4B Instruct"), SettingsSummaries.cleanup(settings))
+        assertEquals(Summary.Name("qwen3-4b-instruct-2507-q4km"), SettingsSummaries.cleanup(settings.copy(serverCatalogs = emptyMap())))
     }
 
     // --- an engine without a model yet ---

@@ -3,6 +3,7 @@ package app.amethyst.core.engine.whisper
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.SttEngine
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
@@ -144,11 +145,7 @@ class WhisperCppEngine(
     } catch (e: WhisperRuntimeException) {
         Result.failure(
             SttFailure(
-                userMessage = if (e.message.orEmpty().startsWith(CPU_UNSUPPORTED)) {
-                    "This phone's processor is too old for local Whisper. Parakeet or a server engine still work."
-                } else {
-                    "The local model failed to run. Download it again in the settings."
-                },
+                problem = if (e.message.orEmpty().startsWith(CPU_UNSUPPORTED)) Problem.ProcessorTooOld else Problem.LocalModelFailed,
                 technical = "whisper $step: ${e.message}",
                 cause = e,
             ),
@@ -156,7 +153,7 @@ class WhisperCppEngine(
     } catch (e: OutOfMemoryError) {
         Result.failure(
             SttFailure(
-                userMessage = "Not enough memory for the local model.",
+                problem = Problem.OutOfMemory,
                 technical = "whisper $step: out of memory",
             ),
         )

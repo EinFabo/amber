@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.SettingsSummaries
@@ -15,8 +16,8 @@ class EngineNamesTest {
 
     @Test
     fun `Parakeet goes by the name Settings gives it`() {
-        assertEquals("Parakeet TDT", EngineNames.of(EngineOption.PARAKEET))
-        assertEquals(SettingsSummaries.shortName(EnginePresets.LOCAL_PARAKEET.displayName), EngineNames.of(EngineOption.PARAKEET))
+        assertEquals(EngineName.Plain("Parakeet TDT"), EngineNames.of(EngineOption.PARAKEET))
+        assertEquals(EngineName.Plain(SettingsSummaries.shortName(EnginePresets.LOCAL_PARAKEET.displayName)), EngineNames.of(EngineOption.PARAKEET))
     }
 
     @Test
@@ -36,15 +37,15 @@ class EngineNamesTest {
 
     @Test
     fun `Whisper without a model is the default model`() {
-        assertEquals("Whisper base", EngineNames.of(whisper.copy(modelId = null)))
+        assertEquals(EngineName.Plain("Whisper base"), EngineNames.of(whisper.copy(modelId = null)))
     }
 
     @Test
     fun `an engine the step does not offer keeps its own name`() {
         val futo39 = whisper.copy(modelId = "futo-multilingual-39")
         assertNull(EngineNames.optionOf(futo39))
-        assertEquals(whisper.displayName, EngineNames.of(futo39))
+        assertEquals(EngineName.Own(futo39), EngineNames.of(futo39))
         val groq = EngineConfig.fromPreset(EnginePresets.GROQ)
-        assertEquals(groq.displayName, EngineNames.of(groq))
+        assertEquals(EngineName.Own(groq), EngineNames.of(groq))
     }
 }

@@ -16,8 +16,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import app.amethyst.ui.AGREE_AND_OPEN
+import app.amethyst.R
 import app.amethyst.ui.AccessibilityDisclosure
 import app.amethyst.ui.FlameMark
 import app.amethyst.ui.FullDisclosure
@@ -36,7 +37,7 @@ import kotlinx.coroutines.delay
 
 /** The step's main button, across the width. */
 @Composable
-internal fun ContinueButton(onClick: () -> Unit, label: String = "Continue", enabled: Boolean = true) {
+internal fun ContinueButton(onClick: () -> Unit, label: String = stringResource(R.string.continue_), enabled: Boolean = true) {
     PrimaryButton(label, onClick, Modifier.fillMaxWidth(), enabled = enabled)
 }
 
@@ -58,14 +59,14 @@ private fun Point(title: String, text: String) {
 @Composable
 internal fun WelcomeStep(onNext: () -> Unit) {
     StepPage(
-        title = "Speak instead of typing",
-        lead = "Amber turns your voice into text in any app: tap the flame, speak, and the text appears where your cursor is.",
-        buttons = { ContinueButton(onNext, "Set up") },
+        title = stringResource(R.string.welcome_title),
+        lead = stringResource(R.string.welcome_lead),
+        buttons = { ContinueButton(onNext, stringResource(R.string.welcome_set_up)) },
     ) {
         FlameMark(Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
-        Point("In every app", "A small flame floats over the app you are in.")
-        Point("Private by default", "Your voice stays on this phone unless you pick a server.")
-        Point("Only while you dictate", "The microphone is off the rest of the time.")
+        Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))
+        Point(stringResource(R.string.welcome_private), stringResource(R.string.welcome_private_note))
+        Point(stringResource(R.string.welcome_only_dictating), stringResource(R.string.welcome_only_dictating_note))
     }
 }
 
@@ -97,36 +98,38 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         }
     }
     StepPage(
-        title = "Let Amber type for you",
-        lead = when {
-            locked -> "Not on yet. If Android blocked the switch, this is the way past it."
-            waiting -> "Not on yet. It takes three taps."
-            else -> "Android's accessibility service lets Amber show the flame over other apps and type into the field you are in."
-        },
+        title = stringResource(R.string.access_title),
+        lead = stringResource(
+            when {
+                locked -> R.string.access_lead_locked
+                waiting -> R.string.access_lead_waiting
+                else -> R.string.access_lead
+            },
+        ),
         buttons = {
             when {
                 on -> ContinueButton(onNext, enabled = !beat)
                 locked -> {
                     // The filled button is the lock's "Open app info" above; this comes after it.
-                    GhostButton("Open settings again", actions.openAccessibility)
-                    LaterButton("Not now", onNext)
+                    GhostButton(stringResource(R.string.access_open_again), actions.openAccessibility)
+                    LaterButton(stringResource(R.string.not_now), onNext)
                 }
                 waiting -> {
-                    ContinueButton(actions.openAccessibility, "Open settings again")
-                    LaterButton("Not now", onNext)
+                    ContinueButton(actions.openAccessibility, stringResource(R.string.access_open_again))
+                    LaterButton(stringResource(R.string.not_now), onNext)
                 }
                 else -> {
-                    ContinueButton(actions.openAccessibility, AGREE_AND_OPEN)
-                    LaterButton("Not now", onNext)
+                    ContinueButton(actions.openAccessibility, stringResource(R.string.agree_and_open))
+                    LaterButton(stringResource(R.string.not_now), onNext)
                 }
             }
         },
     ) {
         when {
-            on -> Done("Accessibility service", "On - the flame can appear in every app.")
+            on -> Done(stringResource(R.string.setup_accessibility), stringResource(R.string.access_done))
             waiting -> {
                 if (locked) RestrictedSettingsSteps(actions.openAppInfo) else SwitchOnSteps()
-                FullDisclosure("What Amber reads and does")
+                FullDisclosure(stringResource(R.string.disclosure_title))
             }
             else -> Column {
                 if (setup.restrictedSettings) RestrictedSettingsNote()
@@ -146,25 +149,22 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
     // Android stops asking after a refusal or two; then only the app settings can grant it.
     var asked by rememberSaveable { mutableStateOf(false) }
     StepPage(
-        title = "Allow the microphone",
-        lead = "Amber records only while you dictate. The flame glows while it listens.",
+        title = stringResource(R.string.mic_title),
+        lead = stringResource(R.string.mic_lead),
         buttons = {
             if (granted) {
                 ContinueButton(onNext)
             } else {
-                ContinueButton({ asked = true; actions.requestMicrophone() }, "Allow")
-                if (asked) LaterButton("Continue without", onNext)
+                ContinueButton({ asked = true; actions.requestMicrophone() }, stringResource(R.string.allow))
+                if (asked) LaterButton(stringResource(R.string.continue_without), onNext)
             }
         },
     ) {
         if (granted) {
-            Done("Microphone", "Allowed.")
+            Done(stringResource(R.string.setup_microphone), stringResource(R.string.mic_allowed))
         } else if (asked) {
-            Hint(
-                "Not allowed yet. If Android no longer asks, allow it in Amber's app info under Permissions → Microphone.",
-                AmberPalette.Primary,
-            )
-            GhostButton("Open app settings", actions.openAppInfo)
+            Hint(stringResource(R.string.mic_not_allowed), AmberPalette.Primary)
+            GhostButton(stringResource(R.string.open_app_settings), actions.openAppInfo)
         }
     }
 }

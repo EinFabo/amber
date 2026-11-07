@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.OpenAiCompatibleEngine
@@ -81,7 +82,7 @@ class CleartextGuardTest {
             capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
         )
         val failure = assertIs<SttFailure>(engine.transcribe(PcmAudio(ShortArray(16_000))).exceptionOrNull())
-        assertEquals("Refused unencrypted connection to a public address - use https.", failure.userMessage)
+        assertEquals(Problem.UnencryptedRefused, failure.problem)
         // Recognizing it on the phone instead would hide a setting the user has to fix.
         assertFalse(failure.serviceUnavailable)
         assertFalse(failure.recordingMayHaveLeft)

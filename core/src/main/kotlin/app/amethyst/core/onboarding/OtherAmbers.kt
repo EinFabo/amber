@@ -35,14 +35,6 @@ object OtherAmbers {
             .map { (pkg, _) -> AmberVariant(pkg) }
             .distinct()
 
-    /** "Amber (debug) is also on - switch one off." - null when there is none. */
-    fun notice(others: List<AmberVariant>): String? {
-        if (others.isEmpty()) return null
-        val names = others.map { it.label }
-        val who = if (names.size == 1) "${names[0]} is" else "${names.dropLast(1).joinToString(", ")} and ${names.last()} are"
-        val what = if (names.size == 1) "switch one off" else "keep only one on"
-        return "$who also on - $what."
-    }
 
     private fun isAmber(pkg: String) = pkg == PACKAGE || pkg.startsWith("$PACKAGE.")
 

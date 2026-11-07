@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dictation_mic_permission">Die Mikrofon-Berechtigung fehlt. Bitte erteile sie in Amber.</string>
+    <string name="dictation_mic_not_opened">Das Mikrofon ließ sich nicht öffnen. Öffne Amber einmal, dann geht die Bubble direkt.</string>
+    <string name="dictation_no_field">Kein Textfeld zum Einfügen.</string>
+    <string name="dictation_not_inserted_here">Der Text ließ sich hier nicht einfügen.</string>
+    <string name="dictation_copied">Letztes Diktat kopiert.</string>
+    <string name="dictation_no_engine">Keine Spracherkennung gewählt. Bitte wähle eine in den Einstellungen.</string>
+    <string name="dictation_timed_out">Zeit abgelaufen - das Diktat wurde abgebrochen.</string>
+    <string name="dictation_unexpected">Unerwarteter Fehler: %1$s</string>
+    <string name="dictation_too_short">Zu kurz - bitte sprich etwas länger.</string>
+    <string name="dictation_nothing_heard">Nichts gehört - versuch es etwas näher am Handy.</string>
+    <string name="dictation_service_off">Die Bedienungshilfe ist aus - der Text konnte nicht eingefügt werden.</string>
+    <string name="dictation_why_password">Das Feld ist jetzt ein Passwortfeld</string>
+    <string name="dictation_why_no_field">Kein Textfeld hat mehr den Fokus</string>
+    <string name="dictation_why_switched">Du bist inzwischen in eine andere App, einen anderen Chat oder ein anderes Feld gewechselt</string>
+    <string name="dictation_on_clipboard_instead">%1$s - der Text ist stattdessen in der Zwischenablage.</string>
+    <string name="dictation_not_inserted">%1$s - nicht eingefügt.</string>
+    <string name="dictation_not_inserted_in_diagnostics">%1$s - nicht eingefügt. Der Text steht in Ambers Diagnose.</string>
+    <string name="dictation_typed_never_showed">Der Text wurde getippt, ist aber nie im Feld erschienen</string>
+    <string name="dictation_no_field_accepted">Kein Textfeld hat den Text angenommen</string>
+    <string name="dictation_in_diagnostics">%1$s. Er steht in Ambers Diagnose.</string>
+
+    <string name="fallback_server_too_slow">Der Server hat zu lange gebraucht - der auf dem Handy erkannte Text wurde genommen.</string>
+    <string name="fallback_no_connection">Keine Verbindung - auf dem Handy erkannt mit %1$s.</string>
+    <string name="fallback_no_answer_on_phone">Der Server hat nicht geantwortet - auf dem Handy erkannt mit %1$s. Die Aufnahme hat den Server vielleicht erreicht.</string>
+    <string name="fallback_other_server">%1$s hat nicht geantwortet - stattdessen erkannt von %2$s.</string>
+
+    <string name="capture_no_16khz">Das Mikrofon unterstützt keine 16 kHz.</string>
+    <string name="capture_not_opened">Das Mikrofon ließ sich nicht öffnen.</string>
+    <string name="capture_busy">Das Mikrofon ist belegt oder nicht erlaubt.</string>
+    <string name="capture_refused">Das System hat die Aufnahme verweigert.</string>
+    <string name="capture_interrupted">Das Mikrofon wurde unterbrochen.</string>
+
+    <string name="slot_downloading">Wird geladen</string>
+    <string name="slot_copying">Wird kopiert</string>
+    <string name="quick_too_late">Zu spät - das Diktat ist schon weiter.</string>
+    <string name="quick_done_inserted">Letztes Diktat eingefügt.</string>
+    <string name="quick_done_cancelled">Diktat abgebrochen.</string>
+    <string name="quick_done_no_cleanup">Wird ohne Bereinigung gesendet.</string>
+    <string name="quick_done_start_over">Die Aufnahme beginnt von vorn.</string>
+    <string name="quick_done_as_recognized">Der Text bleibt, wie er erkannt wurde.</string>
+    <string name="quick_done_paused">Pausiert. Tippe auf die Bubble, um zu senden.</string>
+    <string name="quick_done_resumed">Hört wieder zu.</string>
+    <string name="quick_done_cleanup_on">Bereinigung in %1$s an.</string>
+    <string name="quick_done_cleanup_off">Bereinigung in %1$s aus.</string>
+    <string name="bubble_hidden_in">Bubble in %1$s ausgeblendet. Zeig sie wieder in Amber → Einstellungen → Bubble.</string>
+</resources>

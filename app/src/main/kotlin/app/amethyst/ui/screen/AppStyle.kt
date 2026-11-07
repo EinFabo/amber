@@ -17,7 +17,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanup
@@ -79,7 +81,7 @@ fun AppStyleScreen(
             Text(profile.label, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         }
 
-        SectionCard(title = "Style", subtitle = "How the text reads in ${profile.label}.") {
+        SectionCard(title = stringResource(R.string.style_title), subtitle = stringResource(R.string.style_subtitle, profile.label)) {
             WritingStyle.entries.forEach { option ->
                 RadioRow(option.label(), option.note(), selected = option == profile.style, onSelect = {
                     edit { it.copy(style = option) }
@@ -88,9 +90,9 @@ fun AppStyleScreen(
             OutlinedTextField(
                 value = instruction,
                 onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
-                label = { Text("Own instruction (optional)") },
-                placeholder = { Text("e.g. use \"du\", sign with my first name") },
-                supportingText = { Text("${instruction.length} / ${ChatCleanup.INSTRUCTION_CHARS}") },
+                label = { Text(stringResource(R.string.style_instruction)) },
+                placeholder = { Text(stringResource(R.string.style_instruction_placeholder)) },
+                supportingText = { Text(stringResource(R.string.char_count, instruction.length, ChatCleanup.INSTRUCTION_CHARS)) },
                 minLines = 2,
                 maxLines = 8,
                 shape = AmberShapes.Inner,
@@ -99,25 +101,32 @@ fun AppStyleScreen(
             )
         }
 
-        SectionCard(title = "Cleanup", subtitle = "Who tidies the text in ${profile.label}.") {
+        SectionCard(title = stringResource(R.string.settings_cleanup), subtitle = stringResource(R.string.style_cleanup_subtitle, profile.label)) {
             RadioRow(
-                "Default",
-                settings.cleanupSummary() ?: "Off - as recognized, like every app",
+                stringResource(R.string.style_default),
+                settings.cleanupSummary() ?: stringResource(R.string.style_default_off),
                 selected = own.mode == AppCleanupMode.DEFAULT,
                 onSelect = { edit { it.copy(appCleanup = AppCleanup()) } },
             )
             RadioRow(
-                "Off",
-                "Text goes in as recognized",
+                stringResource(R.string.off),
+                stringResource(R.string.cleanup_off_note),
                 selected = own.mode == AppCleanupMode.OFF,
                 onSelect = { edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.OFF)) } },
             )
             CleanupModelChoices(settings, ready, selected = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }) { choice ->
                 edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.MODEL, choice)) }
             }
-            decision.note?.takeIf { own.mode == AppCleanupMode.MODEL }?.let { Hint(it, AmberPalette.Error) }
+            // Its own model chosen but not set up: what is used instead.
+            val ownChoice = own.choice
+            if (own.mode == AppCleanupMode.MODEL && ownChoice != null && !CleanupRouting.ready(settings, ownChoice, hasKeyFor)) {
+                Hint(
+                    stringResource(if (decision.choice != null) R.string.style_own_not_ready_default else R.string.style_own_not_ready_none),
+                    AmberPalette.Error,
+                )
+            }
             if (decision.choice == null && profile.style != WritingStyle.AS_SPOKEN) {
-                Hint("Without a cleanup the style is not applied - the text goes in as recognized.", AmberPalette.Primary)
+                Hint(stringResource(R.string.style_needs_cleanup), AmberPalette.Primary)
             }
             CleanupLeavesPhoneHint(
                 settings.activeEngine?.trustLevelForDisplay(),
@@ -125,7 +134,7 @@ fun AppStyleScreen(
             )
         }
 
-        DangerAction("Remove ${profile.label}") {
+        DangerAction(stringResource(R.string.style_remove, profile.label)) {
             onUpdateSettings { it.copy(profiles = it.profiles.filterNot { p -> p.packageName == profile.packageName }) }
             onRemoved()
         }

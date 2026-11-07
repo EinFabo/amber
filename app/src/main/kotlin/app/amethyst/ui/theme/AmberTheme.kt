@@ -7,10 +7,12 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.amethyst.R
 import app.amethyst.core.privacy.TrustLevel
 
 /**
@@ -56,25 +58,33 @@ fun TrustLevel.badgeColor(): Color = when (this) {
     TrustLevel.CLOUD -> AmberPalette.TrustCloud
 }
 
-fun TrustLevel.badgeLabel(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "On device"
-    TrustLevel.ENCLAVE_VERIFIED -> "Enclave verified"
-    TrustLevel.CLOUD -> "Cloud"
-}
+@Composable
+fun TrustLevel.badgeLabel(): String = stringResource(
+    when (this) {
+        TrustLevel.ON_DEVICE -> R.string.trust_on_device
+        TrustLevel.ENCLAVE_VERIFIED -> R.string.trust_enclave_verified
+        TrustLevel.CLOUD -> R.string.trust_cloud
+    },
+)
 
 /** Where an engine of this level sends your voice - for settings, before anything is sent. */
-fun TrustLevel.placeExplanation(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "Your voice never leaves the phone."
-    TrustLevel.ENCLAVE_VERIFIED -> "Sent only after the enclave's code is verified."
-    TrustLevel.CLOUD -> "Sent to a server, no further guarantee."
-}
+@Composable
+fun TrustLevel.placeExplanation(): String = stringResource(
+    when (this) {
+        TrustLevel.ON_DEVICE -> R.string.trust_place_on_device
+        TrustLevel.ENCLAVE_VERIFIED -> R.string.trust_place_enclave
+        TrustLevel.CLOUD -> R.string.trust_place_cloud
+    },
+)
 
-fun TrustLevel.badgeExplanation(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "The recording never left the device."
-    TrustLevel.ENCLAVE_VERIFIED ->
-        "The recording went to an enclave whose attestation was verified."
-    TrustLevel.CLOUD -> "The recording went to a server, no further guarantee."
-}
+@Composable
+fun TrustLevel.badgeExplanation(): String = stringResource(
+    when (this) {
+        TrustLevel.ON_DEVICE -> R.string.trust_went_on_device
+        TrustLevel.ENCLAVE_VERIFIED -> R.string.trust_went_enclave
+        TrustLevel.CLOUD -> R.string.trust_went_cloud
+    },
+)
 
 private val AmberColorScheme = darkColorScheme(
     primary = AmberPalette.Primary,

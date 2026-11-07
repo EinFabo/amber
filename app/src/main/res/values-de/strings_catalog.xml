@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="catalog_android_name">Android (auf dem Handy)</string>
+    <string name="catalog_android_note">Nutzt die Spracherkennung des Systems. Kein Download, kein Schlüssel - die Qualität hängt vom Hersteller ab.</string>
+    <string name="catalog_whisper_name">Whisper lokal (FUTO)</string>
+    <string name="catalog_whisper_note">Ganz ohne Internet über whisper.cpp, ohne Google-Sprachpaket. Braucht einmal einen Download von 82 MB.</string>
+    <string name="catalog_parakeet_name">Parakeet TDT (lokal)</string>
+    <string name="catalog_parakeet_note">Fast so genau wie Whisper large-v3, aber schnell auf dem Handy: Es liest die ganze Aufnahme auf einmal statt in 30-s-Stücken. 25 europäische Sprachen, die es selbst erkennt, mit Satzzeichen. Einmal 670 MB Download, etwa 700 MB Arbeitsspeicher während der Nutzung.</string>
+    <string name="catalog_tinfoil_name">Tinfoil (Enklave)</string>
+    <string name="catalog_tinfoil_note">Vertrauliche Verarbeitung in einer Enklave. Zeigt „Enklave geprüft“ erst, wenn der Nachweis bestätigt ist.</string>
+    <string name="catalog_own_server">Eigener Server</string>
+    <string name="catalog_own_server_note">Speaches, faster-whisper-server, LocalAI oder der Server von whisper.cpp - alles mit /v1/audio/transcriptions. http:// geht für Adressen in deinem eigenen Netz.</string>
+    <string name="catalog_groq_note">Sehr schnell und günstig (etwa 0,04 $ pro Stunde Audio), keine Garantie für Privatsphäre.</string>
+    <string name="catalog_openai_note">Genau, etwa 0,003 $ pro Minute Audio, keine Garantie für Privatsphäre.</string>
+
+    <string name="catalog_voxtral">am genauesten · ~0,0001 $ pro Diktat</string>
+    <string name="catalog_tinfoil_whisper">über 90 Sprachen · 0,01 $ pro Diktat</string>
+    <string name="catalog_gemma">am günstigsten · ~0,00016 $</string>
+    <string name="catalog_gpt_oss_120b">denkt immer nach, langsamer · ~0,0002 $</string>
+    <string name="catalog_llama_tinfoil">beständig · ~0,0006 $</string>
+    <string name="catalog_glm">denkt nach, teurer · ~0,0008 $+</string>
+    <string name="catalog_kimi">hier zu viel des Guten · ~0,0023 $</string>
+    <string name="catalog_deepseek">klug und schnell · ~0,00025 $</string>
+    <string name="catalog_groq_turbo">schnell · 0,04 $ pro Stunde</string>
+    <string name="catalog_groq_large">etwas genauer · 0,11 $ pro Stunde</string>
+    <string name="catalog_groq_llama70">denkt nicht nach, beständig</string>
+    <string name="catalog_groq_llama8">am schnellsten, am einfachsten</string>
+    <string name="catalog_groq_gpt_oss">günstig und flott</string>
+    <string name="catalog_openai_mini_transcribe">0,003 $ pro Minute</string>
+    <string name="catalog_openai_transcribe">am genauesten · 0,006 $ pro Minute</string>
+    <string name="catalog_openai_whisper">0,006 $ pro Minute</string>
+    <string name="catalog_nano">am günstigsten · ~0,0001 $</string>
+    <string name="catalog_gpt4o_mini">~0,0001 $</string>
+    <string name="catalog_gpt41_mini">klüger · ~0,0004 $</string>
+
+    <string name="catalog_futo39_note">Whisper tiny. Am schnellsten und kleinsten, aber bei Deutsch nur mittelmäßig.</string>
+    <string name="catalog_futo74_note">Whisper base, für kurze Diktate nachtrainiert. FUTOs Empfehlung für Deutsch.</string>
+    <string name="catalog_futo244_note">Whisper small, nachtrainiert. Merklich genauer, auf aktuellen Handys trotzdem flott.</string>
+    <string name="catalog_acft_note">Das große OpenAI-Modell, so angepasst, dass es aufhört, wo dein Sprechen aufhört. So genau wie das normale große Modell, bei kurzen Diktaten etwa dreimal so schnell.</string>
+    <string name="catalog_old_large_name">Whisper large-v3-turbo (alt)</string>
+    <string name="catalog_old_large_note">Das vorige große Modell: Es arbeitet immer volle 30 s durch, also wartet auch ein kurzes Diktat mehrere Sekunden. Das angepasste large-v3-turbo darüber ist genauso genau und etwa dreimal so schnell - wechsle und lösche dieses.</string>
+    <string name="catalog_tier_fastest">am schnellsten</string>
+    <string name="catalog_tier_fast">schnell</string>
+    <string name="catalog_tier_more_accurate">genauer</string>
+    <string name="catalog_tier_most_accurate">am genauesten</string>
+    <string name="catalog_tier_replaced">ersetzt</string>
+</resources>

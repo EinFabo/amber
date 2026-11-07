@@ -1,7 +1,5 @@
 package app.amethyst.ui.screen
 
-import androidx.compose.ui.res.stringResource
-import app.amethyst.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -30,8 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
@@ -39,29 +43,29 @@ import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
+import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.update.UpdateNotice
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.AccessibilityConsentDialog
 import app.amethyst.ui.AmberIcons
-import app.amethyst.ui.NavRow
-import app.amethyst.ui.PageGutter
-import app.amethyst.ui.RowDivider
-import app.amethyst.ui.SettingsGroup
-import app.amethyst.core.stats.StatsSummary
-import kotlinx.coroutines.flow.StateFlow
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.amethyst.ui.DictateOrb
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.PageGutter
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.ProgressLine
 import app.amethyst.ui.RestrictedSettingsSteps
+import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.StatusRow
 import app.amethyst.ui.TrustBadge
+import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Hearth: one quiet home. The engine on top, the flame alone in the middle, a row with today's
@@ -196,7 +200,7 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
     val ownWeakest = ownModels.mapNotNull { settings.cleanupEngine(it.appCleanup.choice)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
     SettingsGroup(label = null) {
         NavRow(
-            title = active?.displayName ?: "No engine selected",
+            title = active?.let { engineName(it) } ?: stringResource(R.string.home_no_engine),
             summary = null,
             icon = AmberIcons.Mic,
             titleColor = if (active == null) AmberPalette.Error else AmberPalette.Text,
@@ -206,7 +210,7 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
         if (cleanup != null && cleanupEngine != null) {
             RowDivider()
             NavRow(
-                title = "Cleanup",
+                title = stringResource(R.string.settings_cleanup),
                 summary = cleanup,
                 icon = AmberIcons.AutoFix,
                 // Where the text goes: said in full, not cut off.
@@ -218,8 +222,8 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
         if (ownWeakest != null) {
             RowDivider()
             NavRow(
-                title = "Own cleanup model",
-                summary = "In ${ownModels.joinToString { it.label }}",
+                title = stringResource(R.string.home_own_cleanup),
+                summary = stringResource(R.string.home_own_cleanup_in, ownModels.joinToString { it.label }),
                 icon = AmberIcons.Palette,
                 summaryMaxLines = 2,
                 below = { TrustBadge(ownWeakest) },
@@ -234,8 +238,8 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
 private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: () -> Unit) {
     SettingsGroup(label = null) {
         NavRow(
-            title = "Amber ${notice.version} is available",
-            summary = INSTALLS_OVER,
+            title = stringResource(R.string.update_available_title, notice.version),
+            summary = stringResource(R.string.installs_over),
             icon = AmberIcons.Download,
             summaryMaxLines = 2,
             trailing = null,
@@ -248,8 +252,8 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GhostButton("Dismiss", onDismiss, color = AmberPalette.Muted)
-            PrimaryButton("Download", onDownload)
+            GhostButton(stringResource(R.string.dismiss), onDismiss, color = AmberPalette.Muted)
+            PrimaryButton(stringResource(R.string.download), onDownload)
         }
     }
 }
@@ -260,11 +264,12 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
  */
 @Composable
 fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
-    val notice = OtherAmbers.notice(others) ?: return
+    val notice = Texts.otherAmbers(LocalContext.current, others) ?: return
     SettingsGroup(label = null) {
         NavRow(
-            title = if (others.size == 1) "Two Ambers are on" else "${others.size + 1} Ambers are on",
-            summary = "$notice Each shows a bubble and types into the same fields.",
+            title = if (others.size == 1) stringResource(R.string.other_ambers_two)
+            else stringResource(R.string.other_ambers_title, others.size + 1),
+            summary = stringResource(R.string.other_ambers_summary, notice),
             icon = AmberIcons.Info,
             summaryMaxLines = 3,
             trailing = null,
@@ -276,7 +281,7 @@ fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            PrimaryButton("Open accessibility settings", onOpenSettings)
+            PrimaryButton(stringResource(R.string.open_accessibility_settings), onOpenSettings)
         }
     }
 }
@@ -285,10 +290,11 @@ fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
 @Composable
 private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
     val (title, summary) = when {
-        stats == null || stats.isEmpty -> "No dictations yet" to "Counted here, on this phone only."
-        stats.dictationsToday == 0 -> "Nothing dictated today" to "${formatCount(stats.totalWords)} words so far · ${stats.streakDays.daysInARow()}"
-        else -> "${formatCount(stats.wordsToday)} words today" to
-            "${stats.dictationsToday} ${if (stats.dictationsToday == 1) "dictation" else "dictations"} · ${formatMinutesSaved(stats.minutesSavedToday)}"
+        stats == null || stats.isEmpty -> stringResource(R.string.home_no_dictations) to stringResource(R.string.home_counted_here)
+        stats.dictationsToday == 0 -> stringResource(R.string.home_nothing_today) to
+            stringResource(R.string.home_words_so_far, formatCount(stats.totalWords), daysInARow(stats.streakDays))
+        else -> stringResource(R.string.home_words_today, formatCount(stats.wordsToday)) to
+            (pluralStringResource(R.plurals.home_dictations_today, stats.dictationsToday, stats.dictationsToday) + " · " + formatMinutesSaved(stats.minutesSavedToday))
     }
     SettingsGroup(label = null) {
         NavRow(title, summary, icon = AmberIcons.BarChart, onClick = onOpenStats)
@@ -298,8 +304,8 @@ private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
 @Composable
 private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
     SectionCard(
-        title = "Reliability",
-        subtitle = "Optional. Keeps Android from cutting off the microphone.",
+        title = stringResource(R.string.settings_reliability),
+        subtitle = stringResource(R.string.reliability_subtitle),
     ) {
         ReliabilityRows(setup, actions)
     }
@@ -309,24 +315,24 @@ private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
 @Composable
 fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
     StatusRow(
-        label = "Microphone service",
-        description = "Keeps the microphone ready in other apps.",
+        label = stringResource(R.string.reliability_mic_service),
+        description = stringResource(R.string.reliability_mic_service_note),
         done = setup.micServiceRunning,
-        actionLabel = "Start",
+        actionLabel = stringResource(R.string.start),
         onAction = actions.startMicService,
     )
     StatusRow(
-        label = "Notifications",
-        description = "Only for the silent \"Amber is ready\" notice.",
+        label = stringResource(R.string.reliability_notifications),
+        description = stringResource(R.string.reliability_notifications_note),
         done = setup.notificationsGranted,
-        actionLabel = "Allow",
+        actionLabel = stringResource(R.string.allow),
         onAction = actions.requestNotifications,
     )
     StatusRow(
-        label = "Unrestricted battery",
-        description = "So the phone does not stop the service.",
+        label = stringResource(R.string.reliability_battery),
+        description = stringResource(R.string.reliability_battery_note),
         done = setup.batteryUnrestricted,
-        actionLabel = "Open",
+        actionLabel = stringResource(R.string.open),
         onAction = actions.openBattery,
     )
 }
@@ -353,20 +359,20 @@ private fun StatusLine(
         ) {
             when (current) {
                 DictationState.Idle -> when {
-                    !ready -> Hint("Finish the setup above first.")
+                    !ready -> Hint(stringResource(R.string.home_finish_setup))
                     download != null -> {
-                        Hint(DownloadNotice.short(download), AmberPalette.Text)
+                        Hint(Texts.download(LocalContext.current, download), AmberPalette.Text)
                         val fraction = (download as? ModelDownload.Running)
                             ?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f }
                         ProgressLine(fraction, Modifier.padding(horizontal = 48.dp))
                     }
-                    else -> Hint("Tap and speak. The text lands in the test field.")
+                    else -> Hint(stringResource(R.string.home_tap_and_speak))
                 }
 
-                DictationState.Starting -> Hint("Opening microphone …", AmberPalette.Text)
+                DictationState.Starting -> Hint(stringResource(R.string.home_opening_mic), AmberPalette.Text)
 
                 is DictationState.Listening -> {
-                    Hint(if (current.paused) "Paused. Tap to send." else "Listening. Tap to stop.", AmberPalette.Text)
+                    Hint(stringResource(if (current.paused) R.string.home_paused else R.string.home_listening), AmberPalette.Text)
                     current.partial?.takeIf { it.isNotBlank() }?.let { partial ->
                         Text(
                             partial,
@@ -377,7 +383,7 @@ private fun StatusLine(
                     }
                 }
 
-                is DictationState.Transcribing -> Hint("Writing …", AmberPalette.Text)
+                is DictationState.Transcribing -> Hint(stringResource(R.string.home_writing), AmberPalette.Text)
 
                 is DictationState.Done -> {
                     Row(
@@ -385,11 +391,11 @@ private fun StatusLine(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         TrustBadge(current.transcript.trustLevel)
-                        Hint("${current.transcript.latencyMs} ms · ${current.strategy.label()}")
+                        Hint(stringResource(R.string.home_done, current.transcript.latencyMs, current.strategy.label()))
                     }
                 }
 
-                is DictationState.Commanded -> Hint("Command: ${current.did}", AmberPalette.Text)
+                is DictationState.Commanded -> Hint(stringResource(R.string.home_command, current.did), AmberPalette.Text)
 
                 is DictationState.Failed -> {
                     Text(
@@ -400,11 +406,11 @@ private fun StatusLine(
                     )
                     when (current.remedy) {
                         SttFailure.Remedy.INSTALL_LANGUAGE -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PrimaryButton("Get language pack", onInstallLanguage)
-                            GhostButton("Use local Whisper", onUseLocalWhisper)
+                            PrimaryButton(stringResource(R.string.home_get_language_pack), onInstallLanguage)
+                            GhostButton(stringResource(R.string.home_use_whisper), onUseLocalWhisper)
                         }
 
-                        SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton("Download model", onOpenActiveEngine)
+                        SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton(stringResource(R.string.home_download_model), onOpenActiveEngine)
 
                         null -> Unit
                     }
@@ -429,34 +435,37 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
         )
     }
     SectionCard(
-        title = "Setup",
-        subtitle = "Two steps, then the bubble works in every app.",
+        title = stringResource(R.string.setup_title),
+        subtitle = stringResource(R.string.setup_subtitle),
         modifier = modifier,
     ) {
         StatusRow(
-            label = "Microphone",
-            description = "Amber only records while you dictate.",
+            label = stringResource(R.string.setup_microphone),
+            description = stringResource(R.string.setup_microphone_note),
             done = setup.microphoneGranted,
-            actionLabel = "Allow",
+            actionLabel = stringResource(R.string.allow),
             onAction = actions.requestMicrophone,
         )
         StatusRow(
-            label = "Accessibility service",
+            label = stringResource(R.string.setup_accessibility),
             description = if (setup.accessibilityTried) {
-                "Not on yet. Switch on ${stringResource(R.string.accessibility_label)} and allow it."
+                stringResource(R.string.setup_accessibility_tried, stringResource(R.string.accessibility_label))
             } else {
-                "Shows the bubble and types the text into the active field."
+                stringResource(R.string.setup_accessibility_note)
             },
             done = setup.accessibilityEnabled,
-            actionLabel = "Open",
+            actionLabel = stringResource(R.string.open),
             onAction = { disclosing = true },
         )
     }
 }
 
-private fun app.amethyst.core.insert.InsertionStrategy.label(): String = when (this) {
-    app.amethyst.core.insert.InsertionStrategy.COMMIT_TEXT -> "typed directly"
-    app.amethyst.core.insert.InsertionStrategy.SET_TEXT -> "written into the field"
-    app.amethyst.core.insert.InsertionStrategy.PASTE -> "pasted"
-    app.amethyst.core.insert.InsertionStrategy.CLIPBOARD_ONLY -> "on the clipboard"
-}
+@Composable
+private fun app.amethyst.core.insert.InsertionStrategy.label(): String = stringResource(
+    when (this) {
+        app.amethyst.core.insert.InsertionStrategy.COMMIT_TEXT -> R.string.strategy_typed
+        app.amethyst.core.insert.InsertionStrategy.SET_TEXT -> R.string.strategy_set
+        app.amethyst.core.insert.InsertionStrategy.PASTE -> R.string.strategy_pasted
+        app.amethyst.core.insert.InsertionStrategy.CLIPBOARD_ONLY -> R.string.strategy_clipboard
+    },
+)

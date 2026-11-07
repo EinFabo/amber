@@ -9,19 +9,12 @@ sealed interface ModelDownload {
     data object WaitingForWifi : ModelDownload
 }
 
-/** What a dictation started during the download is told, instead of failing. */
+/** What a dictation started during the download is told, instead of failing (worded by the app). */
 object DownloadNotice {
 
-    fun short(download: ModelDownload): String = when (download) {
-        // Floored and held below 100: "100 %" while the last bytes are still checked would lie.
-        is ModelDownload.Running -> {
-            val percent = if (download.total <= 0) 0 else (download.received * 100 / download.total).coerceIn(0, 99)
-            "Model downloading - $percent %"
-        }
-        ModelDownload.WaitingForWifi -> "Waiting for Wi-Fi"
-    }
-
-    fun atStart(download: ModelDownload): String = "${short(download)}. Amber is ready when it is done."
+    /** Floored and held below 100: "100 %" while the last bytes are still checked would lie. */
+    fun percent(download: ModelDownload.Running): Int =
+        if (download.total <= 0) 0 else (download.received * 100 / download.total).toInt().coerceIn(0, 99)
 }
 
 enum class GateDecision {

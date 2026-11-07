@@ -30,9 +30,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
 import app.amethyst.core.onboarding.AmberVariant
@@ -52,10 +56,10 @@ import app.amethyst.ui.Unfold
 import app.amethyst.ui.foldState
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
-import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
 
 /**
  * The first thing to try after installing: dictate into a field inside Amber itself.
@@ -72,11 +76,11 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
 
     // The field is the group's surface itself, not a box inside it.
     SettingsGroup(
-        label = "Test field",
+        label = stringResource(R.string.test_field),
         modifier = modifier,
-        note = "A test dictation lands here, as in any other app.",
+        note = stringResource(R.string.test_field_note),
         trailing = if (testText.isNotEmpty()) {
-            { GhostButton("Clear", { testText = "" }) }
+            { GhostButton(stringResource(R.string.clear), { testText = "" }) }
         } else {
             null
         },
@@ -84,7 +88,7 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
         OutlinedTextField(
             value = testText,
             onValueChange = { testText = it },
-            placeholder = { Text("Tap the flame and speak …", color = AmberPalette.Muted) },
+            placeholder = { Text(stringResource(R.string.test_field_placeholder), color = AmberPalette.Muted) },
             minLines = 3,
             shape = AmberShapes.Card,
             textStyle = MaterialTheme.typography.bodyLarge,
@@ -126,7 +130,7 @@ fun DiagnosticsScreen(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
     /** The app and its version, at the top of a copy. */
-    appTitle: String = "Amber",
+    appTitle: String = "Amber", // English: the app's name
     initialFilter: DiagnosticsReport.Filter = DiagnosticsReport.Filter.ALL,
     /** The entries (by their time) shown open from the start - for the screenshots. */
     initiallyOpen: Set<Long> = emptySet(),
@@ -158,7 +162,7 @@ fun DiagnosticsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 filters.forEach { option ->
-                    ChoiceChip(option.label, note = null, on = option == filter) { filter = option }
+                    ChoiceChip(filterLabel(option), note = null, on = option == filter) { filter = option }
                 }
             }
         }
@@ -167,30 +171,28 @@ fun DiagnosticsScreen(
             SectionCard(title = null) {
                 Text(emptyTitle(filter, records.isEmpty()), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
                 Hint(
-                    when (filter) {
-                        DiagnosticsReport.Filter.ALL -> if (filters.isEmpty()) {
-                            "After the first dictation, what was heard and what came of it show up here."
-                        } else {
-                            "After the first dictation or voice command, what was heard and what came of it show up here."
-                        }
-                        DiagnosticsReport.Filter.DICTATIONS -> "After the first dictation, engine, duration and insertion method show up here."
-                        DiagnosticsReport.Filter.COMMANDS -> "After the first voice command, what was heard and every step it took show up here."
-                    },
+                    stringResource(
+                        when (filter) {
+                            DiagnosticsReport.Filter.ALL -> if (filters.isEmpty()) R.string.diag_empty_all else R.string.diag_empty_all_commands
+                            DiagnosticsReport.Filter.DICTATIONS -> R.string.diag_empty_dictations
+                            DiagnosticsReport.Filter.COMMANDS -> R.string.diag_empty_commands
+                        },
+                    ),
                 )
             }
         } else {
             SettingsGroup(
-                label = "The last ${shown.size} ${noun(filter, shown.size)}",
-                note = "Tap one for its steps. Kept on this phone until Amber restarts.",
+                label = lastEntries(filter, shown.size),
+                note = stringResource(R.string.diag_note),
                 trailing = {
                     Spacer(Modifier.weight(1f))
                     GhostButton(
-                        text = if (copied) "Copied" else "Copy",
+                        text = stringResource(if (copied) R.string.copied else R.string.copy),
                         onClick = {
                             val text = DiagnosticsReport.of(
                                 shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
                                 keyboard = if (keyboardShown) keyboardLog else emptyList(),
-                                warning = OtherAmbers.notice(otherAmbers),
+                                warning = Texts.otherAmbers(Texts.english(context), otherAmbers),
                             )
                             copied = copySensitive(context, text)
                         },
@@ -210,14 +212,14 @@ fun DiagnosticsScreen(
 
         if (keyboardShown) {
             // What the bubble saw of the keyboard, newest first: the evidence when it misbehaves.
-            SectionCard(title = "Keyboard") {
+            SectionCard(title = stringResource(R.string.diag_keyboard)) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     keyboardLog.forEach { Hint(it) }
                 }
             }
         }
 
-        if (records.isNotEmpty() || keyboardLog.isNotEmpty()) DangerAction("Clear diagnostics", onClear)
+        if (records.isNotEmpty() || keyboardLog.isNotEmpty()) DangerAction(stringResource(R.string.diag_clear), onClear)
     }
 }
 
@@ -232,8 +234,8 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
         NavRow(
             title = when {
                 record.text.isNotBlank() -> if (record.command) "\u201C${record.text}\u201D" else record.text
-                record.command -> "No words"
-                else -> "No text"
+                record.command -> stringResource(R.string.diag_no_words)
+                else -> stringResource(R.string.diag_no_text)
             },
             summary = record.summary(),
             summaryColor = if (record.failed) AmberPalette.Error else AmberPalette.Muted,
@@ -256,7 +258,7 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
         )
         Unfold(open && foldable) {
             // Each of several commands' lines under its step, as the copied text has them.
-            val lines = DiagnosticsReport.nested(record.details) + listOfNotNull(record.timing?.let { "timing: $it" })
+            val lines = DiagnosticsReport.nested(record.details) + listOfNotNull(record.timing?.let { "timing: $it" }) // English: diagnostics
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -282,21 +284,39 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
  * The line that says why a failed command was not done: the rules' verdict, where a run stopped -
  * also inside a step - or which of several commands was not done.
  */
+// English: the diagnostics lines it reads are English.
 private fun String.isWhyNot(): Boolean = trimStart().let {
-    it.startsWith("not understood") || it.startsWith("stopped") || (it.startsWith("outcome: ") && " at step " in it)
+    it.startsWith("not understood") || it.startsWith("stopped") || (it.startsWith("outcome: ") && " at step " in it) // English
 }
 
-private fun emptyTitle(filter: DiagnosticsReport.Filter, nothingAtAll: Boolean): String = when {
-    nothingAtAll -> "Nothing dictated yet"
-    filter == DiagnosticsReport.Filter.COMMANDS -> "No voice commands yet"
-    else -> "No dictations yet"
-}
+@Composable
+private fun emptyTitle(filter: DiagnosticsReport.Filter, nothingAtAll: Boolean): String = stringResource(
+    when {
+        nothingAtAll -> R.string.diag_nothing_yet
+        filter == DiagnosticsReport.Filter.COMMANDS -> R.string.diag_no_commands
+        else -> R.string.diag_no_dictations
+    },
+)
 
-private fun noun(filter: DiagnosticsReport.Filter, n: Int): String = when (filter) {
-    DiagnosticsReport.Filter.ALL -> if (n == 1) "entry" else "entries"
-    DiagnosticsReport.Filter.DICTATIONS -> if (n == 1) "dictation" else "dictations"
-    DiagnosticsReport.Filter.COMMANDS -> if (n == 1) "command" else "commands"
-}
+@Composable
+private fun lastEntries(filter: DiagnosticsReport.Filter, n: Int): String = pluralStringResource(
+    when (filter) {
+        DiagnosticsReport.Filter.ALL -> R.plurals.diag_last_entries
+        DiagnosticsReport.Filter.DICTATIONS -> R.plurals.diag_last_dictations
+        DiagnosticsReport.Filter.COMMANDS -> R.plurals.diag_last_commands
+    },
+    n,
+    n,
+)
+
+@Composable
+private fun filterLabel(filter: DiagnosticsReport.Filter): String = stringResource(
+    when (filter) {
+        DiagnosticsReport.Filter.ALL -> R.string.diag_filter_all
+        DiagnosticsReport.Filter.DICTATIONS -> R.string.diag_filter_dictations
+        DiagnosticsReport.Filter.COMMANDS -> R.string.diag_filter_commands
+    },
+)
 
 /**
  * [text] on the clipboard, marked sensitive as a dictation is ([app.amethyst.accessibility.TextInserter]):
@@ -305,7 +325,7 @@ private fun noun(filter: DiagnosticsReport.Filter, n: Int): String = when (filte
 private fun copySensitive(context: Context, text: String): Boolean {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
     return runCatching {
-        val clip = ClipData.newPlainText("Amber diagnostics", text)
+        val clip = ClipData.newPlainText("Amber diagnostics", text) // English: a label for the system
         clip.description.extras = PersistableBundle().apply { putBoolean(SENSITIVE_EXTRA, true) }
         clipboard.setPrimaryClip(clip)
     }.isSuccess

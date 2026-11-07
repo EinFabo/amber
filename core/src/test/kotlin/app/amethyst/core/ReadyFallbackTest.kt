@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.Fallback
@@ -91,8 +92,8 @@ class ReadyFallbackTest {
     private fun text(t: String, engine: String) = Transcript(t, engine, if (engine == "local") TrustLevel.ON_DEVICE else TrustLevel.CLOUD, 0)
     private val serverText = Result.success(text("Okay, danke.", "server"))
     private val localText = Result.success(text("okay danke", "local"))
-    private val offline = SttFailure("No connection.", "unknown host", cause = IOException("unknown host"))
-    private val refusedKey = SttFailure("The API key was rejected.", "HTTP 401", statusCode = 401)
+    private val offline = SttFailure(Problem.NoConnection("test"), "unknown host", cause = IOException("unknown host"))
+    private val refusedKey = SttFailure(Problem.KeyRejected, "HTTP 401", statusCode = 401)
     private val recoverable: (Throwable?) -> SttFailure? = { Fallback.recoverable(it, TrustLevel.CLOUD, FallbackMode.AUTOMATIC) }
 
     @Test
@@ -150,7 +151,7 @@ class ReadyFallbackTest {
 
     @Test
     fun `a failed local text leaves the server to finish`() = runTest {
-        val failedLocal = CompletableDeferred<Result<Transcript>>(Result.failure(SttFailure("x", "model gone")))
+        val failedLocal = CompletableDeferred<Result<Transcript>>(Result.failure(SttFailure(Problem.LocalModelFailed, "model gone")))
         val outcome = ReadyFallback.race({ delay(20_000); serverText }, failedLocal, 4_000, recoverable)
         assertEquals(serverText, assertIs<ReadyFallback.Outcome.Server>(outcome).result)
         assertEquals(20_000, currentTime)
@@ -158,7 +159,7 @@ class ReadyFallbackTest {
 
     @Test
     fun `when both fail the server's failure is what is told`() = runTest {
-        val failedLocal = CompletableDeferred<Result<Transcript>>(Result.failure(SttFailure("x", "model gone")))
+        val failedLocal = CompletableDeferred<Result<Transcript>>(Result.failure(SttFailure(Problem.LocalModelFailed, "model gone")))
         val outcome = ReadyFallback.race({ Result.failure(offline) }, failedLocal, 4_000, recoverable)
         assertSame(offline, assertIs<ReadyFallback.Outcome.Server>(outcome).result.exceptionOrNull())
     }

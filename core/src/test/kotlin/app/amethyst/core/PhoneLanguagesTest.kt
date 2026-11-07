@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EnginePresets
@@ -152,7 +153,7 @@ class PhoneLanguagesTest {
             for (preset in listOf(EnginePresets.ANDROID_ON_DEVICE, EnginePresets.LOCAL_WHISPER, EnginePresets.GROQ)) {
                 val config = EngineConfig.fromPreset(preset, EngineConfig.defaultLanguageTag(preset.kind, phone))
                 val problems = EngineConfigValidator.validate(config, hasApiKey = true)
-                assertTrue(problems.none { "language" in it }, "$phone on ${preset.id}: $problems")
+                assertTrue(problems.none { it is ConfigIssue.InvalidLanguageCode }, "$phone on ${preset.id}: $problems")
             }
         }
     }

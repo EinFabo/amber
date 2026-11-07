@@ -14,8 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.stats.StatsSummary
@@ -54,30 +57,26 @@ fun StatsScreen(
 
     SubPage(modifier) {
         MainSwitch(
-            label = "Use statistics",
-            summary = "Counts and timings only, never what you said.",
+            label = stringResource(R.string.stats_use),
+            summary = stringResource(R.string.stats_use_summary),
             checked = settings.stats.keep,
             onChange = { on -> onUpdateSettings { it.copy(stats = it.stats.copy(keep = on)) } },
         )
-        LearnMore(
-            "Counts and timings are kept on this phone and not backed up. Off, nothing new is counted; " +
-                "what is there stays until you clear it.",
-        )
+        LearnMore(stringResource(R.string.stats_use_more))
 
         if (stats == null || stats.isEmpty) {
             SectionCard(title = null) {
-                Text("Nothing counted yet", style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
+                Text(stringResource(R.string.stats_nothing), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
                 Hint(
-                    if (settings.stats.keep) "Dictate once and your words, time saved and the apps you dictate into show up here."
-                    else "Statistics are off. Turn them on above to start counting.",
+                    stringResource(if (settings.stats.keep) R.string.stats_nothing_on else R.string.stats_nothing_off),
                 )
             }
         } else {
-            SectionCard(title = "This week") {
+            SectionCard(title = stringResource(R.string.stats_week)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Figure(formatCount(stats.wordsToday), "words today", Modifier.weight(1f))
-                    Figure(formatCount(stats.lastDays.sum()), "this week", Modifier.weight(1f))
-                    Figure(formatMinutes(stats.minutesSavedTotal), "saved so far", Modifier.weight(1f))
+                    Figure(formatCount(stats.wordsToday), stringResource(R.string.stats_words_today), Modifier.weight(1f))
+                    Figure(formatCount(stats.lastDays.sum()), stringResource(R.string.stats_this_week), Modifier.weight(1f))
+                    Figure(formatMinutes(stats.minutesSavedTotal), stringResource(R.string.stats_saved_so_far), Modifier.weight(1f))
                 }
                 Column {
                     DayBars(stats.lastDays)
@@ -85,7 +84,7 @@ fun StatsScreen(
                 }
             }
 
-            SectionCard(title = "Where your voice went") {
+            SectionCard(title = stringResource(R.string.stats_where)) {
                 val total = stats.totalDictations.toFloat()
                 listOf(TrustLevel.ON_DEVICE, TrustLevel.ENCLAVE_VERIFIED, TrustLevel.CLOUD).forEach { level ->
                     val count = stats.dictationsByTrust[level] ?: 0
@@ -96,7 +95,7 @@ fun StatsScreen(
             }
 
             if (stats.wordsByApp.isNotEmpty()) {
-                SectionCard(title = "Words per app") {
+                SectionCard(title = stringResource(R.string.stats_per_app)) {
                     val top = stats.wordsByApp.first().second.coerceAtLeast(1).toFloat()
                     stats.wordsByApp.take(MAX_APPS).forEach { (pkg, words) ->
                         ShareBar(appName(pkg), formatCount(words), words / top)
@@ -104,27 +103,32 @@ fun StatsScreen(
                 }
             }
 
-            SectionCard(title = "Waiting after you stop", subtitle = "Typical, measured on this phone.") {
+            SectionCard(title = stringResource(R.string.stats_waiting), subtitle = stringResource(R.string.stats_waiting_subtitle)) {
                 stats.medianWaitMs.entries.sortedBy { it.value }.forEach { (engine, ms) ->
                     ValueRow(engineName(engine), formatSeconds(ms))
                 }
             }
 
-            SectionCard(title = "Records") {
-                ValueRow("Days in a row", "${stats.streakDays}")
-                ValueRow("Longest dictation", formatSeconds(stats.longestAudioMs))
-                stats.speakingWpm?.let { ValueRow("Your speaking pace", "$it words a minute") }
-                ValueRow("Words in all", formatCount(stats.totalWords))
-                ValueRow("Dictations", formatCount(stats.totalDictations))
-                stats.firstDay?.let { ValueRow("Counting since", LocalDate.ofEpochDay(it).toString()) }
-                if (stats.costUsd > 0) ValueRow("Server costs, estimated", formatUsd(stats.costUsd))
+            SectionCard(title = stringResource(R.string.stats_records)) {
+                ValueRow(stringResource(R.string.stats_days_in_row), "${stats.streakDays}")
+                ValueRow(stringResource(R.string.stats_longest), formatSeconds(stats.longestAudioMs))
+                stats.speakingWpm?.let { ValueRow(stringResource(R.string.stats_pace), pluralStringResource(R.plurals.words_a_minute, it, it)) }
+                ValueRow(stringResource(R.string.stats_words_all), formatCount(stats.totalWords))
+                ValueRow(stringResource(R.string.stats_dictations), formatCount(stats.totalDictations))
+                stats.firstDay?.let {
+                    ValueRow(
+                        stringResource(R.string.stats_since),
+                        java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault()).format(LocalDate.ofEpochDay(it)),
+                    )
+                }
+                if (stats.costUsd > 0) ValueRow(stringResource(R.string.stats_costs), formatUsd(stats.costUsd))
             }
         }
 
-        SectionCard(title = "Time saved", subtitle = "Typing at your speed, against the time you spoke and waited.") {
+        SectionCard(title = stringResource(R.string.stats_time_saved), subtitle = stringResource(R.string.stats_time_saved_subtitle)) {
             StepSlider(
-                label = "Your typing speed",
-                valueText = "${settings.stats.typingWpm} words a minute",
+                label = stringResource(R.string.stats_typing_speed),
+                valueText = pluralStringResource(R.plurals.words_a_minute, settings.stats.typingWpm, settings.stats.typingWpm),
                 value = settings.stats.typingWpm,
                 range = 20..80,
                 step = 5,
@@ -132,7 +136,7 @@ fun StatsScreen(
             )
         }
 
-        if (stats != null && !stats.isEmpty) DangerAction("Clear statistics") { confirmClear = true }
+        if (stats != null && !stats.isEmpty) DangerAction(stringResource(R.string.stats_clear)) { confirmClear = true }
     }
 
     if (confirmClear) {
@@ -140,16 +144,16 @@ fun StatsScreen(
             onDismissRequest = { confirmClear = false },
             containerColor = AmberPalette.Surface,
             shape = AmberShapes.Card,
-            title = { Text("Clear statistics?", color = AmberPalette.Text) },
-            text = { Hint("All counts and timings are deleted from this phone.") },
+            title = { Text(stringResource(R.string.stats_clear_title), color = AmberPalette.Text) },
+            text = { Hint(stringResource(R.string.stats_clear_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmClear = false
                     onClear()
-                }) { Text("Clear", color = AmberPalette.Error) }
+                }) { Text(stringResource(R.string.clear), color = AmberPalette.Error) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("Cancel", color = AmberPalette.Muted) }
+                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
             },
         )
     }
@@ -178,32 +182,42 @@ internal fun ValueRow(label: String, value: String) {
     }
 }
 
-private fun TrustLevel.place(): String = when (this) {
-    TrustLevel.ON_DEVICE -> "On this phone"
-    TrustLevel.ENCLAVE_VERIFIED -> "Verified enclave"
-    TrustLevel.CLOUD -> "Server"
-}
+@Composable
+private fun TrustLevel.place(): String = stringResource(
+    when (this) {
+        TrustLevel.ON_DEVICE -> R.string.place_phone
+        TrustLevel.ENCLAVE_VERIFIED -> R.string.place_verified_enclave
+        TrustLevel.CLOUD -> R.string.place_server
+    },
+)
 
 private const val MAX_APPS = 5
 
-internal fun formatCount(n: Int): String = "%,d".format(Locale.US, n)
+/** "1,234" or "1.234", as the phone writes numbers. */
+internal fun formatCount(n: Int): String = "%,d".format(Locale.getDefault(), n)
 
+/** "800 ms", "1.2 s" (or "1,2 s"), "2 min 5 s"; a no-break space keeps number and unit together. */
+@Composable
 internal fun formatSeconds(ms: Long): String = when {
-    // A no-break space keeps the number and its unit on one line.
-    ms < 1_000 -> "$ms\u00A0ms"
-    ms < 60_000 -> "%.1f\u00A0s".format(Locale.US, ms / 1000.0)
-    else -> "${ms / 60_000} min ${ms / 1000 % 60} s"
-}
+    ms < 1_000 -> stringResource(R.string.duration_ms, ms.toInt())
+    ms < 60_000 -> stringResource(R.string.duration_s, "%.1f".format(Locale.getDefault(), ms / 1000.0))
+    else -> stringResource(R.string.duration_min_s, (ms / 60_000).toInt(), (ms / 1000 % 60).toInt())
+}.replace(' ', '\u00A0')
 
+@Composable
 internal fun formatMinutes(minutes: Double): String = when {
-    minutes < 1 -> "${(minutes * 60).toInt()} s"
-    minutes < 90 -> "${minutes.toInt()} min"
-    else -> "%.1f h".format(Locale.US, minutes / 60)
+    minutes < 1 -> stringResource(R.string.duration_s, (minutes * 60).toInt().toString())
+    minutes < 90 -> stringResource(R.string.duration_min, minutes.toInt())
+    else -> stringResource(R.string.duration_h, "%.1f".format(Locale.getDefault(), minutes / 60))
 }
 
+@Composable
 internal fun formatMinutesSaved(minutes: Double): String =
-    if (minutes < 1) "under a minute saved" else "about ${formatMinutes(minutes)} saved"
+    if (minutes < 1) stringResource(R.string.saved_under_minute) else stringResource(R.string.saved_about, formatMinutes(minutes))
 
-internal fun Int.daysInARow(): String = if (this == 1) "1 day in a row" else "$this days in a row"
+@Composable
+internal fun daysInARow(days: Int): String = pluralStringResource(R.plurals.days_in_a_row, days, days)
 
-private fun formatUsd(usd: Double): String = if (usd < 0.01) "under \$0.01" else "\$%.2f".format(Locale.US, usd)
+@Composable
+private fun formatUsd(usd: Double): String =
+    if (usd < 0.01) stringResource(R.string.usd_under_cent) else stringResource(R.string.usd, "%.2f".format(Locale.getDefault(), usd))

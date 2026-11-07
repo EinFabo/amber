@@ -1,5 +1,6 @@
 package app.amethyst.accessibility
 
+import app.amethyst.R
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -34,32 +35,32 @@ class QuickActionRunner(
     /** False when the action could not run - the dictation moved on, or there was nothing to do. */
     fun run(action: QuickAction, currentApp: String?): Boolean {
         if (!QuickActions.stillValid(action, phase())) {
-            toast("Too late - the dictation has moved on.")
+            toast(service.getString(R.string.quick_too_late))
             return false
         }
         val dictation = graph.dictation
         val app = otherApp(currentApp)
         // Each says what happened; copy, the cleanup switch and hiding say it themselves.
         val ran = when (action) {
-            QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast("Last dictation inserted.") }
+            QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast(service.getString(R.string.quick_done_inserted)) }
             QuickAction.COPY_LAST -> dictation.copyLast()
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
             QuickAction.CLEANUP_ON_HERE -> app != null && cleanupHere(app, on = true)
             QuickAction.HIDE_HERE -> app?.let { hideIn(it); true } ?: false
-            QuickAction.CANCEL -> done("Dictation cancelled.") { dictation.cancel() }
-            QuickAction.SEND_WITHOUT_CLEANUP -> done("Sending without the cleanup.") { dictation.sendWithoutCleanup() }
-            QuickAction.START_OVER -> done("Recording again from the start.") { dictation.startOver() }
-            QuickAction.KEEP_AS_RECOGNIZED -> done("Keeping the text as recognized.") { dictation.keepAsRecognized() }
-            QuickAction.PAUSE -> dictation.pause().also { if (it) toast("Paused. Tap the bubble to send.") }
-            QuickAction.RESUME -> dictation.resume().also { if (it) toast("Listening again.") }
+            QuickAction.CANCEL -> done(R.string.quick_done_cancelled) { dictation.cancel() }
+            QuickAction.SEND_WITHOUT_CLEANUP -> done(R.string.quick_done_no_cleanup) { dictation.sendWithoutCleanup() }
+            QuickAction.START_OVER -> done(R.string.quick_done_start_over) { dictation.startOver() }
+            QuickAction.KEEP_AS_RECOGNIZED -> done(R.string.quick_done_as_recognized) { dictation.keepAsRecognized() }
+            QuickAction.PAUSE -> dictation.pause().also { if (it) toast(service.getString(R.string.quick_done_paused)) }
+            QuickAction.RESUME -> dictation.resume().also { if (it) toast(service.getString(R.string.quick_done_resumed)) }
         }
         if (ran) graph.bubbleEvents.tryEmit(BubbleEvent.QuickActionRun(action))
         return ran
     }
 
-    private fun done(message: String, action: () -> Unit): Boolean {
+    private fun done(message: Int, action: () -> Unit): Boolean {
         action()
-        toast(message)
+        toast(service.getString(message))
         return true
     }
 
@@ -93,7 +94,7 @@ class QuickActionRunner(
         graph.appScope.launch {
             graph.settingsStore.update { it.copy(profiles = AppProfiles.withCleanupHere(it.profiles, app, label, on)) }
         }
-        toast(if (on) "Cleanup on in $label." else "Cleanup off in $label.")
+        toast(service.getString(if (on) R.string.quick_done_cleanup_on else R.string.quick_done_cleanup_off, label))
         return true
     }
 

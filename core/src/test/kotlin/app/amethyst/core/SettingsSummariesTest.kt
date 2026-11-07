@@ -11,7 +11,9 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.InsertionSettings
+import app.amethyst.core.settings.InsertPart
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.settings.Summary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,11 +25,9 @@ class SettingsSummariesTest {
     private val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(tinfoil).withEngine(groq).withEngine(parakeet)
 
     @Test
-    fun `recognition names the engine without its note and where the voice goes`() {
-        assertEquals("Tinfoil · Enclave", SettingsSummaries.recognition(tinfoil, TrustLevel.ENCLAVE_VERIFIED))
-        assertEquals("Parakeet TDT · On device", SettingsSummaries.recognition(parakeet, TrustLevel.ON_DEVICE))
-        assertEquals("Groq · Cloud", SettingsSummaries.recognition(groq, TrustLevel.CLOUD))
-        assertEquals("None selected", SettingsSummaries.recognition(null, null))
+    fun `recognition names the engine and where the voice goes`() {
+        assertEquals(Summary.Recognition(tinfoil, TrustLevel.ENCLAVE_VERIFIED), SettingsSummaries.recognition(tinfoil, TrustLevel.ENCLAVE_VERIFIED))
+        assertEquals(Summary.NoneSelected, SettingsSummaries.recognition(null, null))
     }
 
     @Test
@@ -40,90 +40,77 @@ class SettingsSummariesTest {
     @Test
     fun `cleanup is the model's name, or off`() {
         val on = settings.copy(cleanup = CleanupChoice(tinfoil.id, "deepseek-v4-1-flash"))
-        assertEquals("DeepSeek V4.1 Flash", SettingsSummaries.cleanup(on))
-        assertEquals("Off", SettingsSummaries.cleanup(settings))
+        assertEquals(Summary.Name("DeepSeek V4.1 Flash"), SettingsSummaries.cleanup(on))
+        assertEquals(Summary.Off, SettingsSummaries.cleanup(settings))
     }
 
     @Test
     fun `cleanup on an unknown model shows the model as typed, on a removed engine it is off`() {
-        assertEquals("llama3.2", SettingsSummaries.cleanup(settings.copy(cleanup = CleanupChoice(groq.id, "llama3.2"))))
-        assertEquals("Off", SettingsSummaries.cleanup(settings.copy(cleanup = CleanupChoice("gone", "deepseek-v4-1-flash"))))
+        assertEquals(Summary.Name("llama3.2"), SettingsSummaries.cleanup(settings.copy(cleanup = CleanupChoice(groq.id, "llama3.2"))))
+        assertEquals(Summary.Off, SettingsSummaries.cleanup(settings.copy(cleanup = CleanupChoice("gone", "deepseek-v4-1-flash"))))
     }
 
     @Test
     fun `an app's own cleanup choice reads the same way`() {
-        assertEquals("Gemma 4 31B", SettingsSummaries.cleanup(settings, CleanupChoice(tinfoil.id, "gemma4-31b")))
+        assertEquals(Summary.Name("Gemma 4 31B"), SettingsSummaries.cleanup(settings, CleanupChoice(tinfoil.id, "gemma4-31b")))
     }
 
     @Test
     fun `voice commands say when the bubble they need is off`() {
-        assertEquals("Off", SettingsSummaries.commands(settings))
+        assertEquals(Summary.Off, SettingsSummaries.commands(settings))
         val on = settings.copy(commands = CommandSettings(enabled = true))
-        assertEquals("On", SettingsSummaries.commands(on))
-        assertEquals("On · the bubble is off", SettingsSummaries.commands(on.copy(bubble = BubbleSettings(enabled = false))))
-    }
-
-    @Test
-    fun `app styles count the apps`() {
-        assertEquals("None yet", SettingsSummaries.appStyles(0))
-        assertEquals("1 app", SettingsSummaries.appStyles(1))
-        assertEquals("6 apps", SettingsSummaries.appStyles(6))
+        assertEquals(Summary.On, SettingsSummaries.commands(on))
+        assertEquals(Summary.OnButBubbleOff, SettingsSummaries.commands(on.copy(bubble = BubbleSettings(enabled = false))))
     }
 
     @Test
     fun `the fallback names who steps in, and is not needed for a phone engine`() {
-        assertEquals("Parakeet, then Whisper", SettingsSummaries.fallback(settings, TrustLevel.CLOUD))
-        assertEquals("Off", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.OFF)), TrustLevel.CLOUD))
-        assertEquals("Groq", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, groq.id)), TrustLevel.ENCLAVE_VERIFIED))
-        assertEquals("Off", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, "gone")), TrustLevel.CLOUD))
-        assertEquals("Not needed", SettingsSummaries.fallback(settings, TrustLevel.ON_DEVICE))
+        assertEquals(Summary.Fallback(null, prepared = false), SettingsSummaries.fallback(settings, TrustLevel.CLOUD))
+        assertEquals(Summary.Off, SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.OFF)), TrustLevel.CLOUD))
+        assertEquals(Summary.Fallback(groq, prepared = false), SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, groq.id)), TrustLevel.ENCLAVE_VERIFIED))
+        assertEquals(Summary.Off, SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, "gone")), TrustLevel.CLOUD))
+        assertEquals(Summary.NotNeeded, SettingsSummaries.fallback(settings, TrustLevel.ON_DEVICE))
     }
 
     @Test
     fun `a fallback prepared on the phone says so, one on a server cannot be`() {
-        assertEquals("Parakeet, then Whisper · prepared", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(prepare = true)), TrustLevel.CLOUD))
-        assertEquals("Groq", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, groq.id, prepare = true)), TrustLevel.ENCLAVE_VERIFIED))
-        assertEquals("Off", SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.OFF, prepare = true)), TrustLevel.CLOUD))
+        assertEquals(Summary.Fallback(null, prepared = true), SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(prepare = true)), TrustLevel.CLOUD))
+        assertEquals(Summary.Fallback(groq, prepared = false), SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.ENGINE, groq.id, prepare = true)), TrustLevel.ENCLAVE_VERIFIED))
+        assertEquals(Summary.Off, SettingsSummaries.fallback(settings.copy(fallback = FallbackSettings(FallbackMode.OFF, prepare = true)), TrustLevel.CLOUD))
     }
 
     @Test
     fun `recording says when it stops`() {
-        assertEquals("Stops after 0.9 s silence", SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)))
-        assertEquals("Stops after 1.5 s silence", SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 1_500)))
-        assertEquals("Runs until you tap", SettingsSummaries.recording(CaptureSettings()))
+        assertEquals(Summary.StopsAfter(0.9), SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)))
+        assertEquals(Summary.StopsAfter(1.5), SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 1_500)))
+        assertEquals(Summary.RunsUntilTap, SettingsSummaries.recording(CaptureSettings()))
     }
 
     @Test
     fun `inserting lists what is added, or nothing`() {
-        assertEquals("Spaces, capitals, punctuation", SettingsSummaries.inserting(InsertionSettings()))
-        assertEquals("Capitals, clipboard", SettingsSummaries.inserting(InsertionSettings(autoSpace = false, gluePunctuation = false, allowClipboard = true)))
         assertEquals(
-            "As recognized",
+            Summary.Inserting(listOf(InsertPart.SPACES, InsertPart.CAPITALS, InsertPart.PUNCTUATION)),
+            SettingsSummaries.inserting(InsertionSettings()),
+        )
+        assertEquals(
+            Summary.Inserting(listOf(InsertPart.CAPITALS, InsertPart.CLIPBOARD)),
+            SettingsSummaries.inserting(InsertionSettings(autoSpace = false, gluePunctuation = false, allowClipboard = true)),
+        )
+        assertEquals(
+            Summary.Inserting(emptyList()),
             SettingsSummaries.inserting(InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false)),
         )
     }
 
     @Test
-    fun `reliability, diagnostics and the folded advanced row count in words`() {
-        assertEquals("All set", SettingsSummaries.reliability(0))
-        assertEquals("1 thing open", SettingsSummaries.reliability(1))
-        assertEquals("2 things open", SettingsSummaries.reliability(2))
-        assertEquals("Nothing dictated yet", SettingsSummaries.diagnostics(0))
-        assertEquals("Last 1 dictation", SettingsSummaries.diagnostics(1))
-        assertEquals("Last 12 dictations", SettingsSummaries.diagnostics(12))
-        assertEquals("4 more settings", SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 0))
-        assertEquals("Reliability: 1 thing open", SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 1))
-    }
-
-    @Test
-    fun `a folded engine counts its models`() {
-        assertEquals("1 model", SettingsSummaries.models(1))
-        assertEquals("3 models", SettingsSummaries.models(3))
+    fun `the folded advanced row names what needs a look before how much it holds`() {
+        assertEquals(Summary.MoreSettings(4), SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 0))
+        assertEquals(Summary.ReliabilityOpen(1), SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 1))
     }
 
     @Test
     fun `on and off are just that`() {
-        assertEquals("On", SettingsSummaries.onOff(true))
-        assertEquals("Off", SettingsSummaries.onOff(false))
+        assertEquals(Summary.On, SettingsSummaries.onOff(true))
+        assertEquals(Summary.Off, SettingsSummaries.onOff(false))
     }
 }

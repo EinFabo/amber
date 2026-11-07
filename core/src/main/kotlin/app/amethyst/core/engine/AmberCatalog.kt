@@ -45,8 +45,8 @@ data class AmberCatalog(
             else -> "Amber"
         }
 
-    /** The machine that answers for a model it no longer lists: "the PC", "the server". */
-    val machine: String get() = if (service == SERVICE_PC) "the PC" else "the server"
+    /** The machine that answers for a model it no longer lists: the PC, or the server. */
+    val machine: AmberMachine get() = if (service == SERVICE_PC) AmberMachine.PC else AmberMachine.SERVER
 
     companion object {
         const val SERVICE_PC = "amber-pc"
@@ -286,3 +286,6 @@ class CatalogThrottle(
 
     private fun key(engineId: String, baseUrl: String) = engineId + "\n" + AmberCatalog.fingerprint(baseUrl)
 }
+
+/** Which Amber machine a server is, for the texts that name it ("the PC", "the server"). */
+enum class AmberMachine { PC, SERVER }

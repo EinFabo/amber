@@ -76,14 +76,8 @@ class OtherAmbersTest {
     }
 
     @Test
-    fun `labels and the notice read plainly`() {
+    fun `labels read plainly`() {
         assertEquals("Amber", AmberVariant("app.amber").label)
         assertEquals("Amber (debug)", AmberVariant("app.amber.debug").label)
-        assertNull(OtherAmbers.notice(emptyList()))
-        assertEquals("Amber (debug) is also on - switch one off.", OtherAmbers.notice(listOf(AmberVariant("app.amber.debug"))))
-        assertEquals(
-            "Amber and Amber (beta) are also on - keep only one on.",
-            OtherAmbers.notice(listOf(AmberVariant("app.amber"), AmberVariant("app.amber.beta"))),
-        )
     }
 }

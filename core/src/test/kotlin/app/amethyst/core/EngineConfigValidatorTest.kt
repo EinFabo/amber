@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.EngineKind
@@ -45,8 +46,7 @@ class EngineConfigValidatorTest {
             openAiCompatible(baseUrl = "api.groq.com/openai/v1"),
             hasApiKey = true,
         )
-        assertEquals(1, missing.size)
-        assertContains(missing.single(), "http://")
+        assertEquals(listOf(ConfigIssue.AddressScheme(listOf("http://", "https://"))), missing)
     }
 
     @Test
@@ -74,9 +74,7 @@ class EngineConfigValidatorTest {
             hasApiKey = false,
         )
         assertEquals(3, missing.size, "expected url, model and key: $missing")
-        assertTrue(missing.any { it.contains("base URL") })
-        assertTrue(missing.any { it.contains("model name") })
-        assertTrue(missing.any { it.contains("API key") })
+        assertEquals(setOf(ConfigIssue.AddressMissing, ConfigIssue.ModelNameMissing, ConfigIssue.ApiKeyMissing), missing.toSet())
     }
 
     @Test
@@ -85,7 +83,7 @@ class EngineConfigValidatorTest {
             openAiCompatible(baseUrl = "https:///v1"),
             hasApiKey = true,
         )
-        assertTrue(missing.any { it.contains("host") }, "got $missing")
+        assertTrue(ConfigIssue.AddressNoHost in missing, "got $missing")
     }
 
     @Test
@@ -94,7 +92,7 @@ class EngineConfigValidatorTest {
             openAiCompatible(baseUrl = "https://api.groq.com /v1"),
             hasApiKey = true,
         )
-        assertTrue(missing.any { it.contains("space") }, "got $missing")
+        assertTrue(ConfigIssue.AddressHasSpace in missing, "got $missing")
     }
 
     @Test
@@ -107,7 +105,7 @@ class EngineConfigValidatorTest {
             modelId = "scribe_v2_realtime",
             apiKeyAlias = "key.elevenlabs",
         )
-        assertContains(EngineConfigValidator.validate(elevenlabs, hasApiKey = true).single(), "not supported")
+        assertEquals(ConfigIssue.NotSupported, EngineConfigValidator.validate(elevenlabs, hasApiKey = true).single())
     }
 
     @Test
@@ -116,10 +114,7 @@ class EngineConfigValidatorTest {
         assertTrue(EngineConfigValidator.isReady(config, hasApiKey = false))
 
         val withoutModel = config.copy(modelId = null)
-        assertContains(
-            EngineConfigValidator.validate(withoutModel, hasApiKey = false).single(),
-            "model",
-        )
+        assertEquals(ConfigIssue.NoModelSelected, EngineConfigValidator.validate(withoutModel, hasApiKey = false).single())
     }
 
     @Test
@@ -143,7 +138,7 @@ class EngineConfigValidatorTest {
         assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = "de-DE, en"), true))
         assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = WhisperInput.toggledLanguage("de", "en")), true))
         val problems = EngineConfigValidator.validate(openAiCompatible(languageTag = "de,deutsch bitte"), true)
-        assertContains(problems.single(), "deutsch bitte")
+        assertEquals(ConfigIssue.InvalidLanguageCode("deutsch bitte"), problems.single())
     }
 
     @Test
@@ -153,7 +148,7 @@ class EngineConfigValidatorTest {
 
         val broken = whisper.copy(languageTag = "de,english!")
         assertEquals(
-            listOf("\"english!\" is not a valid language code (e.g. de-DE or de)."),
+            listOf(ConfigIssue.InvalidLanguageCode("english!")),
             EngineConfigValidator.validate(broken, hasApiKey = false),
         )
     }

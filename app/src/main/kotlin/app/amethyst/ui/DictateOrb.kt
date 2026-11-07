@@ -28,10 +28,12 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
 import app.amethyst.bubble.Fire
 import app.amethyst.bubble.SparkField
 import app.amethyst.dictation.DictationState
@@ -75,6 +77,7 @@ fun DictateOrb(
     // schedule yet another frame.
     val lastFrame = remember { LongArray(1) }
     val working = state is DictationState.Transcribing
+    val description = stringResource(if (listening) R.string.stop_dictation else R.string.start_test_dictation)
     if (state is DictationState.Failed) sparks.clear()
 
     // Frames only while something moves: listening, working, and a short tail for the tick,
@@ -95,7 +98,7 @@ fun DictateOrb(
                 indication = null,
                 onClick = onClick,
             )
-            .semantics { contentDescription = if (listening) "Stop dictation" else "Start test dictation" },
+            .semantics { contentDescription = description },
     ) {
         val w = this.size.width
         val cx = w / 2

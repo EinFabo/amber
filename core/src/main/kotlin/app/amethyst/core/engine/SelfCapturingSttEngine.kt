@@ -24,7 +24,7 @@ interface SelfCapturingSttEngine : SttEngine {
     override suspend fun transcribe(audio: PcmAudio, options: TranscribeOptions): Result<Transcript> =
         Result.failure(
             SttFailure(
-                userMessage = "\"$displayName\" records by itself and cannot take a recording.",
+                problem = Problem.RecordsByItself(displayName),
                 technical = "$id is self-capturing; call listen() instead of transcribe()",
             ),
         )

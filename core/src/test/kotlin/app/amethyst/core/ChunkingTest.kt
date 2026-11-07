@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.capture.ChunkPlanner
 import app.amethyst.core.capture.PcmAccumulator
@@ -165,7 +166,7 @@ class ChunkingTest {
 
     @Test
     fun `a real failure falls back to the whole recording in one go`() = runTest {
-        val engine = ScriptedEngine(listOf(Result.success("Hallo"), Result.failure(SttFailure("boom", "x"))))
+        val engine = ScriptedEngine(listOf(Result.success("Hallo"), Result.failure(SttFailure(Problem.RecognitionFailed, "x"))))
         val chunked = ChunkedTranscription(engine, TranscribeOptions(languageTag = "de"), this)
         chunked.submit(audio(10))
         chunked.submit(audio(10))

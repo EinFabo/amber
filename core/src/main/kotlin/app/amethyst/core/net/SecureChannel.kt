@@ -1,6 +1,7 @@
 package app.amethyst.core.net
 
 import app.amethyst.core.engine.NotSentException
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
@@ -33,15 +34,15 @@ class SecureChannel(
     /** [host] is the attested host a pinned route may talk to; null for a plain route. */
     private class Route(val transport: HttpTransport, val trust: TrustLevel, val host: String? = null)
 
-    /** [what] names the payload in messages: "recording" or "text". */
-    suspend fun send(request: HttpRequest, what: String = "recording"): Result<Sent> {
+    /** [what] is the payload the messages name: the recording, or a text for the cleanup. */
+    suspend fun send(request: HttpRequest, what: Problem.Payload = Problem.Payload.RECORDING): Result<Sent> {
         var route = route(forceFresh = false, what).getOrElse { return Result.failure(it) }
         route.host?.let { attested ->
             if (!reaches(route, request.url)) {
                 val target = runCatching { URI(request.url) }.getOrNull()
                 return Result.failure(
                     SttFailure(
-                        userMessage = "The request did not go to the verified enclave. The $what was not sent.",
+                        problem = Problem.NotToVerifiedEnclave(what),
                         technical = "request ${target?.scheme}://${target?.host}, attested $attested",
                     ),
                 )
@@ -61,24 +62,23 @@ class SecureChannel(
         } catch (e: SSLPeerUnverifiedException) {
             Result.failure(
                 SttFailure(
-                    userMessage = "The server of \"$displayName\" does not hold the verified " +
-                        "enclave key. The $what was not sent.",
+                    problem = Problem.EnclaveKeyMismatch(displayName, what),
                     technical = "pin mismatch: ${e.message}",
                     cause = e,
                 ),
             )
         } catch (e: CleartextRefusedException) {
-            Result.failure(SttFailure(userMessage = e.message!!, technical = "cleartext refused: ${e.detail}", cause = e))
+            Result.failure(SttFailure(problem = Problem.UnencryptedRefused, technical = "cleartext refused: ${e.detail}", cause = e))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             Result.failure(
                 SttFailure(
                     // The call's own time limit; a socket timeout means no connection at all.
-                    userMessage = if (e is java.io.InterruptedIOException && e !is java.net.SocketTimeoutException) {
-                        "\"$displayName\" did not answer in time."
+                    problem = if (e is java.io.InterruptedIOException && e !is java.net.SocketTimeoutException) {
+                        Problem.NoAnswerInTime(displayName)
                     } else {
-                        "No connection to \"$displayName\"."
+                        Problem.NoConnection(displayName)
                     },
                     technical = e.toString(),
                     cause = e,
@@ -103,7 +103,7 @@ class SecureChannel(
      * cannot be verified is refused there, as always. [url] is never logged.
      */
     suspend fun warmUp(url: String): Boolean = try {
-        val route = route(forceFresh = false, what = "nothing").getOrNull()
+        val route = route(forceFresh = false, what = Problem.Payload.RECORDING).getOrNull()
         if (route == null || !reaches(route, url)) {
             false
         } else {
@@ -123,7 +123,7 @@ class SecureChannel(
         return target?.scheme == "https" && attested.equals(target.host, ignoreCase = true)
     }
 
-    private suspend fun route(forceFresh: Boolean, what: String): Result<Route> {
+    private suspend fun route(forceFresh: Boolean, what: Problem.Payload): Result<Route> {
         val verifier = verifier ?: return Result.success(Route(transport, plainTrust))
 
         val result = verify(verifier, forceFresh)
@@ -131,10 +131,10 @@ class SecureChannel(
         if (!result.verified || proof == null) {
             return Result.failure(
                 SttFailure(
-                    userMessage = if (result.unreachable) {
-                        "No connection to \"$displayName\"."
+                    problem = if (result.unreachable) {
+                        Problem.NoConnection(displayName)
                     } else {
-                        "The enclave of \"$displayName\" could not be verified. The $what was not sent."
+                        Problem.EnclaveNotVerified(displayName, what)
                     },
                     technical = "attestation: ${result.detail}",
                     // Offline is offline, enclave or not: a model on the phone may take over.
@@ -146,7 +146,7 @@ class SecureChannel(
         if (!proof.host.equals(host, ignoreCase = true)) {
             return Result.failure(
                 SttFailure(
-                    userMessage = "The verified enclave does not belong to the configured address.",
+                    problem = Problem.EnclaveOtherAddress,
                     technical = "attested ${proof.host}, endpoint $host",
                 ),
             )
@@ -154,7 +154,7 @@ class SecureChannel(
         val pinnable = transport as? PinnableTransport
             ?: return Result.failure(
                 SttFailure(
-                    userMessage = "This connection cannot be bound to the enclave.",
+                    problem = Problem.EnclaveCannotBind,
                     technical = "transport ${transport::class.simpleName} cannot pin",
                 ),
             )

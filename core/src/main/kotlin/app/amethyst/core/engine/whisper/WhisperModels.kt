@@ -1,5 +1,7 @@
 package app.amethyst.core.engine.whisper
 
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -177,14 +179,11 @@ object WhisperModelFile {
      */
     fun inspect(header: ByteArray): Result<WhisperModelInfo> {
         if (header.size < HEADER_BYTES) {
-            return failure("The file is too small to be a Whisper model.")
+            return failure(FileProblem.TooSmallForWhisper, "The file is too small to be a Whisper model.")
         }
         val buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
         if (buffer.getInt(0) != GGML_MAGIC) {
-            return failure(
-                "This is not a whisper.cpp model. Expected a .bin file " +
-                    "in ggml format, e.g. from FUTO.",
-            )
+            return failure(FileProblem.NotWhisperCpp, "This is not a whisper.cpp model (no ggml header).")
         }
         // Layout after the magic: n_vocab, n_audio_ctx, n_audio_state, n_audio_head,
         // n_audio_layer, n_text_ctx, n_text_state, n_text_head, n_text_layer, n_mels, ftype.
@@ -202,7 +201,7 @@ object WhisperModelFile {
             textLayers in 1..64 &&
             (mels == 80 || mels == 128)
         if (!plausible) {
-            return failure("The file has a ggml header but does not look like Whisper.")
+            return failure(FileProblem.NotWhisper, "The file has a ggml header but does not look like Whisper.")
         }
 
         return Result.success(
@@ -215,6 +214,6 @@ object WhisperModelFile {
         )
     }
 
-    private fun failure(message: String): Result<WhisperModelInfo> =
-        Result.failure(IllegalArgumentException(message))
+    private fun failure(problem: FileProblem, detail: String): Result<WhisperModelInfo> =
+        Result.failure(ModelFileException(problem, detail))
 }

@@ -1,6 +1,9 @@
 package app.amethyst.ui
 
+import android.content.Context
 import app.amethyst.Graph
+import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.SelfCapturingSttEngine
@@ -19,7 +22,7 @@ import kotlin.math.sin
  * error would be the most confusing thing this screen could do, so it is translated back
  * into a pass.
  */
-class ConnectionTester(private val graph: Graph) {
+class ConnectionTester(private val graph: Graph, private val context: Context) {
 
     sealed interface Result {
         data class Ok(val detail: String) : Result
@@ -28,11 +31,11 @@ class ConnectionTester(private val graph: Graph) {
 
     suspend fun test(config: EngineConfig): Result {
         val engine = graph.engineFactory.create(config).getOrElse { error ->
-            return Result.Failed((error as? SttFailure)?.userMessage ?: error.message.orEmpty())
+            return Result.Failed(Texts.failure(context, error))
         }
 
         if (engine is SelfCapturingSttEngine) {
-            return Result.Ok("Runs on the device - no connection test needed.")
+            return Result.Ok(context.getString(R.string.test_runs_on_phone))
         }
 
         return try {
@@ -44,27 +47,28 @@ class ConnectionTester(private val graph: Graph) {
             // For an enclave engine the round trip only counts if it went over the attested key;
             // say which way it went, so a test can never pass silently as plain CLOUD.
             val enclave = (engine as? OpenAiCompatibleEngine)?.attestation()?.let { attestation ->
-                if (attestation.verified) " Enclave verified: ${attestation.detail}." else ""
-            }.orEmpty()
+                if (attestation.verified) context.getString(R.string.test_enclave_verified, attestation.detail) else null
+            }
+            fun withEnclave(text: String) = listOfNotNull(text, enclave).joinToString(" ")
             outcome.fold(
                 onSuccess = { transcript ->
-                    val served = transcript.servedBy?.let { " (via $it)" }.orEmpty()
-                    Result.Ok("Answer after ${transcript.latencyMs} ms$served: \"${transcript.text.take(40)}\".$enclave")
+                    val heard = transcript.text.take(40)
+                    val answer = transcript.servedBy?.let { context.getString(R.string.test_answer_via, transcript.latencyMs, heard, it) }
+                        ?: context.getString(R.string.test_answer, transcript.latencyMs, heard)
+                    Result.Ok(withEnclave(answer))
                 },
                 onFailure = { error ->
                     val failure = error as? SttFailure
                     if (failure != null && failure.nothingRecognized) {
                         Result.Ok(
                             if (local) {
-                                "The model runs. The test clip contains no speech, so no text came " +
-                                    "back, but it did compute."
+                                context.getString(R.string.test_model_runs)
                             } else {
-                                "The connection works. The test clip contains no speech, " +
-                                    "so no text came back.$enclave"
+                                withEnclave(context.getString(R.string.test_connection_works))
                             },
                         )
                     } else {
-                        Result.Failed(failure?.userMessage ?: error.message.orEmpty())
+                        Result.Failed(Texts.failure(context, error))
                     }
                 },
             )

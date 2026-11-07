@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -74,6 +75,6 @@ class ParakeetTest {
         assertTrue(assertIs<SttFailure>(empty.exceptionOrNull()).nothingRecognized)
 
         val crash = engine(FakeRuntime(fail = IllegalStateException("onnx"))).transcribe(PcmAudio(ShortArray(16_000)), TranscribeOptions())
-        assertTrue(assertIs<SttFailure>(crash.exceptionOrNull()).userMessage.contains("local model"))
+        assertEquals(Problem.LocalModelFailed, assertIs<SttFailure>(crash.exceptionOrNull()).problem)
     }
 }

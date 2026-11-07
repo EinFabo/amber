@@ -46,8 +46,20 @@ series and one store release per phase, each after his OK.
       off for new installs, the introduction's "how a dictation ends" step gone. Open: the device
       test (upgrade with commands on, simple vs advanced, fresh install). Decide (Fabi): drop
       `canPerformGestures` from the service config while the commands are off.
-- [ ] **P4 - UI language**: texts into string resources, `values-de`, `locales_config`; plain
-      words from a glossary Fabi approves (`docs/GLOSSARY.md`). Diagnostics stay English.
+- [ ] **P4 - UI language**, built 2026-11-07: every screen, toast and message in string
+      resources, English and German (about 770 texts); the app follows the phone's language, and
+      Android 13+ lists it per app (locale config generated, only en and de packed). Words from
+      `docs/GLOSSARY.md` (Fabi, 2026-11-07: model and fallback stay, the bubble is the bubble
+      everywhere - the introduction no longer says flame). `:core` gives values instead of
+      sentences (`Problem`, `ConfigIssue`, `FileProblem`, `Summary`, `UpdateSummary`,
+      `LastCheck`, `EngineName`), worded by `Texts.kt`; preset and model notes by their English
+      text (`strings_catalog.xml`). Diagnostics, logs and the cleanup prompt stay English; a
+      failed dictation is recorded in English, shown in the phone's language.
+      `tools/check_strings.py` (same keys and placeholders, no English sentence in a screen,
+      catalog texts still in :core); German screenshots in `app/build/screenshots-de`.
+      Open: the device test on a German and an English phone, and Android's per-app language.
+- [ ] **Voice commands in German too**, once they come back (Fabi, 2026-11-07): `Commands.kt`,
+      `CommandExecutor`, the command toasts in `DictationController` stay English while hidden.
 - [ ] **P5 - One "Server" entry + app-side security** (schema 13): one addable Server with
       profiles, auto-detected; Tinfoil separate. Done ahead (2026-11-06): http to public addresses
       refused at request time (`CleartextGuard`). Open: key bound to host, `Redact.url`, response

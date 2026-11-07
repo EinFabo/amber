@@ -1,5 +1,7 @@
 package app.amethyst.core.engine.whisper
 
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelFileException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +38,7 @@ class ModelSlots(
 
         data class Ready(val info: WhisperModelInfo, val sizeBytes: Long) : SlotState
 
-        data class Failed(val message: String) : SlotState
+        data class Failed(val problem: FileProblem) : SlotState
     }
 
     private val _states = MutableStateFlow(ids.associateWith(inspect))
@@ -91,7 +93,7 @@ class ModelSlots(
                 id,
                 result.fold(
                     onSuccess = { (info, size) -> SlotState.Ready(info, size) },
-                    onFailure = { error -> SlotState.Failed(error.message ?: "Unknown error") },
+                    onFailure = { error -> SlotState.Failed(FileProblem.of(error)) },
                 ),
             )
             synchronized(jobs) { if (jobs[id] === job) jobs.remove(id) }

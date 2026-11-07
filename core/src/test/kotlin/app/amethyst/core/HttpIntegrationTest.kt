@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.OpenAiCompatibleEngine
@@ -124,7 +125,7 @@ class HttpIntegrationTest {
             engine().transcribe(speechLikeAudio()).exceptionOrNull(),
         )
         assertEquals(401, failure.statusCode)
-        assertContains(failure.userMessage, "rejected")
+        assertEquals(Problem.KeyRejected, failure.problem)
         assertContains(failure.technical, "invalid api key")
     }
 
@@ -144,7 +145,7 @@ class HttpIntegrationTest {
         val failure = assertIs<SttFailure>(
             unreachable.transcribe(speechLikeAudio()).exceptionOrNull(),
         )
-        assertContains(failure.userMessage, "No connection")
+        assertIs<Problem.NoConnection>(failure.problem)
     }
 
     private fun indexOfBytes(haystack: ByteArray, needle: ByteArray): Int {

@@ -27,6 +27,8 @@ def load(folder):
             name = el.get("name")
             if el.get("translatable") == "false":
                 continue
+            if el.tag in ("string", "plurals") and name in found:
+                errors.append(f"{folder}: {name} is defined twice")
             if el.tag == "string":
                 found[name] = {"": "".join(el.itertext())}
             elif el.tag == "plurals":
@@ -54,6 +56,10 @@ for name in sorted(en.keys() - de.keys()):
     errors.append(f"values-de: missing {name}")
 for name in sorted(de.keys() - en.keys()):
     errors.append(f"values-de: {name} is not in values (left over?)")
+for lang, texts in (("values", en), ("values-de", de)):
+    for name, forms in texts.items():
+        if any(t != t.strip() for t in forms.values()):
+            errors.append(f"{lang}: {name} starts or ends with a space, which Android drops")
 for name in sorted(en.keys() & de.keys()):
     en_ph = {p for t in en[name].values() for p in placeholders(t)}
     de_ph = {p for t in de[name].values() for p in placeholders(t)}
@@ -62,12 +68,28 @@ for name in sorted(en.keys() & de.keys()):
     if "" not in en[name] and "other" not in de[name]:
         errors.append(f"{name}: German plural has no 'other'")
 
+# The catalog's English texts are looked up by their exact text in :core (Texts.catalog): each
+# must still be there, or that name or note silently stays English.
+core_text = ""
+for f in sorted((root / "core/src/main/kotlin").rglob("*.kt")):
+    core_text += f.read_text(encoding="utf-8")
+core_text = re.sub(r'"\s*\+\s*\n\s*"', "", core_text).replace('\\"', '"').replace("\\$", "$")
+for f in sorted((res / "values").glob("strings_catalog.xml")):
+    for el in ET.parse(f).getroot():
+        text = re.sub(r"\\(['\"@?])", r"\1", "".join(el.itertext()))  # Android's escapes, as getString returns it
+        if f'"{text}"' not in core_text:
+            errors.append(f"{f.relative_to(root)}: {el.get('name')} is no longer a text in :core: \"{text[:50]}\"")
+
 # English sentences left in the screens. A literal with a capital, a word and a space after
 # it is user text unless the line says otherwise.
 UI = root / "app/src/main/kotlin/app/amethyst/ui"
-# Hidden with the voice commands (Features.VOICE_COMMANDS); English until they come back.
-SKIP = {"Commands.kt"}
+# Hidden with the voice commands (Features.VOICE_COMMANDS), English until they come back; and
+# the icons, whose names are code.
+SKIP = {"Commands.kt", "AmberIcons.kt"}
 SENTENCE = re.compile(r'"((?:[^"\\$]|\\.|\$\{[^}]*\}|\$\w+)*[A-Za-z]{2,}[ ,.:?!][^"]*)"')
+# One capitalized word ("Reset") is a label too - unless it is a name.
+WORD = re.compile(r'"([A-Z][a-z]+)"')
+NAMES = {"Amber", "Whisper", "Parakeet", "Tinfoil", "Groq", "Voxtral", "Android", "GitHub", "Apache", "Google"}
 for f in sorted(UI.rglob("*.kt")):
     if f.name in SKIP:
         continue
@@ -81,8 +103,14 @@ for f in sorted(UI.rglob("*.kt")):
                 or "// English:" in line:
             continue
         code = line.split(" // ")[0]
+        for m in WORD.finditer(code):
+            if m.group(1) not in NAMES:
+                errors.append(f"{f.relative_to(root)}:{i}: English text in code: \"{m.group(1)}\"")
         for m in SENTENCE.finditer(code):
             text = m.group(1)
+            # Few letters among digits and symbols: a path or a pattern, not a sentence.
+            if len(re.findall(r"(?<![\w])[A-Za-z][a-z]+(?![\w])", text)) < 2 and not re.search(r"[a-z]{3,} [a-z]{2,}", text):
+                continue
             if not re.search(r"[A-Za-z]{2,}", re.sub(r"\$\{[^}]*\}|\$\w+", "", text)):
                 continue
             if re.fullmatch(r"[\w.\-/:%]+", text):  # ids, keys, urls

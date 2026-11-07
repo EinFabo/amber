@@ -1,5 +1,6 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.commands.CommandLanguages
 import app.amethyst.core.commands.Understanding
@@ -257,7 +258,7 @@ class CommandLanguagesTest {
 
     @Test
     fun `an engine error stops the attempts and stands`() = runTest {
-        val broken = SttFailure("The local model failed to run.", "whisper transcribe: whisper_full returned -7")
+        val broken = SttFailure(Problem.LocalModelFailed, "whisper transcribe: whisper_full returned -7")
         val engine = FakeEngine(mapOf("de" to Result.failure(broken), "en" to Result.success("Open WhatsApp.")), whisperLike)
         val recognition = recognize(engine)
         assertEquals(broken, recognition.result.exceptionOrNull())
@@ -266,7 +267,7 @@ class CommandLanguagesTest {
 
     @Test
     fun `an engine error after words keeps the words`() = runTest {
-        val broken = SttFailure("The local model failed to run.", "whisper transcribe: whisper_full returned -7")
+        val broken = SttFailure(Problem.LocalModelFailed, "whisper transcribe: whisper_full returned -7")
         val engine = FakeEngine(mapOf("de" to Result.success("Hallo du."), "en" to Result.failure(broken)), whisperLike)
         assertEquals("Hallo du.", recognize(engine).result.getOrThrow().text)
     }

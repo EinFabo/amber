@@ -23,10 +23,10 @@ data class ServerProvider(
     /** Models to pick from: a known service's, or the ones an Amber server listed. */
     val hasModelList: Boolean = hosts.isNotEmpty(),
     /**
-     * For a list the server sent itself, the machine that answers for a model no longer on it:
-     * "the PC", "the server". Null for the lists this app keeps.
+     * For a list the server sent itself, the machine that answers for a model no longer on it.
+     * Null for the lists this app keeps.
      */
-    val listedBy: String? = null,
+    val listedBy: AmberMachine? = null,
     /**
      * Its chat endpoint streams a reply (`"stream": true`, server-sent events), so the ring can
      * follow a cleanup as it is written. Amber PC's answers in one piece; an own server's is
@@ -45,11 +45,11 @@ data class ServerProvider(
      * still sent, and the server answers with its default. Null when it is listed, when none
      * is chosen, and for the lists this app keeps - a model typed for Groq is the user's own.
      */
-    fun notOfferedNote(id: String?, models: List<ModelChoice>): String? {
+    fun notOfferedBy(id: String?, models: List<ModelChoice>): AmberMachine? {
         val by = listedBy ?: return null
         val chosen = id?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (models.any { it.id == chosen }) return null
-        return "Not offered by $by any more - it uses its default instead"
+        return by
     }
 }
 

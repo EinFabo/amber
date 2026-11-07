@@ -22,7 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.ModelDownload
@@ -135,14 +137,14 @@ private fun StepLine(step: OnboardingStep, settings: AmethystSettings, onBack: (
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (onBack != null) IconAction(onClick = onBack, contentDescription = "Back", glyph = BackGlyph) else Spacer(Modifier.size(44.dp))
+        if (onBack != null) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph) else Spacer(Modifier.size(44.dp))
         Text(
-            "Step $position of $total",
+            stringResource(R.string.step_of, position, total),
             style = MaterialTheme.typography.labelLarge,
             color = AmberPalette.Muted,
             modifier = Modifier.weight(1f),
         )
-        if (onSkip != null) GhostButton("Skip", onSkip, color = AmberPalette.Muted)
+        if (onSkip != null) GhostButton(stringResource(R.string.skip), onSkip, color = AmberPalette.Muted)
     }
 }
 

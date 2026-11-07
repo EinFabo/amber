@@ -136,11 +136,6 @@ class QuickActionsTest {
     }
 
     @Test
-    fun `labels are short enough for a thumb's glance`() {
-        for (action in QuickAction.entries) assertTrue(action.label.length <= 16, action.label)
-    }
-
-    @Test
     fun `an empty slot stays empty`() {
         assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[2])
         assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[3])

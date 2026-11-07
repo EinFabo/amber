@@ -31,29 +31,32 @@ enum class CleanupHere {
     NOT_SET_UP,
 }
 
-/** What the quick menu can do. [label]: the name the menu shows, verb first, short. */
-enum class QuickAction(val label: String, private val phases: Set<QuickPhase>) {
-    INSERT_AGAIN("Insert again", setOf(QuickPhase.IDLE)),
-    COPY_LAST("Copy last", setOf(QuickPhase.IDLE)),
-    CLEANUP_OFF_HERE("Cleanup off here", setOf(QuickPhase.IDLE)),
-    CLEANUP_ON_HERE("Cleanup on here", setOf(QuickPhase.IDLE)),
-    HIDE_HERE("Hide here", setOf(QuickPhase.IDLE)),
+/**
+ * What the quick menu can do. The name each button shows (verb first, short) is in the app's
+ * strings (bubble/QuickMenuView.kt).
+ */
+enum class QuickAction(private val phases: Set<QuickPhase>) {
+    INSERT_AGAIN(setOf(QuickPhase.IDLE)),
+    COPY_LAST(setOf(QuickPhase.IDLE)),
+    CLEANUP_OFF_HERE(setOf(QuickPhase.IDLE)),
+    CLEANUP_ON_HERE(setOf(QuickPhase.IDLE)),
+    HIDE_HERE(setOf(QuickPhase.IDLE)),
 
     /** Throws the run away, recording or not. */
-    CANCEL("Cancel", setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
+    CANCEL(setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
 
     /** Stops the recording; the words go in as recognized, without the cleanup. */
-    SEND_WITHOUT_CLEANUP("No cleanup", setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
+    SEND_WITHOUT_CLEANUP(setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
 
     /** Throws the recording away and starts a new one. */
-    START_OVER("Start over", setOf(QuickPhase.RECORDING)),
+    START_OVER(setOf(QuickPhase.RECORDING)),
 
     /** The text goes in as recognized; a cleanup on its way is dropped. */
-    KEEP_AS_RECOGNIZED("As recognized", setOf(QuickPhase.WORKING)),
+    KEEP_AS_RECOGNIZED(setOf(QuickPhase.WORKING)),
 
     /** Nothing heard is kept until [RESUME]; the microphone stays open. A tap still sends. */
-    PAUSE("Pause", setOf(QuickPhase.RECORDING)),
-    RESUME("Resume", setOf(QuickPhase.RECORDING)),
+    PAUSE(setOf(QuickPhase.RECORDING)),
+    RESUME(setOf(QuickPhase.RECORDING)),
     ;
 
     fun validIn(phase: QuickPhase): Boolean = phase in phases

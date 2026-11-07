@@ -82,38 +82,62 @@ object UpdatePolicy {
     }
 
     /** The Updates row in the settings list. A failed check is not news there. */
-    fun summary(channel: ReleaseChannel, updates: UpdateSettings, installed: String): String = when {
-        !channel.checksForUpdates -> "From where you installed Amber"
-        !updates.enabled -> "Off"
-        else -> available(channel, updates, installed)?.let { "${it.version} available" } ?: "Checks GitHub once a day"
+    fun summary(channel: ReleaseChannel, updates: UpdateSettings, installed: String): UpdateSummary = when {
+        !channel.checksForUpdates -> UpdateSummary.FromInstaller
+        !updates.enabled -> UpdateSummary.Off
+        else -> available(channel, updates, installed)?.let { UpdateSummary.Available(it.version) } ?: UpdateSummary.Daily
     }
 
     /**
      * The Updates page's line about the last check: when, and what it found. Switched off, it
      * only says when - nothing is retried then, and no release shows as available.
      */
-    fun lastCheck(updates: UpdateSettings, installed: String, now: Long): String {
-        if (updates.lastCheckedAt <= 0L) return "Not yet"
+    fun lastCheck(updates: UpdateSettings, installed: String, now: Long): LastCheck {
+        if (updates.lastCheckedAt <= 0L) return LastCheck.NotYet
         val ago = ago(updates.lastCheckedAt, now)
         if (updates.lastCheckFailed) {
-            val (what, retry) = if (updates.lastCheckOffline) "No connection" to "within an hour" else "Failed" to "within a day"
-            return if (updates.enabled) "$what $ago · retried $retry" else "$what $ago"
+            return LastCheck.Failed(ago, offline = updates.lastCheckOffline, retried = updates.enabled)
         }
-        if (!updates.enabled) return ago
+        if (!updates.enabled) return LastCheck.Done(ago, found = null)
         val newer = available(ReleaseChannel.GITHUB, updates, installed)
-        return "$ago · ${newer?.let { "${it.version} available" } ?: "up to date"}"
+        return LastCheck.Done(ago, found = newer?.version ?: "")
     }
 
     /** "just now", "5 minutes ago", "3 hours ago", "2 days ago". A time ahead of [now] is just now. */
-    fun ago(at: Long, now: Long): String {
+    fun ago(at: Long, now: Long): Ago {
         val elapsed = now - at
         return when {
-            elapsed < MINUTE_MS -> "just now"
-            elapsed < HOUR_MS -> count(elapsed / MINUTE_MS, "minute")
-            elapsed < INTERVAL_MS -> count(elapsed / HOUR_MS, "hour")
-            else -> count(elapsed / INTERVAL_MS, "day")
+            elapsed < MINUTE_MS -> Ago(0, Ago.Scale.JUST_NOW)
+            elapsed < HOUR_MS -> Ago(elapsed / MINUTE_MS, Ago.Scale.MINUTES)
+            elapsed < INTERVAL_MS -> Ago(elapsed / HOUR_MS, Ago.Scale.HOURS)
+            else -> Ago(elapsed / INTERVAL_MS, Ago.Scale.DAYS)
         }
     }
+}
 
-    private fun count(n: Long, unit: String) = "$n $unit${if (n == 1L) "" else "s"} ago"
+/** The Updates row's state, worded by the app. */
+sealed interface UpdateSummary {
+    /** A store or an adb install: that is where updates come from. */
+    data object FromInstaller : UpdateSummary
+    data object Off : UpdateSummary
+    data class Available(val version: String) : UpdateSummary
+
+    /** Checks GitHub once a day. */
+    data object Daily : UpdateSummary
+}
+
+/** When the last update check ran and what it found, worded by the app. */
+sealed interface LastCheck {
+    data object NotYet : LastCheck
+
+    /** [retried]: within an hour when [offline], else within a day; not at all while switched off. */
+    data class Failed(val ago: Ago, val offline: Boolean, val retried: Boolean) : LastCheck
+
+    /** [found]: the newer version, "" for up to date, null while switched off (only when). */
+    data class Done(val ago: Ago, val found: String?) : LastCheck
+}
+
+/** How long ago, in whole [scale]s. */
+data class Ago(val count: Long, val scale: Scale) {
+    enum class Scale { JUST_NOW, MINUTES, HOURS, DAYS }
 }
