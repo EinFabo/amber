@@ -105,6 +105,12 @@ series and one store release per phase, each after his OK.
 
 ## In progress: bubble and keyboard
 
+- [ ] **Android's recognizer at the bubble is laggy and buggy** (Fabi, 2026-11-07): dictating
+      with Android's own recognition through the bubble stutters and misbehaves. Find the cause
+      with live logs before changing anything - candidates: the recognizer's callbacks on the
+      main thread next to the bubble's overlay updates, partial results redrawing the bubble too
+      often, the self-capturing path (`listenWithEngine`) vs. the proxy activity's microphone
+      handover, the amplitude ring fed from `onRmsChanged`.
 - [ ] **Set up wireless debugging**, so the keyboard measurements can be read live with
       `adb logcat -s Amber:V`. Pairing needs: pairing IP:port + 6-digit code, and the
       connection IP:port.
