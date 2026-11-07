@@ -62,7 +62,6 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.KeyBinding
-import app.amethyst.core.engine.ServerProvider
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.sherpa.ParakeetModel
@@ -250,12 +249,6 @@ fun EngineDetailScreen(
                     },
                 ) {
                     if (!fixedAddress) {
-                        ServerQuickPicks(provider) { quick ->
-                            val pointed = Servers.pointAt(edited(), quick)
-                            baseUrl = pointed.baseUrl.orEmpty()
-                            modelId = pointed.modelId.orEmpty()
-                            onSave(pointed)
-                        }
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { typed ->
@@ -312,6 +305,12 @@ fun EngineDetailScreen(
                             onValueChange = {
                                 apiKey = it
                                 keyEdited = true
+                                // A Groq or OpenAI key with no address yet: its service's address and model.
+                                if (baseUrl.isBlank()) Servers.quickForKey(it)?.let { quick ->
+                                    val pointed = Servers.pointAt(edited(), quick)
+                                    baseUrl = pointed.baseUrl.orEmpty()
+                                    modelId = pointed.modelId.orEmpty()
+                                }
                             },
                             label = { Text(stringResource(if (optional) R.string.server_key_optional else R.string.engine_api_key)) },
                             singleLine = true,
@@ -838,19 +837,5 @@ private fun ProofRow(label: String, value: String, color: Color = AmberPalette.T
             color = color,
             modifier = Modifier.weight(1f),
         )
-    }
-}
-
-/**
- * One tap to a known service - its address and model filled in - or your own address. The lit
- * one is what the saved address is.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ServerQuickPicks(current: ServerProvider, onPick: (Servers.Quick) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Servers.QUICK.forEach { quick ->
-            ChoiceChip(quick.provider.name, null, on = current === quick.provider) { onPick(quick) }
-        }
     }
 }

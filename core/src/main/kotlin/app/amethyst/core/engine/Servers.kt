@@ -52,6 +52,19 @@ object Servers {
     data class Quick(val provider: ServerProvider, val baseUrl: String, val modelId: String)
 
     /**
+     * The known service a pasted [key] belongs to, by its prefix - Groq's start with "gsk_",
+     * OpenAI's with "sk-" - so a key alone fills in the address. Null for anything else.
+     */
+    fun quickForKey(key: String): Quick? {
+        val k = key.trim()
+        return when {
+            k.startsWith("gsk_") -> QUICK.first { it.provider == ServerProviders.GROQ }
+            k.startsWith("sk-") && !k.startsWith("sk-ant-") -> QUICK.first { it.provider == ServerProviders.OPENAI }
+            else -> null
+        }
+    }
+
+    /**
      * [engine] pointed at [quick]'s service: its address, and its recommended model unless the
      * one chosen is that service's too. The key stays bound to where it was given.
      */

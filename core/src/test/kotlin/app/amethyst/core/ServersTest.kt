@@ -56,6 +56,14 @@ class ServersTest {
     }
 
     @Test
+    fun `a groq or openai key alone says which service it is`() {
+        assertEquals(ServerProviders.GROQ, Servers.quickForKey(" gsk_abc123")?.provider)
+        assertEquals(ServerProviders.OPENAI, Servers.quickForKey("sk-proj-abc")?.provider)
+        assertEquals(null, Servers.quickForKey("sk-ant-api03-abc"), "an Anthropic key is no OpenAI key")
+        assertEquals(null, Servers.quickForKey("abcdefghjkmnpqrstuvw"))
+    }
+
+    @Test
     fun `a key is needed at a known service, optional at an own server`() {
         val server = Servers.newServer("server-1", null)
         assertTrue(Servers.keyRequired(server.copy(baseUrl = "https://api.openai.com/v1")))
