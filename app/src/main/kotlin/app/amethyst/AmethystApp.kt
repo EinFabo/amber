@@ -8,6 +8,7 @@ import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.RecognitionEstimate
@@ -179,6 +180,27 @@ class Graph(app: Application) {
 
     init {
         appScope.launch(Dispatchers.IO) { recognitionEstimate.restore(estimateStore.load()) }
+        appScope.launch(Dispatchers.IO) { moveAmberPathKeys() }
+    }
+
+    /**
+     * An Amber PC or Amber Server stored with its key in the address's path gets the two apart,
+     * once: the key into the encrypted store first, then the address without it. Done again on
+     * every start until nothing is left to move, so a crash between the two loses nothing.
+     */
+    private suspend fun moveAmberPathKeys() {
+        try {
+            val (_, moves) = AmberAddress.movePathKeys(settingsStore.settings.first())
+            if (moves.isEmpty()) return
+            moves.forEach { move -> secretStore.put(move.alias, move.key) }
+            settingsStore.update { AmberAddress.movePathKeys(it).first }
+            // Never the address or the key: only that it happened.
+            android.util.Log.i("Amber", "moved the key out of ${moves.size} Amber server address(es)")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("Amber", "Amber server keys not moved: ${e.javaClass.simpleName}")
+        }
     }
 
     /** Keeps what [recognitionEstimate] learned, off the caller's thread. */

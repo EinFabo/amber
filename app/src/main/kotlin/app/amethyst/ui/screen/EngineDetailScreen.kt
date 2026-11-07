@@ -54,6 +54,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
+import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.EngineConfigValidator
@@ -257,7 +258,18 @@ fun EngineDetailScreen(
                         }
                         OutlinedTextField(
                             value = baseUrl,
-                            onValueChange = { baseUrl = it },
+                            onValueChange = { typed ->
+                                // An Amber address with the key in it, or a pairing link: the two
+                                // go into their own fields, as with OpenAI.
+                                val split = AmberAddress.split(typed).takeIf { config.apiKeyAlias != null }
+                                if (split != null) {
+                                    baseUrl = split.baseUrl
+                                    apiKey = split.key
+                                    keyEdited = true
+                                } else {
+                                    baseUrl = typed
+                                }
+                            },
                             label = { Text(stringResource(R.string.engine_address)) },
                             placeholder = { Text("http://192.168.1.20:8000/v1") },
                             singleLine = true,

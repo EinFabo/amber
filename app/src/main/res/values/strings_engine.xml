@@ -11,7 +11,7 @@
     <string name="engine_connection">Connection</string>
     <string name="engine_connection_subtitle">Anything with /v1/audio/transcriptions - Speaches, LocalAI, whisper.cpp\'s server.</string>
     <string name="engine_address">Address</string>
-    <string name="engine_address_hint">With or without /v1. http:// only for servers in your own network.</string>
+    <string name="engine_address_hint">With or without /v1. http:// only for servers in your own network. An Amber PC address with its key in it is split into address and key.</string>
     <string name="engine_models_below">%1$s - its models are listed below.</string>
     <string name="engine_speech_model">Speech model</string>
     <string name="engine_api_key">API key</string>

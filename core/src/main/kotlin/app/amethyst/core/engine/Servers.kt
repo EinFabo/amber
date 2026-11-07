@@ -32,7 +32,10 @@ object Servers {
      * host bound to the address it is used with. Applied on every write.
      */
     fun normalized(settings: AmethystSettings): AmethystSettings {
-        val bound = settings.engines.map(KeyBinding::bindIfUnbound)
+        // Every server can take a key (an own server from before had no place for one).
+        val bound = settings.engines
+            .map { if (isServer(it) && it.apiKeyAlias == null) it.copy(apiKeyAlias = "key.${it.id}") else it }
+            .map(KeyBinding::bindIfUnbound)
         return ServerNames.apply(if (bound == settings.engines) settings else settings.copy(engines = bound))
     }
 

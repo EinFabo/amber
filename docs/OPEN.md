@@ -74,8 +74,13 @@ series and one store release per phase, each after his OK.
       until it is typed again; `Redact.url`/`Redact.text` for addresses in error details; an
       Amber list keeps only plain model ids (no paths) and one-line labels. Already in place and
       checked: http to public addresses refused (`CleartextGuard`), every request with a key
-      through `OkHttpTransport` (no redirects, 8 MiB cap). Open: header auth after the amberPC
-      review; the device test of 0.29.0 in Fabi's store (install over 0.28.0 keeps every server
+      through `OkHttpTransport` (no redirects, 8 MiB cap). Address and key apart, as with OpenAI
+      (Fabi, 2026-11-07): an Amber address with the key in its path, or an
+      `amber://server?url=&key=` pairing link, is split into the two fields when pasted, and a
+      stored Amber server (its model list says so) moves its key into the key store once at
+      start (`AmberAddress`); the key goes as `Authorization: Bearer`, which Amber PC and Amber
+      Server already take. Their side - showing address and key apart, the pairing link in the
+      QR code - is a task in `~/projects/amberPC/docs/ADDRESS-AND-KEY.md`. Open: the device test of 0.29.0 in Fabi's store (install over 0.28.0 keeps every server
       and key, add a second server, change an address and see the key asked for again).
 - [ ] **P6 - Languages everywhere + recognition per app**: one language-chips component for every
       engine, Parakeet "detects itself", per-app engine like per-app cleanup. Done ahead
