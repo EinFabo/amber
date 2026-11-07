@@ -1,6 +1,5 @@
 package app.amethyst.accessibility
 
-import app.amethyst.R
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.app.KeyguardManager
@@ -10,33 +9,34 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.Rect
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
-import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.EditorInfo
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
-import app.amethyst.Graph
 import app.amethyst.AmethystApp
+import app.amethyst.Graph
+import app.amethyst.R
 import app.amethyst.bubble.BubbleController
-import app.amethyst.ui.MainActivity
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
-import app.amethyst.dictation.DictationState
 import app.amethyst.core.insert.InputTarget
+import app.amethyst.dictation.DictationState
+import app.amethyst.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -64,6 +64,9 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     /** Carries out voice commands; refuses everything while they are switched off. */
     lateinit var commands: CommandExecutor
+
+    /** Edits the field with the cursor: for "Undo last", and for the text commands. */
+    lateinit var fieldEditor: FieldEditor
         private set
 
     private var bubble: BubbleController? = null
@@ -99,6 +102,7 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         graph = AmethystApp.graph(this)
         textInserter = TextInserter(this, graph.strategyStore)
+        fieldEditor = FieldEditor(this, textInserter)
         commands = CommandExecutor(this, graph)
 
         val quickActions = QuickActionRunner(this, graph, ::hideBubbleIn)

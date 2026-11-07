@@ -95,4 +95,5 @@
     <string name="not_offered_by_server">Not offered by the server any more - it uses its default instead</string>
     <string name="machine_pc">the PC</string>
     <string name="machine_server">the server</string>
+    <string name="quick_undo_last">Undo last</string>
 </resources>

@@ -65,6 +65,12 @@ data class InsertionOutcome(
      * so nothing else was tried, which would risk the words twice - or it may be lost.
      */
     val uncertain: Boolean = false,
+    /**
+     * The characters the insertion put directly before the cursor - seam included - when it is
+     * known, for "Undo last" ([UndoLast]). Null when the field could not be read or the splice
+     * also changed text before it.
+     */
+    val fragment: String? = null,
 )
 
 /**
@@ -96,6 +102,8 @@ class InsertionEngine(
     ): InsertionOutcome {
         val packageName = target?.packageName ?: UNKNOWN_PACKAGE
         var copied = false
+        committed = null
+        setFragment = null
 
         if (target == null) {
             // Nothing is focused, so there is nothing to write into. The clipboard keeps the
@@ -145,7 +153,13 @@ class InsertionEngine(
             if (inserted) {
                 memory.recordSuccess(packageName, strategy)
                 onMemoryChanged(memory)
-                return InsertionOutcome(strategy, true, copied, packageName)
+                val fragment = when (strategy) {
+                    InsertionStrategy.COMMIT_TEXT -> committed
+                    InsertionStrategy.SET_TEXT -> setFragment
+                    InsertionStrategy.PASTE -> words
+                    InsertionStrategy.CLIPBOARD_ONLY -> null
+                }
+                return InsertionOutcome(strategy, true, copied, packageName, fragment = fragment)
             }
 
             memory.recordFailure(packageName, strategy)
@@ -156,6 +170,12 @@ class InsertionEngine(
     }
 
     private enum class Commit { LANDED, NOT_POSSIBLE, LOST }
+
+    /** What the last commit typed: the fragment, for [InsertionOutcome.fragment]. */
+    private var committed: String? = null
+
+    /** What the last SET_TEXT added before the cursor, if it only added. */
+    private var setFragment: String? = null
 
     /**
      * A commit travels to the app asynchronously and the accessibility input connection reports
@@ -170,6 +190,7 @@ class InsertionEngine(
         val field = target.readField()
         val fragment = field?.let { commitFragment(it, text, options) } ?: text.trim()
         if (fragment.isEmpty() || !target.commitText(fragment)) return Commit.NOT_POSSIBLE
+        committed = fragment
         // A field that cannot be read cannot be checked; the connection is all there is.
         if (field == null) return Commit.LANDED
         val expected = text.trim()
@@ -205,6 +226,7 @@ class InsertionEngine(
 
         val spliced = TextSplicer.splice(field, text, options)
         if (!target.setText(spliced.text)) return false
+        setFragment = UndoLast.added(field, spliced.text, spliced.cursor)
 
         // Verify before moving the cursor. A field that accepted the write and kept its old
         // contents would otherwise be handed a caret position that does not exist in it, and

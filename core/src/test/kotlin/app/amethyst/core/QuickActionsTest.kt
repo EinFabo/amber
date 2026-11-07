@@ -28,6 +28,7 @@ class QuickActionsTest {
         otherAppInFront = true,
         cleanupHere = CleanupHere.ON,
         cleanupPlanned = true,
+        canUndo = true,
         command = false,
         canPause = true,
         paused = false,
@@ -45,9 +46,9 @@ class QuickActionsTest {
     }
 
     @Test
-    fun `idle offers the last result, the cleanup here and hiding`() {
+    fun `idle offers the last result again, undoing it, the cleanup here and copying`() {
         assertEquals(
-            listOf(QuickAction.INSERT_AGAIN, QuickAction.COPY_LAST, QuickAction.CLEANUP_OFF_HERE, QuickAction.HIDE_HERE),
+            listOf(QuickAction.INSERT_AGAIN, QuickAction.UNDO_LAST, QuickAction.CLEANUP_OFF_HERE, QuickAction.COPY_LAST),
             actions(idle),
         )
         assertTrue(QuickActions.slots(idle).all { it!!.enabled })
@@ -68,10 +69,16 @@ class QuickActionsTest {
     }
 
     @Test
-    fun `in Amber itself there is nothing to hide the bubble in or switch the cleanup for`() {
+    fun `in Amber itself there is no cleanup to switch for an app`() {
         val amber = idle.copy(otherAppInFront = false)
-        assertFalse(enabled(amber, QuickAction.HIDE_HERE))
         assertFalse(enabled(amber, QuickAction.CLEANUP_OFF_HERE))
+    }
+
+    @Test
+    fun `undo needs an insertion that can be undone and a field with the cursor`() {
+        assertFalse(enabled(idle.copy(canUndo = false), QuickAction.UNDO_LAST))
+        assertFalse(enabled(idle.copy(fieldFocused = false), QuickAction.UNDO_LAST))
+        assertTrue(enabled(idle, QuickAction.UNDO_LAST))
     }
 
     @Test

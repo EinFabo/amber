@@ -6,12 +6,14 @@ import android.os.Build
 import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
+import app.amethyst.DebugLog
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.LineBreakPlan
 import app.amethyst.core.commands.TextEdit
 import app.amethyst.core.commands.TextEdits
+import app.amethyst.core.insert.UndoLast
 import app.amethyst.core.text.FieldState
 import kotlinx.coroutines.delay
 
@@ -45,6 +47,41 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
             TextEdit.PASTE -> clipboard(field, AccessibilityNodeInfo.ACTION_PASTE, android.R.id.paste, "Pasted", selection = false, trace)
             TextEdit.NEW_LINE -> newLine(field, trace)
         }
+    }
+
+    /** What "Undo last" came to. */
+    enum class Undo { DONE, CHANGED, FAILED }
+
+    /**
+     * Takes [last] out of the field with the cursor again - only in its app, never in a password
+     * field, and only while it still stands right before the cursor ([UndoLast]). Through the
+     * input connection where there is one (as a keyboard deletes), else by rewriting the node.
+     * Never logs the text, only how many characters.
+     */
+    suspend fun undo(last: UndoLast.Insertion): Undo {
+        val field = find() ?: return Undo.FAILED
+        if (field.secret) return Undo.FAILED
+        val keys = field.keys
+        val around = keys?.surrounding(last.fragment.length + UNDO_MARGIN)
+        if (keys != null && around != null) {
+            if (around.packageName != null && around.packageName != last.packageName) return Undo.CHANGED
+            val chars = UndoLast.charsToDelete(around.surrounding.beforeCursor(), last) ?: return Undo.CHANGED
+            val before = around.surrounding.beforeCursor()
+            keys.deleteBefore(chars)
+            val changed = verified(keys) { after -> after.beforeCursor() != before }
+            DebugLog.i(TAG) { "undo via the input connection: $chars characters, ${if (changed) "taken" else "not taken"}" }
+            return if (changed) Undo.DONE else Undo.FAILED
+        }
+        val node = field.node ?: return Undo.FAILED
+        if (node.packageName?.toString() != last.packageName) return Undo.CHANGED
+        val state = read(node) ?: return Undo.FAILED
+        val start = minOf(state.selectionStart, state.selectionEnd).coerceIn(0, state.text.length)
+        val end = maxOf(state.selectionStart, state.selectionEnd).coerceIn(0, state.text.length)
+        if (start != end) return Undo.CHANGED
+        val chars = UndoLast.charsToDelete(state.text.substring(0, start), last) ?: return Undo.CHANGED
+        val result = FieldState(state.text.removeRange(start - chars, start), start - chars)
+        DebugLog.i(TAG) { "undo via the node: $chars characters" }
+        return if (write(node, result, "undone", CommandTrace()) is CommandOutcome.Done) Undo.DONE else Undo.FAILED
     }
 
     /**
@@ -297,9 +334,13 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
         fun beforeCursor(): String = state.text.substring(0, minOf(state.selectionStart, state.selectionEnd).coerceIn(0, state.text.length))
     }
 
+    /** Text around the cursor as the connection read it, and whose field it is if known. */
+    private class Around(val surrounding: Surrounding, val packageName: String?)
+
     /** What a keyboard can do in the field: the service's input connection, Android 13+. */
     private interface Keys {
         fun surrounding(): Surrounding?
+        fun surrounding(before: Int): Around?
         fun deleteBefore(chars: Int)
         fun select(start: Int, end: Int)
         fun type(text: String)
@@ -307,11 +348,16 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private class ConnectionKeys(private val connection: InputMethod.AccessibilityInputConnection) : Keys {
+    private class ConnectionKeys(
+        private val connection: InputMethod.AccessibilityInputConnection,
+        private val owner: String? = null,
+    ) : Keys {
 
-        override fun surrounding(): Surrounding? = runCatching {
-            connection.getSurroundingText(TEXT_AROUND, 0, 0)?.let { around ->
-                Surrounding(FieldState(around.text.toString(), around.selectionStart, around.selectionEnd), around.offset)
+        override fun surrounding(): Surrounding? = surrounding(TEXT_AROUND)?.surrounding
+
+        override fun surrounding(before: Int): Around? = runCatching {
+            connection.getSurroundingText(maxOf(before, TEXT_AROUND), 0, 0)?.let { around ->
+                Around(Surrounding(FieldState(around.text.toString(), around.selectionStart, around.selectionEnd), around.offset), owner)
             }
         }.getOrNull()
 
@@ -332,14 +378,19 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
                 val kind = TextFieldKind.of(input.editor.inputType)
                 if (kind == TextFieldKind.NONE) return null
                 val connection = input.connection ?: return null
-                return Bound(ConnectionKeys(connection), kind, input.owner)
+                return Bound(ConnectionKeys(connection, input.owner), kind, input.owner)
             }
         }
     }
 
     private companion object {
+        const val TAG = "Amber"
+
         /** Enough for twenty long words before the cursor. */
         const val TEXT_AROUND = 1_000
+
+        /** Read a little more than the dictation, so its first character is surely in what is read. */
+        const val UNDO_MARGIN = 16
         const val VERIFY_ATTEMPTS = 6
         const val VERIFY_INTERVAL_MS = 50L
 

@@ -93,4 +93,5 @@
     <string name="not_offered_by_server">Der Server bietet es nicht mehr an - er nimmt stattdessen sein Standardmodell</string>
     <string name="machine_pc">der PC</string>
     <string name="machine_server">der Server</string>
+    <string name="quick_undo_last">Letztes rückgängig</string>
 </resources>

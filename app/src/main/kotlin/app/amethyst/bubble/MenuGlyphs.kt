@@ -8,12 +8,13 @@ import android.graphics.RectF
 import app.amethyst.core.bubble.QuickAction
 
 /** The picture on a quick menu button. */
-enum class MenuGlyph { INSERT, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME }
+enum class MenuGlyph { INSERT, UNDO, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME }
 
 /** The glyph shows what the action does: switching the cleanup on shows the sparkle, off crosses it out. */
 val QuickAction.glyph: MenuGlyph
     get() = when (this) {
         QuickAction.INSERT_AGAIN -> MenuGlyph.INSERT
+        QuickAction.UNDO_LAST -> MenuGlyph.UNDO
         QuickAction.COPY_LAST -> MenuGlyph.COPY
         QuickAction.CLEANUP_OFF_HERE -> MenuGlyph.CLEANUP_OFF
         QuickAction.CLEANUP_ON_HERE -> MenuGlyph.CLEANUP_ON
@@ -105,6 +106,14 @@ object MenuGlyphs {
                     moveTo(4f, 17f); lineTo(13f, 17f)
                     moveTo(15.5f, 9f); lineTo(20f, 12f); lineTo(15.5f, 15f)
                 }
+            }
+            // An arrow turning back: what went in comes out again.
+            MenuGlyph.UNDO -> strokePath {
+                moveTo(8.5f, 4.5f); lineTo(4f, 9f); lineTo(8.5f, 13.5f)
+                moveTo(4f, 9f); lineTo(14.5f, 9f)
+                cubicTo(18f, 9f, 20f, 11.5f, 20f, 14.5f)
+                cubicTo(20f, 17.5f, 18f, 20f, 14.5f, 20f)
+                lineTo(9f, 20f)
             }
             MenuGlyph.COPY -> strokePath {
                 addRoundRect(9f, 9f, 19.5f, 20f, 2.5f, 2.5f, Path.Direction.CW)

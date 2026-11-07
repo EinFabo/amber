@@ -84,7 +84,7 @@
     <string name="gesture_tap">Tippen</string>
     <string name="gesture_tap_note">Diktat starten. Nochmal tippen, und der Text geht hinein.</string>
     <string name="gesture_hold">Halten</string>
-    <string name="gesture_hold_note">Das Schnellmenü: Vier Knöpfe fächern sich auf. Zu einem hinziehen und loslassen - das letzte Diktat nochmal einfügen oder kopieren, Bereinigung für diese App aus, hier ausblenden. Während du sprichst: Pause, abbrechen, neu anfangen oder ohne Bereinigung senden. In der Mitte loslassen schließt es.</string>
+    <string name="gesture_hold_note">Das Schnellmenü: Vier Knöpfe fächern sich auf. Zu einem hinziehen und loslassen - das letzte Diktat nochmal einfügen, rückgängig machen, die Bereinigung für diese App ausschalten oder es kopieren. Während du sprichst: Pause, abbrechen, neu anfangen oder ohne Bereinigung senden. In der Mitte loslassen schließt es.</string>
     <string name="gesture_drag">Ziehen</string>
     <string name="gesture_drag_note">Nach oben oder unten schieben oder an den anderen Rand. Auf dem X loslassen blendet sie in dieser App aus.</string>
     <string name="ready_step_title">Amber bereithalten</string>

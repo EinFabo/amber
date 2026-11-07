@@ -239,6 +239,7 @@ object Texts {
     fun quickAction(context: Context, action: QuickAction): String = context.getString(
         when (action) {
             QuickAction.INSERT_AGAIN -> R.string.quick_insert_again
+            QuickAction.UNDO_LAST -> R.string.quick_undo_last
             QuickAction.COPY_LAST -> R.string.quick_copy_last
             QuickAction.CLEANUP_OFF_HERE -> R.string.quick_cleanup_off_here
             QuickAction.CLEANUP_ON_HERE -> R.string.quick_cleanup_on_here

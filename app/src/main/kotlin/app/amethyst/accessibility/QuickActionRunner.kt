@@ -1,10 +1,10 @@
 package app.amethyst.accessibility
 
-import app.amethyst.R
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import app.amethyst.Graph
+import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickActions
@@ -43,6 +43,7 @@ class QuickActionRunner(
         // Each says what happened; copy, the cleanup switch and hiding say it themselves.
         val ran = when (action) {
             QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast(service.getString(R.string.quick_done_inserted)) }
+            QuickAction.UNDO_LAST -> dictation.undoLast()
             QuickAction.COPY_LAST -> dictation.copyLast()
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
             QuickAction.CLEANUP_ON_HERE -> app != null && cleanupHere(app, on = true)
@@ -74,6 +75,7 @@ class QuickActionRunner(
             fieldFocused = service.editableFieldFocused,
             otherAppInFront = app != null,
             cleanupHere = QuickActions.cleanupHere(settings, app, hasKey),
+            canUndo = graph.dictation.lastInsertion?.packageName.let { it != null && it == service.targetPackage() },
             cleanupPlanned = CleanupRouting.decide(settings, service.targetPackage(), fellBackFrom = null, hasKey = hasKey).choice != null,
             command = graph.dictation.mode.value == RunMode.COMMAND,
             canPause = graph.dictation.canPause,

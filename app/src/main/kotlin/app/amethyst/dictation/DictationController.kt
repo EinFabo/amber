@@ -11,58 +11,59 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.amethyst.DebugLog
 import app.amethyst.Graph
+import app.amethyst.R
+import app.amethyst.Texts
+import app.amethyst.accessibility.FieldEditor
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
 import app.amethyst.core.audio.DiscardReason
+import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
 import app.amethyst.core.capture.RecordingPause
-import app.amethyst.core.capture.withPausableTimeout
 import app.amethyst.core.capture.TriggerSource
-import app.amethyst.core.engine.ListenCallbacks
-import app.amethyst.core.insert.InputTarget
-import app.amethyst.core.insert.TargetCheck
-import app.amethyst.core.privacy.TrustLevel
-import app.amethyst.core.engine.ChunkedTranscription
-import app.amethyst.core.engine.ReadyFallback
-import app.amethyst.core.engine.WaitProgress
-import app.amethyst.core.engine.SelfCapturingSttEngine
-import app.amethyst.core.engine.SttEngine
-import app.amethyst.core.engine.SttFailure
-import app.amethyst.core.engine.TranscribeOptions
-import app.amethyst.core.engine.sherpa.ParakeetEngine
-import app.amethyst.core.engine.whisper.WhisperCppEngine
-import app.amethyst.core.engine.whisper.WhisperModels
-import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.capture.withPausableTimeout
 import app.amethyst.core.commands.Command
 import app.amethyst.core.commands.CommandChain
 import app.amethyst.core.commands.CommandLanguages
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
-import app.amethyst.core.commands.GlobalAction
 import app.amethyst.core.commands.CommandTrigger
+import app.amethyst.core.commands.GlobalAction
 import app.amethyst.core.commands.RunMode
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
+import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
-import app.amethyst.core.engine.EngineTrust
-import app.amethyst.core.engine.OpenAiCompatibleEngine
-import app.amethyst.core.net.ConnectionWarmUp
-import app.amethyst.core.settings.AmethystSettings
-import app.amethyst.core.settings.CleanupChoice
-import app.amethyst.engine.AndroidOnDeviceEngine
-import app.amethyst.R
-import app.amethyst.Texts
-import app.amethyst.core.engine.Problem
-import app.amethyst.engine.ModelDownloads
-import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.EngineTrust
+import app.amethyst.core.engine.Fallback
+import app.amethyst.core.engine.ListenCallbacks
+import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.engine.Problem
+import app.amethyst.core.engine.ReadyFallback
+import app.amethyst.core.engine.SelfCapturingSttEngine
+import app.amethyst.core.engine.SttEngine
+import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.engine.TranscribeOptions
+import app.amethyst.core.engine.WaitProgress
+import app.amethyst.core.engine.sherpa.ParakeetEngine
+import app.amethyst.core.engine.whisper.WhisperCppEngine
+import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.insert.InputTarget
+import app.amethyst.core.insert.InsertionOutcome
+import app.amethyst.core.insert.TargetCheck
+import app.amethyst.core.insert.UndoLast
+import app.amethyst.core.net.ConnectionWarmUp
+import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.stats.DictationStat
@@ -71,25 +72,27 @@ import app.amethyst.core.stats.countWords
 import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
+import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.engine.ModelDownloads
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Drives one dictation from tap to inserted text.
@@ -440,6 +443,42 @@ class DictationController(
      * The last dictation of this session (any app) typed again into the field that has focus
      * now - never into a password field. False with nothing to insert or nowhere to put it.
      */
+    /**
+     * The last insertion that "Undo last" may take out again: its app and exactly what went in.
+     * Kept in memory only, like the dictation it came from.
+     */
+    @Volatile
+    var lastInsertion: UndoLast.Insertion? = null
+        private set
+
+    private fun remember(insertion: InsertionOutcome) {
+        val app = insertion.targetPackage
+        val fragment = insertion.fragment
+        lastInsertion = if (insertion.insertedIntoField && app != null && !fragment.isNullOrEmpty()) UndoLast.Insertion(app, fragment) else null
+    }
+
+    /**
+     * Takes the last dictation out of the field again, while it still stands right before the
+     * cursor ([UndoLast]); says what happened in a toast. False when there is nothing to undo.
+     */
+    fun undoLast(): Boolean {
+        if (isRunning) return false
+        val last = lastInsertion ?: return false
+        val service = graph.accessibilityService ?: return false
+        scope.launch {
+            val result = service.fieldEditor.undo(last)
+            if (result == FieldEditor.Undo.DONE) lastInsertion = null
+            toast(
+                when (result) {
+                    FieldEditor.Undo.DONE -> R.string.undo_done
+                    FieldEditor.Undo.CHANGED -> R.string.undo_changed
+                    FieldEditor.Undo.FAILED -> R.string.undo_failed
+                },
+            )
+        }
+        return true
+    }
+
     fun insertAgain(): Boolean {
         if (isRunning) return false
         val text = graph.dictationLog.lastDictation?.text ?: return false
@@ -452,6 +491,7 @@ class DictationController(
         val settings = graph.settings.value
         val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard)
         Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
+        remember(insertion)
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
             toast(R.string.dictation_not_inserted_here)
             return false
@@ -1320,6 +1360,7 @@ class DictationController(
             return
         }
 
+        remember(insertion)
         trace?.servedBy = transcript.servedBy
         val finalTranscript = transcript.copy(text = cleaned)
         graph.dictationLog.recordSuccess(

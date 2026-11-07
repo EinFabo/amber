@@ -84,7 +84,7 @@
     <string name="gesture_tap">Tap</string>
     <string name="gesture_tap_note">Start dictating. Tap again and the text goes in.</string>
     <string name="gesture_hold">Hold</string>
-    <string name="gesture_hold_note">The quick menu: four buttons fan out. Slide toward one and let go - insert or copy the last dictation again, cleanup off for this app, hide here. While you speak: pause, cancel, start over, or send without the cleanup. Let go in the middle to close it.</string>
+    <string name="gesture_hold_note">The quick menu: four buttons fan out. Slide toward one and let go - insert the last dictation again, undo it, switch the cleanup off for this app, or copy it. While you speak: pause, cancel, start over, or send without the cleanup. Let go in the middle to close it.</string>
     <string name="gesture_drag">Drag</string>
     <string name="gesture_drag_note">Move it up or down, or to the other edge. Drop it on the X to hide it in this app.</string>
     <string name="ready_step_title">Keep Amber ready</string>

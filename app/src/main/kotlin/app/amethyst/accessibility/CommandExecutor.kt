@@ -17,9 +17,9 @@ import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import app.amethyst.Graph
+import app.amethyst.core.bubble.Box
 import app.amethyst.core.commands.AppMatch
 import app.amethyst.core.commands.Command
-import app.amethyst.core.bubble.Box
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.Direction
@@ -41,12 +41,12 @@ import app.amethyst.core.commands.Step
 import app.amethyst.core.commands.Stroke
 import app.amethyst.core.commands.VolumeChange
 import app.amethyst.core.insert.InputTarget
+import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
 
 /**
  * Carries out a voice command - the only place Amber acts for the user. Every command passes
@@ -60,7 +60,7 @@ import kotlin.coroutines.resume
 class CommandExecutor(private val service: AmethystAccessibilityService, private val graph: Graph) {
 
     private val device = DeviceControls(service)
-    private val editor = FieldEditor(service, service.textInserter)
+    private val editor = service.fieldEditor
 
     /**
      * [startedIn]: the field that had the cursor when the command's recording began, if any.

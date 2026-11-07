@@ -37,6 +37,9 @@ enum class CleanupHere {
  */
 enum class QuickAction(private val phases: Set<QuickPhase>) {
     INSERT_AGAIN(setOf(QuickPhase.IDLE)),
+
+    /** Takes the last dictation out of the field again, while it still stands before the cursor. */
+    UNDO_LAST(setOf(QuickPhase.IDLE)),
     COPY_LAST(setOf(QuickPhase.IDLE)),
     CLEANUP_OFF_HERE(setOf(QuickPhase.IDLE)),
     CLEANUP_ON_HERE(setOf(QuickPhase.IDLE)),
@@ -77,6 +80,8 @@ data class QuickMenuContext(
     val cleanupHere: CleanupHere,
     /** The run in progress would be cleaned up (or the next one, while idle). */
     val cleanupPlanned: Boolean,
+    /** The last insertion can be undone in the app in front ([app.amethyst.core.insert.UndoLast]). */
+    val canUndo: Boolean = false,
     /** The run in progress is a voice command, which is never cleaned up. */
     val command: Boolean,
     /**
@@ -99,11 +104,12 @@ object QuickActions {
     fun slots(context: QuickMenuContext): List<QuickSlot?> = when (context.phase) {
         QuickPhase.IDLE -> {
             val cleanup = if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE
+            // Hiding the bubble in an app is a drag onto the X; the menu keeps what only it does.
             listOf(
                 QuickSlot(QuickAction.INSERT_AGAIN, context.hasLastDictation && context.fieldFocused),
-                QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation),
+                QuickSlot(QuickAction.UNDO_LAST, context.canUndo && context.fieldFocused),
                 QuickSlot(cleanup, context.otherAppInFront && context.cleanupHere != CleanupHere.NOT_SET_UP),
-                QuickSlot(QuickAction.HIDE_HERE, context.otherAppInFront),
+                QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation),
             )
         }
         QuickPhase.RECORDING -> listOf(
