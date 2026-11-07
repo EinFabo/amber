@@ -63,6 +63,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.ServerProvider
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
@@ -249,6 +250,21 @@ fun EngineDetailScreen(
                     },
                 ) {
                     if (!fixedAddress) {
+                        ServerQuickPicks(
+                            current = ServerProviders.forUrl(baseUrl.trim()),
+                            onPick = { quick ->
+                                val pointed = Servers.pointAt(edited(), quick)
+                                baseUrl = pointed.baseUrl.orEmpty()
+                                modelId = pointed.modelId.orEmpty()
+                                onSave(pointed)
+                            },
+                            // Back to nothing: an own address to type, no model of the service left.
+                            onOwn = {
+                                baseUrl = ""
+                                modelId = ""
+                                onSave(edited())
+                            },
+                        )
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { typed ->
@@ -837,5 +853,21 @@ private fun ProofRow(label: String, value: String, color: Color = AmberPalette.T
             color = color,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+/**
+ * One tap to a known service - its address and model filled in - or to an own server, which
+ * empties both again. The lit one is what the address in the field is.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ServerQuickPicks(current: ServerProvider, onPick: (Servers.Quick) -> Unit, onOwn: () -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Servers.QUICK.forEach { quick ->
+            ChoiceChip(quick.provider.name, null, on = current === quick.provider) { if (current !== quick.provider) onPick(quick) }
+        }
+        val own = current === ServerProviders.CUSTOM
+        ChoiceChip(catalog(ServerProviders.CUSTOM.name), null, on = own) { if (!own) onOwn() }
     }
 }
