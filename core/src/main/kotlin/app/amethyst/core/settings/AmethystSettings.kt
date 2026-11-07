@@ -1,5 +1,7 @@
 package app.amethyst.core.settings
 
+import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ServerNames
 import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.engine.AmberCatalog
@@ -35,6 +37,13 @@ data class EngineConfig(
      * edited URL would quietly turn the engine into a plain cloud one - with the same key.
      */
     val requireEnclave: Boolean = false,
+    /**
+     * The host the API key was given for ([app.amethyst.core.engine.KeyBinding]): the key goes
+     * nowhere else, so an address changed afterwards - by mistake or by someone else - needs the
+     * key typed again. Null until a key is bound; settings from before schema 12 bind to the
+     * address they had.
+     */
+    val keyHost: String? = null,
 ) {
     companion object {
         fun fromPreset(preset: EnginePreset, languageTag: String? = null) = EngineConfig(
@@ -46,6 +55,7 @@ data class EngineConfig(
             languageTag = languageTag,
             apiKeyAlias = if (preset.needsApiKey) "key.${preset.id}" else null,
             requireEnclave = preset.requireEnclave,
+            keyHost = if (preset.needsApiKey) EnginePresets.hostOf(preset.baseUrl) else null,
         )
 
         /**
@@ -289,7 +299,7 @@ data class AmethystSettings(
          * (settings from before it), and a new install starts with it off ([defaults]).
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 11
+        const val SCHEMA_VERSION = 12
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -359,7 +369,7 @@ object SettingsCodec {
         } else {
             settings.fallback
         }
-        return settings.copy(
+        val migrated = settings.copy(
             activeEngineId = active,
             cleanup = cleanup,
             fallback = fallback,
@@ -377,9 +387,13 @@ object SettingsCodec {
                     else -> engine
                 }.let { if (it.id == EnginePresets.TINFOIL.id) it.copy(requireEnclave = true) else it }
                     .copy(cleanupModel = null)
+                    // Version 12: a stored key belongs to the address it was used with so far.
+                    .let { if (settings.schemaVersion < 12) KeyBinding.bindIfUnbound(it) else it }
             },
             schemaVersion = AmethystSettings.SCHEMA_VERSION,
         )
+        // Version 12: servers are named after what they are - "Amber PC", "Groq", a host.
+        return if (settings.schemaVersion < 12) ServerNames.apply(migrated) else migrated
     }
 }
 

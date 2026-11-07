@@ -43,6 +43,7 @@ import app.amethyst.R
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.BubbleSettings
@@ -262,10 +263,15 @@ fun RecognitionScreen(
             onDismiss = { showPresets = false },
             onPick = { preset ->
                 showPresets = false
-                onUpdateSettings {
-                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())))
+                val language = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())
+                // A server is added as often as wanted, each with an id of its own.
+                val added = if (preset == EnginePresets.SERVER) {
+                    Servers.newServer(Servers.newId(taken = settings.engines.map { it.id }.toSet()), language)
+                } else {
+                    EngineConfig.fromPreset(preset, languageTag = language)
                 }
-                onOpenEngine(preset.id)
+                onUpdateSettings { it.withEngine(added) }
+                onOpenEngine(added.id)
             },
         )
     }
@@ -644,7 +650,7 @@ private fun PresetDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                EnginePresets.all
+                EnginePresets.offered
                     .filterNot { it.id in existingIds }
                     .forEach { preset ->
                         Column(

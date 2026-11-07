@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.SettingsCodec
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +26,7 @@ class SettingsStore(private val context: Context) {
     suspend fun update(transform: (AmethystSettings) -> AmethystSettings) {
         context.amethystDataStore.edit { prefs ->
             val current = SettingsCodec.decode(prefs[KEY].orEmpty(), PhoneLocales.tags())
-            prefs[KEY] = SettingsCodec.encode(transform(current))
+            prefs[KEY] = SettingsCodec.encode(Servers.normalized(transform(current)))
         }
     }
 

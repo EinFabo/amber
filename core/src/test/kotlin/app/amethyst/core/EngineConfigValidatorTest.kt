@@ -68,13 +68,17 @@ class EngineConfigValidatorTest {
     }
 
     @Test
-    fun `missing url model and key are all reported at once`() {
+    fun `missing url and model are reported at once, the key once the address says it is needed`() {
         val missing = EngineConfigValidator.validate(
             openAiCompatible(baseUrl = null, modelId = null),
             hasApiKey = false,
         )
-        assertEquals(3, missing.size, "expected url, model and key: $missing")
-        assertEquals(setOf(ConfigIssue.AddressMissing, ConfigIssue.ModelNameMissing, ConfigIssue.ApiKeyMissing), missing.toSet())
+        assertEquals(setOf(ConfigIssue.AddressMissing, ConfigIssue.ModelNameMissing), missing.toSet())
+        val atGroq = EngineConfigValidator.validate(
+            openAiCompatible(baseUrl = "https://api.groq.com/openai/v1", modelId = null),
+            hasApiKey = false,
+        )
+        assertEquals(setOf(ConfigIssue.ModelNameMissing, ConfigIssue.ApiKeyMissing), atGroq.toSet())
     }
 
     @Test

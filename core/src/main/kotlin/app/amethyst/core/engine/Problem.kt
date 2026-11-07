@@ -79,6 +79,9 @@ sealed interface ConfigIssue {
     data object AddressNoHost : ConfigIssue
     data object AddressHasSpace : ConfigIssue
     data object HttpOnlyInOwnNetwork : ConfigIssue
+
+    /** The key was given for [host]; the address has changed since ([KeyBinding]). */
+    data class KeyForOtherAddress(val host: String) : ConfigIssue
 }
 
 /**

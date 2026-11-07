@@ -63,10 +63,20 @@ series and one store release per phase, each after his OK.
       in German - needs Amber's accessibility service on; in Fabi's store as 0.28.0 for that.
 - [ ] **Voice commands in German too**, once they come back (Fabi, 2026-11-07): `Commands.kt`,
       `CommandExecutor`, the command toasts in `DictationController` stay English while hidden.
-- [ ] **P5 - One "Server" entry + app-side security** (schema 13): one addable Server with
-      profiles, auto-detected; Tinfoil separate. Done ahead (2026-11-06): http to public addresses
-      refused at request time (`CleartextGuard`). Open: key bound to host, `Redact.url`, response
-      size caps, model-id checks, no redirects with a key, header auth after the amberPC review.
+- [ ] **P5 - One "Server" entry + app-side security**, built 2026-11-07 (schema 12): "Add speech
+      recognition" offers one Server, as often as wanted (ids `server-xxxxxx`); its page has
+      Groq and OpenAI as one tap or any address, and a server is named after what it is (Amber
+      PC/Server from its list, Groq, OpenAI, else its host; `ServerNames`, on every write).
+      Every server's address can be changed, only Tinfoil's is fixed; a key is optional at an
+      own server. Existing own server, Groq and OpenAI engines stay with their keys and get the
+      new names. Security: a key is bound to the host it was given for (`EngineConfig.keyHost`,
+      `KeyBinding`; schema 12 binds stored keys to their address) - a changed address gets no key
+      until it is typed again; `Redact.url`/`Redact.text` for addresses in error details; an
+      Amber list keeps only plain model ids (no paths) and one-line labels. Already in place and
+      checked: http to public addresses refused (`CleartextGuard`), every request with a key
+      through `OkHttpTransport` (no redirects, 8 MiB cap). Open: header auth after the amberPC
+      review; the device test (install over 0.28.0 keeps every server and key, add a second
+      server, change an address and see the key asked for again).
 - [ ] **P6 - Languages everywhere + recognition per app**: one language-chips component for every
       engine, Parakeet "detects itself", per-app engine like per-app cleanup. Done ahead
       (2026-11-06): new engines default to the phone's languages (`PhoneLanguages`).

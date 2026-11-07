@@ -8,6 +8,12 @@ import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.RecognitionEstimate
+import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.net.HttpTransport
+import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.EstimateStore
 import app.amethyst.data.PhoneLocales
@@ -16,9 +22,6 @@ import app.amethyst.data.SettingsStore
 import app.amethyst.data.StatsStore
 import app.amethyst.data.StrategyStore
 import app.amethyst.dictation.DictationController
-import app.amethyst.core.engine.EngineKind
-import app.amethyst.core.engine.RecognitionEstimate
-import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.engine.AmberCatalogRefresher
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.ModelDownloads
@@ -28,15 +31,13 @@ import app.amethyst.engine.ParakeetModelStore
 import app.amethyst.engine.SherpaRuntime
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
-import app.amethyst.core.net.HttpTransport
-import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.update.UpdateChecker
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -152,7 +153,11 @@ class Graph(app: Application) {
 
     /** The model lists of Amber PCs and Amber Servers, fetched in the background. */
     val amberCatalogs: AmberCatalogRefresher by lazy {
-        AmberCatalogRefresher(appScope, httpTransport, { alias -> secretStore.get(alias) }, { settings.value }, settingsStore::update)
+        AmberCatalogRefresher(
+            appScope, httpTransport,
+            { engine -> secretStore.get(engine.apiKeyAlias)?.takeIf { KeyBinding.allows(engine) } },
+            { settings.value }, settingsStore::update,
+        )
     }
 
     /**

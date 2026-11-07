@@ -78,26 +78,39 @@ data class AmberCatalog(
             val byKind = mapOf(SPEECH to mutableListOf<ModelChoice>(), CLEANUP to mutableListOf())
             (root["data"] as? JsonArray).orEmpty().forEach { element ->
                 val entry = element as? JsonObject ?: return@forEach
-                val id = entry.string("id")?.takeIf { it.isNotBlank() } ?: return@forEach
+                // An id is sent back as the request's model and shown: a plain name, never a path
+                // or anything a terminal or a layout could trip over.
+                val id = entry.string("id")?.takeIf(::isPlainModelId) ?: return@forEach
                 val about = entry["amber"] as? JsonObject ?: return@forEach
                 val list = byKind[about.string("kind")] ?: return@forEach
                 if (list.any { it.id == id }) return@forEach
                 val default = (about["default"] as? JsonPrimitive)?.booleanOrNull == true
                 list += ModelChoice(
                     id = id,
-                    label = about.string("label")?.takeIf { it.isNotBlank() } ?: id,
-                    note = about.string("note").orEmpty(),
+                    label = about.string("label")?.let(::shown)?.takeIf { it.isNotBlank() } ?: id,
+                    note = about.string("note")?.let(::shown).orEmpty(),
                     recommended = default && list.none { it.recommended },
                 )
             }
             return AmberCatalog(
-                service = amber.string("service").orEmpty(),
-                version = amber.string("version").orEmpty(),
+                service = amber.string("service")?.let(::shown).orEmpty(),
+                version = amber.string("version")?.let(::shown).orEmpty(),
                 speech = byKind.getValue(SPEECH),
                 cleanup = byKind.getValue(CLEANUP),
                 audio = audioFormats(amber),
             )
         }
+
+        /** Letters, digits and . _ - : / @ +, up to 128, no ".." - "acft-large-v3-turbo-q8_0", "qwen/qwen3-4b". */
+        fun isPlainModelId(id: String): Boolean =
+            id.length in 1..MAX_ID && ".." !in id && !id.startsWith("/") && id.all { it.isLetterOrDigit() || it in "._-:/@+" }
+
+        /** A label or note as shown: one line, no control or bidi characters, at most [MAX_TEXT]. */
+        private fun shown(text: String): String =
+            text.filterNot { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() }.trim().take(MAX_TEXT)
+
+        private const val MAX_ID = 128
+        private const val MAX_TEXT = 80
 
         private fun audioFormats(amber: JsonObject): List<String> {
             val named = (amber["audio"] as? JsonArray).orEmpty()

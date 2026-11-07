@@ -76,4 +76,7 @@
     <string name="proof_hpke">HPKE-Schlüssel</string>
     <string name="proof_verified_at">Geprüft am</string>
     <string name="proof_valid_until">Gültig bis</string>
+    <string name="server_recognized">Erkannt: %1$s. Seine Adresse, seine Modelle.</string>
+    <string name="server_key_optional">API-Schlüssel (optional)</string>
+    <string name="server_key_elsewhere">Dieser Schlüssel wurde für %1$s eingegeben. An diese Adresse wird er nicht gesendet - gib ihn noch einmal ein, um ihn hier zu nutzen.</string>
 </resources>

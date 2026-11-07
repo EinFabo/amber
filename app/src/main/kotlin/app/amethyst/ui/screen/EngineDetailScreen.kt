@@ -60,7 +60,10 @@ import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
+import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ServerProvider
 import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.whisper.WhisperInput
@@ -125,19 +128,22 @@ fun EngineDetailScreen(
     var modelId by remember(config.id) { mutableStateOf(config.modelId.orEmpty()) }
     var language by remember(config.id) { mutableStateOf(config.languageTag.orEmpty()) }
     var apiKey by remember(config.id) { mutableStateOf(storedKey.orEmpty()) }
+    // Typed or pasted here: only then does the key belong to the address now in the field. A key
+    // given for another host stays there ([KeyBinding]) until it is entered again.
+    var keyEdited by remember(config.id) { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val preset = EnginePresets.byId(config.id)
+    val preset = if (Servers.isServer(config)) EnginePresets.SERVER else EnginePresets.byId(config.id)
     val local = config.kind == EngineKind.WHISPER_CPP
 
     fun edited(): EngineConfig = config.copy(
         baseUrl = baseUrl.trim().takeIf { it.isNotBlank() },
         modelId = modelId.trim().takeIf { it.isNotBlank() },
         languageTag = language.trim().takeIf { it.isNotBlank() },
-    )
+    ).let { if (keyEdited && apiKey.isNotBlank()) KeyBinding.bind(it) else it }
 
     var confirmRemove by remember { mutableStateOf(false) }
     var removed by remember { mutableStateOf(false) }
@@ -145,6 +151,7 @@ fun EngineDetailScreen(
     fun persist() {
         config.apiKeyAlias?.let { alias -> onSaveKey(alias, apiKey) }
         onSave(edited())
+        keyEdited = false
     }
 
     fun persistIfChanged() {
@@ -223,6 +230,7 @@ fun EngineDetailScreen(
                 // server that turned out to be an Amber PC or Server offers what it listed.
                 val provider = remember(config.baseUrl, catalog) { ServerProviders.forUrl(config.baseUrl, catalog) }
                 val fixedAddress = remember(config.id, config.baseUrl) { ServerProviders.addressFixed(config) }
+                val listed = provider.hasModelList && provider.speechModels.isNotEmpty()
                 // No speech model yet and the server's list just came: its default is saved
                 // right away, so the engine is ready without a tap. A chosen model stays.
                 LaunchedEffect(config.id, catalog) {
@@ -234,10 +242,19 @@ fun EngineDetailScreen(
                 }
                 SectionCard(
                     title = stringResource(R.string.engine_connection),
-                    subtitle = if (fixedAddress) "${catalog(provider.name)} · ${baseUrl.trim()}"
-                    else stringResource(R.string.engine_connection_subtitle),
+                    subtitle = when {
+                        fixedAddress -> "${catalog(provider.name)} · ${baseUrl.trim()}"
+                        provider !== ServerProviders.CUSTOM -> stringResource(R.string.server_recognized, catalog(provider.name))
+                        else -> stringResource(R.string.engine_connection_subtitle)
+                    },
                 ) {
                     if (!fixedAddress) {
+                        ServerQuickPicks(provider) { quick ->
+                            val pointed = Servers.pointAt(edited(), quick)
+                            baseUrl = pointed.baseUrl.orEmpty()
+                            modelId = pointed.modelId.orEmpty()
+                            onSave(pointed)
+                        }
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { baseUrl = it },
@@ -252,14 +269,16 @@ fun EngineDetailScreen(
                         Hint(stringResource(R.string.engine_address_hint))
                         // Typed only while the server lists no speech model to pick, so an empty
                         // list never leaves the engine without one.
-                        if (catalog != null && provider.listsItself && provider.speechModels.isNotEmpty()) {
-                            Hint(
-                                stringResource(
-                                    R.string.engine_models_below,
-                                    listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" "),
-                                ),
-                                AmberPalette.TrustOnDevice,
-                            )
+                        if (listed) {
+                            if (catalog != null && provider.listsItself) {
+                                Hint(
+                                    stringResource(
+                                        R.string.engine_models_below,
+                                        listOf(catalog.name, catalog.version).filter { it.isNotBlank() }.joinToString(" "),
+                                    ),
+                                    AmberPalette.TrustOnDevice,
+                                )
+                            }
                         } else {
                             OutlinedTextField(
                                 value = modelId,
@@ -275,10 +294,14 @@ fun EngineDetailScreen(
                     }
 
                     if (config.apiKeyAlias != null) {
+                        val optional = !Servers.keyRequired(edited())
                         OutlinedTextField(
                             value = apiKey,
-                            onValueChange = { apiKey = it },
-                            label = { Text(stringResource(R.string.engine_api_key)) },
+                            onValueChange = {
+                                apiKey = it
+                                keyEdited = true
+                            },
+                            label = { Text(stringResource(if (optional) R.string.server_key_optional else R.string.engine_api_key)) },
                             singleLine = true,
                             shape = AmberShapes.Inner,
                             colors = fieldColors(),
@@ -288,6 +311,11 @@ fun EngineDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Hint(stringResource(R.string.engine_key_stored))
+                        // Given for another host: it stays there; this address gets none until typed again.
+                        val bound = config.keyHost
+                        if (!keyEdited && apiKey.isNotBlank() && bound != null && !KeyBinding.allows(edited())) {
+                            Hint(stringResource(R.string.server_key_elsewhere, bound), AmberPalette.Error)
+                        }
                     }
                 }
                 if (provider.hasModelList) {
@@ -798,5 +826,19 @@ private fun ProofRow(label: String, value: String, color: Color = AmberPalette.T
             color = color,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+/**
+ * One tap to a known service - its address and model filled in - or your own address. The lit
+ * one is what the saved address is.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ServerQuickPicks(current: ServerProvider, onPick: (Servers.Quick) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Servers.QUICK.forEach { quick ->
+            ChoiceChip(quick.provider.name, null, on = current === quick.provider) { onPick(quick) }
+        }
     }
 }

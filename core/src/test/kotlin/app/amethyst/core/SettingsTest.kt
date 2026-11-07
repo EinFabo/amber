@@ -421,9 +421,10 @@ class CaptureTimeoutTest {
     }
 
     @Test
-    fun `the own server keeps its address field even when it names a known host`() {
+    fun `only tinfoil's address is fixed, a server's is its owner's even at a known host`() {
+        assertTrue(ServerProviders.addressFixed(EngineConfig.fromPreset(EnginePresets.TINFOIL)))
         val groq = EngineConfig.fromPreset(EnginePresets.GROQ)
-        assertTrue(ServerProviders.addressFixed(groq))
+        assertFalse(ServerProviders.addressFixed(groq))
         val own = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED).copy(baseUrl = groq.baseUrl)
         assertFalse(ServerProviders.addressFixed(own))
         // Its models and prices still are the host's, as in the factory and the statistics.

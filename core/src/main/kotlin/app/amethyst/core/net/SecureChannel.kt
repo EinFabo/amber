@@ -63,7 +63,7 @@ class SecureChannel(
             Result.failure(
                 SttFailure(
                     problem = Problem.EnclaveKeyMismatch(displayName, what),
-                    technical = "pin mismatch: ${e.message}",
+                    technical = "pin mismatch: ${Redact.text(e.message)}",
                     cause = e,
                 ),
             )
@@ -80,7 +80,7 @@ class SecureChannel(
                     } else {
                         Problem.NoConnection(displayName)
                     },
-                    technical = e.toString(),
+                    technical = Redact.text(e.toString()),
                     cause = e,
                 ),
             )

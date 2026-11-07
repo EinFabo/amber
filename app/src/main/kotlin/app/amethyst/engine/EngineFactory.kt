@@ -3,15 +3,17 @@ package app.amethyst.engine
 import android.content.Context
 import app.amethyst.core.audio.AudioEncoder
 import app.amethyst.core.engine.AmberCatalogs
+import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
-import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.OpenAiCompatibleEngine
-import app.amethyst.core.engine.SttEngine
-import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.Problem
+import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.Servers
+import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.whisper.WhisperCppEngine
@@ -67,12 +69,13 @@ class EngineFactory(
                         baseUrl = baseUrl,
                         modelId = modelId,
                         transport = transport,
-                        apiKeyProvider = { secrets.get(config.apiKeyAlias) },
+                        // Only to the host the key was given for; the validator above says so too.
+                        apiKeyProvider = { secrets.get(config.apiKeyAlias)?.takeIf { KeyBinding.allows(config) } },
                         capabilities = EngineCapabilities(
                             trustLevel = TrustLevel.CLOUD,
-                            // An alias is only assigned to presets that authenticate, so a
-                            // self-hosted endpoint is never nagged for a key.
-                            needsApiKey = config.apiKeyAlias != null,
+                            // A known service authenticates; an own server is never nagged for a
+                            // key, and gets one when it was given.
+                            needsApiKey = Servers.keyRequired(config),
                             // Not chunked: a server recognizes 30 s of audio in about a second,
                             // so cutting saves next to no waiting - and services that bill per
                             // request (Tinfoil's Whisper: $0.01 each) would charge every chunk.
@@ -179,7 +182,7 @@ class EngineFactory(
             baseUrl = baseUrl,
             model = model,
             channel = channel,
-            apiKeyProvider = { secrets.get(config.apiKeyAlias) },
+            apiKeyProvider = { secrets.get(config.apiKeyAlias)?.takeIf { KeyBinding.allows(config) } },
             templateKwargs = known?.noThinking.orEmpty(),
             extraParams = known?.extraParams.orEmpty(),
             // A streamed reply lets the ring follow the cleanup; Amber PC's answers in one piece.

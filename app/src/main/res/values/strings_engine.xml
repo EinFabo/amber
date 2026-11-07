@@ -76,4 +76,7 @@
     <string name="proof_hpke">HPKE key</string>
     <string name="proof_verified_at">Verified at</string>
     <string name="proof_valid_until">Valid until</string>
+    <string name="server_recognized">Recognized: %1$s. Its address, its models.</string>
+    <string name="server_key_optional">API key (optional)</string>
+    <string name="server_key_elsewhere">This key was entered for %1$s. It is not sent to this address - enter it again to use it here.</string>
 </resources>

@@ -152,12 +152,12 @@ object ServerProviders {
     )
 
     /**
-     * Whether the address stays out of the user's hands. Never for the own-server engine:
-     * pointed at a known host it gets that provider's models and prices, but the address
-     * remains its owner's to change.
+     * Whether the address stays out of the user's hands: only for Tinfoil, which is only ever
+     * its verified enclave. Every server's address is its owner's to change - pointed at a
+     * known host it gets that provider's models and prices, and its key stays bound to the
+     * host it was given for ([KeyBinding]).
      */
-    fun addressFixed(config: EngineConfig): Boolean =
-        config.id != EnginePresets.SELF_HOSTED.id && forUrl(config.baseUrl).fixedAddress
+    fun addressFixed(config: EngineConfig): Boolean = config.requireEnclave
 
     /**
      * http:// only to addresses in the user's own network - a server in the same Wi-Fi or on

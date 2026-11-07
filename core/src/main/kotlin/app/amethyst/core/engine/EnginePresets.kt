@@ -222,6 +222,27 @@ object EnginePresets {
             "but a noticeable wait for the first word.",
     )
 
+    /**
+     * The one entry for every server - Groq, OpenAI, an Amber PC or Amber Server, any other -
+     * added as often as wanted, each with an id of its own ([Servers.newServer]). Its page asks
+     * for the address and finds out what is there.
+     */
+    val SERVER = EnginePreset(
+        id = "server",
+        displayName = "Server",
+        kind = EngineKind.OPENAI_COMPATIBLE,
+        trustLevel = TrustLevel.CLOUD,
+        needsApiKey = true,
+        note = "Groq, OpenAI, an Amber PC or Amber Server, or any server with /v1/audio/transcriptions. " +
+            "Add as many as you like.",
+    )
+
+    /**
+     * What "Add speech recognition" offers: the phone's own, Tinfoil, and a server. The single
+     * server presets (own server, Groq, OpenAI) stay in [all] for the engines added before.
+     */
+    val offered: List<EnginePreset> get() = listOf(ANDROID_ON_DEVICE, LOCAL_WHISPER, LOCAL_PARAKEET, TINFOIL, SERVER)
+
     val all: List<EnginePreset> = listOf(
         ANDROID_ON_DEVICE,
         LOCAL_WHISPER,

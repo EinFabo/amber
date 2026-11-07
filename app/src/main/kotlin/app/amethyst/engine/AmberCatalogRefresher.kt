@@ -24,8 +24,8 @@ import kotlinx.coroutines.launch
 class AmberCatalogRefresher(
     private val scope: CoroutineScope,
     private val transport: HttpTransport,
-    /** Decrypts the engine's key; called on a background thread. */
-    private val keyFor: (String?) -> String?,
+    /** Decrypts the engine's key, for its bound host only; called on a background thread. */
+    private val keyFor: (EngineConfig) -> String?,
     private val settings: () -> AmethystSettings,
     private val update: suspend ((AmethystSettings) -> AmethystSettings) -> Unit,
     private val throttle: CatalogThrottle = CatalogThrottle(clock = SystemClock::elapsedRealtime),
@@ -46,7 +46,7 @@ class AmberCatalogRefresher(
         if (!throttle.claim(engine.id, baseUrl, force)) return
         scope.launch(Dispatchers.IO) {
             try {
-                val outcome = AmberCatalog.fetch(transport, baseUrl, keyFor(engine.apiKeyAlias))
+                val outcome = AmberCatalog.fetch(transport, baseUrl, keyFor(engine))
                 // Never the address: it carries the server's key.
                 if (outcome is CatalogFetch.Failed) Log.i("Amber", "model list of ${engine.id}: ${outcome.detail}")
                 update { AmberCatalogs.apply(it, engine.id, baseUrl, outcome) }

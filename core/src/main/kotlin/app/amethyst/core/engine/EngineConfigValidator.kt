@@ -26,7 +26,12 @@ object EngineConfigValidator {
             EngineKind.OPENAI_COMPATIBLE -> {
                 addAll(validateUrl(config))
                 if (config.modelId.isNullOrBlank()) add(ConfigIssue.ModelNameMissing)
-                if (config.apiKeyAlias != null && !hasApiKey) add(ConfigIssue.ApiKeyMissing)
+                when {
+                    // A key for another host stays there; it has to be given again for this one.
+                    config.apiKeyAlias != null && hasApiKey && !KeyBinding.allows(config) ->
+                        add(ConfigIssue.KeyForOtherAddress(config.keyHost.orEmpty()))
+                    !hasApiKey && Servers.keyRequired(config) -> add(ConfigIssue.ApiKeyMissing)
+                }
                 if (config.requireEnclave && !EnginePresets.isEnclaveHost(config.baseUrl)) {
                     add(ConfigIssue.EnclaveAddressOnly(EnginePresets.TINFOIL_BASE_URL))
                 }

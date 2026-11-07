@@ -71,4 +71,5 @@
     <string name="file_not_whisper_cpp">Das ist kein whisper.cpp-Modell. Erwartet wird eine .bin-Datei im ggml-Format, z. B. von FUTO.</string>
     <string name="file_not_whisper">Die Datei hat einen ggml-Kopf, sieht aber nicht nach Whisper aus.</string>
     <string name="file_other">Download fehlgeschlagen.</string>
+    <string name="issue_key_for_other_address">Der API-Schlüssel gehört zu %1$s - gib ihn für diese Adresse noch einmal ein.</string>
 </resources>

@@ -112,6 +112,7 @@ object Texts {
             ConfigIssue.AddressNoHost -> getString(R.string.issue_address_no_host)
             ConfigIssue.AddressHasSpace -> getString(R.string.issue_address_has_space)
             ConfigIssue.HttpOnlyInOwnNetwork -> getString(R.string.issue_http_only_in_own_network)
+            is ConfigIssue.KeyForOtherAddress -> getString(R.string.issue_key_for_other_address, issue.host)
         }
     }
 
@@ -309,6 +310,7 @@ object Texts {
         R.string.catalog_parakeet_name, R.string.catalog_parakeet_note,
         R.string.catalog_tinfoil_name, R.string.catalog_tinfoil_note,
         R.string.catalog_own_server, R.string.catalog_own_server_note,
+        R.string.catalog_server_name, R.string.catalog_server_note,
         R.string.catalog_groq_note, R.string.catalog_openai_note,
         R.string.catalog_voxtral, R.string.catalog_tinfoil_whisper, R.string.catalog_gemma,
         R.string.catalog_gpt_oss_120b, R.string.catalog_llama_tinfoil, R.string.catalog_glm,

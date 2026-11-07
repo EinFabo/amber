@@ -215,6 +215,21 @@ open class Screenshots {
         )
     }
 
+    @Test
+    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
+    fun newServer() = shoot("x-new-server", "Engine") {
+        EngineDetailScreen(
+            config = app.amethyst.core.engine.Servers.newServer("server-1a2b3c", "de"), catalog = null,
+            active = false, storedKey = null, whisperModels = emptyMap(),
+            onSaveKey = { _, _ -> }, onSave = {}, onActivate = {}, onDelete = {},
+            onTest = { ConnectionTester.Result.Ok("") }, onDownloadModel = {}, onImportModel = {},
+            onCancelModel = {}, onDeleteModel = {}, enclaveLog = emptyList(),
+            onVerifyEnclave = { app.amethyst.core.privacy.AttestationResult(false, "") },
+            parakeetState = app.amethyst.engine.ParakeetState.Missing,
+            onDownloadParakeet = {}, onCancelParakeet = {}, onDeleteParakeet = {},
+        )
+    }
+
     /**
      * The launcher icon as PNGs, for app/src/main/res/mipmap-*dpi: Android uses the adaptive
      * vector icon, but stores and installers read a bitmap from the APK. Drawn from the same

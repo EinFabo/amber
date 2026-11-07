@@ -44,4 +44,6 @@
     <string name="catalog_tier_more_accurate">genauer</string>
     <string name="catalog_tier_most_accurate">am genauesten</string>
     <string name="catalog_tier_replaced">ersetzt</string>
+    <string name="catalog_server_name">Server</string>
+    <string name="catalog_server_note">Groq, OpenAI, ein Amber PC oder Amber Server oder jeder Server mit /v1/audio/transcriptions. Füge so viele hinzu, wie du willst.</string>
 </resources>
