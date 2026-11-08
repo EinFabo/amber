@@ -76,10 +76,34 @@ object LanguageGuess {
      * ([fromWords], the rule [CleanupGuard] checks the reply by), what the engine detected,
      * the one language it was set to. Words first, because the guard goes by them: a prompt
      * asking for German on an English dictation gets a translation, which the guard rejects -
-     * an engine set to "de-DE" hears English too. Null when none of them is sure.
+     * an engine set to "de-DE" hears English too. Detected or set, a language the words lean
+     * away from is not named ([leaning]). Null when none of them is sure.
      */
     fun forDictation(text: String, detected: String?, engineTag: String?): String? =
-        fromWords(text) ?: fromTag(detected) ?: fromTag(engineTag)
+        fromWords(text) ?: (fromTag(detected) ?: fromTag(engineTag))?.takeUnless { contradicts(it, leaning(text)) }
+
+    /**
+     * "de" or "en" by which marker words [text] has more of, however few: "Sounds good to me"
+     * leans English. Too little for the prompt to name a language by, enough to keep it from
+     * naming the other one - an engine set to German that heard a short English sentence must
+     * not have the cleanup asked for German, or it translates. Null for none or a tie.
+     */
+    fun leaning(text: String): String? {
+        val words = words(text)
+        val german = words.count { it in GERMAN || it.any { c -> c in "äöüß" } }
+        val english = words.count { it in ENGLISH }
+        return when {
+            german > english -> "de"
+            english > german -> "en"
+            else -> null
+        }
+    }
+
+    /** Whether [code] (German or English) is the other one than the words lean to. */
+    private fun contradicts(code: String, lean: String?): Boolean =
+        lean != null && code in LEANING && code != lean
+
+    private val LEANING = setOf("de", "en")
 
     /** "German" for "de"; null for a code the prompt has no name for. */
     fun nameOf(code: String?): String? = code?.let { NAMES[fromTag(it) ?: it] }

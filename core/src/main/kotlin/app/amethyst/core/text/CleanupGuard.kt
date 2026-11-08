@@ -112,11 +112,14 @@ object CleanupGuard {
     }
 
     /**
-     * Only when both sides are sure: the dictation clearly German (by its words, else by what
-     * the caller knows) and the reply clearly English, or the other way round.
+     * Only when both sides are sure: the dictation German (by its words, else by the way its
+     * few words lean, else by what the caller knows) and the reply clearly English, or the
+     * other way round. A short English dictation from an engine set to German counts as English.
      */
     private fun languageChanged(original: String, cleaned: String, language: String?): Boolean {
-        val before = LanguageGuess.fromWords(original) ?: LanguageGuess.fromTag(language)?.takeIf { it == "de" || it == "en" }
+        val before = LanguageGuess.fromWords(original)
+            ?: LanguageGuess.leaning(original)
+            ?: LanguageGuess.fromTag(language)?.takeIf { it == "de" || it == "en" }
         val after = LanguageGuess.fromWords(cleaned)
         return before != null && after != null && before != after
     }

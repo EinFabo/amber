@@ -179,6 +179,13 @@ class CleanupGuardTest {
     }
 
     @Test
+    fun `a short English dictation from an engine set to German stays English`() {
+        // Too few words to be sure, but they lean English: a German reply is a translation.
+        assertEquals(Verdict.LANGUAGE, verdict("Sounds good to me", "Klingt gut für mich, danke.", language = "de"))
+        assertEquals(Verdict.OK, verdict("Sounds good to me", "Sounds good to me.", language = "de"))
+    }
+
+    @Test
     fun `an English term in a German dictation is no change of language`() {
         assertEquals(
             Verdict.OK,

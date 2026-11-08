@@ -49,10 +49,30 @@ class LanguageGuessTest {
         assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", null, "en-US"))
         assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", "english", "en-US"))
         // Words too few to tell: what the engine detected, else the one language it was set to.
-        assertEquals("en", LanguageGuess.forDictation("Okay, danke.", "english", "de-DE"))
+        assertEquals("en", LanguageGuess.forDictation("Okay, cool.", "english", "de-DE"))
         assertEquals("de", LanguageGuess.forDictation("Okay, danke.", null, "de-DE"))
         assertEquals("de", LanguageGuess.forDictation("Ich komme heute nicht, aber morgen.", null, "de,en"))
         assertEquals(null, LanguageGuess.forDictation("Okay, danke.", null, "de,en"))
+    }
+
+    @Test
+    fun `a language the few words lean away from is not named`() {
+        // Short English from an engine set to German: "Reply in German" would translate it.
+        assertEquals(null, LanguageGuess.forDictation("Sounds good to me.", null, "de-DE"))
+        assertEquals(null, LanguageGuess.forDictation("Sounds good to me.", "german", null))
+        assertEquals(null, LanguageGuess.forDictation("Okay, danke.", "english", "de-DE"))
+        // Leaning the same way, or not at all: the engine's language stands.
+        assertEquals("de", LanguageGuess.forDictation("Passt, danke.", null, "de-DE"))
+        assertEquals("de", LanguageGuess.forDictation("Termin verschoben.", null, "de-DE"))
+        assertEquals("fr", LanguageGuess.forDictation("Sounds good to me.", null, "fr"))
+    }
+
+    @Test
+    fun `the words lean by their markers, however few`() {
+        assertEquals("en", LanguageGuess.leaning("Sounds good to me."))
+        assertEquals("de", LanguageGuess.leaning("Okay, danke."))
+        assertEquals(null, LanguageGuess.leaning("Okay, cool."))
+        assertEquals(null, LanguageGuess.leaning("danke, thanks"))
     }
 
     @Test
