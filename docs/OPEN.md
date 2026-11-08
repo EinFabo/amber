@@ -100,6 +100,10 @@ series and one store release per phase, each after his OK.
 - [x] GitHub release v0.27.2 (2026-11-06, Latest): signed with the GitHub key (`CN=Amber`), APK SHA-256
       `19daaa73eb2dcbf2620854c0d158dd0f10f65e445dde150183fb02255653d889`. Open: the update check from
       a 0.26.3 GitHub install should now announce it (first real run of that device test).
+- [x] GitHub release v0.30.2 (2026-11-08, Latest): everything since 0.27.2 (P4, P5, Undo last, short
+      English stays English), signed with the GitHub key, APK SHA-256
+      `3e6208039fdb6147981538248a5e7334b42b8bf2c303df47cb86e78d8960fdb4`. Undo last and the
+      language fix tried on the Pixel by Fabi before. Not in the store yet (store has 0.30.1).
 - [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
       app in front), a pause left for 5 min, keyboard with "Always" and a WebView field.
 
