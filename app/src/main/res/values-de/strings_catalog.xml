@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="catalog_android_name">Android (auf dem Handy)</string>
-    <string name="catalog_android_note">Nutzt die Spracherkennung des Systems. Kein Download, kein Schlüssel - die Qualität hängt vom Hersteller ab.</string>
+    <string name="catalog_android_note">Nutzt die Spracherkennung des Systems. Kein Download, kein Schlüssel - die Qualität hängt vom Hersteller ab. Sie hört immer bei der ersten Pause auf.</string>
     <string name="catalog_whisper_name">Whisper lokal (FUTO)</string>
     <string name="catalog_whisper_note">Ganz ohne Internet über whisper.cpp, ohne Google-Sprachpaket. Braucht einmal einen Download von 82 MB.</string>
     <string name="catalog_parakeet_name">Parakeet TDT (lokal)</string>

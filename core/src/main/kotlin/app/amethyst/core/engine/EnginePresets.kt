@@ -76,7 +76,7 @@ object EnginePresets {
         kind = EngineKind.ANDROID_ON_DEVICE,
         trustLevel = TrustLevel.ON_DEVICE,
         note = "Uses the system recognizer. No download, no key - " +
-            "quality depends on the manufacturer.",
+            "quality depends on the manufacturer. It always stops at the first pause.",
     )
 
     val LOCAL_WHISPER = EnginePreset(

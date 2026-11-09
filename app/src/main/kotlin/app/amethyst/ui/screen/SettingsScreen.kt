@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
+import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
@@ -288,7 +289,10 @@ fun RecordingScreen(
         SectionCard(title = stringResource(R.string.recording_ending)) {
             ToggleRow(
                 label = stringResource(R.string.recording_auto_stop),
-                description = stringResource(R.string.recording_auto_stop_note),
+                // Android's recognizer ends at a pause by itself; say so where it matters.
+                description = stringResource(
+                    if (settings.activeEngine?.kind == EngineKind.ANDROID_ON_DEVICE) R.string.recording_auto_stop_note_android else R.string.recording_auto_stop_note,
+                ),
                 checked = settings.capture.autoStopOnSilence,
                 onChange = { value ->
                     onUpdateSettings { it.copy(capture = it.capture.copy(autoStopOnSilence = value)) }
@@ -570,6 +574,8 @@ private fun EngineRow(
         note = problems.firstOrNull()?.let { words(it) }
             ?: listOfNotNull(
                 config.modelId ?: stringResource(R.string.engine_system_model),
+                // Android's recognizer ends at a pause by itself, whatever the recording settings say.
+                if (config.kind == EngineKind.ANDROID_ON_DEVICE) stringResource(R.string.engine_stops_at_pause) else null,
                 measuredWaitMs?.let { stringResource(R.string.engine_typically, formatSeconds(it)) },
             ).joinToString(" · "),
         selected = active,

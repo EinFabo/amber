@@ -6,7 +6,7 @@
      tools/check_strings.py checks that every English text still occurs in :core. -->
 <resources>
     <string name="catalog_android_name">Android (on device)</string>
-    <string name="catalog_android_note">Uses the system recognizer. No download, no key - quality depends on the manufacturer.</string>
+    <string name="catalog_android_note">Uses the system recognizer. No download, no key - quality depends on the manufacturer. It always stops at the first pause.</string>
     <string name="catalog_whisper_name">Whisper local (FUTO)</string>
     <string name="catalog_whisper_note">Fully offline through whisper.cpp, no Google language pack. Needs a one-time 82 MB model download.</string>
     <string name="catalog_parakeet_name">Parakeet TDT (local)</string>

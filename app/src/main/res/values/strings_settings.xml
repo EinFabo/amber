@@ -28,6 +28,7 @@
     <string name="recording_ending">Ending</string>
     <string name="recording_auto_stop">Stop automatically on silence</string>
     <string name="recording_auto_stop_note">Off: it runs until the next tap.</string>
+    <string name="recording_auto_stop_note_android">Off: it runs until the next tap - except with Android\'s speech recognition, which always stops at the first pause.</string>
     <string name="recording_text">Text</string>
     <string name="recording_text_more">Both work by rules, without a language model, so nothing is made up. The commas go before \"dass\", \"weil\", \"wenn\" or \"um ... zu\", where recognition often leaves them out - they never change a word.</string>
     <string name="recording_fillers">Remove filler words</string>
@@ -77,6 +78,7 @@
     <string name="reliability_subtitle">Optional. Keeps Android from cutting off the microphone.</string>
     <string name="reliability_more">Android may cut off the microphone of an app in the background. The microphone service keeps it ready while you are in other apps, its silent notification says so, and unrestricted battery stops some manufacturers from killing the service.</string>
     <string name="engine_system_model">System model</string>
+    <string name="engine_stops_at_pause">stops at a pause</string>
     <string name="engine_typically">typically %1$s here</string>
     <string name="open">Open</string>
     <string name="bubble_size">Size</string>

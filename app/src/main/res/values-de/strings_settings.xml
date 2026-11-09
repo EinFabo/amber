@@ -28,6 +28,7 @@
     <string name="recording_ending">Ende</string>
     <string name="recording_auto_stop">Bei Stille automatisch stoppen</string>
     <string name="recording_auto_stop_note">Aus: Sie läuft bis zum nächsten Tippen.</string>
+    <string name="recording_auto_stop_note_android">Aus: Sie läuft bis zum nächsten Tippen - außer mit Androids Spracherkennung, die immer bei der ersten Pause aufhört.</string>
     <string name="recording_text">Text</string>
     <string name="recording_text_more">Beides arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort.</string>
     <string name="recording_fillers">Füllwörter entfernen</string>
@@ -77,6 +78,7 @@
     <string name="reliability_subtitle">Optional. Hält Android davon ab, das Mikrofon abzuschalten.</string>
     <string name="reliability_more">Android kann einer App im Hintergrund das Mikrofon abschalten. Der Mikrofon-Dienst hält es bereit, während du in anderen Apps bist, seine stille Benachrichtigung zeigt das an, und uneingeschränkter Akku hält manche Hersteller davon ab, den Dienst zu beenden.</string>
     <string name="engine_system_model">Systemmodell</string>
+    <string name="engine_stops_at_pause">hört bei Pausen auf</string>
     <string name="engine_typically">hier meist %1$s</string>
     <string name="open">Öffnen</string>
     <string name="bubble_size">Größe</string>
