@@ -109,12 +109,17 @@ series and one store release per phase, each after his OK.
 
 ## In progress: bubble and keyboard
 
-- [ ] **Android's recognizer at the bubble is laggy and buggy** (Fabi, 2026-11-07): dictating
-      with Android's own recognition through the bubble stutters and misbehaves. Find the cause
-      with live logs before changing anything - candidates: the recognizer's callbacks on the
-      main thread next to the bubble's overlay updates, partial results redrawing the bubble too
-      often, the self-capturing path (`listenWithEngine`) vs. the proxy activity's microphone
-      handover, the amplitude ring fed from `onRmsChanged`.
+- [x] **Android's recognizer at the bubble is laggy and buggy** (Fabi, 2026-11-07; done in 0.30.3,
+      2026-11-09): not the drawing (0 janky frames of 1047) but the level - it moved a fixed share
+      per reported value, so a recognizer reporting in its own rhythm, with "silence" between
+      words, made it jump and drop to nothing. Now `LevelMeter` follows by time (rise 45 ms, fall
+      350 ms) and the bubble draws 60 frames a second while listening. The own recorder's level
+      starts above a quiet room (-55..-20 dBFS; the room measured -58, speech -35..-22), and
+      silence shows three still dots. Android's recognizer still ends at the first pause:
+      restarting it after each pause was tried and failed on the Pixel (the service lost the
+      connection before listening), so it is said in the app instead - in its row, on its page
+      and under "Stop automatically on silence". The log line "bubble level" gives rate and
+      quantiles per dictation. Open: Android's own level mapping ((rmsdB + 2) / 12) unmeasured.
 - [ ] **Set up wireless debugging**, so the keyboard measurements can be read live with
       `adb logcat -s Amber:V`. Pairing needs: pairing IP:port + 6-digit code, and the
       connection IP:port.
