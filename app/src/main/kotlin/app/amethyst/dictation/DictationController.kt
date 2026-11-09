@@ -21,6 +21,7 @@ import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
+import app.amethyst.core.capture.LoudnessLog
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
@@ -593,6 +594,14 @@ class DictationController(
         }
     }
 
+    /** What the bubble's level was fed in this dictation, for the log ([LoudnessLog]). */
+    @Volatile
+    private var loudness: LoudnessLog? = null
+
+    private fun noteLoudness(amplitude: Float) {
+        loudness?.let { log -> synchronized(log) { log.add(amplitude, SystemClock.elapsedRealtime()) } }
+    }
+
     private suspend fun listenWithEngine(
         engine: SelfCapturingSttEngine,
         options: TranscribeOptions,
@@ -602,11 +611,12 @@ class DictationController(
         // Recognition overlaps with listening here; the whole call counts as both.
         trace?.recordingStarts()
         trace?.transcribingStarts()
+        loudness = LoudnessLog()
 
         val result = engine.listen(
             options,
             ListenCallbacks(
-                onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
+                onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
                 onPartial = { partial -> updateListening { it.copy(partial = partial) } },
             ),
         )
@@ -650,6 +660,7 @@ class DictationController(
         pause: RecordingPause,
     ): Transcript? {
         _state.value = DictationState.Listening()
+        loudness = LoudnessLog()
 
         trace?.recordingStarts()
         val vadConfig = graph.settings.value.capture.let { capture ->
@@ -675,7 +686,7 @@ class DictationController(
             capture.record(
                 config = vadConfig,
                 stopRequested = { stopRequested.get() },
-                onAmplitude = { amplitude -> updateListening { it.copy(amplitude = amplitude) } },
+                onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
                 onChunk = chunkSink?.let { it::submit },
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
                 pause = pause,
@@ -1372,6 +1383,7 @@ class DictationController(
             timing = trace?.summary(),
         )
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
+        loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
         recordStat(finalTranscript, insertion.targetPackage, settings)
 
         _state.value = DictationState.Done(

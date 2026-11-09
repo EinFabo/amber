@@ -66,14 +66,24 @@ class PcmAccumulator(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE)
         private const val MAX_PCM_VALUE = 32_768.0
 
         /**
-         * Maps a frame's RMS onto 0f..1f for the amplitude ring.
+         * Maps a frame's RMS onto 0f..1f for the bubble's level, in decibels between
+         * [FLOOR_DBFS] and [FULL_DBFS].
          *
-         * Logarithmic on purpose: normal speech sits near the bottom of the linear range, so
-         * a linear ring barely moves and the bubble looks broken while it is working fine.
+         * Logarithmic, since normal speech sits near the bottom of the linear range. The window
+         * starts above a quiet room: measured on a Pixel 9a, the room sat near -58 dBFS and
+         * speech between -35 and -22 - spread over the whole range, the room alone showed a
+         * third of the level and soft speech moved it as much as loud.
          */
         fun normalizeLoudness(rms: Double): Float {
             if (rms <= 1.0) return 0f
-            return (log10(rms) / log10(MAX_PCM_VALUE)).toFloat().coerceIn(0f, 1f)
+            val dbfs = 20 * log10(rms / MAX_PCM_VALUE)
+            return ((dbfs - FLOOR_DBFS) / (FULL_DBFS - FLOOR_DBFS)).toFloat().coerceIn(0f, 1f)
         }
+
+        /** Quieter than this shows as nothing: a quiet room, breath, the phone's own hiss. */
+        const val FLOOR_DBFS = -55.0
+
+        /** Loud speech close to the phone: the full level. */
+        const val FULL_DBFS = -20.0
     }
 }

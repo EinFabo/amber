@@ -83,6 +83,14 @@ class PcmAccumulatorTest {
     }
 
     @Test
+    fun `a quiet room shows nothing, soft speech a little`() {
+        // About -58 dBFS: the room the level was measured in.
+        assertEquals(0f, PcmAccumulator.normalizeLoudness(40.0))
+        val soft = PcmAccumulator.normalizeLoudness(300.0) // about -41 dBFS
+        assertTrue(soft > 0.2f && soft < 0.5f, "soft speech at $soft")
+    }
+
+    @Test
     fun `louder frames always map higher`() {
         val quiet = PcmAccumulator.normalizeLoudness(200.0)
         val mid = PcmAccumulator.normalizeLoudness(2_000.0)

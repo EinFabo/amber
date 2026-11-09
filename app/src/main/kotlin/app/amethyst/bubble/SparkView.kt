@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.SystemClock
 import android.view.View
+import app.amethyst.core.bubble.LevelMeter
 
 /**
  * Ember's rising sparks, in an overlay window of their own that sits over the bubble and
@@ -42,6 +43,7 @@ class SparkView(context: Context) : View(context) {
     val busy: Boolean get() = listening || pendingSpark || !sparks.empty
 
     private val sparks = SparkField()
+    private val meter = LevelMeter()
     private var level = 0f
     private var lastFrame = 0L
 
@@ -91,7 +93,7 @@ class SparkView(context: Context) : View(context) {
         }
 
         val target = if (listening) amplitude else 0f
-        level += (target - level) * if (target > level) ATTACK else RELEASE
+        level = meter.follow(target, now)
         if (listening && ValueAnimator.areAnimatorsEnabled()) {
             sparks.listen(now, dt, level, discCx, discCy, discR, size)
         }
@@ -116,7 +118,5 @@ class SparkView(context: Context) : View(context) {
 
     private companion object {
         const val FRAME_MS = 33L
-        const val ATTACK = 0.35f
-        const val RELEASE = 0.08f
     }
 }

@@ -12,6 +12,7 @@ import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
+import app.amethyst.core.bubble.LevelMeter
 import app.amethyst.core.engine.WaitProgress
 import kotlin.math.PI
 import kotlin.math.cos
@@ -60,11 +61,14 @@ class BubbleView(context: Context) : View(context) {
             }
         }
 
-    /** 0f..1f from the recorder; smoothed per frame before it is drawn. */
+    /**
+     * 0f..1f from the recorder or the recognizer, followed by time ([LevelMeter]). While
+     * listening the bubble draws on its own clock; with animations off, each new value draws.
+     */
     var amplitude: Float = 0f
         set(value) {
             field = value.coerceIn(0f, 1f)
-            if (visual == BubbleVisual.LISTENING) invalidate()
+            if (visual == BubbleVisual.LISTENING && !ValueAnimator.areAnimatorsEnabled()) invalidate()
         }
 
     /**
@@ -76,6 +80,7 @@ class BubbleView(context: Context) : View(context) {
     private var stateEnteredAt = SystemClock.elapsedRealtime()
 
     /** What is drawn: rises fast with the voice, falls slowly, like a VU meter. */
+    private val meter = LevelMeter()
     private var level = 0f
 
     private val disc = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -118,7 +123,7 @@ class BubbleView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val elapsed = (SystemClock.elapsedRealtime() - stateEnteredAt).toFloat()
         val target = if (visual == BubbleVisual.LISTENING) amplitude else 0f
-        level += (target - level) * if (target > level) ATTACK else RELEASE
+        level = meter.follow(target, SystemClock.elapsedRealtime())
         val still = !ValueAnimator.areAnimatorsEnabled()
         val r = discRadius
 
@@ -332,14 +337,18 @@ class BubbleView(context: Context) : View(context) {
         disc.alpha = 255
     }
 
-    /** Three level bars, the middle one tallest, each wobbling at its own pace. */
+    /**
+     * Three level bars, the middle one tallest. In silence they are three still dots; the voice
+     * draws them out, each wobbling at its own pace - so a quiet moment looks quiet.
+     */
     private fun drawBars(canvas: Canvas, r: Float, elapsed: Float, still: Boolean) {
         glyph.style = Paint.Style.STROKE
         glyph.strokeWidth = r * 0.14f
         val spacing = r * 0.28f
         for (i in 0 until 3) {
             val wobble = if (still) 0.85f else 0.6f + 0.4f * sin(elapsed / 1000f * BAR_SPEED[i] * 2 * PI.toFloat() + i)
-            val height = r * (0.16f + BAR_PROFILE[i] * (0.2f + level * 0.6f) * wobble)
+            // Silence leaves round dots (the stroke's caps); the voice draws them out to bars.
+            val height = r * (0.16f + 0.8f * BAR_PROFILE[i]) * level * wobble
             val x = cx + (i - 1) * spacing
             canvas.drawLine(x, cy - height / 2, x, cy + height / 2, glyph)
         }
@@ -377,13 +386,19 @@ class BubbleView(context: Context) : View(context) {
 
     /**
      * When to draw next: 0 for the next vsync, a delay in ms, or null for not until something
-     * changes. Listening is driven by the recorder's amplitude (50 a second) once faded in.
+     * changes. Listening draws 60 frames a second once faded in, on its own clock.
      * The burning flame and the fuse run for as long as recognition takes - up to a minute
      * and more on a local model, next to whisper on the CPU - so they get 30 frames a second,
      * not 120; with animations off only a progress ring still moves, four times a second.
      */
     private fun nextFrameMs(elapsed: Float, still: Boolean): Long? = when (visual) {
-        BubbleVisual.LISTENING -> if (elapsed < ENTER_MS) 0L else null
+        // The level and the bars move by time, whenever and however often the loudness is
+        // reported - Android's recognizer reports in its own rhythm, Amber's recorder 50 a second.
+        BubbleVisual.LISTENING -> when {
+            elapsed < ENTER_MS -> 0L
+            still -> null
+            else -> LISTENING_FRAME_MS
+        }
         BubbleVisual.TRANSCRIBING -> when {
             !still -> WORKING_FRAME_MS
             work != null -> STILL_PROGRESS_MS
@@ -451,8 +466,7 @@ class BubbleView(context: Context) : View(context) {
     }
 
     private companion object {
-        const val ATTACK = 0.35f
-        const val RELEASE = 0.08f
+        const val LISTENING_FRAME_MS = 16L
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f
         const val WORKING_FRAME_MS = 33L
