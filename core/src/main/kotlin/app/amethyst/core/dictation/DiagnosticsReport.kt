@@ -7,8 +7,10 @@ import java.time.format.DateTimeFormatter
 
 /**
  * The records Diagnostics shows, as plain text to paste into a chat or a bug report: per
- * record its time of day, its one-line summary, what was heard (or dictated), a command's
- * steps - each of several commands' lines under its heading - and the timing. What goes in is what the screen shows - nothing more is read for it.
+ * record its time of day, its one-line summary, the shape of what was heard (or dictated), a
+ * command's steps - each of several commands' lines under its heading - and the timing. What
+ * goes in is what the screen shows until "Show text" - nothing more is read for it, and no word
+ * of a dictation, a command or a field ([anonymous]).
  */
 object DiagnosticsReport {
 
@@ -55,21 +57,48 @@ object DiagnosticsReport {
             1 -> "1 record"
             else -> "${records.size} records, newest first"
         }
+        val texts = texts(records)
         appendLine("$title - diagnostics copied ${DATE_TIME.format(local(copiedAt, zone))} - $count")
-        warning?.let { appendLine("Note: $it") }
+        warning?.let { appendLine("Note: ${Anonymize.line(it, texts)}") }
         for (record in records) {
+            val shown = anonymous(record, texts)
             appendLine()
-            appendLine("${TIME.format(local(record.atMillis, zone))}  ${record.summary()}")
-            if (record.text.isNotBlank()) appendLine("$INDENT${if (record.command) "heard" else "text"}: ${record.text}")
-            nested(record.details).forEach { appendLine("$INDENT$it") }
-            record.timing?.let { appendLine("${INDENT}timing: $it") }
+            appendLine("${TIME.format(local(record.atMillis, zone))}  ${shown.summary}")
+            shown.shape?.let { appendLine("$INDENT${if (record.command) "heard" else "text"}: ${it.describe()}") }
+            shown.lines.forEach { appendLine("$INDENT$it") }
         }
         if (keyboard.isNotEmpty()) {
             appendLine()
             appendLine("Keyboard")
-            keyboard.forEach { appendLine("$INDENT$it") }
+            Anonymize.lines(keyboard, texts).forEach { appendLine("$INDENT$it") }
         }
     }
+
+    /**
+     * A record as a copy has it and its card shows it until "Show text": its words as their
+     * [shape] (null without words), its [summary] and [lines] without them ([Anonymize]).
+     */
+    data class Anonymous(val shape: TextShape?, val summary: String, val lines: List<String>)
+
+    /**
+     * [record] without its words - nor those of [texts], every record's words shown with it
+     * ([texts]): a command's steps may quote what an earlier one heard.
+     */
+    fun anonymous(record: DictationRecord, texts: Collection<String> = texts(listOf(record))): Anonymous {
+        val all = Anonymize.lines(listOf(record.summary()) + lines(record), texts)
+        return Anonymous(
+            shape = record.text.takeIf { it.isNotBlank() }?.let(TextShape::of),
+            summary = all.first(),
+            lines = all.drop(1),
+        )
+    }
+
+    /** What [records] heard or dictated, to keep out of every line shown with them. */
+    fun texts(records: List<DictationRecord>): List<String> = records.map { it.text }.filter { it.isNotBlank() }
+
+    /** [record]'s lines under its summary as they are: a command's steps ([nested]), then the timing. */
+    fun lines(record: DictationRecord): List<String> =
+        nested(record.details) + listOfNotNull(record.timing?.let { "timing: $it" })
 
     /** A heading of one of several commands said in one go: "step 2/3: Edit COPY". */
     private val STEP_HEADING = Regex("^step \\d+/\\d+: ")

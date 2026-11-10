@@ -40,20 +40,20 @@ class DiagnosticsReportTest {
         DiagnosticsReport.of(records, ZoneOffset.UTC, title = "Amber 0.21.0", copiedAt = at + 60_000, keyboard = keyboard)
 
     @Test
-    fun `each record with its time, summary, words, steps and timing, newest first`() {
+    fun `each record with its time, summary, the shape of its words, steps and timing, newest first`() {
         assertEquals(
             """
             Amber 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - 2 records, newest first
 
-            14:02:31  Command · parakeet · No app called “kalender”.
-              heard: Öffne Kalender
-              normalized: "offne kalender"
-              understood: OpenApp "kalender"
+            14:02:31  Command · parakeet · No app called “…”.
+              heard: 14 characters, 2 words, 1 line
+              normalized: "…"
+              understood: OpenApp "…"
               app search: NotFound among 84 apps
               timing: route BUBBLE/RECORD_NOW · recording 0.9 s
 
             14:01:26  parakeet · 640 ms · SET_TEXT · com.whatsapp
-              text: Bin gleich da
+              text: 13 characters, 3 words, 1 line
               timing: route BUBBLE/RECORD_NOW · recording 1.2 s
             """.trimIndent() + "\n",
             report(records()),
@@ -109,7 +109,7 @@ class DiagnosticsReportTest {
         )
         val text = report(log.records.value)
         val expected = """
-            |  heard: Alles markieren und kopieren
+            |  heard: 28 characters, 4 words, 1 line
             |  understood: Edit SELECT_ALL → Edit COPY
             |  step 1/2: Edit SELECT_ALL
             |    gate: passed (commands on, phone unlocked)

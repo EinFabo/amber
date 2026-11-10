@@ -121,7 +121,8 @@ fun fieldColors(container: Color = AmberPalette.Elevated) = OutlinedTextFieldDef
  * What actually happened on the last dictations and voice commands, so a bug report can be
  * precise. A command opens to its steps - what the rules made of the words, what was tried, why
  * it stopped - and "Copy" puts the entries shown on the clipboard as plain text, marked
- * sensitive, to paste into a chat. Nothing here leaves the phone by itself.
+ * sensitive, to paste into a chat. Nothing here leaves the phone by itself. Neither the copy nor
+ * a card shows what was said: a card gives its words' shape until "Show text" on it.
  */
 @Composable
 fun DiagnosticsScreen(
@@ -141,6 +142,8 @@ fun DiagnosticsScreen(
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf(initialFilter) }
     var open by remember { mutableStateOf(initiallyOpen) }
+    // The entries (by their time) whose words are shown: none until asked, and never kept.
+    var revealed by remember { mutableStateOf(emptySet<Long>()) }
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) {
         if (copied) {
@@ -199,12 +202,20 @@ fun DiagnosticsScreen(
                     )
                 },
             ) {
+                // Every record's words, kept out of every card's lines until "Show text".
+                val texts = remember(records) { DiagnosticsReport.texts(records) }
                 shown.forEachIndexed { i, record ->
                     // Keyed by the record, so an entry's fold state stays with it as new ones arrive on top.
                     key(record.atMillis) {
                         if (i > 0) RowDivider()
                         val at = record.atMillis
-                        RecordRow(record, open = at in open) { open = if (at in open) open - at else open + at }
+                        RecordRow(
+                            record,
+                            texts,
+                            open = at in open,
+                            revealed = at in revealed,
+                            onReveal = { revealed = if (at in revealed) revealed - at else revealed + at },
+                        ) { open = if (at in open) open - at else open + at }
                     }
                 }
             }
@@ -224,28 +235,49 @@ fun DiagnosticsScreen(
 }
 
 /**
- * One entry: what was heard or dictated, the one-line summary, the time - and, opened, a
- * command's steps and the timing in small monospace text.
+ * One entry: the shape of what was heard or dictated, the one-line summary, the time - and,
+ * opened, a command's steps and the timing in small monospace text. No word of a dictation, a
+ * command or a field in any of it ([DiagnosticsReport.anonymous], against all records' [texts]),
+ * until [revealed] by "Show text".
  */
 @Composable
-private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Unit) {
+private fun RecordRow(
+    record: DictationRecord,
+    texts: List<String>,
+    open: Boolean,
+    revealed: Boolean,
+    onReveal: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    val context = LocalContext.current
     val foldable = record.details.isNotEmpty() || record.timing != null
+    val anonymous = remember(record, texts) { DiagnosticsReport.anonymous(record, texts) }
+    val allLines = remember(record) { DiagnosticsReport.lines(record) }
+    // Only where something is hidden: the words, or a line that quoted them.
+    val hidesWords = anonymous.shape != null || anonymous.summary != record.summary() || anonymous.lines != allLines
+    val show = revealed && hidesWords
+    val shape = anonymous.shape
     Column(Modifier.fillMaxWidth()) {
         NavRow(
             title = when {
-                record.text.isNotBlank() -> if (record.command) "\u201C${record.text}\u201D" else record.text
+                show && record.text.isNotBlank() -> if (record.command) "\u201C${record.text}\u201D" else record.text
+                shape != null -> Texts.shape(context, shape)
                 record.command -> stringResource(R.string.diag_no_words)
                 else -> stringResource(R.string.diag_no_text)
             },
-            summary = record.summary(),
+            summary = if (show) record.summary() else anonymous.summary,
             summaryColor = if (record.failed) AmberPalette.Error else AmberPalette.Muted,
             // Open, the whole outcome; folded, two lines of it.
             summaryMaxLines = if (open) Int.MAX_VALUE else 2,
             icon = if (record.command) AmberIcons.VoiceCommand else AmberIcons.Mic,
             below = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Hint(TIME.format(Instant.ofEpochMilli(record.atMillis).atZone(ZoneId.systemDefault())))
                     record.trustLevel?.let { TrustBadge(it) }
+                    if (hidesWords) {
+                        Spacer(Modifier.weight(1f))
+                        GhostButton(stringResource(if (show) R.string.diag_hide_text else R.string.diag_show_text), onReveal)
+                    }
                 }
             },
             trailing = if (foldable) {
@@ -258,7 +290,7 @@ private fun RecordRow(record: DictationRecord, open: Boolean, onToggle: () -> Un
         )
         Unfold(open && foldable) {
             // Each of several commands' lines under its step, as the copied text has them.
-            val lines = DiagnosticsReport.nested(record.details) + listOfNotNull(record.timing?.let { "timing: $it" }) // English: diagnostics
+            val lines = if (show) allLines else anonymous.lines
             Column(
                 Modifier
                     .fillMaxWidth()

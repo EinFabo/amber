@@ -119,7 +119,7 @@
         <item quantity="one">Der letzte Befehl</item>
         <item quantity="other">Die letzten %d Befehle</item>
     </plurals>
-    <string name="diag_note">Tippe einen an für seine Schritte. Bleibt auf diesem Handy, bis Amber neu startet. Die Einträge sind auf Englisch, damit man sie teilen kann.</string>
+    <string name="diag_note">Tippe einen an für seine Schritte. Bleibt auf diesem Handy, bis Amber neu startet. Die Einträge sind auf Englisch und eine Kopie enthält keine diktierten Wörter, damit man sie teilen kann.</string>
     <string name="copied">Kopiert</string>
     <string name="copy">Kopieren</string>
     <string name="diag_keyboard">Tastatur</string>
@@ -129,6 +129,22 @@
     <string name="diag_nothing_yet">Noch nichts diktiert</string>
     <string name="diag_no_commands">Noch keine Sprachbefehle</string>
     <string name="diag_no_dictations">Noch keine Diktate</string>
+    <string name="diag_show_text">Text zeigen</string>
+    <string name="diag_hide_text">Text verbergen</string>
+    <plurals name="diag_shape_characters">
+        <item quantity="one">%d Zeichen</item>
+        <item quantity="other">%d Zeichen</item>
+    </plurals>
+    <plurals name="diag_shape_words">
+        <item quantity="one">%d Wort</item>
+        <item quantity="other">%d Wörter</item>
+    </plurals>
+    <plurals name="diag_shape_lines">
+        <item quantity="one">%d Zeile</item>
+        <item quantity="other">%d Zeilen</item>
+    </plurals>
+    <string name="diag_shape_german">Deutsch</string>
+    <string name="diag_shape_english">Englisch</string>
     <string name="licenses_subtitle">Freie Software unter der Apache License 2.0.</string>
     <string name="loading">Wird geladen …</string>
     <string name="licenses_notice_unreadable">Der Hinweis konnte nicht gelesen werden.</string>

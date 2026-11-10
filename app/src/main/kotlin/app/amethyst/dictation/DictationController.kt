@@ -39,6 +39,7 @@ import app.amethyst.core.commands.GlobalAction
 import app.amethyst.core.commands.RunMode
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
+import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
@@ -591,8 +592,14 @@ class DictationController(
             // error. Rethrow so structured concurrency still sees it.
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "dictation failed", e)
-            fail(say(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()), details = listOf("unexpected ${e::class.java.name}"))
+            // Its message may hold a server's answer or what was heard: a release build logs
+            // the class only.
+            if (DebugLog.enabled) Log.e(TAG, "dictation failed", e) else Log.e(TAG, "dictation failed: ${e::class.java.name}")
+            fail(
+                say(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
+                logAs = english.getString(R.string.dictation_unexpected, e::class.java.name),
+                details = listOf("unexpected ${e::class.java.name}"),
+            )
         } finally {
             selfCapturing = null
             stopRequested.set(false)
@@ -1057,7 +1064,7 @@ class DictationController(
         val candidates = Fallback.candidates(settings.fallback, settings.engines, primary, ::trustOf).filter { it.id != skip }
         for (config in candidates) {
             val other = graph.engineFactory.create(config).getOrNull() ?: continue
-            Log.i(TAG, "server unavailable (${cause.technical.take(80)}) - recognizing with ${config.id}")
+            Log.i(TAG, "server unavailable (${Anonymize.line(cause.technical).take(80)}) - recognizing with ${config.id}")
             // The rest of the ring is this engine's recognition and the cleanup after it.
             val caps = other.capabilities
             val load = if (localModelWarm(config) == false) MODEL_LOAD_MS else 0L
@@ -1175,7 +1182,7 @@ class DictationController(
             onFailure = { error ->
                 trace?.cleanup = "cleanup skipped: ${Texts.failure(english, error)}"
                 // The error's own text may quote the model's reply, i.e. the dictation.
-                Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.take(80) ?: error.javaClass.simpleName}")
+                Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.let { Anonymize.line(it, listOf(transcript.text)).take(80) } ?: error.javaClass.simpleName}")
                 transcript
             },
         )
@@ -1531,7 +1538,8 @@ class DictationController(
     ) {
         val message = words(context)
         val logged = words(english)
-        Log.w(TAG, "dictation failed: $logAs")
+        // A message may quote a server's answer or what was heard: logcat gets it without.
+        Log.w(TAG, "dictation failed: ${Anonymize.line(logAs, listOf(text))}")
         if (record) {
             val command = _mode.value == RunMode.COMMAND
             if (command) {

@@ -3,6 +3,7 @@ package app.amethyst
 import android.content.Context
 import android.content.res.Configuration
 import app.amethyst.core.bubble.QuickAction
+import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.DownloadNotice
@@ -325,6 +326,24 @@ object Texts {
         R.string.catalog_tier_fastest, R.string.catalog_tier_fast, R.string.catalog_tier_more_accurate,
         R.string.catalog_tier_most_accurate, R.string.catalog_tier_replaced,
     )
+
+    /**
+     * A dictation's words as Diagnostics show them until "Show text": "412 characters · 68 words
+     * · 3 lines · German".
+     */
+    fun shape(context: Context, shape: TextShape): String = with(context) {
+        listOfNotNull(
+            count(R.plurals.diag_shape_characters, shape.characters),
+            count(R.plurals.diag_shape_words, shape.words),
+            count(R.plurals.diag_shape_lines, shape.lines),
+            when (shape.language) {
+                null -> null
+                "de" -> getString(R.string.diag_shape_german)
+                "en" -> getString(R.string.diag_shape_english)
+                else -> shape.language
+            },
+        ).joinToString(" · ")
+    }
 
     /** "1.5" or "1,5" as the phone writes it. */
     fun decimal(context: Context, value: Double): String = String.format(locale(context), "%.1f", value)
