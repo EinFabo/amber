@@ -36,6 +36,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -72,6 +74,9 @@ class AmethystAccessibilityService : AccessibilityService() {
     private var bubble: BubbleController? = null
 
     private var keyboard: KeyboardTracker? = null
+
+    /** The screen stays on from the start of a dictation until its text went in, or failed. */
+    private val screenAwake by lazy { ScreenAwake(this) }
 
     /** The keyboard in use, kept current by an observer: asked on every window change. */
     private val defaultKeyboard by lazy { DefaultKeyboard(contentResolver) }
@@ -162,6 +167,12 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         scope.launch {
             graph.dictation.state.collect { state -> bubble?.render(state) }
+        }
+        scope.launch {
+            graph.dictation.state
+                .map { it is DictationState.Starting || it is DictationState.Listening || it is DictationState.Transcribing }
+                .distinctUntilChanged()
+                .collect(screenAwake::hold)
         }
         scope.launch {
             combine(graph.dictation.state, graph.dictation.mode) { state, mode ->
@@ -437,6 +448,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         keyboard = null
         defaultKeyboard.stop()
         bubble?.detach()
+        screenAwake.hold(false)
         bubble = null
         if (::graph.isInitialized && graph.accessibilityService === this) {
             graph.accessibilityService = null
