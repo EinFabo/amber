@@ -96,6 +96,21 @@ series and one store release per phase, each after his OK.
       Per-app languages left out (they mean something different per engine). Open: the device
       test (upgrade keeps every engine's languages; Keep with its own Whisper, WhatsApp default;
       an app's own server not ready / removed; its fallback with Wi-Fi off).
+- [ ] **Quick menu editor + "Style here"** (Fabi, 2026-11-10; built, design
+      [`quick-menu-editor`](plans/2026-11-10-quick-menu-editor.md), no schema step): the idle
+      menu can be put together under Settings -> Bubble -> "Quick menu" (advanced, or while a
+      menu of one's own is set; "Reset to default"); Listening and Working stay fixed. Stored as
+      ids in `BubbleSettings.quickMenuIdle` (null = today's four; unknown ids = empty place).
+      New idle actions: Open Amber, Style here (a card over the app: style chips and the own
+      instruction, saved as typed; the keyboard opens on a tap so the chips stay in view), Next
+      style (a toast names it), App page (Amber on that app's page). "Another app in front" =
+      an installed app other than Amber (`Launcher.installed`). The own instruction is saved
+      only where it was typed (`InstructionDraft`), so the app page and the card never write
+      each other's old text back. Open: the device test (default menu unchanged after the
+      update; the editor; each action in WhatsApp and Gmail; the card over WhatsApp with the
+      keyboard, its instruction heard in the next dictation; the app page left open in Amber
+      while the card changes the instruction; a notification reply field and the launcher -
+      Android may hide System UI's package from Amber, then the actions are grey there).
 - [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**: the engine chosen by the device
       (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
 - [ ] **P8 - Light mode**: System/Light/Dark, colours through a CompositionLocal.
