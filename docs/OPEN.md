@@ -171,9 +171,15 @@ series and one store release per phase, each after his OK.
         (`TargetCheck.verdict`); another app still not, a password field never, Undo last as
         the way back. Voice commands that change a field keep the strict check
         (`TargetCheck.sameField`).
-      Not yet on the device: the 5 minute limit and its burn-down ring, the German texts of the
-      new screens, an app's own speech recognition in a dictation, Home's "Own speech
-      recognition" row.
+      Then also on the device: "Longest dictation" 300 s on a fresh install; set to 30 s, the
+      rim burned down red (Fabi saw it) and the recording ended at 30.3 s with everything said
+      ("ended at the longest recording, 30 s"); WhatsApp with Android as its own speech
+      recognition while Parakeet was the default ("Android (on device), WhatsApp's own"), Home's
+      "Own speech recognition · In WhatsApp"; Home, Settings and the quick menu editor in German.
+- [ ] **Android's speech recognition gets the phone's first language as it is: "en-DE"** (seen
+      2026-11-10 on the Pixel, English (Germany) phone): "This language is not installed for
+      offline use." Offline packs are per language and region (en-US, de-DE); map a region-less
+      or unusual variant to one the recognizer has, or offer the installed ones as the chips.
 - [ ] **The screen stays on while a dictation records and is worked on** (2026-11-10; built):
       `ScreenAwake`, a 1x1 overlay of the accessibility service with `FLAG_KEEP_SCREEN_ON` from
       Starting to the end of Transcribing - also with the bubble hidden. Open: the device test
