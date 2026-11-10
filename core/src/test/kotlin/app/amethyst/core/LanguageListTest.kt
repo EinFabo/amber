@@ -76,8 +76,11 @@ class LanguageListTest {
 
     @Test
     fun `parakeet's text is still read as the language stored for it, else the phone's`() {
-        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = "de-DE"), listOf("en-US")))
-        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = null), TEST_PHONE))
+        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = "de-DE"), listOf("de-DE")))
+        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = null), listOf("de-DE")))
+        // It may hear any of the phone's languages: all of them, so the words decide.
+        assertEquals("en-US,de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = "en-US"), listOf("en-US", "de-DE")))
+        assertEquals("de-DE,en-US", LanguageList.spokenHint(parakeet.copy(languageTag = "de-DE"), listOf("en-US")))
         // Android with none picked hears the phone's language; the others are as handed.
         assertEquals("de-DE", LanguageList.spokenHint(android.copy(languageTag = null), TEST_PHONE))
         assertEquals("de,en", LanguageList.spokenHint(whisper.copy(languageTag = "de,en"), TEST_PHONE))

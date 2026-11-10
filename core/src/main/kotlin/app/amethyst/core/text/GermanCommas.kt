@@ -64,6 +64,7 @@ object GermanCommas {
         "und", "ich", "nicht", "ist", "das", "die", "der", "es", "wir", "mit", "auf", "für", "dass", "ein",
         "eine", "zu", "den", "auch", "sich", "von", "bin", "du", "haben", "wie", "noch", "aber", "wenn", "schon",
         "ja", "nein", "bitte", "danke", "mal", "heute", "morgen", "kann", "muss", "habe", "hab", "sind", "war",
+        "uhr",
     )
 
     /** And the English ones, so a sentence is weighed rather than just counted. */
@@ -85,6 +86,21 @@ object GermanCommas {
         val german = words.count { it in GERMAN_MARKERS || it.any { c -> c in "äöüß" } }
         val english = words.count { it in ENGLISH_MARKERS }
         return german >= 1 && german > english
+    }
+
+    /**
+     * Whether [text] is plainly English, the mirror of [isGerman]: by [language] when it names
+     * one, else - several, or none - by its words. A text neither test claims stays undecided,
+     * and the words only English drops ("um", "eh") are kept there.
+     */
+    fun isEnglish(language: String?, text: String): Boolean {
+        val tags = language?.lowercase()?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+        if (tags.size == 1) return tags.single().let { it.startsWith("en") || it == "english" }
+        if (tags.isNotEmpty() && tags.none { it.startsWith("en") || it == "english" }) return false
+        val words = text.lowercase().split(' ').map { core(it) }.filter { it.isNotEmpty() }
+        val german = words.count { it in GERMAN_MARKERS || it.any { c -> c in "äöüß" } }
+        val english = words.count { it in ENGLISH_MARKERS }
+        return english >= 1 && english > german
     }
 
     /** [text] with single spaces between words, as TranscriptNormalizer leaves it. */

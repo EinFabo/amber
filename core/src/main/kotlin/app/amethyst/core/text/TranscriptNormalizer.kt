@@ -58,10 +58,13 @@ object TranscriptNormalizer {
     ): String {
         var text = raw.replace(INVISIBLE, "").replace(UNICODE_BREAKS, if (keepLineBreaks) "\n" else " ").trim()
         if (text.isEmpty()) return ""
-        val german = GermanCommas.isGerman(language, text.replace(WHITESPACE, " "))
+        val spaced = text.replace(WHITESPACE, " ")
+        val german = GermanCommas.isGerman(language, spaced)
+        // "um" and "eh" are words in German: dropped only where the text is plainly English.
+        val english = !german && GermanCommas.isEnglish(language, spaced)
         val lines = if (keepLineBreaks) text.split('\n') else listOf(text)
 
-        text = lines.joinToString("\n") { line -> tidyLine(line, options, german) }
+        text = lines.joinToString("\n") { line -> tidyLine(line, options, german, english) }
         text = if (keepLineBreaks) {
             text.replace(SPACES_AROUND_BREAK, "\n").replace(BLANK_LINES, "\n\n").trim('\n', ' ')
         } else {
@@ -71,10 +74,10 @@ object TranscriptNormalizer {
     }
 
     /** One line: fillers, spacing, punctuation, German commas. */
-    private fun tidyLine(raw: String, options: NormalizeOptions, german: Boolean): String {
+    private fun tidyLine(raw: String, options: NormalizeOptions, german: Boolean, english: Boolean): String {
         var text = raw
         if (options.stripFillers) {
-            val fillers = if (german) options.fillers else options.fillers + ENGLISH_ONLY_FILLERS
+            val fillers = if (english) options.fillers + ENGLISH_ONLY_FILLERS else options.fillers
             text = text
                 .split(WHITESPACE)
                 .filterNot { token -> coreWord(token) in fillers }

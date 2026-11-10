@@ -24,6 +24,23 @@ class TranscriptNormalizerTest {
         // Told by the words alone when the engine names no language.
         assertEquals("Ich gehe raus, um einzukaufen", TranscriptNormalizer.normalize("Ich gehe raus um einzukaufen"))
         assertEquals("I think we should go", TranscriptNormalizer.normalize("um I think we should uh go", language = "en"))
+        assertEquals("I think we should go", TranscriptNormalizer.normalize("um I think we should uh go"))
+    }
+
+    @Test
+    fun `um stays when the text is not plainly english - a phone with english and german`() {
+        // Pixel 9a, 2026-11-10: Parakeet on an English-first phone heard "Treffen um zehn Uhr am
+        // Bahnhof"; "en" alone took the "um" for a filler. Several languages: the words decide,
+        // and "um" goes only where they are English.
+        assertEquals(
+            "Treffen um zehn Uhr am Bahnhof.",
+            TranscriptNormalizer.normalize("Treffen um zehn Uhr am Bahnhof.", language = "en-US,de-DE"),
+        )
+        assertEquals("Treffen um zehn Uhr am Bahnhof.", TranscriptNormalizer.normalize("Treffen um zehn Uhr am Bahnhof."))
+        assertEquals(
+            "I think we should go",
+            TranscriptNormalizer.normalize("um I think we should uh go", language = "en-US,de-DE"),
+        )
     }
 
     @Test
