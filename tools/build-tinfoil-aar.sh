@@ -12,19 +12,33 @@
 # generator is the version Tinfoil builds its framework with.
 #
 # The archive is checked against its SHA-256 before anything is extracted, and every run
-# works in a fresh private directory: this library decides what the app may label "enclave
-# verified", so a swapped download or a directory planted in a shared /tmp must not reach it.
+# works in a fresh private directory (fixed name, see below): this library decides what the
+# app may label "enclave verified", so a swapped download or a directory planted in a shared /tmp must not reach it.
 # (Same tree as the Go module proxy's, sumdb h1:W32IF7d8YhW3E1G0k7md0rOAUxLec+h6S+pb4iQavdw=.)
 #
+# The same bytes on every build: the Go toolchain is the one tinfoil-go's go.mod names (an older
+# system Go downloads it), build ids and the GNU build-id note are dropped, and the work
+# directory has a fixed path, so two runs from different directories give an identical
+# jni/arm64-v8a/libgojni.so and classes.jar.
+#
 # Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar, sha256sum.
+# Environment: ANDROID_NDK_HOME (default: NDK 27.1.12297006 under $ANDROID_HOME/ndk),
+# OUT=<path> (default: app/libs/tinfoil-mobile.aar).
 set -euo pipefail
 
 TINFOIL_GO_REF="fad77808b7ace9d848399c27179b4a2d6fd2c36c"
 TINFOIL_GO_SHA256="bc1871daeefc60ddbb53175ee67e54e070acd7db761d6d5b1a2a6b9331f93035"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/app/libs/tinfoil-mobile.aar"
-WORK="$(mktemp -d)"
+OUT="${OUT:-$ROOT/app/libs/tinfoil-mobile.aar}"
+case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
+# The work directory's path ends up in the library (Go records the replaced module's directory
+# in its build info), so it has to be the same on every build: a fixed name, created private
+# (0700) and refused unless it is a real directory of ours - never one somebody else planted.
+WORK=/tmp/amber-tinfoil-build
+rm -rf "$WORK" 2>/dev/null || true
+mkdir -m 700 "$WORK" || { echo "$WORK exists and is not removable by you - not building" >&2; exit 1; }
+[ -d "$WORK" ] && [ ! -L "$WORK" ] && [ -O "$WORK" ] || { echo "$WORK is not a private directory of yours" >&2; exit 1; }
 trap 'rm -rf "$WORK"' EXIT
 
 # Go is often installed outside PATH on this machine; look there before giving up.
@@ -34,8 +48,13 @@ fi
 command -v go >/dev/null || { echo "Go not found - install it or put it on PATH" >&2; exit 1; }
 
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/sdk}}"
+NDK_PIN="27.1.12297006"
 if [ -z "${ANDROID_NDK_HOME:-}" ]; then
-  ANDROID_NDK_HOME="$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+  if [ -d "$ANDROID_HOME/ndk/$NDK_PIN" ]; then
+    ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_PIN"
+  else
+    echo "NDK $NDK_PIN not found - set ANDROID_NDK_HOME" >&2; exit 1
+  fi
 fi
 export ANDROID_NDK_HOME
 [ -d "$ANDROID_NDK_HOME" ] || { echo "no Android NDK found under $ANDROID_HOME/ndk" >&2; exit 1; }
@@ -48,6 +67,15 @@ mkdir -p "$WORK/src"
 tar -xzf "$WORK/src.tar.gz" -C "$WORK/src" --strip-components=1
 
 cd "$WORK/src"
+# The toolchain tinfoil-go builds with (go.mod's `toolchain` line if present, else its `go`
+# line); a system Go that is older fetches exactly this one.
+GO_TOOLCHAIN="$(awk '$1=="toolchain"{print $2; exit}' go.mod)"
+[ -n "$GO_TOOLCHAIN" ] || GO_TOOLCHAIN="go$(awk '$1=="go"{print $2; exit}' go.mod)"
+case "$GO_TOOLCHAIN" in go1.*.*) ;; go1.*) GO_TOOLCHAIN="$GO_TOOLCHAIN.0" ;; *) echo "no Go version in go.mod" >&2; exit 1 ;; esac
+export GOTOOLCHAIN="$GO_TOOLCHAIN"
+echo "==> Go toolchain $GOTOOLCHAIN"
+export CGO_CFLAGS="-ffile-prefix-map=$WORK=."
+export GOFLAGS="-buildvcs=false"
 export GOBIN="$WORK/bin"
 export PATH="$GOBIN:$PATH"
 echo "==> installing gomobile and gobind from tinfoil-go's go.mod"
@@ -57,13 +85,14 @@ echo "==> binding the mobile package for android/arm64 (NDK $(basename "$ANDROID
 mkdir -p "$(dirname "$OUT")"
 # arm64 only, like the rest of Amber; -javapkg keeps the generated classes out of the
 # default package namespace; -s -w drops symbol tables the app never uses; 16 KB segment
-# alignment so the library also loads on devices with 16 KB memory pages.
+# alignment so the library also loads on devices with 16 KB memory pages; no build id,
+# so nothing differs between runs.
 gomobile bind \
   -target=android/arm64 \
   -androidapi=28 \
   -javapkg=sh.tinfoil \
   -trimpath \
-  -ldflags="-s -w -extldflags=-Wl,-z,max-page-size=16384" \
+  -ldflags="-s -w -buildid= '-extldflags=-Wl,-z,max-page-size=16384 -Wl,--build-id=none'" \
   -o "$OUT" \
   ./mobile
 

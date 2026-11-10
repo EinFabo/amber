@@ -204,7 +204,8 @@ git clone --recursive <url>     # whisper.cpp, sherpa-onnx and its dependencies 
 git submodule update --init --recursive   # in a clone made without --recursive
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
-tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
+tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (Go + NDK 27.1.12297006; same bytes every run;
+                                #   ANDROID_NDK_HOME and OUT=<path> are honoured)
 ./gradlew :app:assembleDebug    # needs an Android SDK
 ./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.Screenshots
                                 # renders the main screens and the icon PNGs (Robolectric)
