@@ -45,12 +45,30 @@ class InsertionEngineTest {
             private set
         var cursor: Int = initialText.length
             private set
+
+        /** The other end of the selection; equal to [cursor] when nothing is selected. */
+        private var anchor: Int = initialText.length
         var clipboardContent: String? = null
         var setTextCalls = 0
         var pasteCalls = 0
 
         override fun readField(): FieldState? =
-            if (unreadable) null else FieldState(text, cursor, cursor)
+            if (unreadable) null else FieldState(text, anchor, cursor)
+
+        /** Selects [start] to [end], as the user would before dictating over it. */
+        fun select(start: Int, end: Int) {
+            anchor = start
+            cursor = end
+        }
+
+        /** Puts [inserted] in place of the selection, as typing and pasting do. */
+        private fun replaceSelection(inserted: String) {
+            val from = minOf(anchor, cursor).coerceIn(0, text.length)
+            val to = maxOf(anchor, cursor).coerceIn(0, text.length)
+            text = text.substring(0, from) + inserted + text.substring(to)
+            cursor = from + inserted.length
+            anchor = cursor
+        }
 
         override fun setText(text: String): Boolean {
             setTextCalls++
@@ -66,15 +84,14 @@ class InsertionEngineTest {
         override fun setSelection(cursor: Int) {
             // Real fields clamp an out-of-range caret instead of throwing.
             this.cursor = cursor.coerceIn(0, text.length)
+            anchor = this.cursor
         }
 
         override fun paste(): Boolean {
             pasteCalls++
             if (!pasteWorks) return false
             val pasted = clipboardContent ?: return false
-            val at = cursor.coerceIn(0, text.length)
-            text = text.substring(0, at) + pasted + text.substring(at)
-            cursor = at + pasted.length
+            replaceSelection(pasted)
             return true
         }
 
@@ -95,10 +112,7 @@ class InsertionEngineTest {
             if (commitLost) return true
             staleText = this.text
             staleReadsLeft = commitLag
-            val at = cursor.coerceIn(0, this.text.length)
-            val typed = reformat(text)
-            this.text = this.text.substring(0, at) + typed + this.text.substring(at)
-            cursor = at + typed.length
+            replaceSelection(reformat(text))
             return true
         }
     }
@@ -484,5 +498,53 @@ class InsertionEngineTest {
         assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
         assertTrue(outcome.insertedIntoField)
         assertEquals(0, target.pasteCalls, "a reformatted write must not be pasted a second time")
+    }
+
+    // --- dictating over a selection ----------------------------------------------------------
+
+    @Test
+    fun `typed over a selection holding the same words counts as typed`() {
+        val target = FakeTarget(initialText = "See you tomorrow at 5", hasInputConnection = true)
+        target.select(0, target.text.length)
+        val outcome = engine(target).insert(target, "see you tomorrow")
+
+        assertTrue(outcome.insertedIntoField)
+        assertFalse(outcome.uncertain)
+        assertEquals(null, target.clipboardContent)
+        assertEquals("See you tomorrow", target.text)
+    }
+
+    @Test
+    fun `written over a selection holding the same words is not pasted a second time`() {
+        val target = FakeTarget(initialText = "Ok. See you tomorrow at 5")
+        target.select(4, target.text.length)
+        val outcome = engine(target).insert(target, "see you tomorrow")
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(0, target.pasteCalls)
+        assertEquals(1, Regex("(?i)see you tomorrow").findAll(target.text).count(), target.text)
+    }
+
+    @Test
+    fun `pasted over a selection holding the same words counts as pasted`() {
+        val target = FakeTarget(initialText = "See you tomorrow at 5", setTextLies = true)
+        target.select(0, target.text.length)
+        val outcome = engine(target).insert(target, "see you tomorrow")
+
+        assertEquals(InsertionStrategy.PASTE, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(1, target.setTextCalls, "set text did nothing, though the selection held the words")
+        assertEquals("see you tomorrow", target.text)
+    }
+
+    @Test
+    fun `a lost commit over a selection holding the same words is still lost`() {
+        val target = FakeTarget(initialText = "See you tomorrow at 5", hasInputConnection = true, commitLost = true)
+        target.select(0, target.text.length)
+        val outcome = engine(target).insert(target, "see you tomorrow")
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
     }
 }

@@ -1,5 +1,7 @@
 package app.amethyst.core.insert
 
+import app.amethyst.core.text.FieldState
+
 /**
  * Whether inserted words show up in a field read back afterwards, and how long to keep looking.
  *
@@ -18,7 +20,10 @@ package app.amethyst.core.insert
  *
  * Every piece is counted before and after: it must be there *once more* than before. A field
  * that already held the same words (Insert again, a repeated "Thank you") would otherwise read
- * as a success before anything arrived. Nothing is ever taken as there that is not - a lost
+ * as a success before anything arrived. "Before" is the field without its selection, which the
+ * words replace: selecting "See you tomorrow at 5" and saying "see you tomorrow" leaves as many
+ * copies as there were, and is still a success. A field that reads exactly as before took
+ * nothing, whatever its selection held. Nothing is ever taken as there that is not - a lost
  * text stays lost, so it is reported, not quietly dropped.
  */
 object Landed {
@@ -36,14 +41,17 @@ object Landed {
     private const val CHARS_PER_EXTRA_READ = 100
 
     /**
-     * Whether [expected] arrived in a field that read [before] and now reads [after].
+     * Whether [expected] arrived in a field that was [before] and now reads [after].
      * [before] null means the field could not be read before: the words only need to be there.
      */
-    fun inField(before: String?, after: String, expected: String): Boolean {
+    fun inField(before: FieldState?, after: String, expected: String): Boolean {
         val words = normalize(expected)
         if (words.isEmpty()) return true
-        val was = before?.let(::normalize).orEmpty()
         val now = normalize(after)
+        // A field that reads as before took nothing - unless the words replaced a selection
+        // that held just them, which changes nothing either.
+        if (before != null && now == normalize(before.text)) return normalize(selected(before)) == words
+        val was = before?.let { normalize(withoutSelection(it)) }.orEmpty()
         if (arrived(was, now, words)) return true
         if (words.length < LONG_TEXT) return false
         return arrived(was, now, words.take(PIECE).trimEnd()) && arrived(was, now, words.takeLast(PIECE).trimStart())
@@ -56,6 +64,20 @@ object Landed {
      */
     fun attempts(base: Int, length: Int): Int =
         (base + (length - LONG_TEXT).coerceAtLeast(0) / CHARS_PER_EXTRA_READ).coerceAtMost(maxOf(base, MAX_ATTEMPTS))
+
+    /** The field's text with the selected part taken out - what the insertion keeps of it. */
+    fun withoutSelection(field: FieldState): String {
+        val text = field.text
+        val start = minOf(field.selectionStart, field.selectionEnd).coerceIn(0, text.length)
+        val end = maxOf(field.selectionStart, field.selectionEnd).coerceIn(0, text.length)
+        return text.substring(0, start) + text.substring(end)
+    }
+
+    private fun selected(field: FieldState): String {
+        val start = minOf(field.selectionStart, field.selectionEnd).coerceIn(0, field.text.length)
+        val end = maxOf(field.selectionStart, field.selectionEnd).coerceIn(0, field.text.length)
+        return field.text.substring(start, end)
+    }
 
     private fun arrived(before: String, after: String, piece: String): Boolean =
         count(after, piece) > count(before, piece)

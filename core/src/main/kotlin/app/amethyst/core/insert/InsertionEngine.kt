@@ -197,7 +197,7 @@ class InsertionEngine(
         val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, text.length)
         repeat(attempts) { attempt ->
             val after = target.readBack() ?: return Commit.LANDED
-            if (Landed.inField(field.text, after, text)) return Commit.LANDED
+            if (Landed.inField(field, after, text)) return Commit.LANDED
             if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
         }
         return Commit.LOST
@@ -232,7 +232,7 @@ class InsertionEngine(
         // Verify before moving the cursor. A field that accepted the write and kept its old
         // contents would otherwise be handed a caret position that does not exist in it, and
         // the following paste would land somewhere arbitrary.
-        if (!verify(target, field.text, text)) return false
+        if (!verify(target, field, text)) return false
 
         target.setSelection(spliced.cursor)
         return true
@@ -240,7 +240,7 @@ class InsertionEngine(
 
     private fun tryPaste(target: EditableTarget, text: String): Boolean {
         if (!target.isEditable) return false
-        val before = target.readBack()
+        val before = target.readField()
         if (!target.paste()) return false
         return verify(target, before, text)
     }
@@ -249,10 +249,10 @@ class InsertionEngine(
      * Compared loosely ([Landed]) on purpose: fields legitimately reformat what they are given
      * (phone numbers, amounts, line breaks), and the splicer may have capitalised the first
      * letter. A strict comparison would report working insertions as failures - and hand the
-     * words to the next method, which puts them in twice. [before] is the field's text before
+     * words to the next method, which puts them in twice. [before] is the field before
      * the write, null when unknown.
      */
-    private fun verify(target: EditableTarget, before: String?, text: String): Boolean {
+    private fun verify(target: EditableTarget, before: FieldState?, text: String): Boolean {
         // Compose and many cross-platform fields apply a write on their next frame, so the
         // first read can still show the old text. Giving up on it would hand the same words
         // to the next strategy and insert them twice.
