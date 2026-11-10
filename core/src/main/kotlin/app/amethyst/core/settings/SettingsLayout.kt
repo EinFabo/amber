@@ -67,6 +67,13 @@ object SettingsLayout {
     fun showsAppRecognition(profile: AppProfile, advanced: Boolean): Boolean =
         shows(SettingsItem.APP_RECOGNITION, advanced) || profile.appEngine.mode != AppEngineMode.DEFAULT
 
+    /**
+     * The quick menu's row on the Bubble page: with the advanced settings, and in the simple view
+     * too while a menu of one's own is in use - it can always be seen and reset.
+     */
+    fun showsQuickMenu(bubble: BubbleSettings, advanced: Boolean): Boolean =
+        shows(SettingsItem.QUICK_MENU, advanced) || bubble.quickMenuIdle != null
+
     /** How many rows of the Settings page only the advanced view shows. */
     fun hiddenRows(voiceCommands: Boolean = Features.VOICE_COMMANDS): Int =
         groups(advanced = true, voiceCommands).sumOf { it.items.size } - groups(advanced = false, voiceCommands).sumOf { it.items.size }

@@ -8,6 +8,7 @@ import android.widget.Toast
 import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.Texts
+import app.amethyst.apps.Launcher
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickActions
@@ -64,9 +65,11 @@ class QuickActionRunner(
             QuickAction.PAUSE -> dictation.pause().also { if (it) toast(service.getString(R.string.quick_done_paused)) }
             QuickAction.RESUME -> dictation.resume().also { if (it) toast(service.getString(R.string.quick_done_resumed)) }
             QuickAction.OPEN_AMBER -> open(MainActivity.intent(service))
-            QuickAction.STYLE_HERE -> app != null && withProfile(app) { open(QuickStyleActivity.intent(service, app)) }
+            // The window makes the app's profile itself once it is up.
+            QuickAction.STYLE_HERE -> app != null && open(QuickStyleActivity.intent(service, app))
             QuickAction.NEXT_STYLE -> app != null && nextStyle(app)
-            QuickAction.APP_PAGE -> app != null && withProfile(app) { open(MainActivity.intent(service, appPage = app)) }
+            // Amber waits a moment for the page, so it is made once Amber is on its way - not before, for nothing.
+            QuickAction.APP_PAGE -> app != null && open(MainActivity.intent(service, appPage = app)).also { if (it) ensureProfile(app) }
         }
         if (ran) graph.bubbleEvents.tryEmit(BubbleEvent.QuickActionRun(action))
         return ran
@@ -102,7 +105,8 @@ class QuickActionRunner(
         DictationState.Idle, is DictationState.Done, is DictationState.Commanded, is DictationState.Failed -> QuickPhase.IDLE
     }
 
-    private fun otherApp(currentApp: String?): String? = currentApp?.takeIf { it != service.packageName }
+    /** The app in front when it is an installed app other than Amber ([Launcher.installed]) - the one rule for every action. */
+    private fun otherApp(currentApp: String?): String? = Launcher.installed(service, currentApp)
 
     private fun cleanupHere(app: String, on: Boolean): Boolean {
         val label = labelOf(app)
@@ -113,17 +117,10 @@ class QuickActionRunner(
         return true
     }
 
-    /**
-     * [then] once [app] has a profile - made as the cleanup switch makes one, under its label in
-     * the style as spoken - so the window or page it opens has something to show.
-     */
-    private fun withProfile(app: String, then: () -> Boolean): Boolean {
+    /** A profile for [app], made as the cleanup switch makes one: under its label, in the style as spoken. */
+    private fun ensureProfile(app: String) {
         val label = labelOf(app)
-        graph.appScope.launch {
-            graph.settingsStore.update { it.copy(profiles = AppProfiles.ensure(it.profiles, app, label)) }
-            main.post { then() }
-        }
-        return true
+        graph.appScope.launch { graph.settingsStore.update { it.copy(profiles = AppProfiles.ensure(it.profiles, app, label)) } }
     }
 
     /** The app's style one step on; the toast names the new one, and says so where no cleanup would apply it. */

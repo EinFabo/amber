@@ -56,7 +56,7 @@ class QuickStyleActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val app = Launcher.launchable(this, runCatching { intent.getStringExtra(EXTRA_PACKAGE) }.getOrNull())
+        val app = Launcher.installed(this, runCatching { intent.getStringExtra(EXTRA_PACKAGE) }.getOrNull())
         if (app == null) {
             finish()
             return
@@ -97,7 +97,7 @@ class QuickStyleActivity : ComponentActivity() {
     }
 
     companion object {
-        /** The app the card is for; only an installed app with a launcher icon is taken. */
+        /** The app the card is for; only an installed app other than Amber is taken. */
         private const val EXTRA_PACKAGE = "app.amethyst.extra.PACKAGE"
 
         /** The card for [packageName], from the accessibility service: a task of its own, fresh each time. */

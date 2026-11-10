@@ -23,13 +23,15 @@ object Launcher {
     }
 
     /**
-     * [packageName] when it is an installed app with a launcher icon other than Amber, else
-     * null: what a screen opened for one app (from the quick menu) accepts in its intent.
+     * [packageName] when it is an installed app other than Amber, else null - the one rule for
+     * "another app is in front" in the quick menu and for what a screen opened for one app
+     * accepts. Any installed app counts, a launcher icon or not: a style for the notification
+     * shade's reply field is a fair wish. An app Android keeps out of Amber's sight counts as
+     * not installed.
      */
-    fun launchable(context: Context, packageName: String?): String? {
+    fun installed(context: Context, packageName: String?): String? {
         if (packageName.isNullOrBlank() || packageName == context.packageName || packageName.length > MAX_PACKAGE_CHARS) return null
-        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(packageName)
-        val found = runCatching { context.packageManager.queryIntentActivities(launcher, 0).isNotEmpty() }.getOrDefault(false)
+        val found = runCatching { context.packageManager.getApplicationInfo(packageName, 0) }.isSuccess
         return packageName.takeIf { found }
     }
 

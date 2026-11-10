@@ -61,6 +61,7 @@ import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.stats.StatsSummary
@@ -96,8 +97,10 @@ import app.amethyst.ui.theme.AmberTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
@@ -266,14 +269,17 @@ class MainActivity : ComponentActivity() {
     /** An app's page asked for in [intent] (the quick menu's "App page"), if it names an app there is. */
     private fun takeAppPage(intent: Intent?) {
         val asked = runCatching { intent?.getStringExtra(EXTRA_APP_PAGE) }.getOrNull() ?: return
-        Launcher.launchable(this, asked)?.let { appPageRequest.value = it }
+        Launcher.installed(this, asked)?.let { appPageRequest.value = it }
     }
 
     companion object {
         private const val SERVICE_START_GRACE_MS = 600L
         private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
 
-        /** The package whose page to open, from the quick menu; only an installed app with a launcher icon is taken. */
+        /**
+         * The package whose page to open, from the quick menu. The activity is exported: only an
+         * installed app that already has a page is taken, and nothing is made for it here.
+         */
         private const val EXTRA_APP_PAGE = "app.amethyst.extra.APP_PAGE"
 
         /**
@@ -374,10 +380,15 @@ private fun AmethystScreens(
     val screen = stack.last()
 
     // The quick menu's "App page": that page, with the way back through the app styles and
-    // Settings. Never into the introduction - it is finished first.
+    // Settings. Never into the introduction - it is finished first. Only to a page there is:
+    // the quick menu makes the app's profile as it opens Amber, so it may land a moment later;
+    // anyone else asking gets Amber as it is, and nothing is made for them.
     LaunchedEffect(appPage) {
         if (appPage == null) return@LaunchedEffect
-        if (Screen.Onboarding !in stack) {
+        val hasPage = withTimeoutOrNull(APP_PAGE_WAIT_MS) {
+            graph.settings.first { AppProfiles.forPackage(it.profiles, appPage) != null }
+        } != null
+        if (hasPage && Screen.Onboarding !in stack) {
             stack = listOf(Screen.Home, Screen.Settings, Screen.Page(SettingsPage.APP_STYLES), Screen.AppStyle(appPage))
         }
         onAppPageOpened()
@@ -792,6 +803,9 @@ internal fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
+
+/** How long an app page asked for by the quick menu may take to appear in the settings. */
+private const val APP_PAGE_WAIT_MS = 2_000L
 
 private const val UPDATES_CLOCK_MS = 30_000L
 

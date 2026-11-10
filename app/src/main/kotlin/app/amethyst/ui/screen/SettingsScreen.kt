@@ -471,8 +471,9 @@ fun BubbleScreen(
             }
         }
 
-        // Put together by hand: advanced, so who only dictates keeps the menu as it is.
-        if (SettingsLayout.shows(SettingsItem.QUICK_MENU, settings.ui.advanced)) {
+        // Put together by hand: advanced, so who only dictates keeps the menu as it is - but a
+        // menu of one's own stays in reach after the switch goes off.
+        if (SettingsLayout.showsQuickMenu(bubble, settings.ui.advanced)) {
             SettingsGroup(label = null) {
                 NavRow(
                     stringResource(R.string.settings_quick_menu),

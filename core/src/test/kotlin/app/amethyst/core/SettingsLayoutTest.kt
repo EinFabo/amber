@@ -4,6 +4,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppEngine
 import app.amethyst.core.settings.AppEngineMode
 import app.amethyst.core.settings.AppProfile
+import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.Features
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.SettingsGroupKind
@@ -104,6 +105,15 @@ class SettingsLayoutTest {
         assertFalse(SettingsLayout.shows(SettingsItem.QUICK_MENU, advanced = false))
         assertTrue(SettingsLayout.shows(SettingsItem.QUICK_MENU, advanced = true))
         assertTrue(SettingsLayout.groups(advanced = true, voiceCommands = true).none { SettingsItem.QUICK_MENU in it.items })
+    }
+
+    @Test
+    fun `a menu of one's own keeps its row in the simple view, so it can be reset`() {
+        val plain = BubbleSettings()
+        val own = plain.copy(quickMenuIdle = listOf("open_amber", null, null, null))
+        assertFalse(SettingsLayout.showsQuickMenu(plain, advanced = false))
+        assertTrue(SettingsLayout.showsQuickMenu(plain, advanced = true))
+        assertTrue(SettingsLayout.showsQuickMenu(own, advanced = false))
     }
 
     @Test
