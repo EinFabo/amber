@@ -151,6 +151,29 @@ series and one store release per phase, each after his OK.
       again: there the screen staying on is the fix. The timing line says
       `field found again: ...`. Open: the device test (WhatsApp and Claude, 2 minutes with a
       short screen timeout, keyboard closed during the recording).
+- [x] **Device test on the Pixel 9a, debug build (2026-11-10)**, next to the store's 0.30.3:
+      a fresh install's introduction with Parakeet and the practice step (tap, hold, drag all
+      ticked); a 48.7 s dictation in WhatsApp and a 49.2 s one in Chrome with a 30 s screen
+      timeout - the screen stayed on, 5 parts recognized while speaking, inserted; the quick menu
+      editor (a menu of one's own shows on the bubble, Next style toasts "WhatsApp: Formal",
+      Style here's card over WhatsApp saves its instruction, App page opens WhatsApp's page with
+      the speech recognition section, Back to Style per app); the app page left open in Amber
+      kept the card's newer instruction; the language chips (Android one at a time, Parakeet
+      "detects the language itself"). Two fixes from it:
+      - "um" was dropped from "Treffen um zehn Uhr am Bahnhof": Parakeet on an English-first
+        phone was read as English (also so in 0.30.3). Now "um"/"eh" go only where the text is
+        plainly English (`GermanCommas.isEnglish`), and Parakeet's text is read against all the
+        phone's languages; "uhr" counts as a German word.
+      - Out of a WhatsApp chat and back in refused the dictation (MOVED): measured, the chat came
+        back as a new Conversation activity - window 12004 -> 12010, field id `app:id/entry`
+        the same. Another chat looks exactly so to Android, so window and field ids never told
+        chats apart. Fabi's call: in the same app the field with the cursor gets the text
+        (`TargetCheck.verdict`); another app still not, a password field never, Undo last as
+        the way back. Voice commands that change a field keep the strict check
+        (`TargetCheck.sameField`).
+      Not yet on the device: the 5 minute limit and its burn-down ring, the German texts of the
+      new screens, an app's own speech recognition in a dictation, Home's "Own speech
+      recognition" row.
 - [ ] **The screen stays on while a dictation records and is worked on** (2026-11-10; built):
       `ScreenAwake`, a 1x1 overlay of the accessibility service with `FLAG_KEEP_SCREEN_ON` from
       Starting to the end of Transcribing - also with the bubble hidden. Open: the device test
