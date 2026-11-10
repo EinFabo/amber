@@ -100,6 +100,13 @@ class SettingsLayoutTest {
     }
 
     @Test
+    fun `the quick menu editor is advanced, a part of the Bubble page`() {
+        assertFalse(SettingsLayout.shows(SettingsItem.QUICK_MENU, advanced = false))
+        assertTrue(SettingsLayout.shows(SettingsItem.QUICK_MENU, advanced = true))
+        assertTrue(SettingsLayout.groups(advanced = true, voiceCommands = true).none { SettingsItem.QUICK_MENU in it.items })
+    }
+
+    @Test
     fun `the simple view says how many rows the switch hides`() {
         assertEquals(6, SettingsLayout.hiddenRows(voiceCommands = false))
         assertEquals(7, SettingsLayout.hiddenRows(voiceCommands = true))

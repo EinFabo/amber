@@ -31,6 +31,9 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
 
     /** On an app's page: the speech recognition of its own (roadmap: per-app recognition is advanced). */
     APP_RECOGNITION(simple = false, group = null),
+
+    /** On the Bubble page: the quick menu put together by hand. Who only dictates keeps it as it is. */
+    QUICK_MENU(simple = false, group = null),
 }
 
 /** A group of the Settings page with the rows it shows; see [SettingsLayout.groups]. */

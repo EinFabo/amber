@@ -204,6 +204,13 @@ data class BubbleSettings(
     val restingOpacity: Float = 1f,
     /** Apps the bubble stays out of (games, apps with their own voice input). */
     val hiddenIn: List<String> = emptyList(),
+    /**
+     * The idle quick menu's four places, top to bottom, as stable ids
+     * ([app.amethyst.core.bubble.QuickMenuItem.id]; null for an empty place) - ids, so a menu
+     * written by a newer Amber still reads. Null is today's menu
+     * ([app.amethyst.core.bubble.QuickMenuLayout.idle]).
+     */
+    val quickMenuIdle: List<String?>? = null,
 ) {
     companion object {
         /** About three quarters down, where a thumb rests. */

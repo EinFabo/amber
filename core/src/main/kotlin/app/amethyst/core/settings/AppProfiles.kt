@@ -105,6 +105,23 @@ object AppProfiles {
         return upsert(profiles, profile.copy(appCleanup = cleanup))
     }
 
+    /**
+     * [profiles] with one for [packageName]: the one there is, or a new one under [label] in
+     * the style as spoken - as [withCleanupHere] makes it.
+     */
+    fun ensure(profiles: List<AppProfile>, packageName: String, label: String): List<AppProfile> =
+        if (forPackage(profiles, packageName) != null) profiles else profiles + AppProfile(packageName, label)
+
+    /** The style after [style], round: as spoken, casual, formal, concise, as spoken. */
+    fun nextStyle(style: WritingStyle): WritingStyle = WritingStyle.entries[(style.ordinal + 1) % WritingStyle.entries.size]
+
+    /**
+     * The style of [packageName] one step on ([nextStyle]), everything else of its profile kept;
+     * an app without a profile gets one under [label] ([ensure]) and goes from as spoken to casual.
+     */
+    fun withNextStyle(profiles: List<AppProfile>, packageName: String, label: String): List<AppProfile> =
+        edit(ensure(profiles, packageName, label), packageName) { it.copy(style = nextStyle(it.style)) }
+
     /** Replaces the profile for its package, or adds it. */
     fun upsert(profiles: List<AppProfile>, profile: AppProfile): List<AppProfile> =
         if (profiles.any { it.packageName == profile.packageName }) {

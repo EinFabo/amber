@@ -29,6 +29,10 @@ enum class CleanupHere {
 
     /** No cleanup would run here anyway: nothing to switch off. */
     NOT_SET_UP,
+    ;
+
+    /** A cleanup rewrites a dictation here - and with it, the app's style takes effect. */
+    val runs: Boolean get() = this == ON
 }
 
 /**
@@ -44,6 +48,18 @@ enum class QuickAction(private val phases: Set<QuickPhase>) {
     CLEANUP_OFF_HERE(setOf(QuickPhase.IDLE)),
     CLEANUP_ON_HERE(setOf(QuickPhase.IDLE)),
     HIDE_HERE(setOf(QuickPhase.IDLE)),
+
+    /** Opens Amber's main screen. */
+    OPEN_AMBER(setOf(QuickPhase.IDLE)),
+
+    /** Opens the "Style here" window over the app in front: its style and own instruction. */
+    STYLE_HERE(setOf(QuickPhase.IDLE)),
+
+    /** The app's style one step on ([AppProfiles.nextStyle]). */
+    NEXT_STYLE(setOf(QuickPhase.IDLE)),
+
+    /** Opens the app's page in Amber: style, cleanup, speech recognition. */
+    APP_PAGE(setOf(QuickPhase.IDLE)),
 
     /** Throws the run away, recording or not. */
     CANCEL(setOf(QuickPhase.RECORDING, QuickPhase.WORKING)),
@@ -101,17 +117,12 @@ data class QuickMenuContext(
  */
 object QuickActions {
 
-    fun slots(context: QuickMenuContext): List<QuickSlot?> = when (context.phase) {
-        QuickPhase.IDLE -> {
-            val cleanup = if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE
-            // Hiding the bubble in an app is a drag onto the X; the menu keeps what only it does.
-            listOf(
-                QuickSlot(QuickAction.INSERT_AGAIN, context.hasLastDictation && context.fieldFocused),
-                QuickSlot(QuickAction.UNDO_LAST, context.canUndo && context.fieldFocused),
-                QuickSlot(cleanup, context.otherAppInFront && context.cleanupHere != CleanupHere.NOT_SET_UP),
-                QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation),
-            )
-        }
+    /**
+     * The four slots for [context]. While idle they follow [idleLayout] ([QuickMenuLayout.idle]:
+     * the user's own order, or today's four); listening and working are fixed.
+     */
+    fun slots(context: QuickMenuContext, idleLayout: List<QuickMenuItem?> = QuickMenuLayout.DEFAULT_IDLE): List<QuickSlot?> = when (context.phase) {
+        QuickPhase.IDLE -> List(QuickMenuGeometry.SLOTS) { i -> idleLayout.getOrNull(i)?.let { idleSlot(it, context) } }
         QuickPhase.RECORDING -> listOf(
             QuickSlot(QuickAction.CANCEL, true),
             QuickSlot(QuickAction.SEND_WITHOUT_CLEANUP, context.cleanupPlanned && !context.command),
@@ -124,6 +135,26 @@ object QuickActions {
             null,
             null,
         )
+    }
+
+    /** What [item] offers while idle, and whether it can run in [context]. */
+    private fun idleSlot(item: QuickMenuItem, context: QuickMenuContext): QuickSlot {
+        val otherApp = context.otherAppInFront
+        return when (item) {
+            QuickMenuItem.INSERT_AGAIN -> QuickSlot(QuickAction.INSERT_AGAIN, context.hasLastDictation && context.fieldFocused)
+            QuickMenuItem.UNDO_LAST -> QuickSlot(QuickAction.UNDO_LAST, context.canUndo && context.fieldFocused)
+            QuickMenuItem.CLEANUP_HERE -> QuickSlot(
+                if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE,
+                otherApp && context.cleanupHere != CleanupHere.NOT_SET_UP,
+            )
+            QuickMenuItem.COPY_LAST -> QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation)
+            QuickMenuItem.HIDE_HERE -> QuickSlot(QuickAction.HIDE_HERE, otherApp)
+            QuickMenuItem.OPEN_AMBER -> QuickSlot(QuickAction.OPEN_AMBER, true)
+            // A style belongs to an app: in Amber itself there is none to change.
+            QuickMenuItem.STYLE_HERE -> QuickSlot(QuickAction.STYLE_HERE, otherApp)
+            QuickMenuItem.NEXT_STYLE -> QuickSlot(QuickAction.NEXT_STYLE, otherApp)
+            QuickMenuItem.APP_PAGE -> QuickSlot(QuickAction.APP_PAGE, otherApp)
+        }
     }
 
     /**

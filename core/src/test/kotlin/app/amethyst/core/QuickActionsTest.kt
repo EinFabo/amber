@@ -5,6 +5,9 @@ import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickActions
 import app.amethyst.core.bubble.QuickMenuContext
 import app.amethyst.core.bubble.QuickMenuGeometry
+import app.amethyst.core.bubble.QuickMenuItem
+import app.amethyst.core.bubble.QuickMenuLayout
+import app.amethyst.core.bubble.QuickSlot
 import app.amethyst.core.bubble.QuickPhase
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AmethystSettings
@@ -146,6 +149,110 @@ class QuickActionsTest {
     fun `an empty slot stays empty`() {
         assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[2])
         assertNull(QuickActions.slots(idle.copy(phase = QuickPhase.WORKING))[3])
+    }
+
+    /** Every combination of what the menu is built from, in every phase. */
+    private val everyContext: List<QuickMenuContext> = buildList {
+        val flags = listOf(true, false)
+        for (phase in QuickPhase.entries) for (last in flags) for (field in flags) for (other in flags) for (here in CleanupHere.entries)
+            for (planned in flags) for (undo in flags) for (command in flags) for (pause in flags) for (paused in flags) {
+                add(QuickMenuContext(phase, last, field, other, here, planned, undo, command, pause, paused))
+            }
+    }
+
+    /** The idle menu as it was before it could be changed: written out, not built by the layout. */
+    private fun todaysIdle(c: QuickMenuContext): List<QuickSlot?> = listOf(
+        QuickSlot(QuickAction.INSERT_AGAIN, c.hasLastDictation && c.fieldFocused),
+        QuickSlot(QuickAction.UNDO_LAST, c.canUndo && c.fieldFocused),
+        QuickSlot(
+            if (c.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE,
+            c.otherAppInFront && c.cleanupHere != CleanupHere.NOT_SET_UP,
+        ),
+        QuickSlot(QuickAction.COPY_LAST, c.hasLastDictation),
+    )
+
+    @Test
+    fun `the default layout is today's menu in every state`() {
+        for (context in everyContext) {
+            val byDefault = QuickActions.slots(context)
+            assertEquals(byDefault, QuickActions.slots(context, QuickMenuLayout.idle(null)), context.toString())
+            if (context.phase == QuickPhase.IDLE) assertEquals(todaysIdle(context), byDefault, context.toString())
+        }
+    }
+
+    @Test
+    fun `a layout of one's own sets the idle places, top to bottom`() {
+        val own = QuickMenuLayout.idle(listOf("open_amber", "style_here", "next_style", "app_page"))
+        assertEquals(
+            listOf(QuickAction.OPEN_AMBER, QuickAction.STYLE_HERE, QuickAction.NEXT_STYLE, QuickAction.APP_PAGE),
+            QuickActions.slots(idle, own).map { it?.action },
+        )
+    }
+
+    @Test
+    fun `listening and working stay fixed whatever the layout`() {
+        val own = QuickMenuLayout.idle(listOf("open_amber", null, "hide_here", "copy_last"))
+        for (context in everyContext.filter { it.phase != QuickPhase.IDLE }) {
+            assertEquals(QuickActions.slots(context), QuickActions.slots(context, own), context.toString())
+        }
+    }
+
+    @Test
+    fun `an empty place stays empty, the others keep theirs`() {
+        val own = QuickMenuLayout.idle(listOf("insert_again", null, null, "copy_last"))
+        val slots = QuickActions.slots(idle, own)
+        assertEquals(QuickMenuGeometry.SLOTS, slots.size)
+        assertEquals(listOf(QuickAction.INSERT_AGAIN, null, null, QuickAction.COPY_LAST), slots.map { it?.action })
+    }
+
+    @Test
+    fun `open Amber can always run`() {
+        val own = QuickMenuLayout.idle(listOf("open_amber", null, null, null))
+        for (context in everyContext.filter { it.phase == QuickPhase.IDLE }) {
+            assertTrue(QuickActions.slots(context, own)[0]!!.enabled, context.toString())
+        }
+    }
+
+    @Test
+    fun `the style actions, the app page and hiding need another app in front`() {
+        val own = QuickMenuLayout.idle(listOf("style_here", "next_style", "app_page", "hide_here"))
+        assertTrue(QuickActions.slots(idle, own).all { it!!.enabled })
+        assertTrue(QuickActions.slots(idle.copy(otherAppInFront = false), own).none { it!!.enabled })
+        // Without a cleanup the style waits for one, but changing it is never blocked.
+        val bare = idle.copy(cleanupHere = CleanupHere.NOT_SET_UP, hasLastDictation = false, fieldFocused = false)
+        assertTrue(QuickActions.slots(bare, own).all { it!!.enabled })
+    }
+
+    @Test
+    fun `the cleanup entry shows on or off as the default one does`() {
+        val own = QuickMenuLayout.idle(listOf(null, null, null, "cleanup_here"))
+        assertEquals(QuickAction.CLEANUP_OFF_HERE, QuickActions.slots(idle, own)[3]!!.action)
+        assertEquals(QuickAction.CLEANUP_ON_HERE, QuickActions.slots(idle.copy(cleanupHere = CleanupHere.OFF), own)[3]!!.action)
+        assertFalse(QuickActions.slots(idle.copy(cleanupHere = CleanupHere.NOT_SET_UP), own)[3]!!.enabled)
+    }
+
+    @Test
+    fun `the new actions are idle only`() {
+        for (action in listOf(QuickAction.OPEN_AMBER, QuickAction.STYLE_HERE, QuickAction.NEXT_STYLE, QuickAction.APP_PAGE)) {
+            assertTrue(QuickActions.stillValid(action, QuickPhase.IDLE), action.name)
+            assertFalse(QuickActions.stillValid(action, QuickPhase.RECORDING), action.name)
+            assertFalse(QuickActions.stillValid(action, QuickPhase.WORKING), action.name)
+        }
+    }
+
+    @Test
+    fun `every item of the editor lands in the menu as an idle action`() {
+        for (item in QuickMenuItem.entries) {
+            val slot = QuickActions.slots(idle, QuickMenuLayout.idle(listOf(item.id, null, null, null)))[0]
+            assertTrue(slot!!.action.validIn(QuickPhase.IDLE), item.name)
+        }
+    }
+
+    @Test
+    fun `only a cleanup that runs gives the style its effect`() {
+        assertTrue(CleanupHere.ON.runs)
+        assertFalse(CleanupHere.OFF.runs)
+        assertFalse(CleanupHere.NOT_SET_UP.runs)
     }
 
     private val tinfoil = EngineConfig.fromPreset(EnginePresets.TINFOIL)
