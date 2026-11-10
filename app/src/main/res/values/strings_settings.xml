@@ -149,4 +149,14 @@
     <string name="loading">Loading …</string>
     <string name="licenses_notice_unreadable">The notice could not be read.</string>
     <string name="licenses_text_unreadable">The license text could not be read.</string>
+    <string name="settings_quick_menu">Quick menu</string>
+    <string name="quick_menu_subtitle">What a long press on the bubble offers while no dictation runs, top to bottom - on both edges.</string>
+    <string name="quick_menu_place_top">Top</string>
+    <string name="quick_menu_place_n">Place %1$d</string>
+    <string name="quick_menu_place_bottom">Bottom</string>
+    <string name="quick_menu_empty">Empty</string>
+    <string name="quick_menu_in_use">In use: %1$s</string>
+    <string name="quick_menu_swap_note">Choosing one in use swaps the two places.</string>
+    <string name="quick_menu_fixed">While you dictate, the menu stays fixed: Cancel, No cleanup, Start over, Pause.</string>
+    <string name="quick_menu_reset">Reset to default</string>
 </resources>

@@ -3,6 +3,7 @@ package app.amethyst
 import android.content.Context
 import android.content.res.Configuration
 import app.amethyst.core.bubble.QuickAction
+import app.amethyst.core.bubble.QuickMenuItem
 import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
@@ -18,6 +19,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.InsertPart
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
+import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.update.Ago
 import app.amethyst.core.update.LastCheck
 import app.amethyst.core.update.UpdateSummary
@@ -251,6 +253,33 @@ object Texts {
             QuickAction.KEEP_AS_RECOGNIZED -> R.string.quick_as_recognized
             QuickAction.PAUSE -> R.string.quick_pause
             QuickAction.RESUME -> R.string.quick_resume
+            QuickAction.OPEN_AMBER -> R.string.quick_open_amber
+            QuickAction.STYLE_HERE -> R.string.quick_style_here
+            QuickAction.NEXT_STYLE -> R.string.quick_next_style
+            QuickAction.APP_PAGE -> R.string.quick_app_page
+        },
+    )
+
+    /** A place of the quick menu editor: the action's name, the cleanup switch as one entry. */
+    fun quickMenuItem(context: Context, item: QuickMenuItem): String = when (item) {
+        QuickMenuItem.INSERT_AGAIN -> quickAction(context, QuickAction.INSERT_AGAIN)
+        QuickMenuItem.UNDO_LAST -> quickAction(context, QuickAction.UNDO_LAST)
+        QuickMenuItem.CLEANUP_HERE -> context.getString(R.string.quick_cleanup_here)
+        QuickMenuItem.COPY_LAST -> quickAction(context, QuickAction.COPY_LAST)
+        QuickMenuItem.HIDE_HERE -> quickAction(context, QuickAction.HIDE_HERE)
+        QuickMenuItem.OPEN_AMBER -> quickAction(context, QuickAction.OPEN_AMBER)
+        QuickMenuItem.STYLE_HERE -> quickAction(context, QuickAction.STYLE_HERE)
+        QuickMenuItem.NEXT_STYLE -> quickAction(context, QuickAction.NEXT_STYLE)
+        QuickMenuItem.APP_PAGE -> quickAction(context, QuickAction.APP_PAGE)
+    }
+
+    /** "Formal", "Concise": a style's name, as the app page lists it. */
+    fun writingStyle(context: Context, style: WritingStyle): String = context.getString(
+        when (style) {
+            WritingStyle.AS_SPOKEN -> R.string.writing_as_spoken
+            WritingStyle.CASUAL -> R.string.writing_casual
+            WritingStyle.FORMAL -> R.string.writing_formal
+            WritingStyle.CONCISE -> R.string.writing_concise
         },
     )
 

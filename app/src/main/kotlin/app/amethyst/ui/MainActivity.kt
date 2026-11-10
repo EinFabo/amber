@@ -1,6 +1,7 @@
 package app.amethyst.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -48,6 +49,7 @@ import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.Texts
+import app.amethyst.apps.Launcher
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
@@ -80,6 +82,7 @@ import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.InsertingScreen
 import app.amethyst.ui.screen.LicensesScreen
+import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.RecordingScreen
 import app.amethyst.ui.screen.ReliabilityScreen
@@ -103,6 +106,9 @@ class MainActivity : ComponentActivity() {
     /** Sent to switch the accessibility service on and not back with it on yet; see [SetupState.accessibilityTried]. */
     private var accessibilityTried = false
 
+    /** An app whose page the quick menu asked for, until the screens have opened it. */
+    private val appPageRequest = MutableStateFlow<String?>(null)
+
     private val requestMicrophone =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             refreshSetup()
@@ -124,11 +130,15 @@ class MainActivity : ComponentActivity() {
         val graph = AmethystApp.graph(this)
         accessibilityTried = savedInstanceState?.getBoolean(KEY_ACCESSIBILITY_TRIED) ?: false
         refreshSetup()
+        // Recreated (a rotation): the page asked for was opened then.
+        if (savedInstanceState == null) takeAppPage(intent)
 
         setContent {
             AmberTheme {
                 AmethystRoot(
                     graph = graph,
+                    appPage = appPageRequest.collectAsStateWithLifecycle().value,
+                    onAppPageOpened = { appPageRequest.value = null },
                     onInstallLanguage = { tag -> installLanguage(tag) },
                     setup = setupState.collectAsStateWithLifecycle().value,
                     actions = SetupActions(
@@ -152,6 +162,13 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    /** Brought to the front again by the quick menu, perhaps for an app's page. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeAppPage(intent)
     }
 
     override fun onResume() {
@@ -246,9 +263,29 @@ class MainActivity : ComponentActivity() {
         setupState.value = state
     }
 
-    private companion object {
-        const val SERVICE_START_GRACE_MS = 600L
-        const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
+    /** An app's page asked for in [intent] (the quick menu's "App page"), if it names an app there is. */
+    private fun takeAppPage(intent: Intent?) {
+        val asked = runCatching { intent?.getStringExtra(EXTRA_APP_PAGE) }.getOrNull() ?: return
+        Launcher.launchable(this, asked)?.let { appPageRequest.value = it }
+    }
+
+    companion object {
+        private const val SERVICE_START_GRACE_MS = 600L
+        private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
+
+        /** The package whose page to open, from the quick menu; only an installed app with a launcher icon is taken. */
+        private const val EXTRA_APP_PAGE = "app.amethyst.extra.APP_PAGE"
+
+        /**
+         * Amber brought to the front from the accessibility service - on its main screen, or on
+         * [appPage]'s page with Settings and the app styles behind it for Back.
+         */
+        fun intent(context: Context, appPage: String? = null): Intent =
+            Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                .apply { if (appPage != null) putExtra(EXTRA_APP_PAGE, appPage) }
     }
 }
 
@@ -290,6 +327,7 @@ private fun Screen.title(): String = when (this) {
             SettingsPage.INSERTING -> R.string.settings_inserting
             SettingsPage.APP_STYLES -> R.string.settings_app_styles
             SettingsPage.BUBBLE -> R.string.settings_bubble
+            SettingsPage.QUICK_MENU -> R.string.settings_quick_menu
             SettingsPage.COMMANDS -> R.string.settings_voice_commands
             SettingsPage.STATS -> R.string.settings_statistics
             SettingsPage.RELIABILITY -> R.string.settings_reliability
@@ -305,6 +343,8 @@ private fun AmethystRoot(
     graph: Graph,
     setup: SetupState,
     actions: SetupActions,
+    appPage: String?,
+    onAppPageOpened: () -> Unit,
     onInstallLanguage: (String?) -> Unit,
 ) {
     // Nothing but the background until the stored settings are read: the defaults would start
@@ -314,7 +354,7 @@ private fun AmethystRoot(
         AmberBackground {}
         return
     }
-    AmethystScreens(graph, setup, actions, onInstallLanguage, introduce = !loaded.onboardingDone)
+    AmethystScreens(graph, setup, actions, appPage, onAppPageOpened, onInstallLanguage, introduce = !loaded.onboardingDone)
 }
 
 @Composable
@@ -322,6 +362,9 @@ private fun AmethystScreens(
     graph: Graph,
     setup: SetupState,
     actions: SetupActions,
+    /** An app whose page the quick menu asked for; [onAppPageOpened] once it is handled. */
+    appPage: String?,
+    onAppPageOpened: () -> Unit,
     onInstallLanguage: (String?) -> Unit,
     introduce: Boolean,
 ) {
@@ -329,6 +372,16 @@ private fun AmethystScreens(
     // install starts in the introduction instead of Home.
     var stack by remember { mutableStateOf(listOf(if (introduce) Screen.Onboarding else Screen.Home)) }
     val screen = stack.last()
+
+    // The quick menu's "App page": that page, with the way back through the app styles and
+    // Settings. Never into the introduction - it is finished first.
+    LaunchedEffect(appPage) {
+        if (appPage == null) return@LaunchedEffect
+        if (Screen.Onboarding !in stack) {
+            stack = listOf(Screen.Home, Screen.Settings, Screen.Page(SettingsPage.APP_STYLES), Screen.AppStyle(appPage))
+        }
+        onAppPageOpened()
+    }
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
     val testContext = LocalContext.current
@@ -558,7 +611,9 @@ private fun AmethystScreens(
                                 settings, ::updateSettings,
                                 apps = apps,
                                 usage = appUsage,
+                                onOpenQuickMenu = { open(Screen.Page(SettingsPage.QUICK_MENU)) },
                             )
+                            SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
                             SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
                             SettingsPage.STATS -> StatsScreen(
                                 settings = settings,

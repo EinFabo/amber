@@ -96,4 +96,9 @@
     <string name="machine_pc">the PC</string>
     <string name="machine_server">the server</string>
     <string name="quick_undo_last">Undo last</string>
+    <string name="quick_open_amber">Open Amber</string>
+    <string name="quick_style_here">Style here</string>
+    <string name="quick_next_style">Next style</string>
+    <string name="quick_app_page">App page</string>
+    <string name="quick_cleanup_here">Cleanup here</string>
 </resources>

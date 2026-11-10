@@ -6,9 +6,15 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import app.amethyst.core.bubble.QuickAction
+import app.amethyst.core.bubble.QuickMenuItem
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** The picture on a quick menu button. */
-enum class MenuGlyph { INSERT, UNDO, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME }
+enum class MenuGlyph {
+    INSERT, UNDO, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME,
+    AMBER, STYLE, NEXT_STYLE, APP_PAGE,
+}
 
 /** The glyph shows what the action does: switching the cleanup on shows the sparkle, off crosses it out. */
 val QuickAction.glyph: MenuGlyph
@@ -25,6 +31,24 @@ val QuickAction.glyph: MenuGlyph
         QuickAction.KEEP_AS_RECOGNIZED -> MenuGlyph.AS_RECOGNIZED
         QuickAction.PAUSE -> MenuGlyph.PAUSE
         QuickAction.RESUME -> MenuGlyph.RESUME
+        QuickAction.OPEN_AMBER -> MenuGlyph.AMBER
+        QuickAction.STYLE_HERE -> MenuGlyph.STYLE
+        QuickAction.NEXT_STYLE -> MenuGlyph.NEXT_STYLE
+        QuickAction.APP_PAGE -> MenuGlyph.APP_PAGE
+    }
+
+/** The glyph a place of the editor shows: the cleanup switch with the sparkle, as when it would switch on. */
+val QuickMenuItem.glyph: MenuGlyph
+    get() = when (this) {
+        QuickMenuItem.INSERT_AGAIN -> MenuGlyph.INSERT
+        QuickMenuItem.UNDO_LAST -> MenuGlyph.UNDO
+        QuickMenuItem.CLEANUP_HERE -> MenuGlyph.CLEANUP_ON
+        QuickMenuItem.COPY_LAST -> MenuGlyph.COPY
+        QuickMenuItem.HIDE_HERE -> MenuGlyph.HIDE
+        QuickMenuItem.OPEN_AMBER -> MenuGlyph.AMBER
+        QuickMenuItem.STYLE_HERE -> MenuGlyph.STYLE
+        QuickMenuItem.NEXT_STYLE -> MenuGlyph.NEXT_STYLE
+        QuickMenuItem.APP_PAGE -> MenuGlyph.APP_PAGE
     }
 
 /**
@@ -167,7 +191,62 @@ object MenuGlyphs {
             MenuGlyph.RESUME -> fillPath {
                 moveTo(8.5f, 6f); lineTo(8.5f, 18f); lineTo(18.5f, 12f); close()
             }
+            // Amber's own flame, as the bubble shows it: solid, its inner tongue cut back out.
+            MenuGlyph.AMBER -> {
+                fillPath { Fire.flame(12f, 12f, FLAME_R, inner = false, ops = FlameOnPath(this)) }
+                val ink = fill.color
+                fill.color = behind
+                fill.alpha = 255
+                fillPath { Fire.flame(12f, 12f, FLAME_R, inner = true, ops = FlameOnPath(this)) }
+                fill.color = ink
+                fill.alpha = stroke.alpha
+            }
+            // A pen, writing down to the left.
+            MenuGlyph.STYLE -> strokePath {
+                moveTo(15f, 4.5f); lineTo(19.5f, 9f); lineTo(9f, 19.5f); lineTo(4.5f, 19.5f); lineTo(4.5f, 15f); close()
+                moveTo(12.5f, 7f); lineTo(17f, 11.5f)
+            }
+            // Two arrows chasing each other round a circle: one step on, and round again.
+            MenuGlyph.NEXT_STYLE -> strokePath {
+                arrowArc(200f)
+                arrowArc(20f)
+            }
+            // A small window: its title bar and two lines of a page.
+            MenuGlyph.APP_PAGE -> strokePath {
+                addRoundRect(4f, 4.5f, 20f, 19.5f, 2.5f, 2.5f, Path.Direction.CW)
+                moveTo(4f, 9f); lineTo(20f, 9f)
+                moveTo(8f, 13f); lineTo(16f, 13f)
+                moveTo(8f, 16f); lineTo(12.5f, 16f)
+            }
         }
+    }
+
+    /** An arc of the circle round the middle, clockwise from [startDeg], with its arrow head at the end. */
+    private fun Path.arrowArc(startDeg: Float) {
+        oval.set(12f - ARC_R, 12f - ARC_R, 12f + ARC_R, 12f + ARC_R)
+        arcTo(oval, startDeg, ARC_SWEEP, true)
+        val end = Math.toRadians((startDeg + ARC_SWEEP).toDouble())
+        val tipX = 12f + ARC_R * cos(end).toFloat()
+        val tipY = 12f + ARC_R * sin(end).toFloat()
+        // The way the arc runs at its end; the head's two strokes go back from the tip either side of it.
+        val dx = -sin(end).toFloat()
+        val dy = cos(end).toFloat()
+        for (side in intArrayOf(-1, 1)) {
+            val a = HEAD_ANGLE * side
+            val bx = -(dx * cos(a) - dy * sin(a))
+            val by = -(dx * sin(a) + dy * cos(a))
+            moveTo(tipX, tipY)
+            lineTo(tipX + bx * HEAD, tipY + by * HEAD)
+        }
+    }
+
+    /** The bubble's flame ([Fire.flame]) drawn into a [Path] on the 24-unit grid. */
+    private class FlameOnPath(private val path: Path) : Fire.FlameOps {
+        override fun moveTo(x: Float, y: Float) = path.moveTo(x, y)
+        override fun cubicTo(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) = path.cubicTo(x1, y1, x2, y2, x3, y3)
+        override fun arcTo(left: Float, top: Float, right: Float, bottom: Float, startDeg: Float, sweepDeg: Float) =
+            path.arcTo(left, top, right, bottom, startDeg, sweepDeg, false)
+        override fun close() = path.close()
     }
 
     /** The cleanup's mark: a large four-pointed sparkle and a small one above it. */
@@ -185,6 +264,15 @@ object MenuGlyphs {
         quadTo(cx - waist, cy - waist, cx, cy - size)
         close()
     }
+
+    /** The flame's disc radius on the grid: the flame then stands about 18.5 units tall, as tall as the others. */
+    private const val FLAME_R = 22f
+
+    /** The circle the arrows of "Next style" run round, how far each runs, and their heads. */
+    private const val ARC_R = 7.5f
+    private const val ARC_SWEEP = 130f
+    private const val HEAD = 3.4f
+    private const val HEAD_ANGLE = 0.75f
 
     /** The glyph's half width, in button radii. */
     private const val HALF_SIZE = 0.46f

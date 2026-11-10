@@ -30,4 +30,6 @@
     <string name="title_settings">Settings</string>
     <string name="title_app_style">App style</string>
     <string name="no_browser">No browser found to open %1$s</string>
+    <string name="style_here_done">Done</string>
+    <string name="style_here_no_cleanup">No cleanup runs in %1$s, so the style is not applied yet - the text goes in as recognized.</string>
 </resources>

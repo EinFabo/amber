@@ -94,4 +94,9 @@
     <string name="machine_pc">der PC</string>
     <string name="machine_server">der Server</string>
     <string name="quick_undo_last">Letztes rückgängig</string>
+    <string name="quick_open_amber">Amber öffnen</string>
+    <string name="quick_style_here">Stil hier</string>
+    <string name="quick_next_style">Nächster Stil</string>
+    <string name="quick_app_page">App-Seite</string>
+    <string name="quick_cleanup_here">Bereinigung hier</string>
 </resources>

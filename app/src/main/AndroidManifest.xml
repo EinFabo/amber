@@ -65,6 +65,20 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Amber.Invisible" />
 
+        <!--
+          The quick menu's "Style here": a card over the app in front, started by the
+          accessibility service. A task of its own and out of Recents, so closing it leaves the
+          app in front and Amber's main screen never comes along.
+        -->
+        <activity
+            android:name=".ui.QuickStyleActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity="${applicationId}.style"
+            android:theme="@style/Theme.Amber.Sheet"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".accessibility.AmethystAccessibilityService"
             android:exported="true"

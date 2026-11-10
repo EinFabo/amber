@@ -52,4 +52,7 @@
     <string name="undo_done">Last dictation taken out again.</string>
     <string name="undo_changed">The text has changed since - nothing undone.</string>
     <string name="undo_failed">Could not undo it in this field.</string>
+    <string name="quick_done_style">%1$s: %2$s</string>
+    <string name="quick_done_style_no_cleanup">%1$s: %2$s. No cleanup runs here, so the text still goes in as recognized.</string>
+    <string name="quick_open_failed">Android did not let Amber open it.</string>
 </resources>

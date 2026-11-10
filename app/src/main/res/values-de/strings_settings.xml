@@ -149,4 +149,14 @@
     <string name="loading">Wird geladen …</string>
     <string name="licenses_notice_unreadable">Der Hinweis konnte nicht gelesen werden.</string>
     <string name="licenses_text_unreadable">Der Lizenztext konnte nicht gelesen werden.</string>
+    <string name="settings_quick_menu">Schnellmenü</string>
+    <string name="quick_menu_subtitle">Was ein langes Drücken auf die Bubble anbietet, solange kein Diktat läuft, von oben nach unten - an beiden Rändern.</string>
+    <string name="quick_menu_place_top">Oben</string>
+    <string name="quick_menu_place_n">Platz %1$d</string>
+    <string name="quick_menu_place_bottom">Unten</string>
+    <string name="quick_menu_empty">Leer</string>
+    <string name="quick_menu_in_use">Belegt: %1$s</string>
+    <string name="quick_menu_swap_note">Wählst du eine belegte, tauschen die beiden Plätze.</string>
+    <string name="quick_menu_fixed">Während du diktierst, bleibt das Menü fest: Abbrechen, Ohne Bereinigung, Neu anfangen, Pause.</string>
+    <string name="quick_menu_reset">Auf Standard zurücksetzen</string>
 </resources>

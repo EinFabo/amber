@@ -1,6 +1,8 @@
 package app.amethyst.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,6 +37,7 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
+import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.DangerAction
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
@@ -71,17 +74,11 @@ fun AppStyleScreen(
     val decision = remember(settings) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
     // Not remembered: a model downloaded or a key stored while the page is open changes it, not the settings.
     val routing = EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady)
-    var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
     val own = profile.appCleanup
 
     // Edits only a profile that is still there, so a late save cannot bring back a removed one.
     fun edit(change: (AppProfile) -> AppProfile) =
         onUpdateSettings { it.copy(profiles = AppProfiles.edit(it.profiles, profile.packageName, change)) }
-
-    fun persistInstruction() {
-        val typed = instruction.trim().ifEmpty { null }
-        if (typed != profile.instruction) edit { it.copy(instruction = typed) }
-    }
 
     SubPage(modifier) {
         Row(
@@ -94,23 +91,7 @@ fun AppStyleScreen(
         }
 
         SectionCard(title = stringResource(R.string.style_title), subtitle = stringResource(R.string.style_subtitle, profile.label)) {
-            WritingStyle.entries.forEach { option ->
-                RadioRow(option.label(), option.note(), selected = option == profile.style, onSelect = {
-                    edit { it.copy(style = option) }
-                })
-            }
-            OutlinedTextField(
-                value = instruction,
-                onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
-                label = { Text(stringResource(R.string.style_instruction)) },
-                placeholder = { Text(stringResource(R.string.style_instruction_placeholder)) },
-                supportingText = { Text(stringResource(R.string.char_count, instruction.length, ChatCleanup.INSTRUCTION_CHARS)) },
-                minLines = 2,
-                maxLines = 8,
-                shape = AmberShapes.Inner,
-                colors = fieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            StyleAndInstruction(profile, ::edit, chips = false)
         }
 
         if (SettingsLayout.showsAppRecognition(profile, settings.ui.advanced)) {
@@ -155,6 +136,57 @@ fun AppStyleScreen(
             onRemoved()
         }
     }
+}
+
+/**
+ * An app's style and its own instruction, read and saved the same way on the app's page and in
+ * the quick menu's "Style here" window ([app.amethyst.ui.QuickStyleActivity]): a style at once,
+ * the instruction [INSTRUCTION_SAVE_MS] after typing stops and when this leaves the screen.
+ * [onEdit] changes the profile only while it is still there. [chips]: the styles as a row of
+ * chips (the window) rather than a list with a note each (the page).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun StyleAndInstruction(
+    profile: AppProfile,
+    onEdit: ((AppProfile) -> AppProfile) -> Unit,
+    chips: Boolean,
+    instructionModifier: Modifier = Modifier,
+) {
+    var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
+
+    fun persistInstruction() {
+        val typed = instruction.trim().ifEmpty { null }
+        if (typed != profile.instruction) onEdit { it.copy(instruction = typed) }
+    }
+
+    if (chips) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            WritingStyle.entries.forEach { option ->
+                ChoiceChip(option.label(), note = null, on = option == profile.style) {
+                    if (option != profile.style) onEdit { it.copy(style = option) }
+                }
+            }
+        }
+    } else {
+        WritingStyle.entries.forEach { option ->
+            RadioRow(option.label(), option.note(), selected = option == profile.style, onSelect = {
+                onEdit { it.copy(style = option) }
+            })
+        }
+    }
+    OutlinedTextField(
+        value = instruction,
+        onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
+        label = { Text(stringResource(R.string.style_instruction)) },
+        placeholder = { Text(stringResource(R.string.style_instruction_placeholder)) },
+        supportingText = { Text(stringResource(R.string.char_count, instruction.length, ChatCleanup.INSTRUCTION_CHARS)) },
+        minLines = 2,
+        maxLines = 8,
+        shape = AmberShapes.Inner,
+        colors = fieldColors(),
+        modifier = instructionModifier.fillMaxWidth(),
+    )
 
     // Saved a moment after typing stops: Home and a dictation right away, or a rotation, must
     // not leave the old instruction in use.
@@ -162,7 +194,7 @@ fun AppStyleScreen(
         delay(INSTRUCTION_SAVE_MS)
         persistInstruction()
     }
-    // Typed an instruction and went back at once: keep it, as the engine page does.
+    // Typed an instruction and went back (or closed the window) at once: keep it, as the engine page does.
     val latestPersist by rememberUpdatedState(::persistInstruction)
     DisposableEffect(profile.packageName) {
         onDispose { latestPersist() }

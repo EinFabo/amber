@@ -47,6 +47,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.SettingsGroupKind
@@ -83,7 +84,7 @@ import app.amethyst.ui.words
 import kotlin.math.roundToInt
 
 /** Where a settings row leads. */
-enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES, LICENSES }
+enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, QUICK_MENU, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES, LICENSES }
 
 /**
  * Amber's settings in groups: the most used, the per-app styles, the advanced ones and Amber
@@ -145,8 +146,8 @@ fun SettingsScreen(
         SettingsItem.INTRODUCTION -> NavRow(
             stringResource(R.string.settings_introduction), stringResource(R.string.settings_introduction_summary), icon = AmberIcons.Replay, onClick = onReplayIntroduction,
         )
-        // Parts of the Cleanup page and of an app's page, never rows here.
-        SettingsItem.CLEANUP_INSTRUCTION, SettingsItem.APP_RECOGNITION -> Unit
+        // Parts of the Cleanup page, an app's page and the Bubble page, never rows here.
+        SettingsItem.CLEANUP_INSTRUCTION, SettingsItem.APP_RECOGNITION, SettingsItem.QUICK_MENU -> Unit
     }
 
     SubPage(modifier) {
@@ -387,6 +388,7 @@ fun BubbleScreen(
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     apps: AppSource,
     usage: Map<String, Int>,
+    onOpenQuickMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var picking by remember { mutableStateOf(false) }
@@ -466,6 +468,18 @@ fun BubbleScreen(
                         )
                     }
                 })
+            }
+        }
+
+        // Put together by hand: advanced, so who only dictates keeps the menu as it is.
+        if (SettingsLayout.shows(SettingsItem.QUICK_MENU, settings.ui.advanced)) {
+            SettingsGroup(label = null) {
+                NavRow(
+                    stringResource(R.string.settings_quick_menu),
+                    quickMenuSummary(QuickMenuLayout.idle(bubble.quickMenuIdle)),
+                    icon = AmberIcons.Apps,
+                    onClick = onOpenQuickMenu,
+                )
             }
         }
 
