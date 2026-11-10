@@ -1,6 +1,8 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
+import app.amethyst.core.settings.LanguageUse
 
 /**
  * Says what an engine configuration is still missing, before any audio is recorded.
@@ -38,13 +40,14 @@ object EngineConfigValidator {
             }
         }
 
-        // Whisper and an Amber server decide between several languages themselves, and any other
-        // server gets no language for a list (OpenAiCompatibleEngine.languageField), so it detects.
-        // The rest take one.
-        val tags = if (config.kind == EngineKind.WHISPER_CPP || config.kind == EngineKind.OPENAI_COMPATIBLE) {
-            config.languageTag?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+        // Whisper and an Amber server decide between several languages themselves, any other
+        // server gets no language for a list (OpenAiCompatibleEngine.languageField), so it
+        // detects, and Android takes the first ([LanguageList]). Parakeet takes none: whatever
+        // is stored is never used, so it is no problem either.
+        val tags = if (LanguageList.use(config.kind) == LanguageUse.DETECTS_ITSELF) {
+            null
         } else {
-            listOfNotNull(config.languageTag)
+            config.languageTag?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
         }
         tags?.filterNot(::isPlausibleLanguageTag)?.forEach { tag ->
             add(ConfigIssue.InvalidLanguageCode(tag))

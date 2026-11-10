@@ -11,6 +11,7 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
 import kotlin.math.sin
 
 /**
@@ -41,7 +42,7 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
         return try {
             val outcome = engine.transcribe(
                 testClip(),
-                TranscribeOptions(languageTag = config.languageTag),
+                TranscribeOptions(languageTag = LanguageList.forDictation(config)),
             )
             val local = engine.capabilities.trustLevel == TrustLevel.ON_DEVICE
             // For an enclave engine the round trip only counts if it went over the attested key;

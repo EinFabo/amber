@@ -67,13 +67,14 @@ import app.amethyst.core.engine.ServerProvider
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
-import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.whisper.WhisperModelSpec
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.EnclaveProof
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
+import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
@@ -81,6 +82,7 @@ import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LanguageChips
 import app.amethyst.ui.PageGutter
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.ProgressLine
@@ -149,6 +151,19 @@ fun EngineDetailScreen(
     var confirmRemove by remember { mutableStateOf(false) }
     var removed by remember { mutableStateOf(false) }
 
+    // The same chips on every page that has languages; saved at once, as a model pick is.
+    val phone = remember { PhoneLocales.tags() }
+
+    @Composable
+    fun Languages() = LanguageChips(
+        picked = LanguageList.parse(language, LanguageList.use(config.kind)),
+        use = LanguageList.use(config.kind),
+        defaults = LanguageList.defaults(config.kind, phone),
+    ) { picked ->
+        language = LanguageList.with(config, picked).languageTag.orEmpty()
+        onSave(edited())
+    }
+
     fun persist() {
         config.apiKeyAlias?.let { alias -> onSaveKey(alias, apiKey) }
         onSave(edited())
@@ -188,18 +203,21 @@ fun EngineDetailScreen(
         }
 
         when (config.kind) {
-            EngineKind.ANDROID_ON_DEVICE -> SectionCard(
-                title = stringResource(R.string.engine_configuration),
-            ) {
-                Hint(stringResource(R.string.engine_android_note))
-                val onDevice = remember {
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                        SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+            EngineKind.ANDROID_ON_DEVICE -> {
+                SectionCard(title = stringResource(R.string.engine_configuration)) {
+                    Hint(stringResource(R.string.engine_android_note))
+                    val onDevice = remember {
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+                    }
+                    if (!onDevice) {
+                        Hint(stringResource(R.string.engine_android_cloud), AmberPalette.Primary)
+                    }
                 }
-                if (!onDevice) {
-                    Hint(stringResource(R.string.engine_android_cloud), AmberPalette.Primary)
+                SectionCard(title = stringResource(R.string.engine_language)) {
+                    Hint(stringResource(R.string.engine_android_language))
+                    Languages()
                 }
-                LanguageField(language) { language = it }
             }
 
             EngineKind.WHISPER_CPP -> {
@@ -217,10 +235,8 @@ fun EngineDetailScreen(
                 )
                 SectionCard(title = stringResource(R.string.engine_languages)) {
                     Hint(stringResource(R.string.engine_whisper_languages))
-                    WhisperLanguagePicker(language) { picked ->
-                        language = picked
-                        onSave(edited())
-                    }
+                    Languages()
+                    if (language.isBlank()) Hint(stringResource(R.string.whisper_none_picked))
                 }
             }
 
@@ -364,33 +380,30 @@ fun EngineDetailScreen(
                     }
                 }
                 // An Amber server takes several languages and picks among them; a plain API
-                // takes one code or none.
+                // takes one code, and detects by itself for several or none.
                 val amber = catalog?.takeIf { AmberCatalogs.isCandidate(config) }
-                if (amber != null) {
-                    SectionCard(title = stringResource(R.string.engine_languages)) {
+                SectionCard(title = stringResource(R.string.engine_languages)) {
+                    if (amber != null) {
                         val machine = Texts.machine(context, amber.machine)
                         Hint(stringResource(R.string.engine_amber_languages, machine))
-                        WhisperLanguagePicker(language, noneHint = stringResource(R.string.engine_amber_none_picked, machine)) { picked ->
-                            language = picked
-                            onSave(edited())
-                        }
-                    }
-                } else {
-                    SectionCard(
-                        title = stringResource(R.string.engine_language),
-                        subtitle = stringResource(R.string.engine_language_subtitle),
-                    ) {
-                        ServerLanguagePicker(language.substringBefore('-').lowercase()) { picked ->
-                            language = picked
-                            onSave(edited())
-                        }
+                        Languages()
+                        if (language.isBlank()) Hint(stringResource(R.string.engine_amber_none_picked, machine))
+                    } else {
+                        Hint(stringResource(R.string.engine_server_languages))
+                        Languages()
                     }
                 }
                 Hint(stringResource(R.string.engine_cleanup_elsewhere))
                 if (provider == ServerProviders.TINFOIL) EnclaveSection(baseUrl.trim(), enclaveLog, onVerifyEnclave)
             }
 
-            EngineKind.LOCAL_SHERPA -> ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
+            EngineKind.LOCAL_SHERPA -> {
+                ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
+                // No chips: Parakeet is given no language.
+                SectionCard(title = stringResource(R.string.engine_languages)) {
+                    Hint(stringResource(R.string.engine_parakeet_languages))
+                }
+            }
 
             EngineKind.ELEVENLABS_REALTIME -> SectionCard(title = stringResource(R.string.engine_not_supported)) {
                 Hint(stringResource(R.string.engine_elevenlabs))
@@ -687,80 +700,6 @@ internal fun ModelPicker(
             RadioRow(selected, notOffered, selected = true, onSelect = {}, noteColor = AmberPalette.Primary)
         }
     }
-}
-
-/** The languages offered as chips; anything else can still be typed into the old field. */
-private val WHISPER_LANGUAGE_CODES = listOf("de", "en", "fr", "es", "it", "nl", "pl", "tr")
-
-/** Each code with its name in the phone's language: "Deutsch", "Englisch" or "German", "English". */
-@Composable
-private fun whisperLanguages(): List<Pair<String, String>> {
-    val locale = Texts.locale(LocalContext.current)
-    return WHISPER_LANGUAGE_CODES.map { code ->
-        code to java.util.Locale.forLanguageTag(code).getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }
-    }
-}
-
-/**
- * Toggles languages in a "de,en" list, in the order picked. None picked means Whisper detects
- * any language.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun WhisperLanguagePicker(
-    value: String,
-    noneHint: String = stringResource(R.string.whisper_none_picked),
-    onChange: (String) -> Unit,
-) {
-    val picked = WhisperInput.languageCodes(value)
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        whisperLanguages().forEach { (code, name) ->
-            val on = code in picked
-            Text(
-                name,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (on) AmberPalette.Background else AmberPalette.Text,
-                modifier = Modifier
-                    .clip(AmberShapes.Inner)
-                    .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
-                    .clickable { onChange(WhisperInput.toggledLanguage(value, code)) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
-        }
-    }
-    if (picked.isEmpty()) Hint(noneHint)
-}
-
-/** Automatic or one language, for servers: the API takes a single ISO code or none. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ServerLanguagePicker(value: String, onChange: (String) -> Unit) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        ChoiceChip(stringResource(R.string.language_automatic), null, on = value.isBlank()) { onChange("") }
-        whisperLanguages().forEach { (code, name) ->
-            ChoiceChip(name, null, on = value == code) { onChange(code) }
-        }
-    }
-}
-
-@Composable
-private fun LanguageField(value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(stringResource(R.string.language_field)) },
-        placeholder = { Text(stringResource(R.string.language_field_placeholder)) },
-        singleLine = true,
-        shape = AmberShapes.Inner,
-        colors = fieldColors(),
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
 /** Where this engine sends the voice; see [EngineTrust.forDisplay]. */

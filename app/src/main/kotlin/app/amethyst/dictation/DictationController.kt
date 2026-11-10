@@ -70,6 +70,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.ServerCost
@@ -549,7 +550,7 @@ class DictationController(
         }
         warmUpConnections(engine, engineConfig, settings)
 
-        val options = TranscribeOptions(languageTag = engineConfig.languageTag)
+        val options = TranscribeOptions(languageTag = LanguageList.forDictation(engineConfig))
         val appLabels = appLabelsOnce()
         if (engine is ParakeetEngine) {
             trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
@@ -889,7 +890,7 @@ class DictationController(
         val scope = CoroutineScope(currentCoroutineContext())
         // The model loads while the user speaks; a failure shows when it is asked for text.
         scope.launch { engine.warmUp() }
-        val options = TranscribeOptions(languageTag = config.languageTag)
+        val options = TranscribeOptions(languageTag = LanguageList.forDictation(config))
         return Prepared(config, engine, options, ChunkedTranscription(engine, options, scope))
     }
 
@@ -1089,7 +1090,7 @@ class DictationController(
             wait.plan(*listOfNotNull(WaitProgress.Step.RECOGNIZE to recognizeMs, cleanupMs?.let { WaitProgress.Step.CLEANUP to it }).toTypedArray())
             _state.value = DictationState.Transcribing(wait)
             val result = try {
-                other.transcribe(audio, TranscribeOptions(languageTag = config.languageTag))
+                other.transcribe(audio, TranscribeOptions(languageTag = LanguageList.forDictation(config)))
             } finally {
                 runCatching { other.close() }
             }
@@ -1151,7 +1152,7 @@ class DictationController(
         val language = LanguageGuess.forDictation(
             transcript.text,
             transcript.detectedLanguage,
-            settings.engines.firstOrNull { it.id == transcript.engineId }?.languageTag,
+            settings.engines.firstOrNull { it.id == transcript.engineId }?.let(LanguageList::forDictation),
         )
         // A long text takes its time to be written back; past it, it goes in as recognized.
         val result = withTimeoutOrNull(ChatCleanup.timeoutMs(transcript.text.length)) {
@@ -1335,7 +1336,7 @@ class DictationController(
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.capture.toNormalizeOptions(),
-            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.languageTag,
+            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.let(LanguageList::forDictation),
             // Whether the field takes them is decided at insertion (InsertionEngine).
             keepLineBreaks = transcript.formatted,
         )

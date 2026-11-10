@@ -60,6 +60,7 @@ import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
@@ -490,7 +491,7 @@ private fun AmethystScreens(
                         onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
                         onOpenStats = { open(Screen.Page(SettingsPage.STATS)) },
                         onOpenActiveEngine = { open(Screen.EngineDetail(settings.activeEngineId)) },
-                        onInstallLanguage = { onInstallLanguage(settings.activeEngine?.languageTag) },
+                        onInstallLanguage = { onInstallLanguage(settings.activeEngine?.let(LanguageList::forDictation)) },
                         onUseLocalWhisper = {
                             val preset = EnginePresets.LOCAL_WHISPER
                             if (settings.engines.none { it.id == preset.id }) {

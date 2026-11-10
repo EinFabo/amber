@@ -97,15 +97,6 @@ object WhisperInput {
             .filter { it.isNotBlank() }
             .distinct()
 
-    /**
-     * [tag] with [code] switched: taken out when it is there, else added at the end - the order
-     * of picking stays, and the first picked wins a tie.
-     */
-    fun toggledLanguage(tag: String?, code: String): String {
-        val codes = languageCodes(tag)
-        return (if (code in codes) codes - code else codes + code).joinToString(",")
-    }
-
     private fun toMono(audio: PcmAudio): FloatArray {
         val samples = audio.samples
         if (audio.channels == 1) {

@@ -21,7 +21,12 @@
     <string name="engine_amber_languages">The languages you dictate in. Several: %1$s picks among them for each dictation; a very short one can still land in the wrong one and come out translated. A single one is forced: anything said in another language is then translated.</string>
     <string name="engine_amber_none_picked">None picked: %1$s guesses among all languages.</string>
     <string name="engine_language">Language</string>
-    <string name="engine_language_subtitle">Automatic works for most. One fixed language helps with short dictations.</string>
+    <string name="engine_android_language">Android\'s speech recognition takes one language. None picked: the phone\'s language.</string>
+    <string name="engine_server_languages">The languages you dictate in. One: the server writes in it, and anything said in another language comes out translated. Several or none: the server detects the language itself.</string>
+    <string name="engine_parakeet_languages">Parakeet detects the language itself, among the 25 European languages it knows. There is nothing to pick.</string>
+    <string name="languages_more">More languages</string>
+    <string name="languages_fewer">Fewer languages</string>
+    <string name="languages_phone">The phone\'s languages</string>
     <string name="engine_cleanup_elsewhere">Cleanup models of this server are picked under Settings → Cleanup, for any speech recognition.</string>
     <string name="engine_not_supported">Not supported</string>
     <string name="engine_elevenlabs">ElevenLabs Realtime was never finished. Remove this speech recognition.</string>
@@ -57,9 +62,6 @@
     <string name="model_recommended">Recommended · %1$s</string>
     <string name="model_recommended_only">Recommended</string>
     <string name="whisper_none_picked">None picked: Whisper guesses among all languages.</string>
-    <string name="language_automatic">Automatic</string>
-    <string name="language_field">Language (BCP-47)</string>
-    <string name="language_field_placeholder">de-DE, empty = automatic</string>
     <string name="enclave_title">Enclave verification</string>
     <string name="enclave_subtitle">Recordings only go to a verified enclave, over a connection bound to its verified key. Otherwise nothing is sent.</string>
     <string name="enclave_verifying">Verifying …</string>

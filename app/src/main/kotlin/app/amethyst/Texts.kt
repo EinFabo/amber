@@ -350,6 +350,18 @@ object Texts {
 
     fun locale(context: Context): Locale = context.resources.configuration.locales[0]
 
+    /**
+     * A language's name in the phone's language: "Deutsch", "Englisch" or "German", "English".
+     * [withRegion] names the variant a whole tag holds - "Englisch (Vereinigtes Königreich)" -
+     * where the variant is what the speech recognition gets (Android's).
+     */
+    fun languageName(context: Context, tag: String, withRegion: Boolean = false): String {
+        val shown = locale(context)
+        val language = Locale.forLanguageTag(tag)
+        val name = (if (withRegion) language.getDisplayName(shown) else language.getDisplayLanguage(shown)).ifBlank { tag }
+        return name.replaceFirstChar { it.titlecase(shown) }
+    }
+
     private fun Context.count(id: Int, n: Int): String = resources.getQuantityString(id, n, n)
 
     private fun Problem.Payload.pick(recording: Int, text: Int): Int =

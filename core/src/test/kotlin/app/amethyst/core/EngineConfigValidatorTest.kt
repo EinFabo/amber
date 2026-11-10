@@ -2,10 +2,10 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
-import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -140,7 +140,7 @@ class EngineConfigValidatorTest {
         // What the language chips of an Amber server store; any other server detects instead.
         assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = "de,en"), true))
         assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = "de-DE, en"), true))
-        assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = WhisperInput.toggledLanguage("de", "en")), true))
+        assertTrue(EngineConfigValidator.isReady(openAiCompatible(languageTag = LanguageList.with(openAiCompatible(languageTag = "de"), listOf("de", "en")).languageTag), true))
         val problems = EngineConfigValidator.validate(openAiCompatible(languageTag = "de,deutsch bitte"), true)
         assertEquals(ConfigIssue.InvalidLanguageCode("deutsch bitte"), problems.single())
     }
@@ -158,8 +158,18 @@ class EngineConfigValidatorTest {
     }
 
     @Test
-    fun `other engines still take a single language only`() {
-        val android = EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE, "de,en")
-        assertFalse(EngineConfigValidator.isReady(android, hasApiKey = false))
+    fun `android takes a list too and names the broken one - it uses the first`() {
+        val android = EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE, "de-DE,en-US")
+        assertTrue(EngineConfigValidator.isReady(android, hasApiKey = false))
+        assertEquals(
+            listOf(ConfigIssue.InvalidLanguageCode("english!")),
+            EngineConfigValidator.validate(android.copy(languageTag = "de-DE,english!"), hasApiKey = false),
+        )
+    }
+
+    @Test
+    fun `parakeet uses no language, so none it has stored is a problem`() {
+        val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET, "whatever!")
+        assertTrue(EngineConfigValidator.isReady(parakeet, hasApiKey = false))
     }
 }

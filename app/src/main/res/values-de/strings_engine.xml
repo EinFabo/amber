@@ -21,7 +21,12 @@
     <string name="engine_amber_languages">Die Sprachen, in denen du diktierst. Mehrere: %1$s wählt für jedes Diktat unter ihnen; ein sehr kurzes kann trotzdem in der falschen landen und übersetzt herauskommen. Eine einzelne wird erzwungen: Was in einer anderen Sprache gesagt wird, wird dann übersetzt.</string>
     <string name="engine_amber_none_picked">Keine gewählt: %1$s rät unter allen Sprachen.</string>
     <string name="engine_language">Sprache</string>
-    <string name="engine_language_subtitle">Automatisch passt für die meisten. Eine feste Sprache hilft bei kurzen Diktaten.</string>
+    <string name="engine_android_language">Die Spracherkennung von Android nimmt eine Sprache. Keine gewählt: die Sprache des Handys.</string>
+    <string name="engine_server_languages">Die Sprachen, in denen du diktierst. Eine: Der Server schreibt in ihr, und was in einer anderen Sprache gesagt wird, kommt übersetzt heraus. Mehrere oder keine: Der Server erkennt die Sprache selbst.</string>
+    <string name="engine_parakeet_languages">Parakeet erkennt die Sprache selbst, unter den 25 europäischen Sprachen, die es kennt. Hier gibt es nichts zu wählen.</string>
+    <string name="languages_more">Mehr Sprachen</string>
+    <string name="languages_fewer">Weniger Sprachen</string>
+    <string name="languages_phone">Sprachen des Handys</string>
     <string name="engine_cleanup_elsewhere">Modelle dieses Servers für die Bereinigung wählst du unter Einstellungen → Bereinigung, für jede Spracherkennung.</string>
     <string name="engine_not_supported">Nicht unterstützt</string>
     <string name="engine_elevenlabs">ElevenLabs Realtime wurde nie fertig. Entferne diese Spracherkennung.</string>
@@ -57,9 +62,6 @@
     <string name="model_recommended">Empfohlen · %1$s</string>
     <string name="model_recommended_only">Empfohlen</string>
     <string name="whisper_none_picked">Keine gewählt: Whisper rät unter allen Sprachen.</string>
-    <string name="language_automatic">Automatisch</string>
-    <string name="language_field">Sprache (BCP-47)</string>
-    <string name="language_field_placeholder">de-DE, leer = automatisch</string>
     <string name="enclave_title">Prüfung der Enklave</string>
     <string name="enclave_subtitle">Aufnahmen gehen nur an eine geprüfte Enklave, über eine Verbindung, die an ihren geprüften Schlüssel gebunden ist. Sonst wird nichts gesendet.</string>
     <string name="enclave_verifying">Wird geprüft …</string>

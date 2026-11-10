@@ -22,7 +22,10 @@ data class EngineConfig(
     val displayName: String,
     val baseUrl: String? = null,
     val modelId: String? = null,
-    /** BCP-47, or null for automatic detection. */
+    /**
+     * The languages, most likely first: BCP-47 tags or bare codes, comma-separated, null for
+     * automatic. Read and changed through [LanguageList] only.
+     */
     val languageTag: String? = null,
     /** Alias under which the key lives in EncryptedSharedPreferences - never the key itself. */
     val apiKeyAlias: String? = null,

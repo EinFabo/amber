@@ -8,14 +8,14 @@ import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.TranscribeOptions
-import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.MultipartPart
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
-import kotlinx.coroutines.test.runTest
+import app.amethyst.core.settings.LanguageList
+import app.amethyst.core.settings.LanguageUse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,6 +23,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
 
 /**
  * What a transcription request tells an Amber server that other servers are never told: every
@@ -92,12 +93,13 @@ class AmberServerRequestTest {
 
     @Test
     fun `the language picker keeps the order of picking`() {
-        assertEquals("en", WhisperInput.toggledLanguage("", "en"))
-        assertEquals("en,de", WhisperInput.toggledLanguage("en", "de"))
-        assertEquals("en,de,fr", WhisperInput.toggledLanguage("en,de", "fr"))
-        assertEquals("en,fr", WhisperInput.toggledLanguage("en,de,fr", "de"))
-        assertEquals("de,fr,en", WhisperInput.toggledLanguage("de,fr", "en"))
-        assertEquals("", WhisperInput.toggledLanguage("de", "de"))
+        fun toggled(list: List<String>, code: String) = LanguageList.toggled(list, code, LanguageUse.SEVERAL)
+        assertEquals(listOf("en"), toggled(emptyList(), "en"))
+        assertEquals(listOf("en", "de"), toggled(listOf("en"), "de"))
+        assertEquals(listOf("en", "de", "fr"), toggled(listOf("en", "de"), "fr"))
+        assertEquals(listOf("en", "fr"), toggled(listOf("en", "de", "fr"), "de"))
+        assertEquals(listOf("de", "fr", "en"), toggled(listOf("de", "fr"), "en"))
+        assertEquals(emptyList(), toggled(listOf("de"), "de"))
     }
 
     @Test
