@@ -5,6 +5,9 @@ kt = list(root.rglob('*.kt'))
 kt = [p for p in kt if '/build/' not in str(p)]
 # Agent worktrees under .claude/ are other checkouts of the repo, not this one's sources.
 kt = [p for p in kt if '.claude' not in p.relative_to(root).parts]
+# Submodules are other projects' sources (sherpa-onnx's demo apps have R ids of their own), and
+# app/.cxx holds the native build's copies of some of them.
+kt = [p for p in kt if p.relative_to(root).parts[0] != 'third_party' and '.cxx' not in p.parts]
 # The type-check stubs stand in for AndroidX and the generated R class. Including them here
 # would let a stub declaration satisfy an import that has no real counterpart.
 kt = [p for p in kt if 'tools/typecheck-stubs' not in str(p)]

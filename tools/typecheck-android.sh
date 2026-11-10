@@ -72,6 +72,13 @@ CLASSPATH="$CORE_JAR:$WORK/jars/kotlin-stdlib-$KOTLIN_VERSION.jar:$DEPS$WORK/jar
 COMPILER_CP="$(find "$WORK/jars" -name '*.jar' | tr '\n' ':')"
 
 mapfile -t SOURCES < <(find "$ROOT/app/src/main/kotlin" -name '*.kt' -not -path '*/ui/*')
+# sherpa-onnx's Kotlin API from its submodule: the files app/build.gradle.kts compiles in.
+SHERPA_API="$ROOT/third_party/sherpa-onnx/sherpa-onnx/kotlin-api"
+[ -f "$SHERPA_API/OfflineRecognizer.kt" ] \
+  || { echo "third_party/sherpa-onnx is empty. Run: git submodule update --init --recursive" >&2; exit 1; }
+for f in FeatureConfig HomophoneReplacerConfig OfflineRecognizer OfflineStream QnnConfig; do
+  SOURCES+=("$SHERPA_API/$f.kt")
+done
 
 # The R class AAPT2 would generate, from the resources themselves: every string, plural and
 # drawable, so a text moved into strings.xml needs no hand-kept stub.

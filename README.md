@@ -200,12 +200,11 @@ Route 2 kicks in automatically when route 1 fails.
 ## Building
 
 ```bash
-git clone --recursive <url>     # whisper.cpp is a submodule (third_party/)
+git clone --recursive <url>     # whisper.cpp, sherpa-onnx and its dependencies are submodules (third_party/)
 git submodule update --init --recursive   # in a clone made without --recursive
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)
-tools/fetch-sherpa-aar.sh       # once: sherpa-onnx (Parakeet runtime), pinned and checksummed
 ./gradlew :app:assembleDebug    # needs an Android SDK
 ./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.Screenshots
                                 # renders the main screens and the icon PNGs (Robolectric)
@@ -218,6 +217,12 @@ tools/sign-release.sh           # release APK, signed on the signing host (see R
 `settings.gradle.kts` only includes `:app` when an SDK is found (`ANDROID_HOME`,
 `ANDROID_SDK_ROOT` or `sdk.dir` in `local.properties`), or with `-Pamethyst.withApp=true`.
 Without an SDK `:core` stays fully buildable instead of breaking the whole build.
+
+The native code is built from source: whisper.cpp, and sherpa-onnx without its text-to-speech
+part (no espeak-ng, no piper) together with every library it compiles in, all from the pinned
+submodules in `third_party/`. ONNX Runtime comes from Maven Central
+(`com.microsoft.onnxruntime:onnxruntime-android`); sherpa-onnx is compiled against the headers
+and `libonnxruntime.so` from that same AAR. CMake downloads nothing.
 
 Every push builds a debug APK in GitHub Actions and stores it as the `amber-debug-apk`
 artifact.

@@ -45,12 +45,11 @@ Commits and pull requests carry Fabi's name only:
 ## Building
 
 ```bash
-git submodule update --init --recursive   # whisper.cpp in third_party/, once per clone
+git submodule update --init --recursive   # whisper.cpp, sherpa-onnx in third_party/, once per clone
 ./gradlew :core:test                 # pure JVM, no SDK needed
 python3 -I tools/check_refs.py       # imports, R ids, manifest classes
 python3 -I tools/check_strings.py    # English and German alike, no English left in the screens
 tools/build-tinfoil-aar.sh           # once per tinfoil-go pin: Tinfoil's verifier as an AAR
-tools/fetch-sherpa-aar.sh            # once per sherpa-onnx pin: the Parakeet runtime
 ./gradlew :app:lintDebug :app:assembleDebug
 tools/typecheck-android.sh           # non-Compose sources against real android-all
 ```

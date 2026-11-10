@@ -7,6 +7,25 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/**
+ * ONNX Runtime for sherpa-onnx's native build: headers and libonnxruntime.so from the same Maven
+ * AAR that puts the library into the APK, so what sherpa-onnx is compiled against and what ships
+ * cannot drift apart. Unpacked before any CMake task runs.
+ */
+val onnxRuntimeAar: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+val onnxRuntimeDir = layout.buildDirectory.dir("onnxruntime")
+val extractOnnxRuntime by tasks.registering(Sync::class) {
+    from({ zipTree(onnxRuntimeAar.singleFile) }) {
+        include("headers/**", "jni/arm64-v8a/libonnxruntime.so")
+    }
+    into(onnxRuntimeDir)
+}
+tasks.matching { it.name.startsWith("configureCMake") || it.name.startsWith("buildCMake") }
+    .configureEach { dependsOn(extractOnnxRuntime) }
+
 android {
     namespace = "app.amethyst"
     compileSdk = 35
@@ -30,8 +49,26 @@ android {
 
         externalNativeBuild {
             cmake {
-                // The native sources are git submodules; CMake downloads nothing.
-                arguments += "-DTHIRD_PARTY_DIR=${rootProject.file("third_party").absolutePath}"
+                // Reproducible: no absolute checkout path in __FILE__ strings (CMakeLists.txt
+                // maps its build-tree copies the same way).
+                val repoRoot = rootProject.layout.projectDirectory.asFile.absolutePath
+                cFlags += "-ffile-prefix-map=$repoRoot=."
+                cppFlags += "-ffile-prefix-map=$repoRoot=."
+                arguments += listOf(
+                    // The native sources are git submodules; CMake downloads nothing.
+                    "-DTHIRD_PARTY_DIR=${rootProject.file("third_party").absolutePath}",
+                    // ONNX Runtime's headers and libonnxruntime.so, unpacked from the Maven AAR
+                    // by extractOnnxRuntime (top of this file).
+                    "-DORT_DIR=${onnxRuntimeDir.get().asFile.absolutePath}",
+                    // The C++ runtime linked into each library, as the ONNX Runtime AAR does:
+                    // no libc++_shared.so.
+                    "-DANDROID_STL=c++_static",
+                    // 16 KB segment alignment for every library, and no GNU build-id: the NDK
+                    // derives it from the build, so it would differ between build machines.
+                    "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,--build-id=none",
+                )
+                // Only what ships; sherpa-onnx would otherwise also build libraries nobody loads.
+                targets += listOf("amethyst_whisper", "sherpa-onnx-jni")
             }
         }
     }
@@ -122,6 +159,15 @@ android {
         // on the device.
         dex.useLegacyPackaging = true
         jniLibs.useLegacyPackaging = true
+        // libonnxruntime.so reaches the build twice: from the ONNX Runtime AAR (the copy that
+        // ships) and as an imported library of the sherpa-onnx CMake project. Both are the same
+        // file from the same Maven artifact.
+        jniLibs.pickFirsts += "lib/*/libonnxruntime.so"
+        // Shipped byte for byte as Microsoft published it (AGP would strip its symbol table), so
+        // the APK's copy can be checked against the AAR on Maven Central.
+        jniLibs.keepDebugSymbols += "**/libonnxruntime.so"
+        // ONNX Runtime's Java binding: Amber reaches ONNX Runtime only through sherpa-onnx.
+        jniLibs.excludes += "lib/*/libonnxruntime4j_jni.so"
     }
 
     testOptions {
@@ -149,9 +195,6 @@ kotlin {
  */
 val tinfoilAar = file("libs/tinfoil-mobile.aar")
 
-/** sherpa-onnx, the runtime of the local Parakeet engine; fetched by tools/fetch-sherpa-aar.sh. */
-val sherpaAar = file("libs/sherpa-onnx.aar")
-
 /** LICENSE and NOTICE from the repository root, shipped as assets for the Licenses page. */
 val licenseAssets = layout.buildDirectory.dir("generated/licenseAssets")
 val copyLicenses by tasks.registering(Copy::class) {
@@ -160,21 +203,64 @@ val copyLicenses by tasks.registering(Copy::class) {
 }
 android.sourceSets.getByName("main").assets.srcDir(licenseAssets)
 
+/**
+ * sherpa-onnx's Kotlin API, compiled from the submodule: only the files the offline recognizer
+ * needs (SherpaRuntime). The rest of the directory brings in text-to-speech, diarization and
+ * other classes whose native side this build leaves out. Its JNI code finds these classes and
+ * their fields by name (see proguard-rules.pro).
+ */
+val sherpaKotlinApi = rootProject.file("third_party/sherpa-onnx/sherpa-onnx/kotlin-api")
+val sherpaKotlinSources = listOf(
+    "FeatureConfig.kt",
+    "HomophoneReplacerConfig.kt",
+    "OfflineRecognizer.kt",
+    "OfflineStream.kt",
+    "QnnConfig.kt",
+).map { File(sherpaKotlinApi, it) }
+
+/** Copies [sources] into a generated source directory: a source set takes directories only. */
+abstract class CopyKotlinSources : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val sources: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        out.mkdirs()
+        for (file in sources) {
+            if (!file.isFile) {
+                throw GradleException("$file is missing. Run: git submodule update --init --recursive")
+            }
+            file.copyTo(File(out, file.name))
+        }
+    }
+}
+val copySherpaKotlinApi by tasks.registering(CopyKotlinSources::class) {
+    sources.from(sherpaKotlinSources)
+    outputDir.set(layout.buildDirectory.dir("generated/sherpaKotlinApi"))
+}
+androidComponents.onVariants { variant ->
+    // The java sources, not sources.kotlin: the Kotlin plugin compiles .kt files from AGP's java
+    // source directories, generated ones included, but ignores generated kotlin ones.
+    variant.sources.java?.addGeneratedSourceDirectory(copySherpaKotlinApi, CopyKotlinSources::outputDir)
+}
+
 // Checked when the app is built, not when Gradle configures - :core's tests need no AAR.
 tasks.named("preBuild") {
     dependsOn(copyLicenses)
     // A plain File, so the check holds no reference to the build script (configuration cache).
     val aar = tinfoilAar
-    val sherpa = sherpaAar
     doFirst {
         if (!aar.exists()) {
             throw GradleException(
                 "app/libs/tinfoil-mobile.aar is missing. Build it once with: tools/build-tinfoil-aar.sh " +
                     "(needs Go and the Android NDK).",
             )
-        }
-        if (!sherpa.exists()) {
-            throw GradleException("app/libs/sherpa-onnx.aar is missing. Fetch it with: tools/fetch-sherpa-aar.sh")
         }
     }
 }
@@ -184,7 +270,9 @@ dependencies {
     // Used directly (TinfoilVerifier, model downloads), not only through :core's api.
     implementation(libs.okhttp)
     implementation(files(tinfoilAar))
-    implementation(files(sherpaAar))
+    // libonnxruntime.so for sherpa-onnx; the same AAR feeds its native build (onnxRuntimeAar).
+    implementation(libs.onnxruntime.android)
+    onnxRuntimeAar(variantOf(libs.onnxruntime.android) { artifactType("aar") })
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
