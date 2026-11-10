@@ -17,11 +17,18 @@ class TargetCheckTest {
     }
 
     @Test
-    fun `another app, another chat or another field does not`() {
+    fun `another app does not`() {
         assertEquals(Verdict.MOVED, TargetCheck.verdict(aliceChat, aliceChat.copy(packageName = "org.telegram.messenger")))
-        // Bob's chat in the same app: a new window.
-        assertEquals(Verdict.MOVED, TargetCheck.verdict(aliceChat, aliceChat.copy(windowId = 52)))
-        assertEquals(Verdict.MOVED, TargetCheck.verdict(aliceChat, aliceChat.copy(fieldId = 9)))
+    }
+
+    @Test
+    fun `in the same app the field with the cursor now gets it, whatever its window`() {
+        // Pixel 9a, 2026-11-10: out of a WhatsApp chat and back in made a new Conversation
+        // activity - window 12004 became 12010, the field id stayed app:id/entry - and the
+        // dictation was refused in the very chat it was meant for. Another chat looks the same
+        // to Android, so window and field cannot tell them apart; the user can.
+        assertEquals(Verdict.INSERT, TargetCheck.verdict(aliceChat, aliceChat.copy(windowId = 52)))
+        assertEquals(Verdict.INSERT, TargetCheck.verdict(aliceChat, aliceChat.copy(fieldId = 9)))
     }
 
     @Test

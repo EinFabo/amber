@@ -13,7 +13,7 @@
     <string name="dictation_service_off">Die Bedienungshilfe ist aus - der Text konnte nicht eingefügt werden.</string>
     <string name="dictation_why_password">Das Feld ist jetzt ein Passwortfeld</string>
     <string name="dictation_why_no_field">Kein Textfeld hat mehr den Fokus</string>
-    <string name="dictation_why_switched">Du bist inzwischen in eine andere App, einen anderen Chat oder ein anderes Feld gewechselt</string>
+    <string name="dictation_why_switched">Du bist inzwischen in eine andere App gewechselt</string>
     <string name="dictation_on_clipboard_instead">%1$s - der Text ist stattdessen in der Zwischenablage.</string>
     <string name="dictation_not_inserted">%1$s - nicht eingefügt.</string>
     <string name="dictation_not_inserted_in_diagnostics">%1$s - nicht eingefügt. Der Text steht in Ambers Diagnose.</string>
