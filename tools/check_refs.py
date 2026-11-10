@@ -3,6 +3,8 @@ import re, pathlib, sys, collections
 root = pathlib.Path(__file__).resolve().parent.parent
 kt = list(root.rglob('*.kt'))
 kt = [p for p in kt if '/build/' not in str(p)]
+# Agent worktrees under .claude/ are other checkouts of the repo, not this one's sources.
+kt = [p for p in kt if '.claude' not in p.relative_to(root).parts]
 # The type-check stubs stand in for AndroidX and the generated R class. Including them here
 # would let a stub declaration satisfy an import that has no real counterpart.
 kt = [p for p in kt if 'tools/typecheck-stubs' not in str(p)]
