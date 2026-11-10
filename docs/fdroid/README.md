@@ -49,14 +49,16 @@ Last run (2026-11-10, fdroidserver 2.4.5): `fdroid lint` clean; `fdroid scanner`
 
 ## Scanner hits and how they are handled
 
-All in the submodules, none in code Amber builds or ships; each is a `scandelete` in the recipe.
+The submodule hits are in code Amber neither builds nor ships; each is a `scandelete` in the
+recipe. The Tinfoil AAR is not in git at all (`app/libs/*.aar` is gitignored): the recipe builds
+it in `build:`, after the scan, so the scanner never sees it and there is nothing to delete.
 
 | Hit | Where | Why it is safe to delete |
 |---|---|---|
 | dependency files without lock, Gradle files, play-services and unknown Maven repos | sherpa-onnx: `flutter`, `dart-api-examples`, `nodejs-examples`, `nodejs-addon-examples`, `tauri-examples`, `scripts`, `.github`, `sherpa-onnx/rust`, `android/*WearOs` | Examples and bindings for other platforms; the CMake build uses none of them (`flutter` also covers `flutter-examples`) |
 | unknown Maven repos, dependency file | whisper.cpp: `examples`, `bindings/java` | Not built (`WHISPER_BUILD_EXAMPLES=OFF`); `bindings/` itself stays because whisper's CMake reads it |
 | binaries (`for-tests-*.bin`) | whisper.cpp `models/` | Tiny test fixtures, used only by whisper's own tests |
-| AAR and JAR | `app/libs/tinfoil-*` | Built from source by the recipe; produced in `build:`, after the scan |
+| AAR and JAR (only if built before the scan) | `app/libs/tinfoil-*` | Not in git (gitignored), so not a `scandelete`: built from source in `build:`, after the scan |
 
 ## For the merge request template
 

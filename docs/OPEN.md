@@ -654,6 +654,12 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [ ] **Cross-machine reproducibility**: confirm with CI's SHA-256 against a local build (the
       check so far compares two builds on one machine).
 - [ ] **Signing host needs build-tools >= 35.0.0** for `--alignment-preserved`.
+- [ ] **Recipe JDK**: README and CI build with JDK 21; F-Droid's build server may default to
+      17. Either install 21 in the recipe (`sudo:`) or prove that 17 gives the same bytes - and
+      check whether `bookworm-backports` exists on the build server for `golang-go` at all
+      (Cryptocam's recipe installs Go with `-t testing`).
+- [ ] **NOTICE is incomplete** (from before this branch): ONNX Runtime's own third-party notices
+      and the Go modules compiled into `libgojni.so` (tinfoil-go's dependencies) are not listed.
 - [ ] **Not before 2027-01-27**: F-Droid closes requests for apps developed for less than three
       months (first commit 2026-10-27). Built with Claude Code is no barrier there today (no rule;
       vibe-coded apps that said so were merged, fdroid/admin #641 still open); cloud speech and

@@ -72,7 +72,8 @@ CLASSPATH="$CORE_JAR:$WORK/jars/kotlin-stdlib-$KOTLIN_VERSION.jar:$DEPS$WORK/jar
 COMPILER_CP="$(find "$WORK/jars" -name '*.jar' | tr '\n' ':')"
 
 mapfile -t SOURCES < <(find "$ROOT/app/src/main/kotlin" -name '*.kt' -not -path '*/ui/*')
-# sherpa-onnx's Kotlin API from its submodule: the files app/build.gradle.kts compiles in.
+# sherpa-onnx's Kotlin API from its submodule: the files app/build.gradle.kts compiles in
+# (sherpaKotlinSources there) - the same list in both places, change both.
 SHERPA_API="$ROOT/third_party/sherpa-onnx/sherpa-onnx/kotlin-api"
 [ -f "$SHERPA_API/OfflineRecognizer.kt" ] \
   || { echo "third_party/sherpa-onnx is empty. Run: git submodule update --init --recursive" >&2; exit 1; }

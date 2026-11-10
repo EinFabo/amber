@@ -201,11 +201,11 @@ Route 2 kicks in automatically when route 1 fails.
 
 ```bash
 git clone --recursive <url>     # whisper.cpp, sherpa-onnx and its dependencies are submodules (third_party/)
-git submodule update --init --recursive   # in a clone made without --recursive
+git submodule update --init --recursive   # without --recursive, and after every pull that moves a pin
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
-tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (Go + NDK 27.1.12297006; same bytes every run;
-                                #   ANDROID_NDK_HOME and OUT=<path> are honoured)
+tools/build-tinfoil-aar.sh      # Tinfoil's verifier as an AAR (Go + NDK 27.1.12297006; same bytes every run;
+                                #   ANDROID_NDK_HOME and OUT=<path> are honoured) - again whenever the script changes
 ./gradlew :app:assembleDebug    # needs an Android SDK
 ./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.Screenshots
                                 # renders the main screens and the icon PNGs (Robolectric)
@@ -228,10 +228,12 @@ and `libonnxruntime.so` from that same AAR. CMake downloads nothing.
 Every push builds a debug APK in GitHub Actions and stores it as the `amber-debug-apk`
 artifact.
 
-After cloning, enable the repository's git hooks once:
+After cloning, enable the repository's git hooks once, and let checkouts and pulls move the
+submodules to their pinned commits as well:
 
 ```bash
 git config core.hooksPath tools/hooks
+git config submodule.recurse true
 ```
 
 ## Releases
@@ -269,10 +271,10 @@ Amber signed with this one, nor the other way round.
 ## Reproducible builds
 
 A release after 0.31.0 can be rebuilt from its tag and compared with the published APK: the
-build gives the same bytes on every machine, and the published APK is exactly that build plus
-a signature (`tools/sign-release.sh` signs it as built, without aligning it again). Build with
-a JDK 21 (CI uses Temurin 21), the NDK and CMake versions named in `app/build.gradle.kts`, and
-Go for the Tinfoil AAR:
+build is designed to give the same bytes on every machine, and the published APK is exactly
+that build plus a signature (`tools/sign-release.sh` signs it as built, without aligning it
+again, and prints the unsigned APK's SHA-256). Build with a JDK 21 (CI uses Temurin 21), the
+NDK and CMake versions named in `app/build.gradle.kts`, and Go for the Tinfoil AAR:
 
 ```bash
 git clone --recursive https://github.com/EinFabo/amber && cd amber
@@ -280,18 +282,21 @@ git checkout v<version> && git submodule update --init --recursive
 tools/build-tinfoil-aar.sh
 ./gradlew :app:assembleRelease
 pip install apksigcopier
+export PATH="$ANDROID_HOME/build-tools/35.0.0:$PATH"   # apksigcopier runs apksigner from PATH
 apksigcopier compare amber-<version>.apk --unsigned app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 `apksigcopier compare` copies the signature of the downloaded `amber-<version>.apk` onto the
 rebuilt APK and checks that the result is the downloaded file: no output and exit code 0 mean
-the published APK is this source and nothing else. This is also how F-Droid can rebuild Amber
-and still ship it with this signature.
+the published APK is this source and nothing else. It needs `apksigner` from the Android
+build-tools on `PATH` (without it, it fails with an error rather than a verdict). This is also
+how F-Droid can rebuild Amber and still ship it with this signature.
 
 `tools/check-reproducible.sh [<git ref>]` checks the build itself: it clones a commit twice,
 into directories at different paths, builds the unsigned release APK in each and prints
-`reproducible: <sha256>`, or the entries that differ. CI prints the unsigned release APK's
-SHA-256 on every push.
+`reproducible: <sha256>`, or the entries that differ. That proves it on one machine. CI prints
+the unsigned release APK's SHA-256 on every push; the same SHA-256 from a local build of that
+commit is the check across machines.
 
 ## Updates
 
