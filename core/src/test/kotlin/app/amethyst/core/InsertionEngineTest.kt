@@ -34,6 +34,10 @@ class InsertionEngineTest {
         override val takesLineBreaks: Boolean = false,
         /** Reads after a write that still show the old text, like a Compose field mid-frame. */
         private val readLag: Int = 0,
+        /** Reads after a commit that still show the old text: an app slow to take in a long text. */
+        private val commitLag: Int = 0,
+        /** What the field makes of the words it is given: emoji, line breaks, a length limit. */
+        private val reformat: (String) -> String = { it },
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -54,7 +58,7 @@ class InsertionEngineTest {
             if (!setTextLies) {
                 staleText = this.text
                 staleReadsLeft = readLag
-                this.text = text
+                this.text = reformat(text)
             }
             return true
         }
@@ -89,22 +93,35 @@ class InsertionEngineTest {
             if (!hasInputConnection) return false
             committed = text
             if (commitLost) return true
+            staleText = this.text
+            staleReadsLeft = commitLag
             val at = cursor.coerceIn(0, this.text.length)
-            this.text = this.text.substring(0, at) + text + this.text.substring(at)
-            cursor = at + text.length
+            val typed = reformat(text)
+            this.text = this.text.substring(0, at) + typed + this.text.substring(at)
+            cursor = at + typed.length
             return true
         }
     }
 
-    private fun engine(target: FakeTarget?, memory: StrategyMemory = StrategyMemory()) =
+    private fun engine(target: FakeTarget?, memory: StrategyMemory = StrategyMemory(), pauses: MutableList<Long>? = null) =
         InsertionEngine(
             memory = memory,
             clipboard = Clipboard { text ->
                 target?.clipboardContent = text
                 true
             },
-            pause = {},
+            pause = { pauses?.add(it) },
         )
+
+    /** About [chars] characters of dictation, sentences that do not repeat. */
+    private fun longText(chars: Int): String = buildString {
+        var n = 1
+        while (length < chars) {
+            if (isNotEmpty()) append(' ')
+            append("Satz Nummer $n handelt von etwas anderem als der davor.")
+            n++
+        }
+    }
 
     @Test
     fun `writes into a well behaved field with set text`() {
@@ -380,5 +397,92 @@ class InsertionEngineTest {
         assertTrue(outcome.insertedIntoField)
         assertEquals("Hallo Welt", target.text)
         assertEquals(0, target.pasteCalls, "a late field must not get the words pasted again")
+    }
+
+    // --- long dictations -------------------------------------------------------------------
+
+    @Test
+    fun `a long text the app takes a while to show is not reported lost`() {
+        // Five minutes of speech: thousands of characters, and the app needs well over 0.7 s.
+        val text = longText(4_000)
+        val target = FakeTarget(initialText = "", hasInputConnection = true, commitLag = 30)
+        val pauses = mutableListOf<Long>()
+        val outcome = engine(target, pauses = pauses).insert(target, text)
+
+        assertTrue(outcome.insertedIntoField)
+        assertFalse(outcome.uncertain)
+        assertEquals(null, target.clipboardContent)
+        assertEquals(30, pauses.size, "read until the words showed, without sleeping in the test")
+    }
+
+    @Test
+    fun `a short text still gets the short wait`() {
+        val target = FakeTarget(initialText = "", hasInputConnection = true, commitLag = 30)
+        val pauses = mutableListOf<Long>()
+        val outcome = engine(target, pauses = pauses).insert(target, "Hallo Welt")
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
+        assertEquals(11, pauses.size)
+    }
+
+    @Test
+    fun `the wait for a very long text ends after about three seconds`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, commitLost = true)
+        val pauses = mutableListOf<Long>()
+        val outcome = engine(target, pauses = pauses).insert(target, longText(20_000))
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
+        assertTrue(pauses.sum() in 2_500L..3_000L, "waited ${pauses.sum()} ms")
+    }
+
+    @Test
+    fun `a long text the app reformats in the middle counts as typed`() {
+        val text = longText(1_500).replaceFirst("Satz Nummer 9", "Satz :) Nummer 9")
+        val target = FakeTarget(
+            initialText = "",
+            hasInputConnection = true,
+            takesLineBreaks = true,
+            reformat = { it.replace(":)", "\uD83D\uDE42").replace("\n", " \n ") },
+        )
+        val outcome = engine(target).insert(target, text.replaceFirst(". Satz Nummer 4", ".\nSatz Nummer 4"))
+
+        assertTrue(outcome.insertedIntoField)
+        assertFalse(outcome.uncertain)
+        assertEquals(null, target.clipboardContent)
+    }
+
+    @Test
+    fun `a long text cut off by the field is reported, not passed as typed`() {
+        val text = longText(1_500)
+        val target = FakeTarget(initialText = "", hasInputConnection = true, reformat = { it.take(1_000) })
+        val outcome = engine(target).insert(target, text)
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
+        assertEquals(1_000, target.text.length, "typed once, never a second time")
+    }
+
+    @Test
+    fun `the same words already in the field do not pass for the new ones`() {
+        // Insert again into the field that holds the first copy: the commit is lost this time.
+        val text = longText(600)
+        val target = FakeTarget(initialText = text, hasInputConnection = true, commitLost = true)
+        val outcome = engine(target).insert(target, text)
+
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.uncertain)
+        assertEquals(text, target.text)
+    }
+
+    @Test
+    fun `line breaks that come back as spaces still match`() {
+        val target = FakeTarget(initialText = "", takesLineBreaks = true, reformat = { it.replace("\n", "  ") })
+        val outcome = engine(target).insert(target, "Liebe Anna,\nbis morgen")
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(0, target.pasteCalls, "a reformatted write must not be pasted a second time")
     }
 }

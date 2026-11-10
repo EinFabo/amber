@@ -183,7 +183,8 @@ class InsertionEngine(
      * immediate read often still shows the old text. When they never do, the connection was
      * stale (an app that rebuilt its field mid-dictation: WhatsApp, now and then) and the text
      * is LOST: reported, kept on the clipboard if allowed - but not typed again another way,
-     * because a commit arriving late would then put the words in twice.
+     * because a commit arriving late would then put the words in twice. A long text gets longer
+     * to show up, and is compared loosely ([Landed]).
      */
     private fun tryCommit(target: EditableTarget, text: String, options: SpliceOptions): Commit {
         if (!target.isEditable) return Commit.NOT_POSSIBLE
@@ -193,11 +194,11 @@ class InsertionEngine(
         committed = fragment
         // A field that cannot be read cannot be checked; the connection is all there is.
         if (field == null) return Commit.LANDED
-        val expected = text.trim()
-        repeat(COMMIT_VERIFY_ATTEMPTS) { attempt ->
+        val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, text.length)
+        repeat(attempts) { attempt ->
             val after = target.readBack() ?: return Commit.LANDED
-            if (after.contains(expected, ignoreCase = true)) return Commit.LANDED
-            if (attempt < COMMIT_VERIFY_ATTEMPTS - 1) pause(VERIFY_INTERVAL_MS)
+            if (Landed.inField(field.text, after, text)) return Commit.LANDED
+            if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
         }
         return Commit.LOST
     }
@@ -231,7 +232,7 @@ class InsertionEngine(
         // Verify before moving the cursor. A field that accepted the write and kept its old
         // contents would otherwise be handed a caret position that does not exist in it, and
         // the following paste would land somewhere arbitrary.
-        if (!verify(target, text)) return false
+        if (!verify(target, field.text, text)) return false
 
         target.setSelection(spliced.cursor)
         return true
@@ -239,24 +240,27 @@ class InsertionEngine(
 
     private fun tryPaste(target: EditableTarget, text: String): Boolean {
         if (!target.isEditable) return false
+        val before = target.readBack()
         if (!target.paste()) return false
-        return verify(target, text)
+        return verify(target, before, text)
     }
 
     /**
-     * Compared loosely and case-insensitively on purpose: fields legitimately reformat what
-     * they are given (phone numbers, amounts), and the splicer may have capitalised the first
-     * letter. A strict comparison would report working insertions as failures.
+     * Compared loosely ([Landed]) on purpose: fields legitimately reformat what they are given
+     * (phone numbers, amounts, line breaks), and the splicer may have capitalised the first
+     * letter. A strict comparison would report working insertions as failures - and hand the
+     * words to the next method, which puts them in twice. [before] is the field's text before
+     * the write, null when unknown.
      */
-    private fun verify(target: EditableTarget, text: String): Boolean {
-        val expected = text.trim()
+    private fun verify(target: EditableTarget, before: String?, text: String): Boolean {
         // Compose and many cross-platform fields apply a write on their next frame, so the
         // first read can still show the old text. Giving up on it would hand the same words
         // to the next strategy and insert them twice.
-        repeat(VERIFY_ATTEMPTS) { attempt ->
+        val attempts = Landed.attempts(VERIFY_ATTEMPTS, text.length)
+        repeat(attempts) { attempt ->
             val after = target.readBack() ?: return false
-            if (after.contains(expected, ignoreCase = true)) return true
-            if (attempt < VERIFY_ATTEMPTS - 1) pause(VERIFY_INTERVAL_MS)
+            if (Landed.inField(before, after, text)) return true
+            if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
         }
         return false
     }
@@ -264,11 +268,17 @@ class InsertionEngine(
     companion object {
         const val UNKNOWN_PACKAGE = "unknown"
 
-        /** Five reads 60 ms apart: about four frames at 60 Hz, well past one recomposition. */
+        /**
+         * Five reads 60 ms apart: about four frames at 60 Hz, well past one recomposition. A
+         * long text gets more, up to about 3 s ([Landed.attempts]).
+         */
         private const val VERIFY_ATTEMPTS = 5
         private const val VERIFY_INTERVAL_MS = 60L
 
-        /** About 0.7 s: an input connection's round trip through the app, with room to spare. */
+        /**
+         * About 0.7 s: an input connection's round trip through the app, with room to spare.
+         * A long text gets more, up to about 3 s ([Landed.attempts]).
+         */
         private const val COMMIT_VERIFY_ATTEMPTS = 12
     }
 }
