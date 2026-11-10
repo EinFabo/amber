@@ -82,9 +82,20 @@ series and one store release per phase, each after his OK.
       Server already take. Their side - showing address and key apart, the pairing link in the
       QR code - is a task in `~/projects/amberPC/docs/ADDRESS-AND-KEY.md`. Open: the device test of 0.29.0 in Fabi's store (install over 0.28.0 keeps every server
       and key, add a second server, change an address and see the key asked for again).
-- [ ] **P6 - Languages everywhere + recognition per app**: one language-chips component for every
-      engine, Parakeet "detects itself", per-app engine like per-app cleanup. Done ahead
-      (2026-11-06): new engines default to the phone's languages (`PhoneLanguages`).
+- [ ] **P6 - Languages everywhere + recognition per app**, built 2026-11-10 (no schema step):
+      `LanguageList` (:core) is the one way to read and write an engine's languages, stored as
+      before (`languageTag`): Whisper and servers take several, Android the first, Parakeet and
+      ElevenLabs detect it themselves (their page says so, no chips); `spokenHint` keeps the
+      language for the cleanup and the normalizer (Parakeet on a German phone stays German). One
+      `LanguageChips` on every engine page (order of tapping = preference, "More languages",
+      "The phone's languages"). Per app: `AppProfile.appEngine` + `EngineRouting` like
+      `CleanupRouting` - the app's own speech recognition if it exists, is on and ready, else the
+      default with the reason in the timing line; fallback works from the routed one; a dictation
+      inside Amber uses the default. The app's page has a "Speech recognition" section (advanced,
+      or while an app has its own); Home shows "Own speech recognition" with its trust badge.
+      Per-app languages left out (they mean something different per engine). Open: the device
+      test (upgrade keeps every engine's languages; Keep with its own Whisper, WhatsApp default;
+      an app's own server not ready / removed; its fallback with Wi-Fi off).
 - [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**: the engine chosen by the device
       (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
 - [ ] **P8 - Light mode**: System/Light/Dark, colours through a CompositionLocal.
