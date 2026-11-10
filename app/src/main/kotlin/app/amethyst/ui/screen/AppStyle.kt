@@ -21,11 +21,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.engine.CleanupRouting
+import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanup
 import app.amethyst.core.settings.AppCleanupMode
+import app.amethyst.core.settings.AppEngine
+import app.amethyst.core.settings.AppEngineMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.AppIcon
@@ -34,17 +39,20 @@ import app.amethyst.ui.DangerAction
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.theme.badgeLabel
 import kotlinx.coroutines.delay
 
 /** Typing pauses this long before the instruction is saved. */
 private const val INSTRUCTION_SAVE_MS = 600L
 
 /**
- * One app's page: how the text reads there (style, own instruction) and who tidies it - the
+ * One app's page: how the text reads there (style, own instruction), who tidies it - the
  * cleanup for every app, none, or a model of its own (a chat app may keep small slips, a notes
- * app gets the best model).
+ * app gets the best model) - and, with the advanced settings, who hears it: the speech
+ * recognition for every app or one of its own ([EngineRouting]).
  */
 @Composable
 fun AppStyleScreen(
@@ -52,6 +60,8 @@ fun AppStyleScreen(
     settings: AmethystSettings,
     apps: AppSource,
     hasKeyFor: (String?) -> Boolean,
+    /** Whether a speech recognition's model is on the phone (true for one elsewhere). */
+    modelReady: (EngineConfig) -> Boolean,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onRemoved: () -> Unit,
     modifier: Modifier = Modifier,
@@ -59,6 +69,7 @@ fun AppStyleScreen(
     val ready = rememberCleanupReadiness(settings, hasKeyFor)
     // Once per settings change rather than on every recomposition.
     val decision = remember(settings) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
+    val routing = remember(settings) { EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady) }
     var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
     val own = profile.appCleanup
 
@@ -101,6 +112,10 @@ fun AppStyleScreen(
             )
         }
 
+        if (SettingsLayout.showsAppRecognition(profile, settings.ui.advanced)) {
+            RecognitionChoices(profile, settings, routing, hasKeyFor, modelReady) { own -> edit { it.copy(appEngine = own) } }
+        }
+
         SectionCard(title = stringResource(R.string.settings_cleanup), subtitle = stringResource(R.string.style_cleanup_subtitle, profile.label)) {
             RadioRow(
                 stringResource(R.string.style_default),
@@ -129,7 +144,7 @@ fun AppStyleScreen(
                 Hint(stringResource(R.string.style_needs_cleanup), AmberPalette.Primary)
             }
             CleanupLeavesPhoneHint(
-                settings.activeEngine?.trustLevelForDisplay(),
+                routing.engine?.trustLevelForDisplay(),
                 settings.cleanupEngine(decision.choice)?.trustLevelForDisplay(),
             )
         }
@@ -150,5 +165,47 @@ fun AppStyleScreen(
     val latestPersist by rememberUpdatedState(::persistInstruction)
     DisposableEffect(profile.packageName) {
         onDispose { latestPersist() }
+    }
+}
+
+/**
+ * Who hears a dictation in this app: the speech recognition for every app, or one of those set
+ * up. One of its own that cannot hear now is marked, and the page says what is used instead.
+ */
+@Composable
+private fun RecognitionChoices(
+    profile: AppProfile,
+    settings: AmethystSettings,
+    routing: EngineRouting.Decision,
+    hasKeyFor: (String?) -> Boolean,
+    modelReady: (EngineConfig) -> Boolean,
+    onChoose: (AppEngine) -> Unit,
+) {
+    val own = profile.appEngine
+    SectionCard(title = stringResource(R.string.settings_recognition), subtitle = stringResource(R.string.style_recognition_subtitle, profile.label)) {
+        RadioRow(
+            stringResource(R.string.style_recognition_default),
+            settings.activeEngine?.let { engineName(it) } ?: stringResource(R.string.style_recognition_none),
+            selected = own.mode == AppEngineMode.DEFAULT,
+            onSelect = { onChoose(AppEngine()) },
+        )
+        settings.engines.forEach { engine ->
+            val usable = EngineRouting.notUsable(engine, hasKeyFor, modelReady) == null
+            RadioRow(
+                engineName(engine),
+                if (usable) engine.trustLevelForDisplay().badgeLabel() else stringResource(R.string.style_recognition_engine_not_ready),
+                selected = own.mode == AppEngineMode.ENGINE && own.engineId == engine.id,
+                onSelect = { onChoose(AppEngine(AppEngineMode.ENGINE, engine.id)) },
+                noteColor = if (usable) AmberPalette.Muted else AmberPalette.Primary,
+            )
+        }
+        when {
+            routing.passedOver == EngineRouting.NotUsable.REMOVED ->
+                Hint(stringResource(R.string.style_recognition_removed), AmberPalette.Error)
+            routing.passedOver != null -> {
+                val name = settings.engines.firstOrNull { it.id == own.engineId }?.let { engineName(it) } ?: routing.ownName.orEmpty()
+                Hint(stringResource(R.string.style_recognition_not_ready, name), AmberPalette.Error)
+            }
+        }
     }
 }

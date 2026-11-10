@@ -338,7 +338,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     private fun updateTextFieldFocus(focusedKind: TextFieldKind) {
         val kind = if (inputKind != TextFieldKind.NONE) inputKind else focusedKind
         val dictatable = kind.wantsDictation
-        if (dictatable && !editableFieldFocused) graph.textFieldFocused()
+        if (dictatable && !editableFieldFocused) graph.textFieldFocused(::targetPackage)
         editableFieldFocused = dictatable
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
         // on the next window event - this is what lets the bubble move with the keyboard.

@@ -34,6 +34,19 @@ enum class AppCleanupMode {
 @Serializable
 data class AppCleanup(val mode: AppCleanupMode = AppCleanupMode.DEFAULT, val choice: CleanupChoice? = null)
 
+@Serializable
+enum class AppEngineMode {
+    /** The speech recognition chosen for every app (Settings -> Speech recognition). */
+    DEFAULT,
+
+    /** The engine in [AppEngine.engineId], while it is ready; else the default. */
+    ENGINE,
+}
+
+/** Which speech recognition hears a dictation in one app; see [app.amethyst.core.engine.EngineRouting]. */
+@Serializable
+data class AppEngine(val mode: AppEngineMode = AppEngineMode.DEFAULT, val engineId: String? = null)
+
 /**
  * How dictation behaves in one app. Styles need a cleanup model; without one the text goes in
  * as recognized.
@@ -47,6 +60,8 @@ data class AppProfile(
     /** A free instruction on top of the style, e.g. "always sign with my first name". */
     val instruction: String? = null,
     val appCleanup: AppCleanup = AppCleanup(),
+    /** Absent in settings from before it: the speech recognition for every app. */
+    val appEngine: AppEngine = AppEngine(),
     /** Run the cleanup in this app: null followed the engine, false never, true whenever possible. */
     @Deprecated("Since schema 9: appCleanup. Read only to migrate.")
     val cleanup: Boolean? = null,

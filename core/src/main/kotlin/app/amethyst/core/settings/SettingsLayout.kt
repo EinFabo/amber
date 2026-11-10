@@ -28,6 +28,9 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
 
     /** On the Cleanup page: the own addition for every app and the system prompt to read. */
     CLEANUP_INSTRUCTION(simple = false, group = null),
+
+    /** On an app's page: the speech recognition of its own (roadmap: per-app recognition is advanced). */
+    APP_RECOGNITION(simple = false, group = null),
 }
 
 /** A group of the Settings page with the rows it shows; see [SettingsLayout.groups]. */
@@ -53,6 +56,13 @@ object SettingsLayout {
                 .takeIf { it.isNotEmpty() }
                 ?.let { SettingsGroupRows(kind, it) }
         }
+
+    /**
+     * The speech recognition section on [profile]'s page: with the advanced settings, and in the
+     * simple view too while the app has one of its own - what is in effect is never out of sight.
+     */
+    fun showsAppRecognition(profile: AppProfile, advanced: Boolean): Boolean =
+        shows(SettingsItem.APP_RECOGNITION, advanced) || profile.appEngine.mode != AppEngineMode.DEFAULT
 
     /** How many rows of the Settings page only the advanced view shows. */
     fun hiddenRows(voiceCommands: Boolean = Features.VOICE_COMMANDS): Int =

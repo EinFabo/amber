@@ -46,6 +46,12 @@
     <string name="style_own_not_ready_default">This app\'s own cleanup is not ready - the default is used.</string>
     <string name="style_own_not_ready_none">This app\'s own cleanup is not ready - no cleanup.</string>
     <string name="style_needs_cleanup">Without a cleanup the style is not applied - the text goes in as recognized.</string>
+    <string name="style_recognition_subtitle">Who turns your voice into text in %1$s.</string>
+    <string name="style_recognition_default">As for every app</string>
+    <string name="style_recognition_none">None chosen</string>
+    <string name="style_recognition_engine_not_ready">Not ready - set it up under Speech recognition</string>
+    <string name="style_recognition_removed">This app\'s own speech recognition was removed - the one for every app is used.</string>
+    <string name="style_recognition_not_ready">%1$s is not ready - the one for every app is used meanwhile.</string>
     <string name="style_remove">Remove %1$s</string>
     <string name="limits_silence">Silence before stopping</string>
     <string name="limits_longest">Longest dictation</string>

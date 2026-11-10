@@ -145,8 +145,8 @@ fun SettingsScreen(
         SettingsItem.INTRODUCTION -> NavRow(
             stringResource(R.string.settings_introduction), stringResource(R.string.settings_introduction_summary), icon = AmberIcons.Replay, onClick = onReplayIntroduction,
         )
-        // A part of the Cleanup page, never a row here.
-        SettingsItem.CLEANUP_INSTRUCTION -> Unit
+        // Parts of the Cleanup page and of an app's page, never rows here.
+        SettingsItem.CLEANUP_INSTRUCTION, SettingsItem.APP_RECOGNITION -> Unit
     }
 
     SubPage(modifier) {

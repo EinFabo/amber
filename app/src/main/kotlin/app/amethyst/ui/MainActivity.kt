@@ -628,6 +628,7 @@ private fun AmethystScreens(
                                 settings = settings,
                                 apps = apps,
                                 hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                modelReady = graph::modelReady,
                                 onUpdateSettings = ::updateSettings,
                                 onRemoved = ::back,
                             )

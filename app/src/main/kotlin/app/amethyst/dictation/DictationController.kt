@@ -46,6 +46,7 @@ import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.ListenCallbacks
@@ -206,6 +207,20 @@ class DictationController(
     private var runEngineId: String? = null
 
     /**
+     * The app this run dictates into, as known at its start - its own speech recognition, if it
+     * has one, hears the run ([EngineRouting]). Kept across the proxy activity's re-entry.
+     */
+    @Volatile
+    private var runPackage: String? = null
+
+    /**
+     * The speech recognition this run uses and why: the app's own or the one for every app.
+     * The fallback works from it, never from the default.
+     */
+    @Volatile
+    private var runRouting: EngineRouting.Decision? = null
+
+    /**
      * The steps of this run's command once its recognition began - each language it was heard
      * in ([recognizeCommand]) - or once its words are there ([runCommand]); null before. A
      * failure that comes after - the time limit - still shows them.
@@ -258,9 +273,16 @@ class DictationController(
             false
         }
         if (isRunning) return
+        // The app being dictated into picks the speech recognition: its own, or the one for
+        // every app. Taken once, at the start; the proxy activity's re-entry keeps it.
+        if (source != TriggerSource.PROXY_ACTIVITY) {
+            takeStartTarget()
+            runPackage = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        }
+        val routed = graph.engineFor(runPackage).engine
         // The engine chosen in the introduction may still be downloading: say so and record
         // nothing, rather than taking the words and failing - and never hand them to another engine.
-        graph.settings.value.activeEngine?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
+        routed?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
             notice(Texts.downloadAtStart(context, download))
             return
         }
@@ -269,11 +291,10 @@ class DictationController(
             stoppedByTap = false
             commandSteps = null
             commandRecorded = false
-            runEngineId = graph.settings.value.activeEngine?.id
+            runEngineId = routed?.id
             skipCleanup = CompletableDeferred()
             fellBack = null
             fellBackFrom = null
-            takeStartTarget()
             _mode.value = CommandTrigger.modeAtStart(
                 source,
                 commandsOn = graph.settings.value.commandsEnabled,
@@ -324,7 +345,7 @@ class DictationController(
 
         // Recording directly: an activity still on its way starts nothing when it arrives.
         if (source != TriggerSource.PROXY_ACTIVITY) handover.cancel()
-        graph.dictationStarting()
+        graph.dictationStarting(routed)
 
         // Re-entry from the proxy keeps a stop that came while it was starting - otherwise a
         // tap that stopped the dictation meanwhile would leave it recording until the cap.
@@ -537,7 +558,10 @@ class DictationController(
         commandRecorded = false
 
         val settings = graph.settings.value
-        val engineConfig = settings.activeEngine
+        val routing = graph.engineFor(runPackage)
+        runRouting = routing
+        trace?.routing = routing
+        val engineConfig = routing.engine
         runEngineId = engineConfig?.id
         if (engineConfig == null) {
             fail(say(R.string.dictation_no_engine), details = listOf("no engine selected"))
@@ -885,7 +909,7 @@ class DictationController(
      * go to it. Null otherwise - and always for an engine on the phone.
      */
     private suspend fun prepareFallback(primary: EngineConfig): Prepared? {
-        val config = ReadyFallback.engineToPrepare(graph.settings.value, primary, ::trustOf, ::localModelReady) ?: return null
+        val config = ReadyFallback.engineToPrepare(graph.settings.value, primary, ::trustOf, graph::modelReady) ?: return null
         val engine = graph.engineFactory.create(config).getOrNull() ?: return null
         val scope = CoroutineScope(currentCoroutineContext())
         // The model loads while the user speaks; a failure shows when it is asked for text.
@@ -896,13 +920,6 @@ class DictationController(
 
     private fun trustOf(config: EngineConfig): TrustLevel =
         EngineTrust.forDisplay(config, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
-
-    /** Whether a model on the phone is downloaded; an engine elsewhere needs none. */
-    private fun localModelReady(config: EngineConfig): Boolean = when (config.kind) {
-        EngineKind.LOCAL_SHERPA -> graph.parakeetModels.isReady()
-        EngineKind.WHISPER_CPP -> graph.whisperModels.isReady(config.modelId ?: WhisperModels.default.id)
-        else -> true
-    }
 
     /** Whether a model on the phone is in memory already; null for an engine elsewhere. */
     private fun localModelWarm(config: EngineConfig): Boolean? = when (config.kind) {
@@ -974,7 +991,7 @@ class DictationController(
         val transcript = local.transcript
         val trust = local.serverFailure?.let { Fallback.trustAfter(it, serverTrust, transcript.trustLevel) }
             ?: Fallback.trustAfterSlowServer(serverTrust, transcript.trustLevel)
-        val primary = graph.settings.value.activeEngine
+        val primary = runRouting?.engine
         fellBack = config.displayName
         fellBackFrom = primary?.id
         val why = if (local.serverTooSlow) "server too slow" else "server unreachable"
@@ -1076,7 +1093,7 @@ class DictationController(
      */
     private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel, skip: String? = null): Transcript? {
         val settings = graph.settings.value
-        val primary = settings.activeEngine ?: return null
+        val primary = runRouting?.engine ?: return null
         val candidates = Fallback.candidates(settings.fallback, settings.engines, primary, ::trustOf).filter { it.id != skip }
         for (config in candidates) {
             val other = graph.engineFactory.create(config).getOrNull() ?: continue

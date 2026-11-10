@@ -1,6 +1,9 @@
 package app.amethyst.core
 
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppEngine
+import app.amethyst.core.settings.AppEngineMode
+import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.Features
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.SettingsGroupKind
@@ -71,6 +74,17 @@ class SettingsLayoutTest {
         assertTrue(SettingsLayout.shows(SettingsItem.VOICE_COMMANDS, advanced = true, voiceCommands = true))
         val main = SettingsLayout.groups(advanced = true, voiceCommands = true).first { it.kind == SettingsGroupKind.MAIN }
         assertEquals(SettingsItem.VOICE_COMMANDS, main.items.last())
+    }
+
+    @Test
+    fun `an app's own speech recognition is advanced, unless the app has one`() {
+        val plain = AppProfile("com.whatsapp", "WhatsApp")
+        val own = plain.copy(appEngine = AppEngine(AppEngineMode.ENGINE, "local-whisper"))
+        assertFalse(SettingsLayout.showsAppRecognition(plain, advanced = false))
+        assertTrue(SettingsLayout.showsAppRecognition(plain, advanced = true))
+        assertTrue(SettingsLayout.showsAppRecognition(own, advanced = false))
+        // A part of a page, never a row of the Settings page.
+        assertTrue(SettingsLayout.groups(advanced = true).none { SettingsItem.APP_RECOGNITION in it.items })
     }
 
     @Test

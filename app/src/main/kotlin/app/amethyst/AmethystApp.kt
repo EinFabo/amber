@@ -10,12 +10,14 @@ import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.EstimateStore
 import app.amethyst.data.PhoneLocales
 import app.amethyst.data.SecretStore
@@ -257,15 +259,32 @@ class Graph(app: Application) {
         }
     }
 
-    /** A field gained focus. Preloads only for someone who dictated a moment ago. */
-    fun textFieldFocused() {
-        if (SystemClock.elapsedRealtime() - lastDictationAt < RECENT_DICTATION_MS) prepareForDictation()
+    /**
+     * The speech recognition for a dictation into [packageName]: the app's own while it is
+     * ready, else the one for every app ([EngineRouting]).
+     */
+    fun engineFor(packageName: String?): EngineRouting.Decision =
+        EngineRouting.decide(settings.value, packageName, { secretStore.has(it) }, ::modelReady)
+
+    /** Whether a model on the phone is downloaded; an engine elsewhere needs none. */
+    fun modelReady(config: EngineConfig): Boolean = when (config.kind) {
+        EngineKind.LOCAL_SHERPA -> parakeetModels.isReady()
+        EngineKind.WHISPER_CPP -> whisperModels.isReady(config.modelId ?: WhisperModels.default.id)
+        else -> true
     }
 
-    /** A dictation starts: the model loads while the user is still speaking. */
-    fun dictationStarting() {
+    /**
+     * A field gained focus, in the app [packageName] names - asked only when needed. Preloads
+     * that app's speech recognition, only for someone who dictated a moment ago.
+     */
+    fun textFieldFocused(packageName: () -> String?) {
+        if (SystemClock.elapsedRealtime() - lastDictationAt < RECENT_DICTATION_MS) prepareForDictation(engineFor(packageName()).engine)
+    }
+
+    /** A dictation with [engine] starts: its model loads while the user is still speaking. */
+    fun dictationStarting(engine: EngineConfig?) {
         lastDictationAt = SystemClock.elapsedRealtime()
-        prepareForDictation()
+        prepareForDictation(engine)
     }
 
     /**
@@ -279,8 +298,8 @@ class Graph(app: Application) {
      * dictation starts loading at the first tap instead, in parallel with the recording,
      * which for the FUTO models is done long before the user stops talking.
      */
-    private fun prepareForDictation() {
-        val engine = settings.value.activeEngine ?: return
+    private fun prepareForDictation(engine: EngineConfig?) {
+        if (engine == null) return
         if (engine.kind == EngineKind.LOCAL_SHERPA) {
             if (!parakeetModels.isReady()) return
             appScope.launch(sherpaRuntime.dispatcher) {

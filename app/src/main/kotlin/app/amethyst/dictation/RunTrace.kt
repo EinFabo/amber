@@ -2,6 +2,7 @@ package app.amethyst.dictation
 
 import android.app.ActivityManager
 import android.os.SystemClock
+import app.amethyst.core.engine.EngineRouting
 import java.io.File
 
 /**
@@ -24,6 +25,9 @@ internal class RunTrace(val route: String) {
     private var waitedForFocus = 0L
 
     var modelWarm: Boolean? = null
+
+    /** Which speech recognition heard the run, and whether the app's own setting chose it. */
+    var routing: EngineRouting.Decision? = null
 
     /** How the whisper thread was scheduled during this run; see NativeWhisperRuntime. */
     var whisperScheduling: String? = null
@@ -102,6 +106,7 @@ internal class RunTrace(val route: String) {
      */
     fun summary(namesApps: Boolean = true): String = buildList {
         add("route $route")
+        routing?.line(namesApps)?.let(::add)
         if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
         if (recordingTo > 0) add("recording ${ms(recordingMs)}")
         ended?.let(::add)

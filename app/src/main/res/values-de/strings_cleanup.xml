@@ -46,6 +46,12 @@
     <string name="style_own_not_ready_default">Die eigene Bereinigung dieser App ist nicht bereit - der Standard wird genommen.</string>
     <string name="style_own_not_ready_none">Die eigene Bereinigung dieser App ist nicht bereit - keine Bereinigung.</string>
     <string name="style_needs_cleanup">Ohne Bereinigung gilt der Stil nicht - der Text geht so hinein, wie er erkannt wurde.</string>
+    <string name="style_recognition_subtitle">Wer deine Stimme in %1$s zu Text macht.</string>
+    <string name="style_recognition_default">Wie für jede App</string>
+    <string name="style_recognition_none">Keine gewählt</string>
+    <string name="style_recognition_engine_not_ready">Nicht bereit - einrichten unter Spracherkennung</string>
+    <string name="style_recognition_removed">Die eigene Spracherkennung dieser App wurde entfernt - die für jede App wird genommen.</string>
+    <string name="style_recognition_not_ready">%1$s ist nicht bereit - solange wird die für jede App genommen.</string>
     <string name="style_remove">%1$s entfernen</string>
     <string name="limits_silence">Stille vor dem Stoppen</string>
     <string name="limits_longest">Längstes Diktat</string>
