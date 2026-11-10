@@ -10,6 +10,8 @@ import app.amethyst.core.bubble.CleanupHere
 import app.amethyst.core.bubble.QuickActions
 import app.amethyst.core.bubble.QuickMenuContext
 import app.amethyst.core.bubble.QuickMenuGeometry
+import app.amethyst.core.bubble.QuickMenuItem
+import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.bubble.QuickPhase
 import app.amethyst.core.bubble.QuickSlot
 import org.junit.Assert.assertTrue
@@ -87,6 +89,30 @@ class BubbleScreenshots {
     @Test
     fun menuListeningPauseLit() = shoot("menu-11-listening-pause-lit", idle.copy(phase = QuickPhase.RECORDING, canPause = true), visual = BubbleVisual.LISTENING, lit = 3)
 
+    /** A menu put together in the editor: Open Amber, an empty place, Style here and Next style. */
+    @Test
+    fun menuOwnLayout() = shoot(
+        "menu-12-own-layout-style-lit", idle, lit = 2,
+        idleLayout = QuickMenuLayout.idle(listOf("open_amber", null, "style_here", "next_style")),
+    )
+
+    /** Every glyph of the menu on its button, in a row, for a look at the drawing style. */
+    @Test
+    fun glyphs() {
+        val r = dp(QuickMenuView.ORB_DP) / 2f
+        val step = r * 2.6f
+        val bitmap = Bitmap.createBitmap((step * MenuGlyph.entries.size).toInt(), (step).toInt(), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(BACKGROUND)
+        val button = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = RAISED }
+        MenuGlyph.entries.forEachIndexed { i, glyph ->
+            val cx = step * i + step / 2
+            canvas.drawCircle(cx, step / 2, r, button)
+            MenuGlyphs.draw(canvas, glyph, cx, step / 2, r, Fire.AMBER, behind = RAISED)
+        }
+        save("menu-glyphs", bitmap)
+    }
+
     /** The bubble on its own: listening, paused, at rest - side by side. */
     @Test
     fun bubbleStates() {
@@ -133,8 +159,9 @@ class BubbleScreenshots {
         lit: Int? = null,
         keyboardTop: Int? = null,
         centreY: Float = height * 0.72f,
+        idleLayout: List<QuickMenuItem?> = QuickMenuLayout.DEFAULT_IDLE,
     ) {
-        val slots = QuickActions.slots(context)
+        val slots = QuickActions.slots(context, idleLayout)
         val cx = if (side == BubbleSide.RIGHT) width - bubble / 2f else bubble / 2f
         val bottom = minOf(height - gestureBar, keyboardTop ?: height)
         val area = QuickMenuGeometry.Area(0f, statusBar.toFloat(), width.toFloat(), bottom.toFloat())
@@ -231,5 +258,8 @@ class BubbleScreenshots {
 
     private companion object {
         const val BACKGROUND = 0xFF12100C.toInt()
+
+        /** The menu's raised button colour (QuickMenuView). */
+        const val RAISED = 0xFF1F1F1F.toInt()
     }
 }

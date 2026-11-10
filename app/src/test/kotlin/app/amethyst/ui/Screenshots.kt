@@ -6,11 +6,14 @@ import android.graphics.Canvas
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
@@ -197,7 +200,52 @@ open class Screenshots {
     fun bubbleSettings() = shoot("7-bubble", "Bubble") {
         BubbleScreen(
             settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
-            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(),
+            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {},
+        )
+    }
+
+    /** A quick menu put together by hand: Open Amber on top, an empty place, the style actions. */
+    private val ownMenu = settings.copy(
+        ui = app.amethyst.core.settings.UiSettings(advanced = true),
+        bubble = settings.bubble.copy(quickMenuIdle = listOf("open_amber", null, "style_here", "next_style")),
+    )
+
+    /** Not part of the listing set: the Bubble page with the advanced settings, leading to the quick menu. */
+    @Test
+    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
+    fun bubbleSettingsAdvanced() = shoot("x-bubble-advanced", "Bubble") {
+        BubbleScreen(settings = ownMenu, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {})
+    }
+
+    /** Not part of the listing set: the quick menu editor. */
+    @Test
+    fun quickMenu() = shoot("x-quick-menu", "Quick menu") {
+        app.amethyst.ui.screen.QuickMenuScreen(settings = ownMenu, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the picker for one place of the quick menu. */
+    @Test
+    fun quickMenuPicker() = shootDialog("x-quick-menu-picker") {
+        app.amethyst.ui.screen.QuickMenuPicker(
+            place = 1,
+            layout = app.amethyst.core.bubble.QuickMenuLayout.idle(ownMenu.bubble.quickMenuIdle),
+            onPick = {},
+            onDismiss = {},
+        )
+    }
+
+    /** Not part of the listing set: the quick menu's "Style here" card over an app, with no cleanup there. */
+    @Test
+    fun styleHere() = shootBare("x-style-here") {
+        QuickStyleCard(
+            profile = app.amethyst.core.settings.AppProfile(
+                "com.whatsapp", "WhatsApp", app.amethyst.core.settings.WritingStyle.CASUAL, instruction = "Duzen, mit Fabi unterschreiben",
+            ),
+            cleanupRuns = false,
+            apps = FakeApps,
+            onEdit = {},
+            onDone = {},
+            onOpenAmber = {},
         )
     }
 
@@ -328,7 +376,7 @@ open class Screenshots {
     @Composable
     private fun KeepStyle() = app.amethyst.ui.screen.AppStyleScreen(
         profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, hasKeyFor = { true },
-        onUpdateSettings = {}, onRemoved = {},
+        modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
     )
 
     /** Not part of the listing set: one app's page with a cleanup model of its own. */
@@ -741,6 +789,23 @@ open class Screenshots {
         activity.setContent { AmberTheme { content() } }
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
         val view = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(Canvas(bitmap))
+        val file = File(out, "$name.png")
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        assertTrue(file.length() > 0)
+    }
+
+    /** A window without Amber's page around it: a stand-in for the app behind, then [content] over it. */
+    private fun shootBare(name: String, content: @Composable () -> Unit) {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        activity.setContent {
+            AmberTheme {
+                Box(Modifier.fillMaxSize().background(Color(0xFFECE5DD))) { content() }
+            }
+        }
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
+        val view = activity.window.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
         val file = File(out, "$name.png")
