@@ -115,21 +115,25 @@ series and one store release per phase, each after his OK.
       `focusedTarget()` is null when neither `findFocus(FOCUS_INPUT)` nor the bound editor knows
       a field: most likely the screen went off during the 2 minutes (Amber keeps it on nowhere),
       else a Compose app ending input when the keyboard closes, WhatsApp rebuilding its field, a
-      shade or dialog in front. Now `TargetRefind` (:core) looks for the field again when the
-      start app and window are still in front - the start field's node, else the one focused
-      field, else the only editable one; never a password field, never with several candidates
-      - and inserts into it; otherwise the toast says "Tap into the field, hold the bubble and
-      choose Insert again". Nothing waits for the next field (Fabi: not wanted). The run's
-      timing line says `field found again: ...`. Open: the device test (WhatsApp and Claude,
-      2 minutes with a short screen timeout, keyboard closed during the recording).
-- [ ] **Keep the screen on while listening** (2026-11-10, from the insertion fix): the likeliest
-      cause above is the screen timeout during a long dictation; `FLAG_KEEP_SCREEN_ON` on the
-      bubble window while recording would remove it.
+      shade or dialog in front. Now `TargetRefind` (:core) looks for the start field again when
+      the start app and window are still in front - that field's own node only, on screen,
+      editable, not a password field; never another field in the window (the review's case:
+      Telegram keeps every chat in one window, a dictation for chat A must not land in chat B),
+      and a start field that still exists but is off screen is not replaced either. Otherwise the
+      toast says "Tap into the field, hold the bubble and choose Insert again". Nothing waits for
+      the next field (Fabi: not wanted). Compose fields (the Claude app) have no node to find
+      again: there the screen staying on is the fix. The timing line says
+      `field found again: ...`. Open: the device test (WhatsApp and Claude, 2 minutes with a
+      short screen timeout, keyboard closed during the recording).
+- [ ] **The screen stays on while a dictation records and is worked on** (2026-11-10; built):
+      `ScreenAwake`, a 1x1 overlay of the accessibility service with `FLAG_KEEP_SCREEN_ON` from
+      Starting to the end of Transcribing - also with the bubble hidden. Open: the device test
+      (screen timeout 30 s, a 2 minute dictation; the screen goes off as usual afterwards).
 - [ ] **Long texts counted as landed** (2026-11-10; built): `Landed` (:core) compares with
       spacing and case ignored; a text over 200 characters counts when its first and last 60
       characters are there, each once more than before the write (so words already in the
-      field do not pass early); the read-back waits up to about 3 s for a long text. LOST still
-      never types again. Open: the device test with a few thousand characters (debug
+      field do not pass early; words replacing a selection are counted against the field without
+      it); the read-back waits up to about 3 s for a long text. LOST still never types again. Open: the device test with a few thousand characters (debug
       `deliverForTest`) in WhatsApp, Keep and Chrome.
 - [ ] **Diagnostics anonymized** (Fabi, 2026-11-10; built): the copy holds a dictation's shape
       instead of its words (`412 characters, 68 words, 3 lines, de`); errors, notes, a command's
