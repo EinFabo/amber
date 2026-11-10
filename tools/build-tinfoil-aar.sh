@@ -33,13 +33,23 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${OUT:-$ROOT/app/libs/tinfoil-mobile.aar}"
 case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 # The work directory's path ends up in the library (Go records the replaced module's directory
-# in its build info), so it has to be the same on every build: a fixed name, created private
-# (0700) and refused unless it is a real directory of ours - never one somebody else planted.
-WORK=/tmp/amber-tinfoil-build
+# in its build info), so it has to be the same on every build, whichever clone or directory
+# the script runs from: a fixed name per user, created private (0700) and refused unless it is
+# a real directory of ours - never one somebody else planted. An exclusive lock held for the
+# whole run makes a second build of the same user wait instead of deleting the first one's files.
+WORK="/tmp/amber-tinfoil-build-$(id -u)"
+LOCK="$WORK.lock"
+[ ! -L "$LOCK" ] || { echo "$LOCK is a symbolic link - not building" >&2; exit 1; }
+exec 9>>"$LOCK"
+if ! flock -n 9; then
+  echo "another Tinfoil AAR build is running ($LOCK) - waiting for it to finish ..." >&2
+  flock 9
+fi
 rm -rf "$WORK" 2>/dev/null || true
-mkdir -m 700 "$WORK" || { echo "$WORK exists and is not removable by you - not building" >&2; exit 1; }
-[ -d "$WORK" ] && [ ! -L "$WORK" ] && [ -O "$WORK" ] || { echo "$WORK is not a private directory of yours" >&2; exit 1; }
-trap 'rm -rf "$WORK"' EXIT
+mkdir -m 700 "$WORK" || { echo "$WORK exists and cannot be removed by you - not building" >&2; exit 1; }
+trap 'rm -rf "$WORK"' EXIT   # only after our own mkdir succeeded: removes just what this run made
+[ -d "$WORK" ] && [ ! -L "$WORK" ] && [ -O "$WORK" ] \
+  || { echo "$WORK is not a private directory of yours" >&2; exit 1; }
 
 # Go is often installed outside PATH on this machine; look there before giving up.
 if ! command -v go >/dev/null && [ -x "$HOME/tools/go/bin/go" ]; then
@@ -57,7 +67,13 @@ if [ -z "${ANDROID_NDK_HOME:-}" ]; then
   fi
 fi
 export ANDROID_NDK_HOME
-[ -d "$ANDROID_NDK_HOME" ] || { echo "no Android NDK found under $ANDROID_HOME/ndk" >&2; exit 1; }
+[ -d "$ANDROID_NDK_HOME" ] \
+  || { echo "ANDROID_NDK_HOME ($ANDROID_NDK_HOME) is not a directory - no Android NDK there" >&2; exit 1; }
+NDK_REV="$(sed -n 's/^Pkg.Revision *= *//p' "$ANDROID_NDK_HOME/source.properties" 2>/dev/null | head -1)"
+if [ "$NDK_REV" != "$NDK_PIN" ]; then
+  echo "warning: NDK at $ANDROID_NDK_HOME is ${NDK_REV:-of unknown version}, not the pinned $NDK_PIN -" \
+    "the library may differ from the pinned build" >&2
+fi
 
 echo "==> fetching tinfoil-go@$TINFOIL_GO_REF"
 curl -fsSL -o "$WORK/src.tar.gz" "https://github.com/tinfoilsh/tinfoil-go/archive/$TINFOIL_GO_REF.tar.gz"
@@ -67,13 +83,25 @@ mkdir -p "$WORK/src"
 tar -xzf "$WORK/src.tar.gz" -C "$WORK/src" --strip-components=1
 
 cd "$WORK/src"
+[ -f go.mod ] || { echo "tinfoil-go has no go.mod at $WORK/src - not building" >&2; exit 1; }
 # The toolchain tinfoil-go builds with (go.mod's `toolchain` line if present, else its `go`
-# line); a system Go that is older fetches exactly this one.
+# line); a system Go that is older fetches exactly this one. A plain `go 1.N` (N >= 21) names
+# the release go1.N.0; anything else (go 1.20, rc versions) is used as written.
 GO_TOOLCHAIN="$(awk '$1=="toolchain"{print $2; exit}' go.mod)"
 [ -n "$GO_TOOLCHAIN" ] || GO_TOOLCHAIN="go$(awk '$1=="go"{print $2; exit}' go.mod)"
-case "$GO_TOOLCHAIN" in go1.*.*) ;; go1.*) GO_TOOLCHAIN="$GO_TOOLCHAIN.0" ;; *) echo "no Go version in go.mod" >&2; exit 1 ;; esac
+case "$GO_TOOLCHAIN" in
+  go1.*) ;;
+  *) echo "no Go version in tinfoil-go's go.mod" >&2; exit 1 ;;
+esac
+if [[ "$GO_TOOLCHAIN" =~ ^go1\.([0-9]+)$ ]] && [ "${BASH_REMATCH[1]}" -ge 21 ]; then
+  GO_TOOLCHAIN="$GO_TOOLCHAIN.0"
+fi
 export GOTOOLCHAIN="$GO_TOOLCHAIN"
 echo "==> Go toolchain $GOTOOLCHAIN"
+ACTIVE_GO="$(go env GOVERSION | awk '{print $1}')"
+[ "$ACTIVE_GO" = "$GOTOOLCHAIN" ] || {
+  echo "the active Go is $ACTIVE_GO, not the pinned $GOTOOLCHAIN (a Go older than 1.21 cannot" \
+    "fetch it) - install Go 1.21 or newer" >&2; exit 1; }
 export CGO_CFLAGS="-ffile-prefix-map=$WORK=."
 export GOFLAGS="-buildvcs=false"
 export GOBIN="$WORK/bin"
