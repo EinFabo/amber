@@ -109,6 +109,50 @@ series and one store release per phase, each after his OK.
 
 ## In progress: bubble and keyboard
 
+- [ ] **URGENT: a finished dictation must never be lost at insertion** (Fabi, 2026-11-10). Happened
+      in WhatsApp and several times in the Claude app, with the field still there:
+      `Error: No text field has focus any more - not inserted.` - timing: route BUBBLE/RECORD_NOW,
+      recording 120.2 s, recognition 6.6 s, cleanup 964 ms (deepseek-v4-1-flash, en), upload WAV
+      3750 KB. `TargetCheck` said NO_FIELD because `focusedTarget()` found no focused field at
+      the end (`DictationController.deliver`); with the clipboard not allowed the text only went
+      to the diagnostics. Find out why the focus lookup comes back empty in these apps (keyboard
+      closed meanwhile? the app's own editor not reporting input focus? the long run?). Then:
+      same app and window as at the start -> look for the field again (the start node, any
+      editable field in that window) and insert; if there really is none, say so on the bubble
+      with the way back ("Insert again" in the quick menu) - never only in the diagnostics.
+      Not wanted (Fabi): the text waiting and going into the next field tapped on its own.
+      Test: WhatsApp and Claude, short and 2-minute dictations, keyboard closed during the
+      cleanup.
+- [ ] **Long dictations reported lost or put on the clipboard although typed** (Fabi,
+      2026-11-10, to check). `InsertionEngine.tryCommit` types the words, then reads the field
+      back 12 times every 60 ms (0.7 s) and wants the whole text in it (`contains`); if not, the
+      commit counts as LOST - reported as not inserted and, with the clipboard allowed, copied
+      there. A long text is the likeliest to miss that: the app takes longer to take a few
+      thousand characters, shortens what it reports to accessibility, or changes it (emoji,
+      formatting, a line break made a space). Check on the device with 2 and 5 minute
+      dictations in WhatsApp, Claude and Chrome (logcat: `insertion via ... field= clipboard=`);
+      then wait longer for a long text and compare loosely (spacing, the text's end), so a
+      commit that landed counts as landed.
+- [ ] **Diagnostics anonymized** (Fabi, 2026-11-10): the copied report (`DiagnosticsReport.of`)
+      holds each dictation's words verbatim (`text: ...`, a command's `heard: ...`), so a report
+      shared in a chat or a bug report carries what was said. The copy gets no words: instead
+      their shape (characters, words, lines, the language guessed). Go through everything else
+      the copy holds for words too - error details from a server (`Redact.text`), cleanup guard
+      reasons, notes, a command's steps - and server addresses as host only (`Redact.url`).
+      App names and timings stay: they are what a report is for. On the device itself the
+      words of a dictation that did not go in stay reachable (Insert again, Copy last, a "Show
+      text" on its card), never in the copy.
+- [ ] **Long dictations must not fail** (Fabi, 2026-11-10). The run above was cut by
+      `maxDurationMs = 120_000` (recording 120.2 s) and then lost; `totalTimeoutMs = 180_000`
+      caps recording plus recognition. Fabi: the limit 5 minutes. The "Longest dictation"
+      slider already goes to 300 s and the watchdog (`effectiveTotalTimeoutMs`) grows with it;
+      the default becomes 300 s, and a schema step moves a stored 120 s (the old default, the
+      settings are written with their defaults) to 300 s, a value the user chose stays.
+      Check the way there: a 5 minute WAV is about 9.4 MB (Groq and OpenAI take 25 MB; Amber
+      PC's cap to check), the phone's models in parts (chunking), the cleanup's answer length
+      for a long text. Reaching the limit keeps everything said, a sign on the bubble shortly
+      before it. Test: 3 and 5 minutes, with a server and on the device.
+
 - [x] **Android's recognizer at the bubble is laggy and buggy** (Fabi, 2026-11-07; done in 0.30.3,
       2026-11-09): not the drawing (0 janky frames of 1047) but the level - it moved a fixed share
       per reported value, so a recognizer reporting in its own rhythm, with "silence" between
