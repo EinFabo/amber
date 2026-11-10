@@ -23,6 +23,11 @@
 #   SIGN_PROPERTIES=<its keystore.properties> SIGN_CERT_SHA256=<its fingerprint> \
 #     SIGN_OUTPUT=amber-github.apk tools/sign-release.sh
 #
+# Run it from a normal clone (not a linked worktree) with nothing changed and the submodules at
+# their pinned commits; it refuses otherwise. It rebuilds the Tinfoil AAR (Go, NDK), checks that
+# the APK names HEAD as its commit, prints the unsigned APK's SHA-256 (the one a rebuild of this
+# commit gives) and warns when HEAD is not tagged v<versionName>.
+#
 # Output: $SIGN_OUTPUT in the project root (gitignored, *.apk).
 set -euo pipefail
 
@@ -80,11 +85,53 @@ BT=$(ls -d "$ANDROID_HOME"/build-tools/* | tail -1)
 UNSIGNED="$ROOT/app/build/outputs/apk/release/app-release-unsigned.apk"
 DEST="$ROOT/$SIGN_OUTPUT"
 
-echo "==> building the release APK"
+# What gets signed is the reproducible build of one commit, the build anybody (F-Droid) gets
+# from that commit: so only from a normal clone with nothing changed and the submodules at
+# their pinned commits. A linked worktree (git worktree add) builds other bytes: AGP finds no
+# git directory there and writes NO_VALID_GIT_FOUND instead of the commit into the APK.
+GIT_DIRS=$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir --git-common-dir) \
+  || { echo "$ROOT is not a git checkout - only a build of a commit is signed; not signing" >&2; exit 1; }
+if [ "$(sed -n 1p <<<"$GIT_DIRS")" != "$(sed -n 2p <<<"$GIT_DIRS")" ]; then
+  echo "$ROOT is a linked git worktree - its release APK differs from a clone's (no commit in" \
+    "its build info). Sign from a normal clone (git clone --recursive); not signing" >&2
+  exit 1
+fi
+DIRTY=$(git -C "$ROOT" status --porcelain --ignore-submodules=none)
+if [ -n "$DIRTY" ]; then
+  echo "the checkout has changes - commit or remove them, and put the submodules at their" \
+    "pinned commits (git submodule update --init --recursive); not signing:" >&2
+  printf '%s\n' "$DIRTY" | head -20 >&2
+  exit 1
+fi
+HEAD=$(git -C "$ROOT" rev-parse HEAD)
+
+# Rebuilt every time rather than trusted: the AAR is not in git, and one left from an older
+# script (another pin, other flags, or from before the build was reproducible) puts other
+# bytes into the APK than the commit's build has. It takes a minute or two.
+echo "==> building the Tinfoil AAR"
+"$ROOT/tools/build-tinfoil-aar.sh" >/dev/null
+
+echo "==> building the release APK of $HEAD"
 rm -f "$UNSIGNED"
 # AMBER_GRADLE_ARGS: extra Gradle arguments, e.g. -Pamber.insertTestHook=true for a test build.
 (cd "$ROOT" && ./gradlew -q :app:assembleRelease ${AMBER_GRADLE_ARGS:-})
 [ -f "$UNSIGNED" ] || { echo "no unsigned release APK - is a local keystore.properties signing it already?" >&2; exit 1; }
+# The build names its commit (AGP's vcsInfo); it has to be this one.
+python3 -I - "$UNSIGNED" "$HEAD" <<'PY' || exit 1
+import sys, zipfile
+info = "META-INF/version-control-info.textproto"
+try:
+    text = zipfile.ZipFile(sys.argv[1]).read(info).decode("utf-8", "replace")
+except KeyError:
+    sys.exit(f"the unsigned APK has no {info} - not signing")
+if f'revision: "{sys.argv[2]}"' not in [line.strip() for line in text.splitlines()]:
+    sys.exit(f"the unsigned APK's {info} does not name commit {sys.argv[2]} - not signing:\n{text}")
+PY
+echo "==> unsigned APK, SHA-256 $(sha256sum "$UNSIGNED" | cut -d' ' -f1)"
+VERSION=$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
+if ! git -C "$ROOT" tag --points-at HEAD | grep -qxF "v$VERSION"; then
+  echo "warning: HEAD is not tagged v${VERSION:-?} - fine for a test; a release is signed from its tag" >&2
+fi
 # Signed as built, never re-aligned: the signed APK must be the unsigned one plus a signature
 # and nothing else, so that a rebuild from the same commit (F-Droid's) can be compared with it
 # and carry over its signature (apksigcopier). AGP's output is aligned already; if it is not,

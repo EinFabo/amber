@@ -195,7 +195,8 @@ kotlin {
 /**
  * Tinfoil's attestation verifier, bound from tinfoil-go by tools/build-tinfoil-aar.sh. Not
  * checked in (a binary of several MB, reproducible from a pinned commit), so a fresh checkout
- * has to build it once before the app compiles.
+ * has to build it before the app compiles, and again whenever that script changes: an older AAR
+ * stays here and gives other bytes. tools/sign-release.sh rebuilds it for every release.
  */
 val tinfoilAar = file("libs/tinfoil-mobile.aar")
 
@@ -211,7 +212,8 @@ android.sourceSets.getByName("main").assets.srcDir(licenseAssets)
  * sherpa-onnx's Kotlin API, compiled from the submodule: only the files the offline recognizer
  * needs (SherpaRuntime). The rest of the directory brings in text-to-speech, diarization and
  * other classes whose native side this build leaves out. Its JNI code finds these classes and
- * their fields by name (see proguard-rules.pro).
+ * their fields by name (see proguard-rules.pro). tools/typecheck-android.sh keeps the same list:
+ * change both.
  */
 val sherpaKotlinApi = rootProject.file("third_party/sherpa-onnx/sherpa-onnx/kotlin-api")
 val sherpaKotlinSources = listOf(
@@ -262,7 +264,7 @@ tasks.named("preBuild") {
     doFirst {
         if (!aar.exists()) {
             throw GradleException(
-                "app/libs/tinfoil-mobile.aar is missing. Build it once with: tools/build-tinfoil-aar.sh " +
+                "app/libs/tinfoil-mobile.aar is missing. Build it with: tools/build-tinfoil-aar.sh " +
                     "(needs Go and the Android NDK).",
             )
         }
