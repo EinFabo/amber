@@ -14,17 +14,38 @@ set_property(GLOBAL PROPERTY JOB_POOLS amethyst_compile=4 amethyst_link=1)
 set(CMAKE_JOB_POOL_COMPILE amethyst_compile)
 set(CMAKE_JOB_POOL_LINK amethyst_link)
 
-# whisper.cpp is fetched at a pinned release and checked against its hash rather than vendored:
-# the source tree is ~10 MB and would drown the repository. To build offline, pass
-# -DFETCHCONTENT_SOURCE_DIR_WHISPER=/path/to/whisper.cpp-1.9.5 (then apply patch-whisper.cmake
-# to that tree yourself: FetchContent skips the patch step for a provided source dir).
+# Everything is built from git submodules under third_party/ (passed in by app/build.gradle.kts):
+# nothing is downloaded while configuring, so the build also runs without a network.
+if(NOT DEFINED THIRD_PARTY_DIR OR THIRD_PARTY_DIR STREQUAL "")
+    message(FATAL_ERROR "THIRD_PARTY_DIR is not set. Pass -DTHIRD_PARTY_DIR=<repo>/third_party")
+endif()
+
+# Used for every submodule: an empty directory means the clone was made without --recursive.
+function(amber_require_submodule dir)
+    if(NOT EXISTS "${THIRD_PARTY_DIR}/${dir}/CMakeLists.txt")
+        message(FATAL_ERROR "third_party/${dir} is empty. Run: git submodule update --init --recursive")
+    endif()
+endfunction()
+
 include(FetchContent)
-FetchContent_Declare(
-    whisper
-    URL https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz
-    URL_HASH SHA256=ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720
-    PATCH_COMMAND ${CMAKE_COMMAND} -DSRC=<SOURCE_DIR>/src/whisper.cpp -P ${CMAKE_CURRENT_LIST_DIR}/patch-whisper.cmake
+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
+
+amber_require_submodule(whisper.cpp)
+
+# The submodule stays untouched: the patch for the persistent CPU thread pool is applied to a
+# copy in the build directory, and FetchContent is pointed at that copy.
+set(whisper_copy "${CMAKE_BINARY_DIR}/whisper-src")
+file(REMOVE_RECURSE "${whisper_copy}")
+file(COPY "${THIRD_PARTY_DIR}/whisper.cpp/" DESTINATION "${whisper_copy}" PATTERN ".git" EXCLUDE)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -DSRC=${whisper_copy}/src/whisper.cpp -P ${CMAKE_CURRENT_LIST_DIR}/patch-whisper.cmake
+    RESULT_VARIABLE patch_result
 )
+if(NOT patch_result EQUAL 0)
+    message(FATAL_ERROR "patch-whisper.cmake failed (${patch_result}) on ${whisper_copy}")
+endif()
+set(FETCHCONTENT_SOURCE_DIR_WHISPER "${whisper_copy}" CACHE PATH "" FORCE)
+FetchContent_Declare(whisper SOURCE_DIR "${whisper_copy}")
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -43,6 +64,7 @@ set(GGML_CPU_ARM_ARCH "armv8.2-a+fp16+dotprod" CACHE STRING "" FORCE)
 # the machine it was built on.
 add_compile_options(
     -ffile-prefix-map=${CMAKE_BINARY_DIR}=build
+    -ffile-prefix-map=${whisper_copy}=third_party/whisper.cpp
     -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.
 )
 

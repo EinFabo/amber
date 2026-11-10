@@ -200,6 +200,8 @@ Route 2 kicks in automatically when route 1 fails.
 ## Building
 
 ```bash
+git clone --recursive <url>     # whisper.cpp is a submodule (third_party/)
+git submodule update --init --recursive   # in a clone made without --recursive
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # once: Tinfoil's verifier as an AAR (needs Go + NDK)

@@ -27,6 +27,13 @@ android {
             // APK and the native build time down.
             abiFilters += "arm64-v8a"
         }
+
+        externalNativeBuild {
+            cmake {
+                // The native sources are git submodules; CMake downloads nothing.
+                arguments += "-DTHIRD_PARTY_DIR=${rootProject.file("third_party").absolutePath}"
+            }
+        }
     }
 
     externalNativeBuild {

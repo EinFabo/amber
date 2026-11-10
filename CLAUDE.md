@@ -45,6 +45,7 @@ Commits and pull requests carry Fabi's name only:
 ## Building
 
 ```bash
+git submodule update --init --recursive   # whisper.cpp in third_party/, once per clone
 ./gradlew :core:test                 # pure JVM, no SDK needed
 python3 -I tools/check_refs.py       # imports, R ids, manifest classes
 python3 -I tools/check_strings.py    # English and German alike, no English left in the screens
