@@ -34,13 +34,15 @@ OUT="${OUT:-$ROOT/app/libs/tinfoil-mobile.aar}"
 case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 # The work directory's path ends up in the library (Go records the replaced module's directory
 # in its build info), so it has to be the same on every build, whichever clone or directory
-# the script runs from: a fixed name per user, created private (0700) and refused unless it is
-# a real directory of ours - never one somebody else planted. An exclusive lock held for the
-# whole run makes a second build of the same user wait instead of deleting the first one's files.
-WORK="/tmp/amber-tinfoil-build-$(id -u)"
+# the script runs from and whoever runs it: one fixed name, created private (0700) and refused
+# unless it is a real directory of ours - never one somebody else planted. An exclusive lock
+# held for the whole run makes a second build wait instead of deleting the first one's files.
+# A lock file or directory of somebody else's can only make the build refuse, never reach it.
+WORK=/tmp/amber-tinfoil-build
 LOCK="$WORK.lock"
-[ ! -L "$LOCK" ] || { echo "$LOCK is a symbolic link - not building" >&2; exit 1; }
-exec 9>>"$LOCK"
+[ ! -L "$LOCK" ] && { [ ! -e "$LOCK" ] || { [ -f "$LOCK" ] && [ -O "$LOCK" ] && [ -w "$LOCK" ]; }; } \
+  || { echo "$LOCK exists but is not a file of yours - remove it or ask its owner; not building" >&2; exit 1; }
+exec 9>>"$LOCK" || { echo "cannot open $LOCK - not building" >&2; exit 1; }
 if ! flock -n 9; then
   echo "another Tinfoil AAR build is running ($LOCK) - waiting for it to finish ..." >&2
   flock 9
