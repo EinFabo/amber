@@ -110,6 +110,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // PNGs as they are in res/: crunching them is a known source of builds that differ
+            // between machines, and a release has to come out the same bytes wherever it is
+            // rebuilt (README, "Reproducible builds"; tools/check-reproducible.sh).
+            isCrunchPngs = false
             signingConfig = signingConfigs.findByName("release")
         }
     }

@@ -266,6 +266,33 @@ It must print exactly this one signer. Android also refuses an update signed wit
 key: a build from this source signed with another key works the same, but cannot update an
 Amber signed with this one, nor the other way round.
 
+## Reproducible builds
+
+A release after 0.31.0 can be rebuilt from its tag and compared with the published APK: the
+build gives the same bytes on every machine, and the published APK is exactly that build plus
+a signature (`tools/sign-release.sh` signs it as built, without aligning it again). Build with
+a JDK 21 (CI uses Temurin 21), the NDK and CMake versions named in `app/build.gradle.kts`, and
+Go for the Tinfoil AAR:
+
+```bash
+git clone --recursive https://github.com/EinFabo/amber && cd amber
+git checkout v<version> && git submodule update --init --recursive
+tools/build-tinfoil-aar.sh
+./gradlew :app:assembleRelease
+pip install apksigcopier
+apksigcopier compare amber-<version>.apk --unsigned app/build/outputs/apk/release/app-release-unsigned.apk
+```
+
+`apksigcopier compare` copies the signature of the downloaded `amber-<version>.apk` onto the
+rebuilt APK and checks that the result is the downloaded file: no output and exit code 0 mean
+the published APK is this source and nothing else. This is also how F-Droid can rebuild Amber
+and still ship it with this signature.
+
+`tools/check-reproducible.sh [<git ref>]` checks the build itself: it clones a commit twice,
+into directories at different paths, builds the unsigned release APK in each and prints
+`reproducible: <sha256>`, or the entries that differ. CI prints the unsigned release APK's
+SHA-256 on every push.
+
 ## Updates
 
 An Amber from a GitHub release asks GitHub at most once a day, when its screen opens or its

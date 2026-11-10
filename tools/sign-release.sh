@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Builds Amber's release APK and has it signed on a signing host: the unsigned APK goes there
-# over ssh, is aligned and signed with apksigner, comes back and is checked against the
-# expected key's fingerprint. The key and its passwords never leave that host. Which key signs
-# is set by SIGN_PROPERTIES; SIGN_CERT_SHA256 says which one that must be.
+# over ssh, is signed with apksigner as it is (AGP has aligned it; aligning it again could move
+# bytes, see below), comes back and is checked against the expected key's fingerprint. The key
+# and its passwords never leave that host. Which key signs is set by SIGN_PROPERTIES;
+# SIGN_CERT_SHA256 says which one that must be.
 #
 # Settings come from the environment or from tools/sign-release.local (untracked; KEY=value
 # lines, # for comments; an exported variable wins over the file):
@@ -15,7 +16,8 @@
 #                     hex characters (required; the GitHub release key's is in README.md)
 #   SIGN_OUTPUT       file name of the signed APK in the project root, ending in .apk
 #                     (default: amber-release.apk)
-# Paths on the signing host are absolute or relative to its home directory (~/ allowed).
+# Paths on the signing host are absolute or relative to its home directory (~/ allowed). Its
+# newest build-tools must be 35.0.0 or later (apksigner --alignment-preserved).
 #
 # A run with the GitHub release key sets its own properties, fingerprint and output, e.g.
 #   SIGN_PROPERTIES=<its keystore.properties> SIGN_CERT_SHA256=<its fingerprint> \
@@ -83,6 +85,14 @@ rm -f "$UNSIGNED"
 # AMBER_GRADLE_ARGS: extra Gradle arguments, e.g. -Pamber.insertTestHook=true for a test build.
 (cd "$ROOT" && ./gradlew -q :app:assembleRelease ${AMBER_GRADLE_ARGS:-})
 [ -f "$UNSIGNED" ] || { echo "no unsigned release APK - is a local keystore.properties signing it already?" >&2; exit 1; }
+# Signed as built, never re-aligned: the signed APK must be the unsigned one plus a signature
+# and nothing else, so that a rebuild from the same commit (F-Droid's) can be compared with it
+# and carry over its signature (apksigcopier). AGP's output is aligned already; if it is not,
+# something changed in the build and that has to be looked at, not papered over here.
+if ! "$BT/zipalign" -c -p 4 "$UNSIGNED" >/dev/null; then
+  echo "the unsigned APK is not aligned (zipalign -c -p 4 fails) - not signing it; see: $BT/zipalign -c -v -p 4 $UNSIGNED" >&2
+  exit 1
+fi
 
 echo "==> signing on $SIGN_HOST"
 ssh -o BatchMode=yes "$SIGN_HOST" "mkdir -p $(sq "$SIGN_DIR")"
@@ -96,11 +106,11 @@ ssh -o BatchMode=yes "$SIGN_HOST" "set -e
   done < "$P"
   BT=$(cd "$B" && ls -d "$PWD"/* | tail -1)
   cd "$D"
-  "$BT/zipalign" -f -p 4 unsigned.apk aligned.apk
-  "$BT/apksigner" sign --ks "$RELEASE_storeFile" --ks-key-alias "$RELEASE_keyAlias" \
+  "$BT/apksigner" sign --alignment-preserved true \
+    --ks "$RELEASE_storeFile" --ks-key-alias "$RELEASE_keyAlias" \
     --ks-pass env:RELEASE_storePassword --key-pass env:RELEASE_keyPassword \
-    --out signed.apk aligned.apk
-  rm -f unsigned.apk aligned.apk'
+    --out signed.apk unsigned.apk
+  rm -f unsigned.apk'
 scp -o BatchMode=yes -q "$SIGN_HOST:$SIGN_DIR/signed.apk" "$DEST"
 ssh -o BatchMode=yes "$SIGN_HOST" "cd $(sq "$SIGN_DIR") && rm -f signed.apk signed.apk.idsig"
 
@@ -112,10 +122,10 @@ if [ "$GOT" != "$SIGN_CERT_SHA256" ]; then
   exit 1
 fi
 
-# And it is the APK that was sent: every entry byte for byte, nothing added but v1 signature
-# files. The signing host can sign; it must not be able to change what is signed.
+# And it is the APK that was sent: every entry byte for byte, nothing added but the signature.
+# The signing host can sign; it must not be able to change what is signed.
 python3 -I - "$UNSIGNED" "$DEST" <<'PY' || { rm -f "$DEST"; exit 1; }
-import re, sys, zipfile
+import re, struct, sys, zipfile
 sent, back = zipfile.ZipFile(sys.argv[1]), zipfile.ZipFile(sys.argv[2])
 a, b = {i.filename: i for i in sent.infolist()}, {i.filename: i for i in back.infolist()}
 extra = [n for n in b if n not in a and not re.fullmatch(r"META-INF/(MANIFEST\.MF|[^/]+\.(SF|RSA|EC|DSA))", n)]
@@ -123,5 +133,18 @@ missing = [n for n in a if n not in b]
 changed = [n for n in a if n in b and sent.read(n) != back.read(n)]
 if extra or missing or changed:
     sys.exit(f"signed APK differs from the one sent: extra {extra[:5]}, missing {missing[:5]}, changed {changed[:5]}")
+# Byte for byte, too, which is what `apksigcopier compare` needs to match a rebuild: the sent
+# entries where they were (not re-padded), their directory records unchanged, then only the v1
+# files and the APK Signing Block, and the same archive comment.
+def layout(path):
+    data = open(path, "rb").read()
+    end = data.rfind(b"PK\x05\x06")
+    size, start = struct.unpack_from("<II", data, end + 12)
+    return data, start, data[start:start + size], data[end + 4:end + 8] + data[end + 20:]
+u, u_cd, u_dir, u_end = layout(sys.argv[1])
+s, s_cd, s_dir, s_end = layout(sys.argv[2])
+if s[:u_cd] != u[:u_cd] or not s_dir.startswith(u_dir) or s_end != u_end \
+        or not s[u_cd:s_cd].endswith(b"APK Sig Block 42"):
+    sys.exit("signed APK is not the one sent plus a signature - its entries were moved or re-padded")
 PY
 echo "==> signed with the key $SIGN_CERT_SHA256: $DEST ($(du -h "$DEST" | cut -f1))"
