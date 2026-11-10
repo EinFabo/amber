@@ -1,6 +1,8 @@
 package app.amethyst.core.engine.whisper
 
+import app.amethyst.core.audio.LongAudio
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.Problem
@@ -89,30 +91,51 @@ class WhisperCppEngine(
     ): Result<Transcript> {
         val startedAt = clock()
         val samples = WhisperInput.prepare(audio)
-        return abortable {
-            guarded("transcribe") {
-                runtime.ensureLoaded(modelPath)
-                runtime.transcribe(
-                    samples = samples,
-                    language = WhisperInput.languageFor(options.languageTag),
-                    audioCtx = if (shortContext) WhisperInput.audioCtxFor(samples.size, contextSlack) else 0,
-                    threads = threads,
-                    prompt = options.precedingText.orEmpty(),
-                ) to runtime.lastLanguage()
+        // A long recording in pieces cut at pauses ([LongAudio]), each a request of its own:
+        // the text so far is the next one's prompt, and the language the first was heard in
+        // holds for the rest - as for chunks recognized while speaking.
+        val pieces = LongAudio.pieces(samples)
+        var language = WhisperInput.languageFor(options.languageTag)
+        var detected: String? = null
+        val texts = mutableListOf<String>()
+        val raws = mutableListOf<String>()
+        for (piece in pieces) {
+            val part = if (pieces.size == 1) samples else samples.copyOfRange(piece.first, piece.last + 1)
+            val prompt = if (texts.isEmpty()) options.precedingText.orEmpty() else ChunkedTranscription.join(texts).takeLast(ChunkedTranscription.PROMPT_CHARS)
+            val (raw, heard) = abortable {
+                guarded("transcribe") {
+                    runtime.ensureLoaded(modelPath)
+                    runtime.transcribe(
+                        samples = part,
+                        language = language,
+                        audioCtx = if (shortContext) WhisperInput.audioCtxFor(part.size, contextSlack) else 0,
+                        threads = threads,
+                        prompt = prompt,
+                    ) to runtime.lastLanguage()
+                }
+            }.getOrElse { return Result.failure(it) }
+            if (detected == null) {
+                detected = heard
+                heard?.lowercase()?.takeIf { pieces.size > 1 && LANGUAGE_CODE.matches(it) }?.let { language = it }
             }
-        }.mapCatching { (raw, language) ->
-            val text = WhisperOutput.clean(raw)
-            if (text.isBlank()) {
-                throw SttFailure(SttFailure.NOTHING_RECOGNIZED, "whisper returned no speech: \"$raw\"")
-            }
+            raws += raw
+            WhisperOutput.clean(raw).takeIf { it.isNotBlank() }?.let(texts::add)
+        }
+        val text = ChunkedTranscription.join(texts)
+        if (text.isBlank()) {
+            return Result.failure(
+                SttFailure(SttFailure.NOTHING_RECOGNIZED, "whisper returned no speech: \"${raws.joinToString(" ").take(200)}\""),
+            )
+        }
+        return Result.success(
             Transcript(
                 text = text,
                 engineId = id,
                 trustLevel = TrustLevel.ON_DEVICE,
                 latencyMs = clock() - startedAt,
-                detectedLanguage = language,
-            )
-        }
+                detectedLanguage = detected,
+            ),
+        )
     }
 
     /**
@@ -162,6 +185,8 @@ class WhisperCppEngine(
     companion object {
         /** How whisper_jni.cpp begins its message when the CPU lacks dot-product instructions. */
         const val CPU_UNSUPPORTED = "cpu unsupported"
+
+        private val LANGUAGE_CODE = Regex("^[a-z]{2,3}$")
 
         private const val SHORT_CONTEXT_MIN_CHUNK_MS = 4_000
         private const val FULL_CONTEXT_MIN_CHUNK_MS = 20_000

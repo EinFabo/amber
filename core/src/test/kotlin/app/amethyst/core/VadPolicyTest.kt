@@ -69,6 +69,35 @@ class VadPolicyTest {
     }
 
     @Test
+    fun `the cap sends a short word said long before it, as a tap would`() {
+        // Real settings: a silence stop wants 350 ms of speech, a tap 120. One short word, then
+        // the recording held open until the cap: sent, not discarded.
+        val vad = VadPolicy(VadConfig(silenceTimeoutMs = Int.MAX_VALUE, maxDurationMs = 3_000, calibrationFrames = 5))
+        vad.feed(5, 50.0)
+        assertEquals(null, vad.feed(10, 4_000.0), "200 ms of speech")
+        val decision = vad.feed(500, 50.0)
+        assertIs<VadDecision.Stop>(decision)
+        assertEquals(StopReason.MAX_DURATION, decision.reason)
+    }
+
+    @Test
+    fun `the cap sends a five minute dictation`() {
+        val vad = VadPolicy(VadConfig(silenceTimeoutMs = Int.MAX_VALUE, calibrationFrames = 5))
+        assertEquals(300_000, VadConfig().maxDurationMs)
+        vad.feed(5, 50.0)
+        // Speech with pauses, as long as the cap allows: 4 s spoken, 1 s quiet.
+        var decision: VadDecision? = null
+        var frames = 5
+        while (decision == null && frames < 20_000) {
+            decision = vad.feed(200, 4_000.0) ?: vad.feed(50, 50.0)
+            frames += 250
+        }
+        assertIs<VadDecision.Stop>(decision)
+        assertEquals(StopReason.MAX_DURATION, decision.reason)
+        assertTrue(frames * 20 in 300_000..300_000 + 5_000, "stopped after ${frames * 20} ms")
+    }
+
+    @Test
     fun `manual stop transcribes only when enough was said`() {
         val vad = VadPolicy(config)
         vad.feed(5, 50.0)

@@ -2,7 +2,9 @@ package app.amethyst.core.engine.sherpa
 
 import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.ModelFileException
+import app.amethyst.core.audio.LongAudio
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.Problem
@@ -129,16 +131,23 @@ class ParakeetEngine(
         val startedAt = clock()
         // Language and prompt do not apply: Parakeet detects the language and keeps no prompt.
         val samples = WhisperInput.prepare(audio)
-        return withContext(compute) {
-            guarded {
-                runtime.ensureLoaded(modelDir)
-                runtime.transcribe(samples)
-            }
-        }.mapCatching { raw ->
-            val text = raw.trim()
-            if (text.isEmpty()) throw SttFailure(SttFailure.NOTHING_RECOGNIZED, "parakeet returned no text")
-            Transcript(text, id, TrustLevel.ON_DEVICE, clock() - startedAt)
+        // Its encoder's memory grows with the square of the length: a long recording goes in
+        // pieces cut at pauses ([LongAudio]), one after another.
+        val pieces = LongAudio.pieces(samples)
+        val texts = mutableListOf<String>()
+        for (piece in pieces) {
+            val part = if (pieces.size == 1) samples else samples.copyOfRange(piece.first, piece.last + 1)
+            val raw = withContext(compute) {
+                guarded {
+                    runtime.ensureLoaded(modelDir)
+                    runtime.transcribe(part)
+                }
+            }.getOrElse { return Result.failure(it) }
+            raw.trim().takeIf { it.isNotEmpty() }?.let(texts::add)
         }
+        val text = ChunkedTranscription.join(texts)
+        if (text.isEmpty()) return Result.failure(SttFailure(SttFailure.NOTHING_RECOGNIZED, "parakeet returned no text"))
+        return Result.success(Transcript(text, id, TrustLevel.ON_DEVICE, clock() - startedAt))
     }
 
     private inline fun <T> guarded(block: () -> T): Result<T> = try {

@@ -105,7 +105,7 @@ class ChatCleanup(
                 put("Accept", "application/json")
             },
             body = HttpBody.Bytes(body.toString().encodeToByteArray(), "application/json"),
-            timeoutMs = TIMEOUT_MS,
+            timeoutMs = timeoutMs(text.length),
             onReceive = if (stream && onProgress != null) StreamProgress(expectedChars(text, style), onProgress)::take else null,
         )
 
@@ -287,6 +287,21 @@ class ChatCleanup(
 
         /** A cleanup is worth a short wait, never a long one; the original text is ready. */
         const val TIMEOUT_MS = 12_000L
+
+        /**
+         * What a longer text adds to [TIMEOUT_MS]: a reply is about as long as the dictation,
+         * and a slow service writes some 100 characters a second - five minutes of German
+         * (about 5000 characters) get a minute.
+         */
+        const val TIMEOUT_MS_PER_CHAR = 10L
+
+        /** How long a cleanup of [chars] characters may take before the text goes in as recognized. */
+        fun timeoutMs(chars: Int): Long = TIMEOUT_MS + chars.coerceAtLeast(0) * TIMEOUT_MS_PER_CHAR
+
+        /** The most characters [audioMs] of speech become - fast speech, 20 a second. */
+        fun mostCharsIn(audioMs: Long): Int = (audioMs.coerceAtLeast(0) * MOST_CHARS_PER_SECOND / 1000).toInt()
+
+        private const val MOST_CHARS_PER_SECOND = 20
 
         /** OpenAI, llama.cpp/vLLM/TGI and Anthropic-style proxies; null when a server omits it. */
         private val NORMAL_ENDS = setOf(null, "stop", "eos", "eos_token", "end_turn", "stop_sequence")

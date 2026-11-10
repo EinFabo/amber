@@ -575,6 +575,7 @@ class BubbleController(
             view.amplitude = state.amplitude
             sparkView.amplitude = state.amplitude
         }
+        view.limitLeft = (state as? DictationState.Listening)?.limitLeft
         if (state is DictationState.Transcribing) view.work = state.progress
         // Paused, the fire throws no sparks.
         val listening = state is DictationState.Listening && !state.paused

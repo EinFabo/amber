@@ -180,6 +180,33 @@ class HttpIntegrationTest {
     }
 
     @Test
+    fun `a server that thinks longer than the read timeout is waited for, within the request's limit`() = runTest {
+        // A long recording: the server reads it, then says nothing until it has recognized all of it.
+        server.createContext("/slow/v1/audio/transcriptions") { exchange: HttpExchange ->
+            exchange.requestBody.readBytes()
+            Thread.sleep(900)
+            val bytes = responseBody.encodeToByteArray()
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        val impatient = OkHttpTransport(
+            okhttp3.OkHttpClient.Builder().readTimeout(300, java.util.concurrent.TimeUnit.MILLISECONDS).build(),
+        )
+        val url = "http://127.0.0.1:${server.address.port}/slow/v1/audio/transcriptions"
+        val body = app.amethyst.core.net.HttpBody.Bytes(ByteArray(16), "application/octet-stream")
+
+        val waited = impatient.execute(app.amethyst.core.net.HttpRequest("POST", url, body = body, timeoutMs = 5_000))
+        assertEquals(200, waited.code)
+        // The request's own limit still ends it.
+        val result = runCatching { impatient.execute(app.amethyst.core.net.HttpRequest("POST", url, body = body, timeoutMs = 400)) }
+        assertTrue(result.isFailure)
+        // A short request keeps the client as it is.
+        val short = app.amethyst.core.net.HttpRequest("POST", url, timeoutMs = 200)
+        assertEquals(300, impatient.clientFor(short).readTimeoutMillis)
+        assertEquals(360_000, impatient.clientFor(short.copy(timeoutMs = 360_000)).readTimeoutMillis)
+    }
+
+    @Test
     fun `an endless answer is cut off instead of filling the memory`() = runTest {
         responseBody = "x".repeat(9 shl 20)
         val result = engine().transcribe(speechLikeAudio(), TranscribeOptions())

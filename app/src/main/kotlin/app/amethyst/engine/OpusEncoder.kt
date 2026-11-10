@@ -68,7 +68,7 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
             val output = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
             muxer = output
             val info = MediaCodec.BufferInfo()
-            val deadline = SystemClock.elapsedRealtime() + TIMEOUT_MS
+            val deadline = SystemClock.elapsedRealtime() + maxOf(TIMEOUT_MS, audio.durationMs / TIMEOUT_SHARE)
             var fed = 0
             var inputDone = false
             var track = -1
@@ -164,6 +164,12 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
 
         /** A two-minute recording encodes in well under a second; past this, WAV is quicker. */
         const val TIMEOUT_MS = 5_000L
+
+        /**
+         * A longer recording gets a 24th of its length (five minutes: 12.5 s) - its WAV is
+         * larger too, 9.4 MB for five minutes, and slower to send than to wait for Opus.
+         */
+        const val TIMEOUT_SHARE = 24L
 
         const val SCRATCH_DIR = "opus-upload"
     }

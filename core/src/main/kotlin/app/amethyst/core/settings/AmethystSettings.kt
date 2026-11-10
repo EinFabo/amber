@@ -9,6 +9,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.NormalizeOptions
 import app.amethyst.core.text.SpliceOptions
 import kotlinx.serialization.Serializable
@@ -86,7 +87,11 @@ data class CaptureSettings(
     val preRollMs: Int = 300,
     val silenceTimeoutMs: Int = 900,
     val minSpeechMs: Int = 350,
-    val maxDurationMs: Int = 120_000,
+    /**
+     * The longest recording; reaching it ends the recording as a tap would, and what was said
+     * is sent. Five minutes since schema 13 (two before), see [LONGEST_DEFAULT_MS].
+     */
+    val maxDurationMs: Int = LONGEST_DEFAULT_MS,
     val stripFillers: Boolean = true,
     /** Adds the commas German requires before subordinate clauses; rules only, no model. */
     val germanCommas: Boolean = true,
@@ -126,12 +131,30 @@ data class CaptureSettings(
      */
     fun effectiveTotalTimeoutMs(): Long {
         val longest = maxDurationMs.toLong()
-        return maxOf(totalTimeoutMs.toLong(), longest + OpenAiCompatibleEngine.requestTimeoutMs(longest) + AFTER_SERVER_MS)
+        return maxOf(totalTimeoutMs.toLong(), longest + OpenAiCompatibleEngine.requestTimeoutMs(longest) + afterServerMs(longest))
     }
 
-    private companion object {
-        /** A cold local model loading and recognizing the recording, then the cleanup. */
-        const val AFTER_SERVER_MS = 90_000L
+    companion object {
+        /** The longest recording a new install - and an install that kept the old default - has. */
+        const val LONGEST_DEFAULT_MS = 300_000
+
+        /** Until schema 13 the default; an install that still has it gets [LONGEST_DEFAULT_MS]. */
+        const val OLD_LONGEST_DEFAULT_MS = 120_000
+
+        /** A cold local model loading, with room to spare. */
+        private const val LOCAL_LOAD_MS = 60_000L
+
+        /** A model on the phone recognizing a recording, in ms per ms of audio: generous. */
+        private const val LOCAL_RATE = 0.15
+
+        /**
+         * After the server gave up: a cold local model loading and recognizing the whole
+         * recording, then the cleanup of the text it became - all of it longer for a longer
+         * recording.
+         */
+        private fun afterServerMs(longestMs: Long): Long =
+            LOCAL_LOAD_MS + (longestMs * LOCAL_RATE).toLong() +
+                ChatCleanup.timeoutMs(ChatCleanup.mostCharsIn(longestMs))
     }
 }
 
@@ -294,12 +317,14 @@ data class AmethystSettings(
          * to none, and the next fetch fills it.
          * 11: the bubble docks on a side edge, with its own height above the keyboard - the
          * free position becomes a side and a height along it.
+         * 13: the longest recording grows from two minutes to five - a stored two minutes was
+         * the old default (settings are saved with every field), any other value the user's.
          * The update check ([updates]) needed no new version: an absent field decodes to its
          * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
          * (settings from before it), and a new install starts with it off ([defaults]).
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 12
+        const val SCHEMA_VERSION = 13
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -371,6 +396,7 @@ object SettingsCodec {
         }
         val migrated = settings.copy(
             activeEngineId = active,
+            capture = if (settings.schemaVersion < 13) migrateCapture(settings.capture) else settings.capture,
             cleanup = cleanup,
             fallback = fallback,
             // Version 8: whoever had settings before the introduction existed has set Amber up.
@@ -408,6 +434,17 @@ private fun migrateBubble(bubble: BubbleSettings): BubbleSettings = bubble.copy(
     horizontalBias = null,
     verticalBias = null,
 )
+
+/**
+ * Version 13: two minutes cut a dictation off mid-sentence. The old default becomes five
+ * minutes; a longest recording the user chose stays as it is.
+ */
+private fun migrateCapture(capture: CaptureSettings): CaptureSettings =
+    if (capture.maxDurationMs == CaptureSettings.OLD_LONGEST_DEFAULT_MS) {
+        capture.copy(maxDurationMs = CaptureSettings.LONGEST_DEFAULT_MS)
+    } else {
+        capture
+    }
 
 /** Version 9: the per-app switch "never" becomes Off, "follow" and "always" the default. */
 @Suppress("DEPRECATION")

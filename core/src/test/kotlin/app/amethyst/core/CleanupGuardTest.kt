@@ -27,6 +27,22 @@ class CleanupGuardTest {
     }
 
     @Test
+    fun `a stuttered negation the cleanup drops is still the same negation`() {
+        assertEquals(Verdict.OK, verdict("das ist nicht nicht so einfach", "Das ist nicht so einfach."))
+        assertEquals(Verdict.OK, verdict("ich hab keine, keine zeit dafür gehabt", "Ich hab keine Zeit dafür gehabt."))
+        // Two apart are two.
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("nicht heute und nicht morgen", "Heute und nicht morgen."))
+    }
+
+    @Test
+    fun `five minutes of german, tidied, pass`() {
+        val (spoken, tidied) = LongDictation.german()
+        assertTrue(spoken.length in 4_500..6_500, "${spoken.length} characters")
+        assertEquals(Verdict.OK, verdict(spoken, tidied))
+        assertEquals(Verdict.OK, verdict(spoken, tidied, language = "de"))
+    }
+
+    @Test
     fun `a dropped negation is rejected`() {
         assertEquals(Verdict.NEGATION_DROPPED, verdict("ich komme morgen nicht", "Ich komme morgen."))
         assertEquals(Verdict.NEGATION_DROPPED, verdict("einen kaffee ohne zucker bitte", "Einen Kaffee mit Zucker, bitte."))
@@ -239,5 +255,43 @@ class CleanupGuardTest {
         val heard = "Lass uns doch heute um 2 an die Stop um 4 Uhr am Bahnhof treffen"
         assertTrue(CleanupGuard.hasCorrectionMarker(heard))
         assertEquals(Verdict.OK, verdict(heard, "Lass uns doch heute um 4 Uhr am Bahnhof treffen."))
+    }
+}
+
+/** About five minutes of German as spoken, and the same tidied - for the long path's tests. */
+internal object LongDictation {
+    private val SENTENCES = listOf(
+        "äh also ich wollte dir noch kurz sagen dass wir morgen um neun uhr anfangen" to
+            "Also, ich wollte dir noch kurz sagen, dass wir morgen um neun Uhr anfangen.",
+        "das ist nicht nicht so einfach weil die lieferung erst am dienstag kommt" to
+            "Das ist nicht so einfach, weil die Lieferung erst am Dienstag kommt.",
+        "ähm wir haben keine zeit mehr für eine zweite runde also müssen wir das heute klären" to
+            "Wir haben keine Zeit mehr für eine zweite Runde, also müssen wir das heute klären.",
+        "kannst du bitte die unterlagen von letzter woche noch einmal durchsehen" to
+            "Kannst du bitte die Unterlagen von letzter Woche noch einmal durchsehen?",
+        "der kunde hat gesagt dass er mit dem entwurf grundsätzlich zufrieden ist aber die farben ändern möchte" to
+            "Der Kunde hat gesagt, dass er mit dem Entwurf grundsätzlich zufrieden ist, aber die Farben ändern möchte.",
+        "wir treffen uns dann am besten im büro und gehen danach zusammen essen" to
+            "Wir treffen uns dann am besten im Büro und gehen danach zusammen essen.",
+        "halt mich bitte auf dem laufenden wenn sich bei dir etwas ändert" to
+            "Halt mich bitte auf dem Laufenden, wenn sich bei dir etwas ändert.",
+    )
+
+    /** Spoken and tidied, sentence after sentence until about [chars] characters. */
+    fun german(chars: Int = 5_000): Pair<String, String> {
+        val spoken = StringBuilder()
+        val tidied = StringBuilder()
+        var i = 0
+        while (spoken.length < chars) {
+            val (raw, clean) = SENTENCES[i % SENTENCES.size]
+            if (spoken.isNotEmpty()) {
+                spoken.append(' ')
+                tidied.append(' ')
+            }
+            spoken.append(raw)
+            tidied.append(clean)
+            i++
+        }
+        return spoken.toString() to tidied.toString()
     }
 }

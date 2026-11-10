@@ -81,11 +81,13 @@ class VadPolicy(private val config: VadConfig = VadConfig()) {
             silenceMs += config.frameMs
         }
 
+        // The longest recording ends it as a tap would: whoever kept it open that long meant
+        // what they said, so the lowest bar counts - and what was said is sent, never thrown away.
         if (totalMs >= config.maxDurationMs) {
-            return if (speechMs >= config.minSpeechMs) {
+            return if (speechMs >= minOf(config.minSpeechMs, config.minManualSpeechMs)) {
                 VadDecision.Stop(StopReason.MAX_DURATION)
             } else {
-                VadDecision.Discard(DiscardReason.NO_SPEECH)
+                VadDecision.Discard(if (speechDetected) DiscardReason.TOO_SHORT else DiscardReason.NO_SPEECH)
             }
         }
 
@@ -126,7 +128,8 @@ data class VadConfig(
     /** Speech needed when the user stops by hand: one short word ("yes") is enough. */
     val minManualSpeechMs: Int = 120,
     val silenceTimeoutMs: Int = 900,
-    val maxDurationMs: Int = 120_000,
+    /** The longest recording; see CaptureSettings.maxDurationMs. */
+    val maxDurationMs: Int = 300_000,
     /** Give up if nothing at all was said - the bubble was tapped by accident. */
     val noSpeechTimeoutMs: Int = 4_000,
     val calibrationFrames: Int = 15,

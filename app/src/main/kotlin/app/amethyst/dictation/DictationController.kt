@@ -20,12 +20,14 @@ import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
 import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.audio.StopReason
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.LoudnessLog
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
+import app.amethyst.core.capture.RecordingLimit
 import app.amethyst.core.capture.RecordingPause
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.capture.withPausableTimeout
@@ -72,6 +74,7 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.ServerCost
 import app.amethyst.core.stats.countWords
+import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
@@ -696,11 +699,19 @@ class DictationController(
         // recording alongside, so its text is there the moment the server fails or hangs.
         val prepared = if (_mode.value == RunMode.DICTATION && chunked == null) prepareFallback(engineConfig) else null
         val chunkSink = chunked ?: prepared?.chunks
+        // The sign that the longest recording is near, for a dictation; a command is short.
+        var limitLeft: Float? = null
         val outcome = try {
             capture.record(
                 config = vadConfig,
                 stopRequested = { stopRequested.get() },
-                onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
+                onAmplitude = { amplitude ->
+                    noteLoudness(amplitude)
+                    updateListening { it.copy(amplitude = amplitude, limitLeft = limitLeft) }
+                },
+                onRecorded = { ms ->
+                    limitLeft = if (_mode.value == RunMode.DICTATION) RecordingLimit.left(ms, vadConfig.maxDurationMs) else null
+                },
                 onChunk = chunkSink?.let { it::submit },
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
                 pause = pause,
@@ -754,6 +765,10 @@ class DictationController(
 
             is AudioCapture.Outcome.Captured -> {
                 trace?.recordingEnds()
+                // Sent as a tap would, all of it; the diagnostics say why it ended there.
+                if (outcome.reason == StopReason.MAX_DURATION) {
+                    trace?.ended = "ended at the longest recording, ${vadConfig.maxDurationMs / 1000} s"
+                }
                 // Ended while paused: the pause ends with the recording.
                 pause.resume(SystemClock.elapsedRealtime())
                 trace?.pausedMs = pause.pausedMs(SystemClock.elapsedRealtime())
@@ -1138,7 +1153,8 @@ class DictationController(
             transcript.detectedLanguage,
             settings.engines.firstOrNull { it.id == transcript.engineId }?.languageTag,
         )
-        val result = withTimeoutOrNull(CLEANUP_TIMEOUT_MS) {
+        // A long text takes its time to be written back; past it, it goes in as recognized.
+        val result = withTimeoutOrNull(ChatCleanup.timeoutMs(transcript.text.length)) {
             coroutineScope {
                 val work = async {
                     cleanup.clean(
@@ -1608,8 +1624,6 @@ class DictationController(
         /** About how many characters a millisecond of speech becomes - 15 a second - for planning the cleanup. */
         const val CHARS_PER_AUDIO_MS = 0.015
 
-        /** Past this the dictation goes in as recognized rather than keep the user waiting. */
-        const val CLEANUP_TIMEOUT_MS = 12_000L
         const val PROXY_HANDOVER_TIMEOUT_MS = 3_000L
         const val FAILED_DISPLAY_MS = 3_500L
         const val PROXY_EXIT_TIMEOUT_MS = 1_500L

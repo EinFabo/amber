@@ -82,7 +82,7 @@ class OkHttpTransport(
      * call by [HttpRequest.timeoutMs].
      */
     override suspend fun execute(request: HttpRequest): HttpResponse {
-        val call = client.newCall(toOkRequest(request))
+        val call = clientFor(request).newCall(toOkRequest(request))
         call.timeout().timeout(request.timeoutMs, TimeUnit.MILLISECONDS)
         return suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { call.cancel() }
@@ -108,6 +108,20 @@ class OkHttpTransport(
             )
         }
     }
+
+    /**
+     * A server answers a long recording only once it has recognized all of it, and sends no
+     * byte meanwhile: the client's read timeout would end that wait long before the request's
+     * own limit - five minutes of audio on a PC's CPU take longer than two. A request allowed
+     * more than the read timeout may wait silently for as long as it is allowed; the call
+     * timeout still bounds it. Same pool and threads, only the timeout differs.
+     */
+    internal fun clientFor(request: HttpRequest): OkHttpClient =
+        if (request.timeoutMs <= client.readTimeoutMillis) {
+            client
+        } else {
+            client.newBuilder().readTimeout(request.timeoutMs, TimeUnit.MILLISECONDS).build()
+        }
 
     /**
      * The body, refused beyond [MAX_RESPONSE_BYTES]: a transcript or a cleanup reply is a few

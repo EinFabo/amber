@@ -66,6 +66,9 @@ internal class RunTrace(val route: String) {
     /** Whether the field was looked for again when Android said none had focus, and how that went. */
     var refind: String? = null
 
+    /** Why the recording ended, when it was not a tap or a pause ("ended at the longest recording, 300 s"). */
+    var ended: String? = null
+
     /** How long the recording was paused, and the line saying so ("paused 4.2 s"). */
     var pausedMs = 0L
     var paused: String? = null
@@ -101,6 +104,7 @@ internal class RunTrace(val route: String) {
         add("route $route")
         if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
         if (recordingTo > 0) add("recording ${ms(recordingMs)}")
+        ended?.let(::add)
         paused?.let(::add)
         if (transcribingTo > 0) {
             val warm = when (modelWarm) {

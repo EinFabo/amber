@@ -73,6 +73,29 @@ class ChatCleanupTest {
     }
 
     @Test
+    fun `five minutes of german get through the cleanup`() = runTest {
+        val (spoken, tidied) = LongDictation.german()
+        val transport = FakeHttpTransport.json(reply(tidied))
+        val result = cleanup(transport).clean(spoken, language = "de").getOrThrow()
+        assertEquals(tidied, result.text)
+        val request = transport.requests.single()
+        // Room for the whole reply even at two characters a token, and time for a slow service
+        // to write it: some 100 characters a second.
+        val body = Json.parseToJsonElement(assertIs<HttpBody.Bytes>(request.body).bytes.decodeToString()).jsonObject
+        assertTrue(body["max_tokens"]!!.jsonPrimitive.content.toInt() >= tidied.length / 2)
+        assertTrue(request.timeoutMs >= 12_000 + spoken.length * 10L, "${request.timeoutMs} ms")
+        assertEquals(request.timeoutMs, ChatCleanup.timeoutMs(spoken.length))
+    }
+
+    @Test
+    fun `a short cleanup keeps its short wait`() {
+        assertTrue(ChatCleanup.timeoutMs(200) <= 15_000)
+        assertEquals(ChatCleanup.TIMEOUT_MS, ChatCleanup.timeoutMs(0))
+        // Five minutes of fast speech: about 6000 characters.
+        assertEquals(6_000, ChatCleanup.mostCharsIn(300_000))
+    }
+
+    @Test
     fun `worked examples go before the dictation as user and assistant turns`() = runTest {
         val transport = FakeHttpTransport.json(reply("Ich komme morgen."))
         cleanup(transport).clean("ich komme morgen")

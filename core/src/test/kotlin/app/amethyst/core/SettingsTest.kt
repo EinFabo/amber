@@ -21,6 +21,7 @@ import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.StoredCatalog
 import app.amethyst.core.settings.UpdateSettings
+import app.amethyst.core.text.ChatCleanup
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -127,6 +128,39 @@ class SettingsTest {
     }
 
     @Test
+    fun `schema 13 moves the old two minute default to five minutes`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],
+            "capture":{"autoStopOnSilence":false,"totalTimeoutMs":180000,"maxDurationMs":120000,"chunking":true},
+            "schemaVersion":12}"""
+        val migrated = SettingsCodec.decode(old, TEST_PHONE)
+        assertEquals(300_000, migrated.capture.maxDurationMs)
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+        assertTrue(migrated.capture.chunking, "the rest of the capture settings stay")
+        // Saved again, it stays five minutes: the step runs once.
+        assertEquals(300_000, SettingsCodec.decode(SettingsCodec.encode(migrated), TEST_PHONE).capture.maxDurationMs)
+    }
+
+    @Test
+    fun `schema 13 keeps a longest recording the user chose`() {
+        for (chosen in listOf(30_000, 90_000, 150_000, 240_000)) {
+            val old = """{"activeEngineId":"android-on-device","engines":[],"capture":{"maxDurationMs":$chosen},"schemaVersion":12}"""
+            assertEquals(chosen, SettingsCodec.decode(old, TEST_PHONE).capture.maxDurationMs)
+        }
+        // Two minutes chosen after the step is a choice, not the old default.
+        val current = """{"activeEngineId":"android-on-device","engines":[],"capture":{"maxDurationMs":120000},"schemaVersion":13}"""
+        assertEquals(120_000, SettingsCodec.decode(current, TEST_PHONE).capture.maxDurationMs)
+    }
+
+    @Test
+    fun `a new install records up to five minutes`() {
+        assertEquals(300_000, AmethystSettings.defaults(TEST_PHONE).capture.maxDurationMs)
+        assertEquals(300_000, AmethystSettings.defaults(TEST_PHONE).capture.toVadConfig().maxDurationMs)
+        // Settings from before the capture block was saved decode to the defaults too.
+        val bare = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":4}"""
+        assertEquals(300_000, SettingsCodec.decode(bare, TEST_PHONE).capture.maxDurationMs)
+    }
+
+    @Test
     fun `schema 11 gives settings without a bubble position the defaults`() {
         val old = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":4}"""
         val bubble = SettingsCodec.decode(old, TEST_PHONE).bubble
@@ -162,11 +196,20 @@ class CaptureTimeoutTest {
     @Test
     fun `a server that times out still leaves the phone time to take over`() {
         // Recording, the server's whole time limit, then a cold local model: a minute of it.
-        for (max in listOf(30_000, 60_000, 120_000)) {
+        for (max in listOf(30_000, 60_000, 120_000, 300_000)) {
             val settings = CaptureSettings(maxDurationMs = max)
             val serverGivesUp = max + OpenAiCompatibleEngine.requestTimeoutMs(max.toLong())
             assertTrue(settings.effectiveTotalTimeoutMs() >= serverGivesUp + 60_000L, "max $max: ${settings.effectiveTotalTimeoutMs()}")
         }
+    }
+
+    @Test
+    fun `five minutes leave the phone time to recognize them and the cleanup time for the text`() {
+        val settings = CaptureSettings(maxDurationMs = 300_000)
+        val serverGivesUp = 300_000 + OpenAiCompatibleEngine.requestTimeoutMs(300_000)
+        // A model on the phone at 0.15 ms per ms of audio, then the cleanup of 6000 characters.
+        val after = 45_000L + ChatCleanup.timeoutMs(6_000)
+        assertTrue(settings.effectiveTotalTimeoutMs() >= serverGivesUp + after, "${settings.effectiveTotalTimeoutMs()}")
     }
 
     @Test

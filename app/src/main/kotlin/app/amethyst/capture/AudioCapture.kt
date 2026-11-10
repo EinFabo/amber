@@ -52,6 +52,11 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         stopRequested: () -> Boolean,
         onAmplitude: (Float) -> Unit,
         /**
+         * How long the recording is so far (ms, paused time not counted), after each frame
+         * kept and before its [onAmplitude] - for the sign that the longest recording is near.
+         */
+        onRecorded: (Long) -> Unit = {},
+        /**
          * Receives each finished part of a running recording, cut at a pause, so it can be
          * recognized while the user goes on speaking. Null records in one piece.
          */
@@ -135,6 +140,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     is PausableRecording.Step.End -> step.decision
                     is PausableRecording.Step.Keep -> {
                         recorded.append(frame, read)
+                        onRecorded(recorded.durationMs)
                         onAmplitude(PcmAccumulator.normalizeLoudness(rms))
                         planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->
                             onChunk?.invoke(recorded.slice(chunk.start, chunk.end))

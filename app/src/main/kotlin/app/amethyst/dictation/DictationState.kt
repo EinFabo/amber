@@ -13,7 +13,17 @@ sealed interface DictationState {
     data object Starting : DictationState
 
     /** [paused]: from the bubble's menu; the microphone stays open, nothing is kept until it goes on. */
-    data class Listening(val amplitude: Float = 0f, val partial: String? = null, val paused: Boolean = false) : DictationState
+    data class Listening(
+        val amplitude: Float = 0f,
+        val partial: String? = null,
+        val paused: Boolean = false,
+        /**
+         * In the last stretch before the longest recording: what is left of it, 1f down to 0f
+         * ([app.amethyst.core.capture.RecordingLimit]); null before it, and while a recognizer
+         * that listens by itself runs.
+         */
+        val limitLeft: Float? = null,
+    ) : DictationState
 
     /**
      * Turning the recording into text, and cleaning it. [progress] is how far that has come,

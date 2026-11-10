@@ -35,7 +35,8 @@ enum class BubbleVisual { IDLE, LISTENING, PAUSED, TRANSCRIBING, DONE, FAILED }
  * tick and lets one short burst of sparks go. The rising sparks while listening are drawn by
  * [SparkView] in a window of their own, because they leave this one. Nothing moves at rest.
  * Paused, the fire is banked: a dark disc in a ring of cooling ember, the level bars stopped
- * as two amber bars, no sparks.
+ * as two amber bars, no sparks. Shortly before the longest recording the rim burns down: a
+ * ring that shrinks towards twelve o'clock and reddens like an ember as the end comes.
  */
 class BubbleView(context: Context) : View(context) {
 
@@ -76,6 +77,18 @@ class BubbleView(context: Context) : View(context) {
      * nothing to go by - the spark then just runs around the rim.
      */
     var work: WaitProgress? = null
+
+    /**
+     * In the last stretch before the longest recording, what is left of it (1f..0f): the rim
+     * burns down with it. Null otherwise.
+     */
+    var limitLeft: Float? = null
+        set(value) {
+            val changed = field != value
+            field = value
+            // While listening the bubble draws on its own clock; with animations off, each step draws.
+            if (changed && (value == null || !ValueAnimator.areAnimatorsEnabled())) invalidate()
+        }
 
     private var stateEnteredAt = SystemClock.elapsedRealtime()
 
@@ -154,6 +167,7 @@ class BubbleView(context: Context) : View(context) {
                 drawClosingRing(canvas, r, elapsed)
                 drawBurst(canvas, r, elapsed)
             }
+            BubbleVisual.LISTENING -> limitLeft?.let { drawBurningDown(canvas, r, it) }
             else -> Unit
         }
 
@@ -289,6 +303,22 @@ class BubbleView(context: Context) : View(context) {
         val rad = Math.toRadians((-90f + sweep).toDouble())
         spark.alpha = (255 * enter).toInt()
         canvas.drawCircle(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr, fuse.strokeWidth * 1.1f, spark)
+    }
+
+    /**
+     * The longest recording is near: on the fuse's track, a ring from twelve o'clock that burns
+     * down clockwise to nothing as [left] goes 1..0, amber turning ember red towards the end.
+     */
+    private fun drawBurningDown(canvas: Canvas, r: Float, left: Float) {
+        val fr = r * Fire.FUSE_RADIUS
+        bounds.set(cx - fr, cy - fr, cx + fr, cy + fr)
+        fuse.strokeCap = Paint.Cap.ROUND
+        fuse.color = Fire.mix(Fire.AMBER, Fire.EMBER_RED, 1f - left)
+        fuse.alpha = (255 * Fire.TRACK_ALPHA).toInt()
+        canvas.drawCircle(cx, cy, fr, fuse)
+        fuse.alpha = 255
+        if (left > 0f) canvas.drawArc(bounds, -90f, 360f * left, false, fuse)
+        fuse.color = Fire.AMBER
     }
 
     /** On success the ring stands full for a moment and fades with the burst. */

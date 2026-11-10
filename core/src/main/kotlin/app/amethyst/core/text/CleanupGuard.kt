@@ -199,15 +199,20 @@ object CleanupGuard {
 
     /**
      * How many negations [text] holds. "No" counts inside a sentence ("I have no time"), not as
-     * its first word, where it answers - and "nein" never: it answers or takes back.
+     * its first word, where it answers - and "nein" never: it answers or takes back. A stutter
+     * ("nicht, nicht so") is one negation: the cleanup rightly drops the repeat, and in a long
+     * dictation one such repeat would otherwise reject the whole tidy-up.
      */
     fun negations(text: String): Int {
         var count = 0
         var sentenceStart = true
+        var previous: String? = null
         for (token in tokens(text)) {
             val word = token.word
-            if (word in GERMAN_NEGATIONS || word in ENGLISH_NEGATIONS || word.endsWith("n't")) count++
-            else if (word == "no" && !sentenceStart) count++
+            val negation = word in GERMAN_NEGATIONS || word in ENGLISH_NEGATIONS || word.endsWith("n't") ||
+                (word == "no" && !sentenceStart)
+            if (negation && word != previous) count++
+            previous = word
             sentenceStart = token.endsSentence
         }
         return count
