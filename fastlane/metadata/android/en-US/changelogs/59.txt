@@ -1,0 +1,6 @@
+- No dictation lost: the screen stays on while you dictate; Amber finds the field you started in again
+- Dictations up to 5 minutes
+- Speech recognition per app
+- A quick menu of your own, with Open Amber, Style here, Next style and App page
+- Diagnostics without your words
+- Fixes: German "um" kept on an English phone, smoother level in the bubble

@@ -1,0 +1,28 @@
+Amber is voice dictation that writes into <b>any</b> app. Tap into a text field, a small amber bubble appears; tap it, speak, tap again - the text lands at the cursor. No keyboard switch, no clipboard.
+
+<b>You decide where your voice goes</b>
+Every dictation shows where it was recognized:
+<ul>
+<li><b>On this phone</b> - Parakeet TDT (25 European languages), Whisper (FUTO models or large-v3-turbo) or Android's own recognizer. Nothing leaves the phone.</li>
+<li><b>Verified enclave</b> - Tinfoil: Amber checks the server's hardware attestation before anything is sent, and sends nothing if the check fails.</li>
+<li><b>Cloud</b> - Groq, OpenAI, or your own server (Amber PC, Speaches, LocalAI, whisper.cpp) with your own API key.</li>
+</ul>
+Amber never claims more privacy than it can prove, and never detours your voice to a less private place. If a server cannot be reached, a downloaded local model recognizes the recording instead of losing it.
+
+<b>Features</b>
+<ul>
+<li>Dictations up to 5 minutes, recognized in parts while you are still speaking</li>
+<li>Optional cleanup of the text (punctuation, filler words) with a style per app: casual in chats, formal in mail</li>
+<li>Speech recognition per app: a server for notes, the phone for chats</li>
+<li>A quick menu on a long press of the bubble: insert again, copy, cancel, send as spoken</li>
+<li>Statistics counted on the phone only - words, apps, time saved - never your text or audio</li>
+<li>English and German, following the phone's language</li>
+</ul>
+
+<b>Permissions</b>
+Amber needs the microphone and its accessibility service: the service finds the text field, shows the bubble and types the text. It does not need "display over other apps". Speech models are downloaded inside the app when you choose one.
+
+<b>Network services</b>
+Groq, OpenAI and Tinfoil are third-party services; they are used only when you set them up with your own key and choose them.
+
+Requires Android 9 or newer on a 64-bit ARM phone.

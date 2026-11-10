@@ -1,0 +1,28 @@
+Amber ist Diktieren, das in <b>jede</b> App schreibt. Tippe in ein Textfeld, eine kleine bernsteinfarbene Bubble erscheint; tippe sie an, sprich, tippe nochmal - der Text landet am Cursor. Kein Tastaturwechsel, keine Zwischenablage.
+
+<b>Du entscheidest, wohin deine Stimme geht</b>
+Jedes Diktat zeigt, wo es erkannt wurde:
+<ul>
+<li><b>Auf dem Handy</b> - Parakeet TDT (25 europäische Sprachen), Whisper (FUTO-Modelle oder large-v3-turbo) oder Androids eigene Spracherkennung. Nichts verlässt das Handy.</li>
+<li><b>Geprüfte Enklave</b> - Tinfoil: Amber prüft die Hardware-Bestätigung des Servers, bevor etwas gesendet wird, und sendet nichts, wenn die Prüfung fehlschlägt.</li>
+<li><b>Cloud</b> - Groq, OpenAI oder dein eigener Server (Amber PC, Speaches, LocalAI, whisper.cpp) mit deinem eigenen API-Schlüssel.</li>
+</ul>
+Amber behauptet nie mehr Privatsphäre, als es belegen kann, und leitet deine Stimme nie an einen weniger privaten Ort um. Ist ein Server nicht erreichbar, erkennt ein heruntergeladenes lokales Modell die Aufnahme, statt sie zu verlieren.
+
+<b>Funktionen</b>
+<ul>
+<li>Diktate bis 5 Minuten, in Teilen erkannt, während du noch sprichst</li>
+<li>Auf Wunsch Bereinigung des Textes (Satzzeichen, Füllwörter) mit einem Stil pro App: locker im Chat, förmlich in der Mail</li>
+<li>Spracherkennung pro App: ein Server für Notizen, das Handy für Chats</li>
+<li>Ein Schnellmenü per langem Druck auf die Bubble: nochmal einfügen, kopieren, abbrechen, wie gesprochen senden</li>
+<li>Statistik nur auf dem Handy gezählt - Wörter, Apps, gesparte Zeit - nie dein Text oder deine Aufnahme</li>
+<li>Deutsch und Englisch, nach der Sprache des Handys</li>
+</ul>
+
+<b>Berechtigungen</b>
+Amber braucht das Mikrofon und seine Bedienungshilfe: Sie findet das Textfeld, zeigt die Bubble und tippt den Text. "Über anderen Apps einblenden" braucht Amber nicht. Sprachmodelle lädst du in der App herunter, wenn du eins auswählst.
+
+<b>Netzwerkdienste</b>
+Groq, OpenAI und Tinfoil sind Dienste Dritter; Amber nutzt sie nur, wenn du sie mit deinem eigenen Schlüssel einrichtest und auswählst.
+
+Läuft ab Android 9 auf einem Handy mit 64-Bit-ARM.

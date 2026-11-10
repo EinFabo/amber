@@ -70,6 +70,14 @@ android {
         }
     }
 
+    // No dependency metadata in the APK: AGP otherwise adds a block encrypted with Google's key
+    // that only Play can read. F-Droid and IzzyOnDroid flag it, and it would stand between our
+    // APK and a reproducible build.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     androidResources {
         // The app follows the phone's language: English, and German from values-de. Android 13+
         // also offers this list per app in its settings (the locale config generated from res/,

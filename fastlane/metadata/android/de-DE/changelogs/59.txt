@@ -1,0 +1,6 @@
+- Kein Diktat geht verloren: Der Bildschirm bleibt beim Diktieren an; Amber findet das Feld wieder, in dem du angefangen hast
+- Diktate bis 5 Minuten
+- Spracherkennung pro App
+- Ein eigenes Schnellmenü, mit Amber öffnen, Stil hier, Nächster Stil und App-Seite
+- Diagnose ohne deine Worte
+- Korrekturen: deutsches "um" bleibt auf einem englischen Handy, ruhigere Pegelanzeige in der Bubble

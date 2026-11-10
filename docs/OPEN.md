@@ -645,13 +645,23 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [ ] **Anti-features** to declare honestly (check against F-Droid's list): Groq, OpenAI and
       Tinfoil are network services (`NonFreeNet`); models are downloaded at runtime from Hugging
       Face - check the licences of Parakeet (CC-BY-4.0) and the FUTO and ACFT Whisper models.
-- [ ] **Metadata** in the repo as fastlane (`fastlane/metadata/android/en-US/`: title, short
-      and full description, `changelogs/<versionCode>.txt`, phone screenshots from `Screenshots`).
+- [x] **Metadata** in the repo as fastlane (2026-11-10): `fastlane/metadata/android/en-US/` and
+      `de-DE/` - title, short and full description, `changelogs/59.txt`, icon, seven phone
+      screenshots from `Screenshots`. Each release needs `changelogs/<versionCode>.txt` in both
+      before the tag: the stores read it from the tagged commit.
+- [x] `dependenciesInfo` off in `app/build.gradle.kts` (2026-11-10). Our APKs never carried the
+      block (signed outside AGP), but scanners read the build file.
 - [ ] **Signing.** F-Droid signs with its own key unless the build is reproducible and matches
       ours - then it ships our signature and updates cross over with our release APKs. That is the
       reproducible-build item of M1 above; without it, the two are separate installs.
-- [ ] **IzzyOnDroid first?** Its repo takes the signed APK from a GitHub release (no build from
-      source), so it is the quicker first step; it still scans for non-free libraries.
+- [ ] **IzzyOnDroid** (checked 2026-11-10): requests go to
+      codeberg.org/IzzyOnDroid/repodata (template "App Inclusion Request", Codeberg account).
+      APK from the GitHub release, at most 30 MB (ours: 21 MB), signing key pinned on first
+      inclusion, fastlane read from the tagged commit, reproducible builds de facto expected.
+      **Blocker: their AI policy** rejects apps written in large part with generative AI - the
+      form asks for the "AI Assistance Level", and every `llm/substantial` request in the recent
+      ones was declined (a speech-input app among them, #844). Amber is built with Claude Code,
+      so an honest request would very likely be declined. Fabi decides whether to ask anyway.
 - [ ] Recipe (`metadata/app.amber.yml`) as a merge request to fdroiddata.
 
 ## Research: what Amber needs, best UX, review (Fabi, 2026-10-30)
