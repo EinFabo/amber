@@ -63,6 +63,9 @@ internal class RunTrace(val route: String) {
     /** The engine whose server ran [cleanupModel] - the cleanup is priced by its provider. */
     var cleanupEngineId: String? = null
 
+    /** Whether the field was looked for again when Android said none had focus, and how that went. */
+    var refind: String? = null
+
     /** How long the recording was paused, and the line saying so ("paused 4.2 s"). */
     var pausedMs = 0L
     var paused: String? = null
@@ -111,6 +114,7 @@ internal class RunTrace(val route: String) {
         }
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
+        refind?.let(::add)
         fallback?.let(::add)
         prepared?.let(::add)
         cleanupNote?.let { add(if (namesApps) it else "cleanup routed by the app's style") }

@@ -17,9 +17,11 @@
     <string name="dictation_on_clipboard_instead">%1$s - der Text ist stattdessen in der Zwischenablage.</string>
     <string name="dictation_not_inserted">%1$s - nicht eingefügt.</string>
     <string name="dictation_not_inserted_in_diagnostics">%1$s - nicht eingefügt. Der Text steht in Ambers Diagnose.</string>
+    <string name="dictation_not_inserted_insert_again">%1$s - nicht eingefügt. Tippe ins Feld, halte die Bubble und wähle „Nochmal einfügen“.</string>
     <string name="dictation_typed_never_showed">Der Text wurde getippt, ist aber nie im Feld erschienen</string>
     <string name="dictation_no_field_accepted">Kein Textfeld hat den Text angenommen</string>
     <string name="dictation_in_diagnostics">%1$s. Er steht in Ambers Diagnose.</string>
+    <string name="dictation_insert_again">%1$s. Tippe ins Feld, halte die Bubble und wähle „Nochmal einfügen“.</string>
 
     <string name="fallback_server_too_slow">Der Server hat zu lange gebraucht - der auf dem Handy erkannte Text wurde genommen.</string>
     <string name="fallback_no_connection">Keine Verbindung - auf dem Handy erkannt mit %1$s.</string>

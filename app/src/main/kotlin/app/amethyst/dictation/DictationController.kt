@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.amethyst.DebugLog
@@ -144,6 +145,12 @@ class DictationController(
      */
     private var startTarget: InputTarget? = null
 
+    /**
+     * The node of [startTarget]'s field, where Android names it (not in Compose apps): found
+     * again by it when Android has lost track of the focus by the time the text is ready.
+     */
+    private var startNode: AccessibilityNodeInfo? = null
+
     /** The local engine that took over this dictation from an unreachable server, if any. */
     private var fellBack: String? = null
 
@@ -261,7 +268,7 @@ class DictationController(
             skipCleanup = CompletableDeferred()
             fellBack = null
             fellBackFrom = null
-            startTarget = graph.accessibilityService?.focusedTarget()
+            takeStartTarget()
             _mode.value = CommandTrigger.modeAtStart(
                 source,
                 commandsOn = graph.settings.value.commandsEnabled,
@@ -1268,7 +1275,7 @@ class DictationController(
         commandSteps = null
         commandRecorded = false
         trace = RunTrace("TEST/COMMAND")
-        startTarget = graph.accessibilityService?.focusedTarget()
+        takeStartTarget()
         runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
         _mode.value = RunMode.DICTATION
     }
@@ -1279,7 +1286,7 @@ class DictationController(
      * field that has focus now counts as the one the dictation started in.
      */
     internal suspend fun deliverForTest(text: String, formatted: Boolean) {
-        startTarget = graph.accessibilityService?.focusedTarget()
+        takeStartTarget()
         val transcript = Transcript(
             text = text,
             engineId = "debug-test",
@@ -1288,6 +1295,13 @@ class DictationController(
             formatted = formatted,
         )
         deliver(transcript, graph.settings.value, transcript.engineId)
+    }
+
+    /** The field that has focus now is the one this run is for. */
+    private fun takeStartTarget() {
+        val service = graph.accessibilityService
+        startTarget = service?.focusedTarget()
+        startNode = startTarget?.let { service?.textInserter?.inputFocus() }
     }
 
     private suspend fun deliver(
@@ -1315,8 +1329,29 @@ class DictationController(
 
         awaitFocusReturn()
 
-        val now = graph.accessibilityService?.focusedTarget()
-        val verdict = TargetCheck.verdict(startTarget, now)
+        var now = graph.accessibilityService?.focusedTarget()
+        var verdict = TargetCheck.verdict(startTarget, now)
+        // Android may say no field has focus while the field is still there: the screen went
+        // off during a long recording, the app rebuilt its field, a Compose app ended input with
+        // the keyboard. In the start window the field is looked for again.
+        var refound: AccessibilityNodeInfo? = null
+        if (verdict == TargetCheck.Verdict.NO_FIELD) {
+            val found = inserter.refind(startTarget, startNode)
+            trace?.refind = found.note
+            Log.i(TAG, found.note)
+            found.node?.let { node ->
+                // Focused as a tap would: the app starts input again and the words are typed,
+                // the way that keeps them. Where focus does not take, they go into the node.
+                inserter.focus(node)
+                delay(FOCUS_SETTLE_MS)
+                now = graph.accessibilityService?.focusedTarget()
+                verdict = TargetCheck.verdict(startTarget, now)
+                if (verdict == TargetCheck.Verdict.NO_FIELD) {
+                    refound = node
+                    verdict = TargetCheck.Verdict.INSERT
+                }
+            }
+        }
         if (verdict != TargetCheck.Verdict.INSERT) {
             Log.i(TAG, "not inserting: $verdict (start ${DebugLog.redact(startTarget?.packageName)}, now ${DebugLog.redact(now?.packageName)})")
             val why = when (verdict) {
@@ -1329,10 +1364,15 @@ class DictationController(
             val copied = verdict != TargetCheck.Verdict.SECRET &&
                 settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
             // The words stay in the record: Insert again and Copy last take them.
-            if (copied) {
-                fail({ it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) }, engineId, text = cleaned)
-            } else {
-                fail(
+            when {
+                copied -> fail({ it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) }, engineId, text = cleaned)
+                // The way back, said on the bubble's toast: in the field, Insert again.
+                verdict != TargetCheck.Verdict.SECRET -> fail(
+                    { it.getString(R.string.dictation_not_inserted_insert_again, it.getString(why)) },
+                    engineId,
+                    text = cleaned,
+                )
+                else -> fail(
                     { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
                     engineId,
                     brief = { it.getString(R.string.dictation_not_inserted_in_diagnostics, it.getString(why)) },
@@ -1347,6 +1387,7 @@ class DictationController(
             cleaned,
             settings.insertion.toSpliceOptions(),
             allowClipboard = settings.insertion.allowClipboard,
+            into = refound,
         )
         trace?.insertingEnds()
         Log.i(
@@ -1361,11 +1402,13 @@ class DictationController(
             // Neither the field nor the clipboard took it. The words stay in the record, so
             // they survive in the diagnostics card and Insert again can still take them.
             val what = if (insertion.uncertain) R.string.dictation_typed_never_showed else R.string.dictation_no_field_accepted
+            // Typed and maybe still on its way: Insert again could give the words twice.
+            val brief = if (insertion.uncertain) R.string.dictation_in_diagnostics else R.string.dictation_insert_again
             val lastTrace = inserter.lastTrace
             fail(
                 { "${it.getString(what)} [$lastTrace]" },
                 engineId,
-                brief = { it.getString(R.string.dictation_in_diagnostics, it.getString(what)) },
+                brief = { it.getString(brief, it.getString(what)) },
                 text = cleaned,
             )
             return

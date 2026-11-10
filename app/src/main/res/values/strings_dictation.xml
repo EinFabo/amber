@@ -19,9 +19,11 @@
     <string name="dictation_on_clipboard_instead">%1$s - the text is on the clipboard instead.</string>
     <string name="dictation_not_inserted">%1$s - not inserted.</string>
     <string name="dictation_not_inserted_in_diagnostics">%1$s - not inserted. The text is in Amber\'s diagnostics.</string>
+    <string name="dictation_not_inserted_insert_again">%1$s - not inserted. Tap into the field, hold the bubble and choose “Insert again”.</string>
     <string name="dictation_typed_never_showed">The text was typed but never showed up in the field</string>
     <string name="dictation_no_field_accepted">No text field accepted the text</string>
     <string name="dictation_in_diagnostics">%1$s. It is in Amber\'s diagnostics.</string>
+    <string name="dictation_insert_again">%1$s. Tap into the field, hold the bubble and choose “Insert again”.</string>
 
     <string name="fallback_server_too_slow">The server took too long - used the text recognized on the phone.</string>
     <string name="fallback_no_connection">No connection - recognized on the phone with %1$s.</string>

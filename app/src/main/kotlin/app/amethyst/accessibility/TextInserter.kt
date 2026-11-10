@@ -10,14 +10,20 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import app.amethyst.DebugLog
 import app.amethyst.R
+import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
+import app.amethyst.core.insert.InputTarget
+import app.amethyst.core.insert.SeenField
+import app.amethyst.core.insert.TargetRefind
+import app.amethyst.core.insert.WindowInFront
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import android.view.inputmethod.EditorInfo
@@ -49,8 +55,22 @@ class TextInserter(
     var lastTrace: String = ""
         private set
 
-    fun insert(text: String, options: SpliceOptions, allowClipboard: Boolean): InsertionOutcome {
-        val (target, trace) = resolveTarget()
+    /**
+     * Into the field that has focus - or, with [into], into that node: a field found again
+     * after Android lost track of the focus ([refind]).
+     */
+    fun insert(
+        text: String,
+        options: SpliceOptions,
+        allowClipboard: Boolean,
+        into: AccessibilityNodeInfo? = null,
+    ): InsertionOutcome {
+        val (target, trace) = if (into != null) {
+            // No typing: without focus the input connection, if any, is not this field's.
+            NodeTarget(service, into, { null }, mayType = false) to "found again: ${into.describe()}"
+        } else {
+            resolveTarget()
+        }
         val outcome = engine.insert(target, text, options, allowClipboard)
 
         lastTrace = "$trace → ${outcome.strategy.name}" +
@@ -127,6 +147,74 @@ class TextInserter(
     fun searchFocusedEditable(owner: String?): AccessibilityNodeInfo? =
         findFocusedEditable(onlyInUse = owner == null, owner = owner)
 
+    /** A field found again by [refind], or why there is none - [note] is for the diagnostics. */
+    class Refound(val node: AccessibilityNodeInfo?, val note: String)
+
+    /**
+     * Looks for the dictation's field again when Android no longer says which field has focus:
+     * [start]'s window must still be the one in front, and [TargetRefind] picks among its
+     * editable fields - [startNode], the node that had focus at the start, when it is still
+     * there. The search walks the one window, bounded like [findFocusedEditable].
+     */
+    fun refind(start: InputTarget?, startNode: AccessibilityNodeInfo?): Refound {
+        val front = windowInFront()
+        if (!TargetRefind.sameWindow(start, front?.first)) {
+            return Refound(null, "field not found again: ${TargetRefind.pick(start, front?.first, emptyList()).describe()}")
+        }
+        val nodes = editableNodes(front!!.second)
+        val seen = nodes.map { node ->
+            SeenField(
+                kind = TextFieldKind.of(node.inputType, node.isPassword),
+                isStart = startNode != null && node == startNode,
+                focused = node.isFocused,
+                shown = node.isVisibleToUser && node.isEnabled,
+            )
+        }
+        val result = TargetRefind.pick(start, front.first, seen)
+        val node = (result as? TargetRefind.Result.Found)?.let { nodes[it.index] }
+        val found = if (node != null) "field found again" else "field not found again"
+        return Refound(node, "$found: ${result.describe()} (${nodes.size} editable in the window)")
+    }
+
+    /** Gives [node] input focus, as a tap would: its app starts input again, and typing works. */
+    fun focus(node: AccessibilityNodeInfo): Boolean =
+        runCatching { node.performAction(AccessibilityNodeInfo.ACTION_FOCUS) }.getOrDefault(false)
+
+    /**
+     * The window the user is in, with its root: the active one - which may be the lock screen
+     * or the notification shade, and then the app is not in front - else, with no window
+     * active at all, the topmost app window. The list comes top first.
+     */
+    private fun windowInFront(): Pair<WindowInFront, AccessibilityNodeInfo>? = runCatching {
+        val windows = service.windows
+        val window = windows.firstOrNull { it.isActive }
+            ?: windows.firstOrNull { it.isFocused }
+            ?: windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            ?: return@runCatching null
+        val root = window.root ?: return@runCatching null
+        val pkg = root.packageName?.toString() ?: return@runCatching null
+        WindowInFront(pkg, window.id) to root
+    }.getOrNull()
+
+    /** The editable nodes under [root], breadth-first, at most [MAX_FIELDS_SEEN]. */
+    private fun editableNodes(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> = runCatching {
+        val found = mutableListOf<AccessibilityNodeInfo>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
+        var visited = 0
+        while (queue.isNotEmpty() && visited < MAX_NODES_SEARCHED && found.size < MAX_FIELDS_SEEN) {
+            val node = queue.removeFirst()
+            visited++
+            if (node.isEditable) found += node
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        found.toList()
+    }.getOrDefault(emptyList())
+
+    private fun TargetRefind.Result.describe(): String = when (this) {
+        is TargetRefind.Result.Found -> how.name.lowercase().replace('_', ' ')
+        is TargetRefind.Result.NotFound -> why.name.lowercase().replace('_', ' ')
+    }
+
     /** Whether Enter makes a new line in [node]'s field rather than sending or moving on. */
     fun takesLineBreaks(packageName: String, node: AccessibilityNodeInfo?): Boolean =
         enterMakesNewLine(service, packageName) ?: (node?.isMultiLine == true)
@@ -188,6 +276,8 @@ class TextInserter(
         private val node: AccessibilityNodeInfo,
         /** Asked only when [node] names no package. */
         fallbackPackage: () -> String?,
+        /** False for a node without focus: whatever input connection there is, it is another field's. */
+        private val mayType: Boolean = true,
     ) : EditableTarget {
 
         override val packageName: String =
@@ -236,10 +326,11 @@ class TextInserter(
          * the words somewhere the user is not looking.
          */
         override fun commitText(text: String): Boolean =
-            commitThroughInputMethod(service, text, expectedPackage = packageName)
+            mayType && commitThroughInputMethod(service, text, expectedPackage = packageName)
 
         /** What the input method knows about Enter in this field; without it, whether the field wraps lines. */
-        override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) ?: node.isMultiLine
+        override val takesLineBreaks: Boolean
+            get() = (if (mayType) enterMakesNewLine(service, packageName) else null) ?: node.isMultiLine
 
         override fun readBack(): String? {
             if (!node.refresh()) return null
@@ -295,6 +386,9 @@ class TextInserter(
     companion object {
         private const val TAG = "Amber"
         private const val MAX_NODES_SEARCHED = 1_500
+
+        /** Enough to tell "the only field" from "one of several". */
+        private const val MAX_FIELDS_SEEN = 16
 
         /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
         private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
