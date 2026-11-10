@@ -21,9 +21,13 @@
 # directory has a fixed path, so two runs from different directories give an identical
 # jni/arm64-v8a/libgojni.so and classes.jar.
 #
-# Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar, sha256sum.
-# Environment: ANDROID_NDK_HOME (default: NDK 27.1.12297006 under $ANDROID_HOME/ndk),
-# OUT=<path> (default: app/libs/tinfoil-mobile.aar).
+# Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar, sha256sum, flock.
+# Environment: ANDROID_NDK_HOME (default: NDK 27.1.12297006 under $ANDROID_HOME/ndk; another
+# revision is a warning, and an error when CI=true), OUT=<path> (default:
+# app/libs/tinfoil-mobile.aar).
+#
+# Run it again whenever this script changes (a new pin, other flags): the AAR is not in git, so
+# an old one stays in app/libs until it is rebuilt. tools/sign-release.sh always rebuilds it.
 set -euo pipefail
 
 TINFOIL_GO_REF="fad77808b7ace9d848399c27179b4a2d6fd2c36c"
@@ -40,6 +44,8 @@ case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 # A lock file or directory of somebody else's can only make the build refuse, never reach it.
 WORK=/tmp/amber-tinfoil-build
 LOCK="$WORK.lock"
+command -v flock >/dev/null \
+  || { echo "flock not found - install util-linux (it holds the build's lock); not building" >&2; exit 1; }
 [ ! -L "$LOCK" ] && { [ ! -e "$LOCK" ] || { [ -f "$LOCK" ] && [ -O "$LOCK" ] && [ -w "$LOCK" ]; }; } \
   || { echo "$LOCK exists but is not a file of yours - remove it or ask its owner; not building" >&2; exit 1; }
 exec 9>>"$LOCK" || { echo "cannot open $LOCK - not building" >&2; exit 1; }
@@ -72,7 +78,14 @@ export ANDROID_NDK_HOME
 [ -d "$ANDROID_NDK_HOME" ] \
   || { echo "ANDROID_NDK_HOME ($ANDROID_NDK_HOME) is not a directory - no Android NDK there" >&2; exit 1; }
 NDK_REV="$(sed -n 's/^Pkg.Revision *= *//p' "$ANDROID_NDK_HOME/source.properties" 2>/dev/null | head -1)"
+# A warning where the caller picks the NDK (F-Droid passes its own path), an error in CI: a
+# runner exports its own default NDK, and CI's build is the one compared across machines.
 if [ "$NDK_REV" != "$NDK_PIN" ]; then
+  if [ "${CI:-}" = true ]; then
+    echo "NDK at $ANDROID_NDK_HOME is ${NDK_REV:-of unknown version}, not the pinned $NDK_PIN -" \
+      "set ANDROID_NDK_HOME to NDK $NDK_PIN; not building" >&2
+    exit 1
+  fi
   echo "warning: NDK at $ANDROID_NDK_HOME is ${NDK_REV:-of unknown version}, not the pinned $NDK_PIN -" \
     "the library may differ from the pinned build" >&2
 fi
@@ -104,7 +117,8 @@ ACTIVE_GO="$(go env GOVERSION | awk '{print $1}')"
 [ "$ACTIVE_GO" = "$GOTOOLCHAIN" ] || {
   echo "the active Go is $ACTIVE_GO, not the pinned $GOTOOLCHAIN (a Go older than 1.21 cannot" \
     "fetch it) - install Go 1.21 or newer" >&2; exit 1; }
-export CGO_CFLAGS="-ffile-prefix-map=$WORK=."
+# Setting CGO_CFLAGS replaces Go's default "-O2 -g", so that stays in front.
+export CGO_CFLAGS="-O2 -g -ffile-prefix-map=$WORK=."
 export GOFLAGS="-buildvcs=false"
 export GOBIN="$WORK/bin"
 export PATH="$GOBIN:$PATH"

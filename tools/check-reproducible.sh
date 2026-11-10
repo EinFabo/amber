@@ -12,10 +12,11 @@
 # The clones come from this repository, not from GitHub, so the ref must be committed. Each
 # submodule is cloned from the copy already checked out here when that holds the pinned
 # commit; only a missing one is fetched from its upstream URL. Each clone builds its own
-# Tinfoil AAR (tools/build-tinfoil-aar.sh, which needs Go and network for the Go modules) and
-# runs Gradle without a daemon and without the build cache, so nothing built by one clone
-# can stand in for the other's output. It also checks that sherpa-onnx's text-to-speech part
-# (espeak-ng, piper) stayed out of the APK.
+# Tinfoil AAR (tools/build-tinfoil-aar.sh, which needs Go and network for the Go modules) with
+# its own Go build cache, and runs Gradle without a daemon and without the build cache, so
+# nothing built by one clone can stand in for the other's output. After the verdict it checks
+# that sherpa-onnx's text-to-speech part (espeak-ng, piper) stayed out of the APK; if it did
+# not, the script exits 1 even when the two APKs are identical.
 #
 # Environment: ANDROID_HOME (default: $HOME/Android/sdk), KEEP=1 keeps the work directory
 # (both clones and their APKs) instead of removing it, TMPDIR picks where it is made.
@@ -79,7 +80,9 @@ for d in "${DIRS[@]}"; do
   echo "==> cloning into $d"
   clone "$d"
   echo "==> Tinfoil AAR in $d"
-  (cd "$d" && tools/build-tinfoil-aar.sh >/dev/null)
+  # Its own Go build cache, so the second build compiles everything again instead of taking
+  # the first one's objects (which would hide a difference between them).
+  (cd "$d" && GOCACHE="$d.gocache" tools/build-tinfoil-aar.sh >/dev/null)
   echo "==> :app:assembleRelease in $d"
   (cd "$d" && ./gradlew -q --no-daemon --no-build-cache :app:assembleRelease)
   [ -f "$d/$APK" ] || { echo "no unsigned release APK in $d - is a keystore.properties signing it?" >&2; exit 1; }
@@ -89,14 +92,27 @@ done
 A="${DIRS[0]}/$APK"
 B="${DIRS[1]}/$APK"
 
-# The text-to-speech part of sherpa-onnx stays out (espeak-ng, piper): checked in sherpa-onnx's
-# library and the app's code. Not before "espeak" a letter: sherpa-onnx's speaker-embedding
-# code says "wespeaker", which is not TTS. (Go's string table in libgojni.so runs "pipe" into
-# "reflect", so that library is not searched.)
-python3 -I - "$A" <<'PY' || exit 1
+# The verdict first, so a failing check below cannot hide it.
+if cmp -s "$A" "$B"; then
+  echo "reproducible: $(sha256sum "$A" | cut -d' ' -f1)"
+  SAME=1
+else
+  SAME=0
+fi
+
+# The text-to-speech part of sherpa-onnx stays out (espeak-ng, piper): no entry named after it,
+# and nothing of it in sherpa-onnx's library or the app's code. Not "espeak" after a "w":
+# sherpa-onnx's speaker-embedding code says "wespeaker", which is not TTS (a "libespeak" is
+# still caught). Case-sensitive: "PipeReader" is not piper. (Go's string table in libgojni.so
+# runs "pipe" into "reflect", so that library's content is not searched.)
+TTS_OK=1
+python3 -I - "$A" <<'PY' || TTS_OK=0
 import re, sys, zipfile
 z = zipfile.ZipFile(sys.argv[1])
-pattern = re.compile(rb"(?<![a-z])espeak|piper")
+pattern = re.compile(rb"(?<!w)espeak|piper")
+named = [i.filename for i in z.infolist() if re.search(r"espeak|piper", i.filename)]
+if named:
+    sys.exit("text-to-speech files in the APK (espeak/piper): " + ", ".join(named))
 searched = [i for i in z.infolist() if re.fullmatch(r"lib/[^/]+/libsherpa[^/]*\.so|classes\d*\.dex", i.filename)]
 if not any(i.filename.endswith(".so") for i in searched):
     sys.exit("no sherpa-onnx library in the APK to check for text-to-speech code")
@@ -105,8 +121,8 @@ if hits:
     sys.exit("text-to-speech code in the APK (espeak/piper): " + ", ".join(hits))
 PY
 
-if cmp -s "$A" "$B"; then
-  echo "reproducible: $(sha256sum "$A" | cut -d' ' -f1)"
+if [ "$SAME" = 1 ]; then
+  [ "$TTS_OK" = 1 ] || exit 1
   exit 0
 fi
 
