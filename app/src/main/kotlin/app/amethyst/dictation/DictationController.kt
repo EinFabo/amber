@@ -150,8 +150,8 @@ class DictationController(
     private var startTarget: InputTarget? = null
 
     /**
-     * The node of [startTarget]'s field, where Android names it (not in Compose apps): found
-     * again by it when Android has lost track of the focus by the time the text is ready.
+     * The node of [startTarget]'s field, when Android's focus lookup returned an editable one:
+     * found again by it when Android has lost track of the focus by the time the text is ready.
      */
     private var startNode: AccessibilityNodeInfo? = null
 
@@ -1355,8 +1355,8 @@ class DictationController(
         var now = graph.accessibilityService?.focusedTarget()
         var verdict = TargetCheck.verdict(startTarget, now)
         // Android may say no field has focus while the field is still there: the screen went
-        // off during a long recording, the app rebuilt its field, a Compose app ended input with
-        // the keyboard. In the start window the field is looked for again.
+        // off during a long recording, the app ended input with the keyboard. The start field's
+        // own node is looked for again - never another field, which could be another chat's.
         var refound: AccessibilityNodeInfo? = null
         if (verdict == TargetCheck.Verdict.NO_FIELD) {
             val found = inserter.refind(startTarget, startNode)

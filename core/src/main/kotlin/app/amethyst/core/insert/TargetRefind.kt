@@ -10,22 +10,21 @@ data class SeenField(
     val kind: TextFieldKind,
     /** The very node that had input focus when the dictation started - still there. */
     val isStart: Boolean = false,
-    /** It says it has focus, although Android's focus lookup did not return it (Compose). */
-    val focused: Boolean = false,
     /** Visible on screen and enabled: a field the user could tap. */
     val shown: Boolean = true,
 )
 
 /**
  * When [TargetCheck] says NO_FIELD although the app and its window are still the ones the
- * dictation started in, the field is looked for again rather than the words given up: Android
- * forgets which field has focus more often than the field goes away - the screen went off
- * during a long recording, the app rebuilt its field (WhatsApp), a Compose app ended input
- * when the keyboard closed.
+ * dictation started in, the start field is looked for again rather than the words given up:
+ * Android forgets which field has focus more often than the field goes away - the screen went
+ * off during a long recording, the app ended input when the keyboard closed.
  *
- * Only in the start window, never a password field, and only where there is no doubt: the
- * start field itself, else the one field that says it is focused, else the only field there.
- * Two plausible fields and the words stay out - the wrong one could be a message to someone.
+ * Only the start field's own node counts, found again as it was, on screen and not a password
+ * field. Never another field in the same window, not even the only one: in an app that shows
+ * every chat in one window (Telegram), the only message box there may be the next chat's, and
+ * the words would go to someone else. When in doubt the words stay out and the user is told
+ * to use Insert again.
  */
 object TargetRefind {
 
@@ -38,29 +37,23 @@ object TargetRefind {
     enum class How {
         /** The node that had focus at the start. */
         START_FIELD,
-
-        /** The one field in the window that still says it is focused. */
-        FOCUSED,
-
-        /** The only field in the window that takes text. */
-        ONLY_FIELD,
     }
 
     enum class Why {
-        /** The dictation started without a field: there is no field the user meant. */
+        /** The dictation started without a field, or its node was not known (Compose). */
         NO_START,
 
         /** Another app or window is in front now, or the start window is not known. */
         NOT_IN_FRONT,
 
-        /** The field to take would be a password field. */
+        /** The start field is a password field now. */
         SECRET,
 
-        /** No field there that takes text. */
+        /** The start field is gone, or no longer takes words. */
         NO_FIELD,
 
-        /** More than one field could be meant. */
-        SEVERAL,
+        /** The start field is still there, but not on screen (another tab, scrolled away). */
+        NOT_SHOWN,
     }
 
     /** Whether looking for fields in [front] is worth it at all: it is the start window. */
@@ -68,50 +61,27 @@ object TargetRefind {
         start != null && front != null && start.windowId >= 0 &&
             start.packageName == front.packageName && start.windowId == front.windowId
 
-    /** Which of [fields] - all seen in [front] - the words go into, if any. */
-    fun pick(start: InputTarget?, front: WindowInFront?, fields: List<SeenField>): Result {
-        if (start == null) return Result.NotFound(Why.NO_START)
+    /**
+     * Which of [fields] - all seen in [front] - the words go into, if any. [hasStartNode]
+     * false: the start field's node was never known, so it cannot be found again.
+     */
+    fun pick(start: InputTarget?, front: WindowInFront?, fields: List<SeenField>, hasStartNode: Boolean = true): Result {
+        if (start == null || !hasStartNode) return Result.NotFound(Why.NO_START)
         if (start.kind == TextFieldKind.SECRET) return Result.NotFound(Why.SECRET)
         if (!sameWindow(start, front)) return Result.NotFound(Why.NOT_IN_FRONT)
 
-        val shown = fields.withIndex().filter { it.value.shown }
-
-        // The start field, or the field that has focus, turned into a password field: the
-        // user is typing a password now, and nothing else in the window is the target.
-        if (shown.any { (it.value.isStart || it.value.focused) && it.value.kind == TextFieldKind.SECRET }) {
-            return Result.NotFound(Why.SECRET)
-        }
-
-        shown.firstOrNull { it.value.isStart }?.let { startField ->
-            return if (takesWords(startField.value.kind)) {
-                Result.Found(startField.index, How.START_FIELD)
-            } else {
-                Result.NotFound(Why.NO_FIELD)
-            }
-        }
-
-        val focused = shown.filter { it.value.focused }
-        when {
-            focused.size > 1 -> return Result.NotFound(Why.SEVERAL)
-            focused.size == 1 -> return if (takesWords(focused[0].value.kind)) {
-                Result.Found(focused[0].index, How.FOCUSED)
-            } else {
-                Result.NotFound(Why.NO_FIELD)
-            }
-        }
-
-        val candidates = shown.filter { takesWords(it.value.kind) }
-        return when (candidates.size) {
-            0 -> Result.NotFound(Why.NO_FIELD)
-            1 -> Result.Found(candidates[0].index, How.ONLY_FIELD)
-            else -> Result.NotFound(Why.SEVERAL)
+        val index = fields.indexOfFirst { it.isStart }
+        if (index < 0) return Result.NotFound(Why.NO_FIELD)
+        val field = fields[index]
+        return when {
+            field.kind == TextFieldKind.SECRET -> Result.NotFound(Why.SECRET)
+            !field.shown -> Result.NotFound(Why.NOT_SHOWN)
+            !takesWords(field.kind) -> Result.NotFound(Why.NO_FIELD)
+            else -> Result.Found(index, How.START_FIELD)
         }
     }
 
-    /**
-     * Prose fields, and editable nodes that name no input type (Compose's fields do not).
-     * Not a number, phone or date field: a dictation does not belong there.
-     */
+    /** Prose fields, and editable nodes that name no input type. Not a number, phone or date field. */
     private fun takesWords(kind: TextFieldKind): Boolean =
         kind == TextFieldKind.TEXT || kind == TextFieldKind.NONE
 }

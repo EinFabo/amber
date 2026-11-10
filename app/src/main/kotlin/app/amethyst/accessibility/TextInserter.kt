@@ -152,28 +152,26 @@ class TextInserter(
 
     /**
      * Looks for the dictation's field again when Android no longer says which field has focus:
-     * [start]'s window must still be the one in front, and [TargetRefind] picks among its
-     * editable fields - [startNode], the node that had focus at the start, when it is still
-     * there. The search walks the one window, bounded like [findFocusedEditable].
+     * [start]'s window must still be the one in front, and [startNode] - the node that had
+     * focus at the start - must still be there, on screen. No other field is taken, not even
+     * the only one in the window ([TargetRefind]); so nothing is searched, the node is read again.
      */
     fun refind(start: InputTarget?, startNode: AccessibilityNodeInfo?): Refound {
         val front = windowInFront()
-        if (!TargetRefind.sameWindow(start, front?.first)) {
-            return Refound(null, "field not found again: ${TargetRefind.pick(start, front?.first, emptyList()).describe()}")
-        }
-        val nodes = editableNodes(front!!.second)
-        val seen = nodes.map { node ->
-            SeenField(
-                kind = TextFieldKind.of(node.inputType, node.isPassword),
-                isStart = startNode != null && node == startNode,
-                focused = node.isFocused,
-                shown = node.isVisibleToUser && node.isEnabled,
-            )
-        }
-        val result = TargetRefind.pick(start, front.first, seen)
-        val node = (result as? TargetRefind.Result.Found)?.let { nodes[it.index] }
+        val seen = startNode
+            ?.takeIf { TargetRefind.sameWindow(start, front) && it.windowId == front?.windowId }
+            ?.takeIf { runCatching { it.refresh() }.getOrDefault(false) && it.isEditable }
+            ?.let {
+                SeenField(
+                    kind = TextFieldKind.of(it.inputType, it.isPassword),
+                    isStart = true,
+                    shown = it.isVisibleToUser && it.isEnabled,
+                )
+            }
+        val result = TargetRefind.pick(start, front, listOfNotNull(seen), hasStartNode = startNode != null)
+        val node = startNode.takeIf { result is TargetRefind.Result.Found }
         val found = if (node != null) "field found again" else "field not found again"
-        return Refound(node, "$found: ${result.describe()} (${nodes.size} editable in the window)")
+        return Refound(node, "$found: ${result.describe()}")
     }
 
     /** Gives [node] input focus, as a tap would: its app starts input again, and typing works. */
@@ -181,34 +179,19 @@ class TextInserter(
         runCatching { node.performAction(AccessibilityNodeInfo.ACTION_FOCUS) }.getOrDefault(false)
 
     /**
-     * The window the user is in, with its root: the active one - which may be the lock screen
-     * or the notification shade, and then the app is not in front - else, with no window
-     * active at all, the topmost app window. The list comes top first.
+     * The window the user is in: the active one - which may be the lock screen or the
+     * notification shade, and then the app is not in front - else, with no window active at
+     * all, the topmost app window. The list comes top first.
      */
-    private fun windowInFront(): Pair<WindowInFront, AccessibilityNodeInfo>? = runCatching {
+    private fun windowInFront(): WindowInFront? = runCatching {
         val windows = service.windows
         val window = windows.firstOrNull { it.isActive }
             ?: windows.firstOrNull { it.isFocused }
             ?: windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
             ?: return@runCatching null
-        val root = window.root ?: return@runCatching null
-        val pkg = root.packageName?.toString() ?: return@runCatching null
-        WindowInFront(pkg, window.id) to root
+        val pkg = window.root?.packageName?.toString() ?: return@runCatching null
+        WindowInFront(pkg, window.id)
     }.getOrNull()
-
-    /** The editable nodes under [root], breadth-first, at most [MAX_FIELDS_SEEN]. */
-    private fun editableNodes(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> = runCatching {
-        val found = mutableListOf<AccessibilityNodeInfo>()
-        val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
-        var visited = 0
-        while (queue.isNotEmpty() && visited < MAX_NODES_SEARCHED && found.size < MAX_FIELDS_SEEN) {
-            val node = queue.removeFirst()
-            visited++
-            if (node.isEditable) found += node
-            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
-        }
-        found.toList()
-    }.getOrDefault(emptyList())
 
     private fun TargetRefind.Result.describe(): String = when (this) {
         is TargetRefind.Result.Found -> how.name.lowercase().replace('_', ' ')
@@ -386,9 +369,6 @@ class TextInserter(
     companion object {
         private const val TAG = "Amber"
         private const val MAX_NODES_SEARCHED = 1_500
-
-        /** Enough to tell "the only field" from "one of several". */
-        private const val MAX_FIELDS_SEEN = 16
 
         /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
         private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
