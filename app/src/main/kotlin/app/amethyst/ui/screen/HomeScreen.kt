@@ -43,6 +43,8 @@ import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
+import app.amethyst.core.settings.AppEngineMode
+import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.update.UpdateNotice
 import app.amethyst.dictation.DictationState
@@ -198,6 +200,10 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
     // Apps with a cleanup model of their own send text where the rows above may not say.
     val ownModels = settings.profiles.filter { it.appCleanup.mode == AppCleanupMode.MODEL && settings.cleanupEngine(it.appCleanup.choice) != null }
     val ownWeakest = ownModels.mapNotNull { settings.cleanupEngine(it.appCleanup.choice)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
+    // Apps with a speech recognition of their own send the voice where the first row may not say.
+    fun ownEngine(profile: AppProfile) = settings.engines.firstOrNull { it.id == profile.appEngine.engineId }
+    val ownEngines = settings.profiles.filter { it.appEngine.mode == AppEngineMode.ENGINE && ownEngine(it) != null }
+    val ownEngineWeakest = ownEngines.mapNotNull { ownEngine(it)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
     SettingsGroup(label = null) {
         NavRow(
             title = active?.let { engineName(it) } ?: stringResource(R.string.home_no_engine),
@@ -207,6 +213,17 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
             below = active?.let { { TrustBadge(it.trustLevelForDisplay()) } },
             onClick = onOpenRecognition,
         )
+        if (ownEngineWeakest != null) {
+            RowDivider()
+            NavRow(
+                title = stringResource(R.string.home_own_recognition),
+                summary = stringResource(R.string.home_own_cleanup_in, ownEngines.joinToString { it.label }),
+                icon = AmberIcons.Palette,
+                summaryMaxLines = 2,
+                below = { TrustBadge(ownEngineWeakest) },
+                onClick = onOpenRecognition,
+            )
+        }
         if (cleanup != null && cleanupEngine != null) {
             RowDivider()
             NavRow(

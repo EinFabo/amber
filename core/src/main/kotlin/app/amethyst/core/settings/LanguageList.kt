@@ -86,6 +86,21 @@ object LanguageList {
         }
     }
 
+    /**
+     * The language [config]'s text is most likely in, for what comes after the recognition -
+     * the cleanup's language, the German commas, which filler words go - when the engine names
+     * none itself. Not what the engine is handed ([forDictation]): one that detects the
+     * language itself is given none, yet its text still needs this, so it gets the language
+     * stored for it, else the [phone]'s first. Android without a language hears the phone's.
+     * Several or none for the others: as handed, the words decide the rest.
+     */
+    fun spokenHint(config: EngineConfig, phone: List<String>): String? = when (use(config.kind)) {
+        LanguageUse.DETECTS_ITSELF ->
+            parse(config.languageTag, LanguageUse.FIRST).firstOrNull() ?: PhoneLanguages.singleLanguage(phone)
+        LanguageUse.FIRST -> forDictation(config) ?: PhoneLanguages.singleLanguage(phone)
+        LanguageUse.SEVERAL -> forDictation(config)
+    }
+
     /** The languages a new [kind] starts with, from the [phone]'s ([PhoneLanguages]). */
     fun defaults(kind: EngineKind, phone: List<String>): List<String> =
         parse(PhoneLanguages.defaultLanguageTag(kind, phone), use(kind))

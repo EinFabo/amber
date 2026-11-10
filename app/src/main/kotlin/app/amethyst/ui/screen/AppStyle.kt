@@ -69,7 +69,8 @@ fun AppStyleScreen(
     val ready = rememberCleanupReadiness(settings, hasKeyFor)
     // Once per settings change rather than on every recomposition.
     val decision = remember(settings) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
-    val routing = remember(settings) { EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady) }
+    // Not remembered: a model downloaded or a key stored while the page is open changes it, not the settings.
+    val routing = EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady)
     var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
     val own = profile.appCleanup
 

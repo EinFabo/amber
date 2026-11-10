@@ -9,6 +9,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.settings.LanguageUse
 import app.amethyst.core.settings.SettingsCodec
+import app.amethyst.core.text.TranscriptNormalizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -71,6 +72,23 @@ class LanguageListTest {
     fun `parakeet gets no language, whatever is stored`() {
         assertNull(LanguageList.forDictation(parakeet.copy(languageTag = "de-DE")))
         assertEquals(emptyList(), LanguageList.of(parakeet.copy(languageTag = "de-DE")))
+    }
+
+    @Test
+    fun `parakeet's text is still read as the language stored for it, else the phone's`() {
+        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = "de-DE"), listOf("en-US")))
+        assertEquals("de-DE", LanguageList.spokenHint(parakeet.copy(languageTag = null), TEST_PHONE))
+        // Android with none picked hears the phone's language; the others are as handed.
+        assertEquals("de-DE", LanguageList.spokenHint(android.copy(languageTag = null), TEST_PHONE))
+        assertEquals("de,en", LanguageList.spokenHint(whisper.copy(languageTag = "de,en"), TEST_PHONE))
+        assertNull(LanguageList.spokenHint(whisper.copy(languageTag = null), TEST_PHONE))
+    }
+
+    @Test
+    fun `a german parakeet dictation keeps its um - it is no english filler there`() {
+        // Parakeet names no language; before LanguageList its stored "de-DE" decided this.
+        val hint = LanguageList.spokenHint(parakeet.copy(languageTag = "de-DE"), TEST_PHONE)
+        assertEquals("Treffen um 10 Uhr", TranscriptNormalizer.normalize("Treffen um 10 Uhr", language = hint))
     }
 
     @Test

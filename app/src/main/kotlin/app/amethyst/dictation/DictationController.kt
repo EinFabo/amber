@@ -80,6 +80,7 @@ import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import app.amethyst.core.text.TranscriptNormalizer
+import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ModelDownloads
 import java.util.concurrent.atomic.AtomicBoolean
@@ -221,6 +222,22 @@ class DictationController(
     private var runRouting: EngineRouting.Decision? = null
 
     /**
+     * This run was started inside Amber (the test field on Home): it is for Amber's own field,
+     * whatever app Android last named as the one in front.
+     */
+    @Volatile
+    private var runInAmber = false
+
+    /**
+     * The app this run's text is for, whose own speech recognition and cleanup apply: the one
+     * whose field had focus at the start, else the one Android names now - after the proxy
+     * activity, only known once focus is back. Amber's own for a run started inside Amber: the
+     * app named last would be the one before it, which never stores Amber itself.
+     */
+    private fun targetApp(): String? =
+        if (runInAmber) context.packageName else startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+
+    /**
      * The steps of this run's command once its recognition began - each language it was heard
      * in ([recognizeCommand]) - or once its words are there ([runCommand]); null before. A
      * failure that comes after - the time limit - still shows them.
@@ -277,7 +294,8 @@ class DictationController(
         // every app. Taken once, at the start; the proxy activity's re-entry keeps it.
         if (source != TriggerSource.PROXY_ACTIVITY) {
             takeStartTarget()
-            runPackage = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+            runInAmber = source == TriggerSource.IN_APP
+            runPackage = targetApp()
         }
         val routed = graph.engineFor(runPackage).engine
         // The engine chosen in the introduction may still be downloading: say so and record
@@ -1011,7 +1029,7 @@ class DictationController(
      * characters, learned per cleanup model; null when it gets none.
      */
     private fun expectedCleanupMs(settings: AmethystSettings, chars: Long, fellBackFrom: String?): Long? {
-        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        val target = targetApp()
         val choice = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }.choice ?: return null
         return graph.recognitionEstimate.expectedMs(cleanupKey(choice), chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS)
     }
@@ -1061,7 +1079,7 @@ class DictationController(
             }
         }
         if (_mode.value != RunMode.DICTATION) return
-        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        val target = targetApp()
         val choice = CleanupRouting.decide(settings, target, fellBackFrom = null) { graph.secretStore.has(it) }.choice ?: return
         val cleanupUrl = settings.engines.firstOrNull { it.id == choice.engineId }?.baseUrl ?: return
         val cleanup = graph.engineFactory.cleanupFor(choice, settings) ?: return
@@ -1143,7 +1161,7 @@ class DictationController(
         // the proxy activity that is only known once focus is back.
         awaitFocusReturn()
         val settings = graph.settings.value
-        val target = startTarget?.packageName ?: graph.accessibilityService?.targetPackage()
+        val target = targetApp()
         val decision = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }
         // May name the app (its style's label), so the trace keeps it apart from the rest.
         trace?.cleanupNote = decision.note
@@ -1169,7 +1187,7 @@ class DictationController(
         val language = LanguageGuess.forDictation(
             transcript.text,
             transcript.detectedLanguage,
-            settings.engines.firstOrNull { it.id == transcript.engineId }?.let(LanguageList::forDictation),
+            settings.engines.firstOrNull { it.id == transcript.engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
         )
         // A long text takes its time to be written back; past it, it goes in as recognized.
         val result = withTimeoutOrNull(ChatCleanup.timeoutMs(transcript.text.length)) {
@@ -1353,7 +1371,7 @@ class DictationController(
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.capture.toNormalizeOptions(),
-            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.let(LanguageList::forDictation),
+            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
             // Whether the field takes them is decided at insertion (InsertionEngine).
             keepLineBreaks = transcript.formatted,
         )

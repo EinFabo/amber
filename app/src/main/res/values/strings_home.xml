@@ -3,6 +3,7 @@
     <string name="home_no_engine">No speech recognition selected</string>
     <string name="home_own_cleanup">Own cleanup model</string>
     <string name="home_own_cleanup_in">In %1$s</string>
+    <string name="home_own_recognition">Own speech recognition</string>
     <string name="dismiss">Dismiss</string>
     <string name="installs_over">Installs over this one; your settings stay.</string>
     <string name="other_ambers_title">%1$d Ambers are on</string>

@@ -3,6 +3,7 @@
     <string name="home_no_engine">Keine Spracherkennung gewählt</string>
     <string name="home_own_cleanup">Eigenes Modell für die Bereinigung</string>
     <string name="home_own_cleanup_in">In %1$s</string>
+    <string name="home_own_recognition">Eigene Spracherkennung</string>
     <string name="dismiss">Ausblenden</string>
     <string name="installs_over">Wird über diese Version installiert; deine Einstellungen bleiben.</string>
     <string name="other_ambers_title">%1$d Ambers sind an</string>
