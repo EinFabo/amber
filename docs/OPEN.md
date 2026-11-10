@@ -132,7 +132,10 @@ series and one store release per phase, each after his OK.
       language fix tried on the Pixel by Fabi before. In the store too (same version, store key).
 - [x] 0.31.0 in Fabi's store (2026-11-10, store key): phase A (no dictation lost, the screen on,
       5 minutes, anonymized diagnostics), P6, the quick menu editor and Style here, and the two
-      fixes from the device test. Not on GitHub yet.
+      fixes from the device test.
+- [x] GitHub release v0.31.0 (2026-11-10, Latest): everything since 0.30.2, signed with the GitHub
+      key (`CN=Amber`), APK SHA-256
+      `2aaaab14015da2dece67fc4677c85771370ed916821441705686b93f887b09ff`.
 - [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
       app in front), a pause left for 5 min, keyboard with "Always" and a WebView field.
 
