@@ -637,11 +637,19 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [x] **A license** (2026-11-06): Apache 2.0, with a `NOTICE` for what Amber is built from and
       the speech models' licenses; both ship in the app (Settings -> Licenses).
 - [ ] **No prebuilt binaries.** `tools/fetch-sherpa-aar.sh` downloads sherpa-onnx's released
-      AAR (with onnxruntime inside). F-Droid builds every native library itself: sherpa-onnx and
-      onnxruntime from source in the build recipe (heavy - check how other apps on F-Droid do
-      it), or Parakeet left out of the F-Droid flavor.
+      AAR. The way F-Droid takes (checked 2026-11-10): Marmalade STT (`app.marmalade.stt`, in
+      F-Droid, reproducible) builds sherpa-onnx 1.13.8 from git submodules through Gradle's CMake
+      (`FETCHCONTENT_FULLY_DISCONNECTED`, `FETCHCONTENT_SOURCE_DIR_<dep>`) against ONNX Runtime
+      from Maven Central (`com.microsoft.onnxruntime:onnxruntime-android:1.28.0`, headers and
+      `libonnxruntime.so` unpacked from it, `SHERPA_ONNXRUNTIME_*`); about 4 minutes on F-Droid's
+      server. Ramblr does the same. whisper.cpp likewise as a submodule (Voxscribe, Scrib).
 - [ ] **The Tinfoil AAR** is built with gomobile (`tools/build-tinfoil-aar.sh`, pinned tarball):
-      the recipe needs Go and gomobile at the pinned versions.
+      in the recipe as Cryptocam does it - `golang-go` from Debian, `go install gomobile@<pin>`,
+      `gomobile bind`.
+- [ ] **Not before 2027-01-27**: F-Droid closes requests for apps developed for less than three
+      months (first commit 2026-10-27). Built with Claude Code is no barrier there today (no rule;
+      vibe-coded apps that said so were merged, fdroid/admin #641 still open); cloud speech and
+      cleanup get `NonFreeNet`, as Voice Keyboard (`com.tyraen.voicekeyboard`) has.
 - [ ] **Anti-features** to declare honestly (check against F-Droid's list): Groq, OpenAI and
       Tinfoil are network services (`NonFreeNet`); models are downloaded at runtime from Hugging
       Face - check the licences of Parakeet (CC-BY-4.0) and the FUTO and ACFT Whisper models.
