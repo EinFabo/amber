@@ -16,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import app.amethyst.core.settings.AppEngineMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.InstructionDraft
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
@@ -151,14 +154,19 @@ internal fun StyleAndInstruction(
     profile: AppProfile,
     onEdit: ((AppProfile) -> AppProfile) -> Unit,
     chips: Boolean,
-    instructionModifier: Modifier = Modifier,
 ) {
-    var instruction by remember(profile.packageName) { mutableStateOf(profile.instruction.orEmpty()) }
+    // Kept over a rotation; saves only what was typed here, so the page left open in Amber never
+    // writes back what the window changed meanwhile, nor the other way round.
+    var draft by rememberSaveable(profile.packageName, stateSaver = DraftSaver) { mutableStateOf(InstructionDraft.of(profile.instruction)) }
 
     fun persistInstruction() {
-        val typed = instruction.trim().ifEmpty { null }
-        if (typed != profile.instruction) onEdit { it.copy(instruction = typed) }
+        val now = draft
+        if (now.needsSave(profile.instruction)) onEdit { it.copy(instruction = now.instruction) }
+        draft = now.saved()
     }
+
+    // Changed elsewhere (the other editor, or this one's own save): followed while nothing is typed here.
+    LaunchedEffect(profile.instruction) { draft = draft.stored(profile.instruction) }
 
     if (chips) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -176,30 +184,36 @@ internal fun StyleAndInstruction(
         }
     }
     OutlinedTextField(
-        value = instruction,
-        onValueChange = { instruction = it.take(ChatCleanup.INSTRUCTION_CHARS) },
+        value = draft.text,
+        onValueChange = { draft = draft.typed(it) },
         label = { Text(stringResource(R.string.style_instruction)) },
         placeholder = { Text(stringResource(R.string.style_instruction_placeholder)) },
-        supportingText = { Text(stringResource(R.string.char_count, instruction.length, ChatCleanup.INSTRUCTION_CHARS)) },
+        supportingText = { Text(stringResource(R.string.char_count, draft.text.length, ChatCleanup.INSTRUCTION_CHARS)) },
         minLines = 2,
         maxLines = 8,
         shape = AmberShapes.Inner,
         colors = fieldColors(),
-        modifier = instructionModifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
     )
 
     // Saved a moment after typing stops: Home and a dictation right away, or a rotation, must
     // not leave the old instruction in use.
-    LaunchedEffect(instruction) {
+    val latestPersist by rememberUpdatedState(::persistInstruction)
+    LaunchedEffect(draft.text) {
         delay(INSTRUCTION_SAVE_MS)
-        persistInstruction()
+        latestPersist()
     }
     // Typed an instruction and went back (or closed the window) at once: keep it, as the engine page does.
-    val latestPersist by rememberUpdatedState(::persistInstruction)
     DisposableEffect(profile.packageName) {
         onDispose { latestPersist() }
     }
 }
+
+/** The draft over a rotation: its text and whether it was typed here. */
+private val DraftSaver = listSaver<InstructionDraft, Any>(
+    save = { listOf(it.text, it.edited) },
+    restore = { InstructionDraft(it[0] as String, it[1] as Boolean) },
+)
 
 /**
  * Who hears a dictation in this app: the speech recognition for every app, or one of those set
