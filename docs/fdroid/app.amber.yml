@@ -1,0 +1,55 @@
+AntiFeatures:
+  NonFreeNet:
+    en-US: Groq, OpenAI and Tinfoil are optional network services, used only when you
+      set them up with your own key and choose them. Recognition on the phone and on
+      your own server works without them.
+Categories:
+  - System
+  - Writing
+License: Apache-2.0
+AuthorName: EinFabo
+SourceCode: https://github.com/EinFabo/amber
+IssueTracker: https://github.com/EinFabo/amber/issues
+Changelog: https://github.com/EinFabo/amber/releases
+
+RepoType: git
+Repo: https://github.com/EinFabo/amber.git
+Binaries: https://github.com/EinFabo/amber/releases/download/v%v/amber-%v.apk
+
+Builds:
+  # PLACEHOLDER: v0.31.0 predates the from-source build (it fetched prebuilt binaries) and
+  # must not be submitted. Bump versionName, versionCode, commit, CurrentVersion and
+  # CurrentVersionCode to the first release tagged from the fdroid-build branch.
+  - versionName: 0.31.0
+    versionCode: 59
+    commit: v0.31.0
+    subdir: app
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -t bookworm-backports -y golang-go
+    gradle:
+      - yes
+    scandelete:
+      - third_party/sherpa-onnx/.github
+      - third_party/sherpa-onnx/android/SherpaOnnxAudioTaggingWearOs
+      - third_party/sherpa-onnx/android/SherpaOnnxSimulateStreamingAsrWearOs
+      - third_party/sherpa-onnx/dart-api-examples
+      - third_party/sherpa-onnx/flutter
+      - third_party/sherpa-onnx/nodejs-addon-examples
+      - third_party/sherpa-onnx/nodejs-examples
+      - third_party/sherpa-onnx/scripts
+      - third_party/sherpa-onnx/sherpa-onnx/rust
+      - third_party/sherpa-onnx/tauri-examples
+      - third_party/whisper.cpp/bindings/java
+      - third_party/whisper.cpp/examples
+      - third_party/whisper.cpp/models/for-tests-*.bin
+    build: ANDROID_NDK_HOME=$$NDK$$ ../tools/build-tinfoil-aar.sh
+    ndk: 27.1.12297006
+
+AllowedAPKSigningKeys: c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.31.0
+CurrentVersionCode: 59
