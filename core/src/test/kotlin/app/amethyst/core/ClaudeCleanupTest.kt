@@ -126,9 +126,10 @@ class ClaudeCleanupTest {
     }
 
     @Test
-    fun `a refusal is no tidied text`() = runTest {
-        val problem = problemOf(FakeHttpTransport.json(reply("", stop = "refusal")))
-        assertIs<Problem.CleanupChangedTooMuch>(problem)
+    fun `a refusal is said as one, and the dictation goes in as recognized`() = runTest {
+        val result = cleanup(FakeHttpTransport.json(reply("I can't help with that.", stop = "refusal"))).clean("äh ich komme morgen okay")
+        // A failure: the caller types the transcript as recognized, never the refusal's text.
+        assertEquals(Problem.CleanupDeclined("Claude"), assertIs<SttFailure>(result.exceptionOrNull()).problem)
     }
 
     @Test

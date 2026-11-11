@@ -78,7 +78,7 @@ class ClaudeCleanup(
         when (reply.stopReason) {
             in NORMAL_ENDS -> Unit
             // Declined by its safety checks: the answer is no tidied dictation.
-            "refusal" -> return Result.failure(SttFailure(Problem.CleanupChangedTooMuch("refused"), "stop_reason=refusal"))
+            "refusal" -> return Result.failure(SttFailure(Problem.CleanupDeclined(service), "stop_reason=refusal"))
             // max_tokens, or anything new: the end of the dictation may be lost.
             else -> return Result.failure(SttFailure(Problem.CleanupCutOff, "stop_reason=${reply.stopReason}"))
         }

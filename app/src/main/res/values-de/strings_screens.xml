@@ -4,6 +4,7 @@
     <string name="test_enclave_verified">Enklave geprüft: %1$s.</string>
     <string name="test_answer">Antwort nach %1$d ms: „%2$s“.</string>
     <string name="test_cleanup_works">Die Bereinigung geht: „%2$s“ nach %1$d ms.</string>
+    <string name="test_cleanup_failed">Die Bereinigung ließ sich nicht einrichten.</string>
     <string name="test_answer_via">Antwort nach %1$d ms (über %3$s): „%2$s“.</string>
     <string name="test_model_runs">Das Modell läuft. Der Testclip enthält keine Sprache, also kam kein Text zurück, aber es hat gerechnet.</string>
     <string name="test_connection_works">Die Verbindung steht. Der Testclip enthält keine Sprache, also kam kein Text zurück.</string>

@@ -2,6 +2,7 @@ package app.amethyst.core.stats
 
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.text.ChatCleanup
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -154,7 +155,12 @@ object ServerCost {
     /** Voxtral reads audio as about 12.5 tokens a second; text is about 4 characters a token. */
     private const val AUDIO_MS_PER_TOKEN = 80
     private const val CHARS_PER_TOKEN = 4
-    private const val PROMPT_TOKENS = 250
+
+    /**
+     * What every cleanup sends before the dictation: the system prompt and the worked examples,
+     * counted from the real ones (about 700 tokens; an app's own style or instruction adds a little).
+     */
+    internal val PROMPT_TOKENS: Int by lazy { ChatCleanup.promptChars() / CHARS_PER_TOKEN }
 
     /**
      * Recognition and cleanup each at the price of the server that did it - a local recognition

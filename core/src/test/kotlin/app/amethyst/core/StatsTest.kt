@@ -93,11 +93,23 @@ class StatsTest {
         val tinfoil = "https://inference.tinfoil.sh/v1"
         // Local recognition, Tinfoil cleanup: the cleanup still costs.
         val cleanupOnly = assertNotNull(ServerCost.microUsd(null, null, 60_000, 400, tinfoil, "deepseek-v4-1-flash"))
-        assertTrue(cleanupOnly in 300..450, "about \$0.0004 for 400 characters, got $cleanupOnly")
+        // The prompt and its worked examples are most of what goes in: ~700 tokens.
+        assertTrue(cleanupOnly in 550..800, "about \$0.0007 for 400 characters, got $cleanupOnly")
         // Groq recognizes, Tinfoil cleans up: each at its own price.
         val speechOnly = assertNotNull(ServerCost.microUsd(groq, "whisper-large-v3-turbo", 60_000, 400, null, null))
         val both = assertNotNull(ServerCost.microUsd(groq, "whisper-large-v3-turbo", 60_000, 400, tinfoil, "deepseek-v4-1-flash"))
         assertTrue(both - (speechOnly + cleanupOnly) in -1..1, "$both vs $speechOnly + $cleanupOnly")
+    }
+
+    @Test
+    fun `the cleanup's prompt is counted from the one sent`() {
+        val chars = app.amethyst.core.text.ChatCleanup.promptChars()
+        assertTrue(chars > app.amethyst.core.text.ChatCleanup.systemPrompt(app.amethyst.core.settings.WritingStyle.AS_SPOKEN, null).length)
+        assertEquals(chars / 4, ServerCost.PROMPT_TOKENS)
+        assertTrue(ServerCost.PROMPT_TOKENS in 500..1200, "the real prompt, not a guess: ${ServerCost.PROMPT_TOKENS}")
+        // Claude Haiku 5.5 with a short dictation: about a hundredth of a cent.
+        val haiku = assertNotNull(ServerCost.microUsd(null, null, 15_000, 200, "https://api.anthropic.com/v1", "claude-haiku-5-5"))
+        assertTrue(haiku in 60..150, "got $haiku")
     }
 
     @Test

@@ -33,6 +33,7 @@
     <string name="problem_unencrypted_refused">Refused an unencrypted connection to a public address - use https.</string>
     <string name="problem_cleanup_failed">Cleanup failed (%1$d).</string>
     <string name="problem_no_credit">“%1$s” refused: the account has no credit left or reached its spend limit.</string>
+    <string name="problem_cleanup_declined">“%1$s” declined to clean this up; the text went in as recognized.</string>
     <string name="problem_cleanup_model_unknown">Cleanup failed: the server doesn\'t know the model %1$s.</string>
     <string name="problem_cleanup_unreadable">The cleanup\'s answer could not be read.</string>
     <string name="problem_cleanup_cut_off">The cleanup was cut off; kept the original.</string>

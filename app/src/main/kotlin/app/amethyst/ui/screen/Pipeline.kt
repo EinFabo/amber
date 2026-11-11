@@ -270,6 +270,8 @@ private fun AddClaude(
 ) {
     var open by rememberSaveable { mutableStateOf(initialKey != null) }
     var key by remember { mutableStateOf(initialKey.orEmpty()) }
+    // Written once: a second tap must not add a second Claude.
+    var written by remember { mutableStateOf(false) }
     val claudeKey = Servers.isClaudeKey(key)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         EngineFold(
@@ -302,12 +304,14 @@ private fun AddClaude(
                 GhostButton(
                     stringResource(R.string.cleanup_claude_use),
                     {
+                        if (written) return@GhostButton
+                        written = true
                         val phone = PhoneLocales.tags()
                         val setup = CleanupService.setup(settings, CleanupService.claude(), phone)
                         setup.engine.apiKeyAlias?.let { onSaveKey(it, key.trim()) }
                         onUpdateSettings { CleanupPick.SERVICE.applyTo(it, keyReady = true, phone, setup) }
                     },
-                    enabled = claudeKey,
+                    enabled = claudeKey && !written,
                 )
             }
         }

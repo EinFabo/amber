@@ -270,6 +270,14 @@ class ChatCleanup(
 
         private val FENCE_TAGS = Regex("</?(user_addition|app_instruction|dictation)>", RegexOption.IGNORE_CASE)
 
+        /**
+         * The characters every cleanup sends besides the dictation: the prompt for the default
+         * style and the worked examples, as [ClaudeCleanup] and [ChatCleanup] send them.
+         */
+        fun promptChars(): Int =
+            systemPrompt(WritingStyle.AS_SPOKEN, null).length + fenced("").length +
+                EXAMPLES.sumOf { (spoken, tidied) -> fenced(spoken).length + tidied.length }
+
         internal fun fenced(text: String) = "<dictation>\n$text\n</dictation>"
 
         /**

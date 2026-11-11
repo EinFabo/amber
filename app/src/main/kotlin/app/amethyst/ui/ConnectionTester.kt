@@ -100,7 +100,7 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
                 EngineConfigValidator.validate(config, graph.secretStore.has(config.apiKeyAlias))
                     .firstOrNull { !EngineConfigValidator.onlyAboutSpeech(it) }
                     ?.let { Texts.issue(context, it) }
-                    ?: context.getString(R.string.problem_recognition_failed),
+                    ?: context.getString(R.string.test_cleanup_failed),
             )
         return cleanup.clean(TextCleanup.TEST_DICTATION).fold(
             onSuccess = { Result.Ok(context.getString(R.string.test_cleanup_works, it.latencyMs, it.text)) },

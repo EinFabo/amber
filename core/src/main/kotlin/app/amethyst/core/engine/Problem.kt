@@ -43,6 +43,9 @@ sealed interface Problem {
 
     data class CleanupFailed(val code: Int) : Problem
 
+    /** [service]'s model declined to clean the dictation up (Claude's refusal): it went in as recognized. */
+    data class CleanupDeclined(val service: String) : Problem
+
     /** [service] refused for the account's money: no credit left, or a spend limit reached. */
     data class NoCredit(val service: String) : Problem
 
