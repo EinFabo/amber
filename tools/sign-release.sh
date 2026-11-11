@@ -24,9 +24,10 @@
 #     SIGN_OUTPUT=amber-github.apk tools/sign-release.sh
 #
 # Run it from a normal clone (not a linked worktree) with nothing changed and the submodules at
-# their pinned commits; it refuses otherwise. It rebuilds the Tinfoil AAR (Go, NDK), checks that
-# the APK names HEAD as its commit, prints the unsigned APK's SHA-256 (the one a rebuild of this
-# commit gives) and warns when HEAD is not tagged v<versionName>.
+# their pinned commits; it refuses otherwise, and when anything asks for the adb test hook
+# (amber.insertTestHook). It rebuilds the Tinfoil AAR (Go, pinned NDK), checks that the APK
+# names HEAD as its commit and has no test hook in it, prints the unsigned APK's SHA-256 (the
+# one a rebuild of this commit gives) and warns when HEAD is not tagged v<versionName>.
 #
 # Output: $SIGN_OUTPUT in the project root (gitignored, *.apk).
 set -euo pipefail
@@ -105,15 +106,54 @@ if [ -n "$DIRTY" ]; then
 fi
 HEAD=$(git -C "$ROOT" rev-parse HEAD)
 
+# The adb test hook (-Pamber.insertTestHook=true, see app/build.gradle.kts) must never be in an
+# APK signed with a release key: it lets the adb shell type into any field. Refused wherever
+# Gradle could read the property from - the command line, the environment
+# (ORG_GRADLE_PROJECT_amber.insertTestHook, -Dorg.gradle.project.... in GRADLE_OPTS or
+# JAVA_OPTS), the gradle.properties files - and the built APK is checked for the hook below,
+# whichever way the property got set.
+HOOK=insertTestHook
+GRADLE_HOME_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}"
+case " ${AMBER_GRADLE_ARGS:-} " in
+  *"$HOOK"*)
+    echo "AMBER_GRADLE_ARGS names amber.$HOOK - the adb test hook never goes into a signed" \
+      "release; not signing" >&2
+    exit 1 ;;
+  *" -g"*|*" --gradle-user-home"*)
+    echo "AMBER_GRADLE_ARGS sets another Gradle user home, whose gradle.properties is not" \
+      "checked for amber.$HOOK; not signing" >&2
+    exit 1 ;;
+esac
+# Read whole, not with grep -q in a pipe: an early exit there makes env die of SIGPIPE, and
+# pipefail would then turn a match into a "no".
+HOOK_ENV=$(env | grep "$HOOK" | sed 's/=.*//' || true)
+if [ -n "$HOOK_ENV" ]; then
+  echo "the environment names amber.$HOOK (e.g. ORG_GRADLE_PROJECT_amber.$HOOK, GRADLE_OPTS) -" \
+    "the adb test hook never goes into a signed release; not signing:" >&2
+  printf '%s\n' "$HOOK_ENV" >&2
+  exit 1
+fi
+for f in "$ROOT/gradle.properties" "$ROOT/app/gradle.properties" "$ROOT/core/gradle.properties" \
+         "$GRADLE_HOME_DIR/gradle.properties" "$GRADLE_HOME_DIR"/wrapper/dists/*/*/*/gradle.properties; do
+  if [ -f "$f" ] && grep -q "$HOOK" "$f"; then
+    echo "$f names amber.$HOOK - the adb test hook never goes into a signed release;" \
+      "remove it there; not signing" >&2
+    exit 1
+  fi
+done
+
 # Rebuilt every time rather than trusted: the AAR is not in git, and one left from an older
 # script (another pin, other flags, or from before the build was reproducible) puts other
-# bytes into the APK than the commit's build has. It takes a minute or two.
+# bytes into the APK than the commit's build has. It takes a minute or two. OUT and CI are set
+# here, not inherited: an exported OUT would build the AAR elsewhere and leave a stale one in
+# app/libs for Gradle to package, and CI=true makes an NDK other than the pinned one (another
+# ANDROID_NDK_HOME) a refusal instead of a warning.
 echo "==> building the Tinfoil AAR"
-"$ROOT/tools/build-tinfoil-aar.sh" >/dev/null
+OUT="$ROOT/app/libs/tinfoil-mobile.aar" CI=true "$ROOT/tools/build-tinfoil-aar.sh" >/dev/null
 
 echo "==> building the release APK of $HEAD"
 rm -f "$UNSIGNED"
-# AMBER_GRADLE_ARGS: extra Gradle arguments, e.g. -Pamber.insertTestHook=true for a test build.
+# AMBER_GRADLE_ARGS: extra Gradle arguments (never the test hook, see above).
 (cd "$ROOT" && ./gradlew -q :app:assembleRelease ${AMBER_GRADLE_ARGS:-})
 [ -f "$UNSIGNED" ] || { echo "no unsigned release APK - is a local keystore.properties signing it already?" >&2; exit 1; }
 # The build names its commit (AGP's vcsInfo); it has to be this one.
@@ -126,6 +166,27 @@ except KeyError:
     sys.exit(f"the unsigned APK has no {info} - not signing")
 if f'revision: "{sys.argv[2]}"' not in [line.strip() for line in text.splitlines()]:
     sys.exit(f"the unsigned APK's {info} does not name commit {sys.argv[2]} - not signing:\n{text}")
+PY
+# And the hook is not in the APK: neither its receivers in the manifest nor their classes in
+# the dex files.
+MANIFEST=$("$BT/aapt2" dump xmltree --file AndroidManifest.xml "$UNSIGNED") \
+  || { echo "cannot read the unsigned APK's manifest (aapt2) - not signing" >&2; exit 1; }
+if grep -qE 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST"; then
+  echo "the unsigned APK's manifest has the adb test hook - not signing:" >&2
+  grep -E 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST" >&2
+  exit 1
+fi
+python3 -I - "$UNSIGNED" <<'PY' || exit 1
+import re, sys, zipfile
+apk = zipfile.ZipFile(sys.argv[1])
+dex = [n for n in apk.namelist() if re.fullmatch(r"classes\d*\.dex", n)]
+if not dex:
+    sys.exit("the unsigned APK has no classes.dex - not signing")
+for name in dex:
+    data = apk.read(name)
+    for mark in (b"InsertTestReceiver", b"CommandTestReceiver", b"Lapp/amethyst/debug/"):
+        if mark in data:
+            sys.exit(f"the unsigned APK's {name} has the adb test hook ({mark.decode()}) - not signing")
 PY
 echo "==> unsigned APK, SHA-256 $(sha256sum "$UNSIGNED" | cut -d' ' -f1)"
 VERSION=$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)

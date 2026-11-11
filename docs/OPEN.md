@@ -656,6 +656,10 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [ ] **Cross-machine reproducibility**: confirm with CI's SHA-256 against a local build (the
       check so far compares two builds on one machine).
 - [ ] **Signing host needs build-tools >= 35.0.0** for `--alignment-preserved`.
+- [ ] **`sign-release.sh` and gitignored files**: it refuses changed and untracked files, but
+      not ignored ones (`local.properties`, `.gradle/` and `.cxx/` caches, a leftover
+      `app/libs/*.jar`) that could reach the APK. Hardening option: build from a fresh clone of
+      HEAD, as `tools/check-reproducible.sh` does.
 - [ ] **Recipe JDK**: README and CI build with JDK 21; F-Droid's build server may default to
       17. Either install 21 in the recipe (`sudo:`) or prove that 17 gives the same bytes - and
       check whether `bookworm-backports` exists on the build server for `golang-go` at all
