@@ -660,12 +660,20 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [x] **Recipe draft** `docs/fdroid/app.amber.yml` + `docs/fdroid/README.md`: `fdroid lint`
       clean, `fdroid scanner` 0 problems (submodule examples and test binaries via `scandelete`).
       Its `Builds` entry is a placeholder (0.31.0 / 59) - v0.31.0 predates the from-source build.
-- [ ] **Device test by Fabi** of a build from this branch (whisper, Parakeet, Tinfoil).
-- [ ] **First release tagged from this branch**; then bump the recipe's `Builds`,
-      `CurrentVersion` and `CurrentVersionCode` to it.
-- [ ] **Cross-machine reproducibility**: confirm with CI's SHA-256 against a local build (the
-      check so far compares two builds on one machine).
-- [ ] **Signing host needs build-tools >= 35.0.0** for `--alignment-preserved`.
+- [x] **Device test by Fabi** (2026-11-11) of the debug build: Parakeet German/English and a
+      30 s dictation in parts, Tinfoil "Verified enclave" - fine. Local Whisper not dictated.
+- [ ] **First release from the from-source build** (Fabi, 2026-11-11: no release of its own -
+      the next regular feature release is it). For that release:
+      `git submodule update --init --recursive`; `fastlane/metadata/android/{en-US,de-DE}/changelogs/<versionCode>.txt`
+      committed **before** the tag; sign with `tools/sign-release.sh` and the GitHub key from a
+      clean, normal clone (not a worktree, no untracked files - the script refuses otherwise);
+      its printed unsigned SHA-256 should equal CI's for the same commit; attach the APK to the
+      GitHub release as `amber-<version>.apk`, never replace it later. Then bump the recipe's
+      `Builds`, `CurrentVersion` and `CurrentVersionCode` to it.
+- [x] **Cross-machine reproducibility** (2026-11-11): CI's unsigned release SHA-256 equals
+      three local `check-reproducible.sh` runs (`fdd7e783...`), with R8 pinned to 8.13.25.
+- [x] **Signing host has build-tools 36.0.0** (checked 2026-11-11), which `sign-release.sh` picks;
+      `--alignment-preserved` works.
 - [ ] **`sign-release.sh` and gitignored files**: it refuses changed and untracked files, but
       not ignored ones (`local.properties`, `.gradle/` and `.cxx/` caches, a leftover
       `app/libs/*.jar`) that could reach the APK. Hardening option: build from a fresh clone of
