@@ -3,6 +3,7 @@ package app.amethyst.engine
 import android.content.Context
 import app.amethyst.core.audio.AudioEncoder
 import app.amethyst.core.engine.AmberCatalogs
+import app.amethyst.core.engine.ChatDialect
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EngineConfigValidator
@@ -26,6 +27,8 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.text.ChatCleanup
+import app.amethyst.core.text.ClaudeCleanup
+import app.amethyst.core.text.TextCleanup
 import app.amethyst.data.SecretStore
 
 /**
@@ -160,7 +163,7 @@ class EngineFactory(
      * when its engine is gone or not ready. Which choice applies decides
      * [app.amethyst.core.engine.CleanupRouting].
      */
-    fun cleanupFor(choice: CleanupChoice, settings: AmethystSettings): ChatCleanup? {
+    fun cleanupFor(choice: CleanupChoice, settings: AmethystSettings): TextCleanup? {
         val config = settings.engines.firstOrNull { it.id == choice.engineId } ?: return null
         if (!EngineConfigValidator.readyForCleanup(config, secrets.has(config.apiKeyAlias))) return null
         val model = choice.model.trim().takeIf { it.isNotEmpty() } ?: return null
@@ -175,19 +178,32 @@ class EngineFactory(
             verifier = tinfoil.takeIf { EnginePresets.enclaveRepoFor(baseUrl) != null },
             plainTrust = TrustLevel.CLOUD,
         )
-        // The same backend for every server: only the model's own switches differ.
         val provider = ServerProviders.forUrl(baseUrl)
         val known = provider.cleanupModel(model)
-        return ChatCleanup(
-            baseUrl = baseUrl,
-            model = model,
-            channel = channel,
-            apiKeyProvider = { secrets.get(config.apiKeyAlias)?.takeIf { KeyBinding.allows(config) } },
-            templateKwargs = known?.noThinking.orEmpty(),
-            extraParams = known?.extraParams.orEmpty(),
-            // A streamed reply lets the ring follow the cleanup; Amber PC's answers in one piece.
-            stream = provider.streamsChat,
-        )
+        // Only to the host the key was given for.
+        val key = { secrets.get(config.apiKeyAlias)?.takeIf { KeyBinding.allows(config) } }
+        return when (provider.chat) {
+            // Claude in its own Messages API.
+            ChatDialect.ANTHROPIC -> ClaudeCleanup(
+                baseUrl = baseUrl,
+                model = model,
+                channel = channel,
+                apiKeyProvider = key,
+                service = config.displayName,
+                thinkingOff = known?.thinkingOff,
+            )
+            // The same backend for every other server: only the model's own switches differ.
+            ChatDialect.OPENAI -> ChatCleanup(
+                baseUrl = baseUrl,
+                model = model,
+                channel = channel,
+                apiKeyProvider = key,
+                templateKwargs = known?.noThinking.orEmpty(),
+                extraParams = known?.extraParams.orEmpty(),
+                // A streamed reply lets the ring follow the cleanup; Amber PC's answers in one piece.
+                stream = provider.streamsChat,
+            )
+        }
     }
 
     private fun incomplete(config: EngineConfig, problems: List<ConfigIssue>): Result<SttEngine> =

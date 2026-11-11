@@ -195,7 +195,7 @@ fun EngineDetailScreen(
             if (preset?.note?.isNotBlank() == true) Hint(catalog(preset.note))
 
             // Without a speech model on purpose: said plainly, not as an error.
-            val shown = if (cleanupOnly) problems.filterNot { it == ConfigIssue.ModelNameMissing } else problems
+            val shown = if (cleanupOnly) problems.filterNot { it == ConfigIssue.ModelNameMissing || it is ConfigIssue.NoSpeechRecognition } else problems
             if (cleanupOnly) Hint(stringResource(R.string.recognition_cleanup_only))
             if (shown.isEmpty()) {
                 if (!cleanupOnly) Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
@@ -366,7 +366,8 @@ fun EngineDetailScreen(
                         }
                     }
                 }
-                if (provider.hasModelList) {
+                // Claude recognizes no speech: no speech model, no languages to choose.
+                if (provider.hasModelList && provider.recognizes) {
                     SectionCard(
                         title = stringResource(R.string.engine_speech_model),
                         subtitle = stringResource(R.string.engine_speech_model_subtitle, catalog(provider.name)),
@@ -387,7 +388,7 @@ fun EngineDetailScreen(
                 // An Amber server takes several languages and picks among them; a plain API
                 // takes one code, and detects by itself for several or none.
                 val amber = catalog?.takeIf { AmberCatalogs.isCandidate(config) }
-                SectionCard(title = stringResource(R.string.engine_languages)) {
+                if (provider.recognizes) SectionCard(title = stringResource(R.string.engine_languages)) {
                     if (amber != null) {
                         val machine = Texts.machine(context, amber.machine)
                         Hint(stringResource(R.string.engine_amber_languages, machine))

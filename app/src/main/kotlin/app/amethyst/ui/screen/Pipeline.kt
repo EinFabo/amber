@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.amethyst.R
@@ -37,6 +39,8 @@ import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
+import app.amethyst.core.onboarding.CleanupPick
+import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -48,6 +52,7 @@ import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
+import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -67,7 +72,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Who rewrites the recognized text, chosen apart from who recognizes it: local Whisper can be
- * cleaned up by a model on Tinfoil, Groq, OpenAI or an own server. Every configured server
+ * cleaned up by a model on Tinfoil, Groq, OpenAI, Claude or an own server. Every configured server
  * engine lists its chat models under its own heading - an Amber PC or Server the ones it
  * offers; one of them is the cleanup, or none.
  */
@@ -75,8 +80,11 @@ import kotlinx.coroutines.delay
 fun CleanupScreen(
     settings: AmethystSettings,
     hasKeyFor: (String?) -> Boolean,
+    onSaveKey: (alias: String, key: String) -> Unit,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     modifier: Modifier = Modifier,
+    // For the screenshots: Claude's row open, a key typed.
+    initialClaudeKey: String? = null,
 ) {
     val current = settings.cleanup
     val ready = rememberCleanupReadiness(settings, hasKeyFor)
@@ -90,6 +98,10 @@ fun CleanupScreen(
         ) {
             RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = current == null, onSelect = { choose(null) })
             CleanupModelChoices(settings, ready, current, ::choose)
+            // Claude has no speech recognition, so it is added here rather than there.
+            if (settings.engines.none { ServerProviders.forUrl(it.baseUrl) === ServerProviders.ANTHROPIC }) {
+                AddClaude(settings, initialClaudeKey, onSaveKey, onUpdateSettings)
+            }
             CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), settings.cleanupEngine()?.trustLevelForDisplay())
         }
         if (SettingsLayout.shows(SettingsItem.CLEANUP_INSTRUCTION, settings.ui.advanced)) CleanupInstructionCard(settings, onUpdateSettings)
@@ -210,7 +222,8 @@ internal fun CleanupModelChoices(
         val isReady = ready[engine.id] == true
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             EngineFold(
-                engine = engine,
+                name = engineName(engine),
+                trust = engine.trustLevelForDisplay(),
                 note = when {
                     !isReady -> stringResource(R.string.cleanup_set_up_first)
                     listed && provider.cleanupModels.isEmpty() -> stringResource(R.string.cleanup_none_offered)
@@ -244,9 +257,66 @@ internal fun CleanupModelChoices(
     }
 }
 
+/**
+ * Claude, from its API key: the same server setup's cleanup step makes ([CleanupService]),
+ * cleaning up with its recommended model at once. The key is never kept in saved state.
+ */
+@Composable
+private fun AddClaude(
+    settings: AmethystSettings,
+    initialKey: String?,
+    onSaveKey: (alias: String, key: String) -> Unit,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+) {
+    var open by rememberSaveable { mutableStateOf(initialKey != null) }
+    var key by remember { mutableStateOf(initialKey.orEmpty()) }
+    val claudeKey = Servers.isClaudeKey(key)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        EngineFold(
+            name = ServerProviders.ANTHROPIC.name,
+            trust = TrustLevel.CLOUD,
+            note = stringResource(R.string.cleanup_claude_add),
+            open = open,
+            onToggle = { open = !open },
+        )
+        Unfold(open) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { key = it },
+                    label = { Text(stringResource(R.string.engine_api_key)) },
+                    placeholder = { Text("sk-ant-…") }, // English: the key's shape
+                    singleLine = true,
+                    shape = AmberShapes.Inner,
+                    colors = fieldColors(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    // Masked: off screenshots, recordings and other eyes.
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (key.isNotBlank() && !claudeKey) {
+                    Hint(stringResource(R.string.cleanup_claude_not_a_key), AmberPalette.Error)
+                } else {
+                    Hint(stringResource(R.string.engine_key_stored))
+                }
+                GhostButton(
+                    stringResource(R.string.cleanup_claude_use),
+                    {
+                        val phone = PhoneLocales.tags()
+                        val setup = CleanupService.setup(settings, CleanupService.claude(), phone)
+                        setup.engine.apiKeyAlias?.let { onSaveKey(it, key.trim()) }
+                        onUpdateSettings { CleanupPick.SERVICE.applyTo(it, keyReady = true, phone, setup) }
+                    },
+                    enabled = claudeKey,
+                )
+            }
+        }
+    }
+}
+
 /** An engine's models folded to one row: "Groq", where it sends the text, how many to pick from. */
 @Composable
-private fun EngineFold(engine: EngineConfig, note: String, open: Boolean, onToggle: () -> Unit) {
+private fun EngineFold(name: String, trust: TrustLevel, note: String, open: Boolean, onToggle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -258,8 +328,8 @@ private fun EngineFold(engine: EngineConfig, note: String, open: Boolean, onTogg
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(engineName(engine), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-            TrustBadge(engine.trustLevelForDisplay(), detail = note)
+            Text(name, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
+            TrustBadge(trust, detail = note)
         }
         ExpandChevron(open)
     }

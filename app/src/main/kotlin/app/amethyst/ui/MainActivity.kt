@@ -612,6 +612,7 @@ private fun AmethystScreens(
                             SettingsPage.CLEANUP -> CleanupScreen(
                                 settings = settings,
                                 hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
                                 onUpdateSettings = ::updateSettings,
                             )
                             SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
@@ -749,8 +750,9 @@ private fun AmethystScreens(
                                         current.copy(
                                             engines = remaining,
                                             serverCatalogs = current.serverCatalogs - config.id,
+                                            // Never Claude: it recognizes no speech.
                                             activeEngineId = if (current.activeEngineId == config.id) {
-                                                remaining.firstOrNull()?.id ?: ""
+                                                Servers.nextActive(remaining)
                                             } else {
                                                 current.activeEngineId
                                             },

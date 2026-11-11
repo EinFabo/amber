@@ -80,6 +80,7 @@ object Texts {
             Problem.EnclaveCannotBind -> getString(R.string.problem_enclave_cannot_bind)
             Problem.UnencryptedRefused -> getString(R.string.problem_unencrypted_refused)
             is Problem.CleanupFailed -> getString(R.string.problem_cleanup_failed, problem.code)
+            is Problem.NoCredit -> getString(R.string.problem_no_credit, catalog(this, problem.service))
             is Problem.CleanupModelUnknown -> getString(R.string.problem_cleanup_model_unknown, problem.model)
             Problem.CleanupUnreadable -> getString(R.string.problem_cleanup_unreadable)
             Problem.CleanupCutOff -> getString(R.string.problem_cleanup_cut_off)
@@ -105,6 +106,7 @@ object Texts {
             ConfigIssue.NoModelSelected -> getString(R.string.issue_no_model_selected)
             ConfigIssue.NotSupported -> getString(R.string.issue_not_supported)
             ConfigIssue.ModelNameMissing -> getString(R.string.issue_model_name_missing)
+            is ConfigIssue.NoSpeechRecognition -> getString(R.string.issue_no_speech_recognition, issue.service)
             ConfigIssue.ApiKeyMissing -> getString(R.string.issue_api_key_missing)
             is ConfigIssue.EnclaveAddressOnly -> getString(R.string.issue_enclave_address_only, issue.address)
             is ConfigIssue.InvalidLanguageCode -> getString(R.string.issue_invalid_language_code, issue.tag)
@@ -351,6 +353,7 @@ object Texts {
         R.string.catalog_groq_gpt_oss, R.string.catalog_openai_mini_transcribe,
         R.string.catalog_openai_transcribe, R.string.catalog_openai_whisper, R.string.catalog_nano,
         R.string.catalog_gpt4o_mini, R.string.catalog_gpt41_mini,
+        R.string.catalog_claude_haiku, R.string.catalog_claude_sonnet,
         R.string.catalog_futo39_note, R.string.catalog_futo74_note, R.string.catalog_futo244_note,
         R.string.catalog_acft_note, R.string.catalog_old_large_name, R.string.catalog_old_large_note,
         R.string.catalog_tier_fastest, R.string.catalog_tier_fast, R.string.catalog_tier_more_accurate,

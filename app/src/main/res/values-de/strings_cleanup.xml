@@ -12,7 +12,7 @@
     <string name="char_count">%1$d / %2$d</string>
     <string name="cleanup_view_prompt">Systemprompt ansehen</string>
     <string name="cleanup_prompt_note">Gezeigt für den Stil „Wie gesprochen“. Stil und eigene Anweisung jeder App stehen am Ende, die Sprache des Diktats wird genannt, wenn sie bekannt ist, und %1$d ausgearbeitete Beispiele folgen vor dem Diktat. Der Prompt geht auf Englisch hinaus.</string>
-    <string name="cleanup_no_server">Füge unter Spracherkennung einen Server hinzu (Tinfoil, Groq, OpenAI oder deinen eigenen), um eines seiner Modelle zu nutzen.</string>
+    <string name="cleanup_no_server">Füge unter Spracherkennung einen Server hinzu (Tinfoil, Groq, OpenAI oder deinen eigenen), um seine Modelle zu nutzen - oder Claude unten.</string>
     <string name="cleanup_set_up_first">Erst einrichten</string>
     <string name="cleanup_none_offered">Gerade keins im Angebot</string>
     <string name="cleanup_own_model">Dein eigenes Modell</string>
@@ -22,6 +22,9 @@
     <string name="cleanup_chat_model">Chat-Modell</string>
     <string name="cleanup_use_model">%1$s nutzen</string>
     <string name="cleanup_in_use">Wird für die Bereinigung genutzt.</string>
+    <string name="cleanup_claude_add">Mit seinem API-Schlüssel hinzufügen</string>
+    <string name="cleanup_claude_not_a_key">Claude-Schlüssel beginnen mit sk-ant-.</string>
+    <string name="cleanup_claude_use">Claude verwenden</string>
     <string name="fallback_who">Wer einspringt</string>
     <string name="fallback_who_subtitle">Wenn der Server eine Aufnahme nicht annehmen kann.</string>
     <string name="fallback_who_more">Keine Verbindung, eine Zeitüberschreitung oder ein ausgefallener Server: Dann erkennt die hier gewählte Spracherkennung die Aufnahme. Nie eine, die weniger privat ist als die, für die sie einspringt.</string>

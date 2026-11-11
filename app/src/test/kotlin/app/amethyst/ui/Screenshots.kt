@@ -317,8 +317,47 @@ open class Screenshots {
     /** Not part of the listing set: the cleanup page. */
     @Test
     fun cleanup() = shoot("x-cleanup", "Cleanup") {
-        CleanupScreen(settings = pipeline, hasKeyFor = { true }, onUpdateSettings = {})
+        CleanupScreen(settings = pipeline, hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
     }
+
+    /** Claude for the cleanup only: its two models, the recognition on the phone. */
+    private val claude = app.amethyst.core.settings.EngineConfig(
+        id = "server-c1a0de",
+        kind = app.amethyst.core.engine.EngineKind.OPENAI_COMPATIBLE,
+        displayName = "Claude",
+        baseUrl = EnginePresets.ANTHROPIC_BASE_URL,
+        apiKeyAlias = "key.server-c1a0de",
+        keyHost = "api.anthropic.com",
+    )
+
+    private val onClaude = pipeline.withEngine(claude).copy(cleanup = app.amethyst.core.settings.CleanupChoice(claude.id, "claude-haiku-5-5"))
+
+    private fun claudeCleanup(name: String) = shoot(name, "Cleanup") {
+        CleanupScreen(settings = onClaude, hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
+    }
+
+    /** Not part of the listing set: the cleanup page with Claude chosen, a small phone and a bigger one. */
+    @Test
+    fun cleanupClaude() = claudeCleanup("x-cleanup-claude")
+
+    @Test
+    @Config(qualifiers = "+w411dp-h891dp")
+    fun cleanupClaudeW411() = claudeCleanup("x-cleanup-claude-w411")
+
+    private fun addClaude(name: String) = shoot(name, "Cleanup") {
+        CleanupScreen(
+            settings = pipeline.copy(cleanup = null), hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {},
+            initialClaudeKey = "sk-ant-api03-abc",
+        )
+    }
+
+    /** Not part of the listing set: Claude added on the cleanup page from its key. */
+    @Test
+    fun cleanupAddClaude() = addClaude("x-cleanup-add-claude")
+
+    @Test
+    @Config(qualifiers = "+w411dp-h891dp")
+    fun cleanupAddClaudeW411() = addClaude("x-cleanup-add-claude-w411")
 
     /** An own server that turned out to be an Amber PC, with the one model of each kind it uses. */
     private val amberPc = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED)
@@ -360,6 +399,7 @@ open class Screenshots {
                 serverCatalogs = mapOf(amberPc.id to app.amethyst.core.settings.StoredCatalog.of(amberPc.baseUrl!!, amberPcCatalog)),
             ),
             hasKeyFor = { true },
+            onSaveKey = { _, _ -> },
             onUpdateSettings = {},
         )
     }
@@ -672,44 +712,45 @@ open class Screenshots {
         ) {}
     }
 
-    /** Not part of the listing set: a key that names no service - the address is asked for. */
-    @Test
-    fun onboardingCleanupService() = cleanupService("service", app.amethyst.core.onboarding.ServiceFields("abcdefghjkmnpqrstuvw"))
-
-    /** Not part of the listing set: a Claude key, which Amber cannot use yet. */
-    @Test
-    fun onboardingCleanupClaude() = cleanupService("claude", app.amethyst.core.onboarding.ServiceFields("sk-ant-api03-abc"))
-
-    /** Not part of the listing set: an OpenAI-looking key for another address (OpenRouter and the like). */
-    @Test
-    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
-    fun onboardingCleanupOtherAddress() = cleanupService(
-        "other-address", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc"), otherAddress = true,
+    /**
+     * Not part of the listing set: "Another service" in each case, on a small phone (360 dp
+     * wide) and a bigger one (411 dp, "-w411"), as the step shows them - Continue at the bottom.
+     */
+    private fun claudeKey(suffix: String = "") = cleanupService("claude$suffix", app.amethyst.core.onboarding.ServiceFields("sk-ant-api03-abc"))
+    private fun groqKey(suffix: String = "") = cleanupService("groq$suffix", app.amethyst.core.onboarding.ServiceFields("gsk_abc"))
+    private fun otherAddress(suffix: String = "") = cleanupService(
+        "other-address$suffix", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc"), otherAddress = true,
     )
-
-    /** Not part of the listing set: Ollama in the home network, no key, its models to pick from. */
-    @Test
-    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
-    fun onboardingCleanupModelList() = cleanupService(
-        "model-list", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
+    private fun modelList(suffix: String = "") = cleanupService(
+        "model-list$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
         answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OLLAMA, listOf("llama3.2:3b", "qwen3:4b", "gemma3:4b")),
     )
-
-    /** Not part of the listing set: OpenRouter's few hundred models, searched before they are shown. */
-    @Test
-    @Config(qualifiers = "+w360dp-h1300dp-xxhdpi")
-    fun onboardingCleanupLongList() = cleanupService(
-        "long-list", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc", OPENROUTER), otherAddress = true,
+    private fun longList(suffix: String = "") = cleanupService(
+        "long-list$suffix", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc", OPENROUTER), otherAddress = true,
         answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OPENROUTER, (1..320).map { "vendor-${it % 7}/model-$it" }),
     )
-
-    /** Not part of the listing set: a server that sent no list - the model's name is typed. */
-    @Test
-    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
-    fun onboardingCleanupTypedModel() = cleanupService(
-        "typed-model", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
+    private fun typedModel(suffix: String = "") = cleanupService(
+        "typed-model$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
         answer = app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = true),
     )
+    private fun noAnswer(suffix: String = "") = cleanupService(
+        "no-answer$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
+        answer = app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = false),
+    )
+
+    @Test fun onboardingCleanupService() = cleanupService("service", app.amethyst.core.onboarding.ServiceFields("abcdefghjkmnpqrstuvw"))
+    @Test fun onboardingCleanupClaude() = claudeKey()
+    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupClaudeW411() = claudeKey("-w411")
+    @Test fun onboardingCleanupGroq() = groqKey()
+    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupGroqW411() = groqKey("-w411")
+    @Test fun onboardingCleanupOtherAddress() = otherAddress()
+    @Test fun onboardingCleanupModelList() = modelList()
+    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupModelListW411() = modelList("-w411")
+    @Test fun onboardingCleanupLongList() = longList()
+    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupLongListW411() = longList("-w411")
+    @Test fun onboardingCleanupTypedModel() = typedModel()
+    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupTypedModelW411() = typedModel("-w411")
+    @Test fun onboardingCleanupNoAnswer() = noAnswer()
 
     @Test
     fun onboardingStyles() = onboarding(

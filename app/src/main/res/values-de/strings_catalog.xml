@@ -32,6 +32,8 @@
     <string name="catalog_nano">am günstigsten · ~0,0001 $</string>
     <string name="catalog_gpt4o_mini">~0,0001 $</string>
     <string name="catalog_gpt41_mini">klüger · ~0,0004 $</string>
+    <string name="catalog_claude_haiku">schnell und günstig · ~0,0001 $</string>
+    <string name="catalog_claude_sonnet">klüger · ~0,002 $</string>
 
     <string name="catalog_futo39_note">Whisper tiny. Am schnellsten und kleinsten, aber bei Deutsch nur mittelmäßig.</string>
     <string name="catalog_futo74_note">Whisper base, für kurze Diktate nachtrainiert. FUTOs Empfehlung für Deutsch.</string>

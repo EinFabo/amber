@@ -6,6 +6,7 @@ import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ModelList
 import app.amethyst.core.engine.ServerProviders
@@ -17,7 +18,7 @@ import app.amethyst.core.settings.EngineConfig
 sealed interface ServiceKey {
     data object Blank : ServiceKey
 
-    /** An Anthropic key ("sk-ant-"): Amber has no way to talk to Claude yet. */
+    /** An Anthropic key ("sk-ant-"): Claude, for the cleanup only - its address and models are known. */
     data object Claude : ServiceKey
 
     /** Groq or OpenAI, told by the key's prefix: address and models are known. */
@@ -68,7 +69,7 @@ sealed interface ServiceRoute {
     /** The address cannot be asked yet. */
     data class Fix(val problems: List<ConfigIssue>) : ServiceRoute
 
-    /** No key and no address, or a Claude key alone: on without a cleanup. */
+    /** No key and no address: on without a cleanup. */
     data object Skip : ServiceRoute
 }
 
@@ -100,7 +101,7 @@ object CleanupService {
     fun read(key: String): ServiceKey {
         val k = key.trim()
         if (k.isEmpty()) return ServiceKey.Blank
-        if (k.startsWith("sk-ant-")) return ServiceKey.Claude
+        if (Servers.isClaudeKey(k)) return ServiceKey.Claude
         return Servers.quickForKey(k)?.let(ServiceKey::Known) ?: ServiceKey.Unknown
     }
 
@@ -109,6 +110,13 @@ object CleanupService {
         baseUrl = quick.baseUrl,
         speechModel = quick.modelId,
         cleanupModel = quick.provider.cleanupModels.first { it.recommended }.id,
+    )
+
+    /** Claude: Anthropic's address, no speech model, the recommended chat model. */
+    fun claude(): ServicePlan = ServicePlan(
+        baseUrl = EnginePresets.ANTHROPIC_BASE_URL,
+        speechModel = null,
+        cleanupModel = ServerProviders.ANTHROPIC.cleanupModels.first { it.recommended }.id,
     )
 
     /**
@@ -122,7 +130,11 @@ object CleanupService {
     fun route(fields: ServiceFields, otherAddress: Boolean): ServiceRoute {
         val key = read(fields.key)
         if (!asksAddress(fields, otherAddress)) {
-            return if (key is ServiceKey.Known) ServiceRoute.Write(known(key.quick)) else ServiceRoute.Skip
+            return when (key) {
+                is ServiceKey.Known -> ServiceRoute.Write(known(key.quick))
+                ServiceKey.Claude -> ServiceRoute.Write(claude())
+                else -> ServiceRoute.Skip
+            }
         }
         knownAt(fields.address)?.let { return ServiceRoute.Write(it) }
         val problems = addressProblems(fields.address)
@@ -137,6 +149,7 @@ object CleanupService {
     /** A known service's address typed by hand: set up as its key would have it, no list asked for. */
     fun knownAt(address: String): ServicePlan? {
         val provider = ServerProviders.forUrl(address.trim())
+        if (provider === ServerProviders.ANTHROPIC) return claude()
         return Servers.QUICK.firstOrNull { it.provider === provider }?.let(::known)
     }
 
@@ -157,7 +170,7 @@ object CleanupService {
     }
 
     /** Rows a server's list shows at most; a longer one is searched first. */
-    const val MODELS_SHOWN = 12
+    const val MODELS_SHOWN = 8
 
     /** Whether [models] is too long to show whole: a search field comes over it. */
     fun searchable(models: List<String>): Boolean = models.size > MODELS_SHOWN

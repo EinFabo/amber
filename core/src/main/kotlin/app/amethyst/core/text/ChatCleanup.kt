@@ -8,6 +8,7 @@ import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.SecureChannel
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.WritingStyle
+import app.amethyst.core.text.TextCleanup.Cleaned
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -29,7 +30,7 @@ import kotlinx.serialization.json.put
  */
 class ChatCleanup(
     private val baseUrl: String,
-    val model: String,
+    override val model: String,
     private val channel: SecureChannel,
     private val apiKeyProvider: () -> String?,
     /** Model-specific chat_template_kwargs, e.g. the switch that turns reasoning off. */
@@ -43,9 +44,7 @@ class ChatCleanup(
      */
     private val stream: Boolean = false,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
-
-    data class Cleaned(val text: String, val latencyMs: Long, val trust: TrustLevel)
+) : TextCleanup {
 
     /**
      * Opens the connection to the chat server while the user is still speaking, the way the
@@ -53,23 +52,15 @@ class ChatCleanup(
      * that holds its key in the path (Amber PC, Amber Server) carries it, as every request does.
      * True when it is open; a failure is silent and changes nothing.
      */
-    suspend fun warmUp(): Boolean = channel.warmUp(OpenAiCompatibleEngine.apiRoot(baseUrl))
+    override suspend fun warmUp(): Boolean = channel.warmUp(OpenAiCompatibleEngine.apiRoot(baseUrl))
 
-    /**
-     * [style] and [instruction] come from the target app's profile; the default only tidies.
-     * [generalInstruction] is the user's own addition for every app. [language] is the
-     * dictation's language as far as the caller knows it ("de", "en"; see [LanguageGuess]):
-     * the prompt names it, and null keeps the general language rule.
-     * [onProgress] hears how much of the reply has come (0..1, against the dictation's length)
-     * while a streamed reply arrives; a reply in one piece never calls it.
-     */
-    suspend fun clean(
+    override suspend fun clean(
         text: String,
-        style: WritingStyle = WritingStyle.AS_SPOKEN,
-        instruction: String? = null,
-        generalInstruction: String? = null,
-        language: String? = null,
-        onProgress: ((Float) -> Unit)? = null,
+        style: WritingStyle,
+        instruction: String?,
+        generalInstruction: String?,
+        language: String?,
+        onProgress: ((Float) -> Unit)?,
     ): Result<Cleaned> {
         if (text.isBlank()) return Result.success(Cleaned(text, 0, TrustLevel.ON_DEVICE))
         val startedAt = clock()
@@ -132,22 +123,38 @@ class ChatCleanup(
         if (reply.finishReason !in NORMAL_ENDS) {
             return Result.failure(SttFailure(Problem.CleanupCutOff, "finish_reason=${reply.finishReason}"))
         }
-        val cleaned = unwrap(reply.content ?: "")
-        val ownInstruction = !instruction.isNullOrBlank() || !generalInstruction.isNullOrBlank()
-        val verdict = CleanupGuard.verdict(text, cleaned, style, ownInstruction, language)
-        if (verdict != CleanupGuard.Verdict.OK) {
-            // The reason, never the reply: that would put the dictation into the diagnostics.
-            return Result.failure(
-                SttFailure(
-                    Problem.CleanupChangedTooMuch(verdict.reason),
-                    "rejected: ${verdict.reason}, in=${text.length} out=${cleaned.length}",
-                ),
-            )
-        }
-        return Result.success(Cleaned(cleaned, clock() - startedAt, sent.trust))
+        return accepted(text, reply.content ?: "", style, instruction, generalInstruction, language)
+            .map { Cleaned(it, clock() - startedAt, sent.trust) }
     }
 
     companion object {
+        /**
+         * A model's [reply] to [text], unwrapped, or the failure that keeps the original:
+         * a reply that changed too much is rejected by [CleanupGuard].
+         */
+        internal fun accepted(
+            text: String,
+            reply: String,
+            style: WritingStyle,
+            instruction: String?,
+            generalInstruction: String?,
+            language: String?,
+        ): Result<String> {
+            val cleaned = unwrap(reply)
+            val ownInstruction = !instruction.isNullOrBlank() || !generalInstruction.isNullOrBlank()
+            val verdict = CleanupGuard.verdict(text, cleaned, style, ownInstruction, language)
+            if (verdict != CleanupGuard.Verdict.OK) {
+                // The reason, never the reply: that would put the dictation into the diagnostics.
+                return Result.failure(
+                    SttFailure(
+                        Problem.CleanupChangedTooMuch(verdict.reason),
+                        "rejected: ${verdict.reason}, in=${text.length} out=${cleaned.length}",
+                    ),
+                )
+            }
+            return Result.success(cleaned)
+        }
+
         /**
          * The rules no style and no instruction may bend come first, numbered: small models
          * follow what they read first and last, and the user's instruction comes last. The
@@ -263,7 +270,7 @@ class ChatCleanup(
 
         private val FENCE_TAGS = Regex("</?(user_addition|app_instruction|dictation)>", RegexOption.IGNORE_CASE)
 
-        private fun fenced(text: String) = "<dictation>\n$text\n</dictation>"
+        internal fun fenced(text: String) = "<dictation>\n$text\n</dictation>"
 
         /**
          * Worked examples, sent as turns before the real dictation: a self-correction of a

@@ -37,6 +37,8 @@
     <string name="catalog_nano">cheapest · ~$0.0001</string>
     <string name="catalog_gpt4o_mini">~$0.0001</string>
     <string name="catalog_gpt41_mini">smarter · ~$0.0004</string>
+    <string name="catalog_claude_haiku">fast and cheap · ~$0.0001</string>
+    <string name="catalog_claude_sonnet">smarter · ~$0.002</string>
 
     <string name="catalog_futo39_note">Whisper tiny. Fastest and smallest, but only fair at German.</string>
     <string name="catalog_futo74_note">Whisper base, fine-tuned for short dictations. FUTO\'s pick for German.</string>

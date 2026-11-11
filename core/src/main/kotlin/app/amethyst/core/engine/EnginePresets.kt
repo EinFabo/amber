@@ -45,6 +45,9 @@ object EnginePresets {
     /** Tinfoil's confidential model router; see [TINFOIL]. */
     const val TINFOIL_BASE_URL = "https://inference.tinfoil.sh/v1"
 
+    /** Anthropic's API: Claude, for the cleanup only - it has no speech recognition. */
+    const val ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1"
+
     /**
      * Hosts whose enclave Amber can verify, and the repository whose signed release the
      * enclave must run. The one list both the verifier and the settings go by. The router is
@@ -141,6 +144,12 @@ object EnginePresets {
         val usdPerMinute: Double = 0.0,
         /** Top-level request fields a chat model needs, e.g. Groq's reasoning_effort. */
         val extraParams: Map<String, String> = emptyMap(),
+        /**
+         * A Claude model's thinking type that turns its thinking before the answer off
+         * ("disabled", "between_tools"), sent as `thinking: {type: ...}`. Null sends none, and
+         * the model thinks as much as it sees fit.
+         */
+        val thinkingOff: String? = null,
     )
 
     /*

@@ -30,6 +30,7 @@
     <string name="problem_enclave_cannot_bind">Diese Verbindung kann nicht an die Enklave gebunden werden.</string>
     <string name="problem_unencrypted_refused">Unverschlüsselte Verbindung zu einer öffentlichen Adresse abgelehnt - nimm https.</string>
     <string name="problem_cleanup_failed">Die Bereinigung ist fehlgeschlagen (%1$d).</string>
+    <string name="problem_no_credit">„%1$s“ hat abgelehnt: Das Konto hat kein Guthaben mehr oder sein Ausgabenlimit erreicht.</string>
     <string name="problem_cleanup_model_unknown">Die Bereinigung ist fehlgeschlagen: Der Server kennt das Modell %1$s nicht.</string>
     <string name="problem_cleanup_unreadable">Die Antwort der Bereinigung konnte nicht gelesen werden.</string>
     <string name="problem_cleanup_cut_off">Die Bereinigung wurde abgeschnitten; der ursprüngliche Text bleibt.</string>
@@ -47,6 +48,7 @@
     <string name="issue_no_model_selected">Kein Modell ausgewählt.</string>
     <string name="issue_not_supported">Diese Spracherkennung wird nicht unterstützt.</string>
     <string name="issue_model_name_missing">Der Name des Modells fehlt.</string>
+    <string name="issue_no_speech_recognition">%1$s hat keine Spracherkennung - nur die Bereinigung.</string>
     <string name="issue_api_key_missing">Der API-Schlüssel fehlt.</string>
     <string name="issue_enclave_address_only">Diese Spracherkennung sendet nur an die Adresse ihrer prüfbaren Enklave (%1$s).</string>
     <string name="issue_invalid_language_code">„%1$s“ ist kein gültiger Sprachcode (z. B. de-DE oder de).</string>

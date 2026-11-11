@@ -5,12 +5,18 @@ import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.engine.ConfigIssue
+import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.text.TextCleanup
 import app.amethyst.core.settings.LanguageList
 import kotlin.math.sin
 
@@ -31,6 +37,7 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
     }
 
     suspend fun test(config: EngineConfig): Result {
+        if (!Servers.recognizes(config)) return testCleanup(config)
         val engine = graph.engineFactory.create(config).getOrElse { error ->
             return Result.Failed(Texts.failure(context, error))
         }
@@ -76,6 +83,29 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
         } finally {
             runCatching { engine.close() }
         }
+    }
+
+    /**
+     * A server for the cleanup only (Claude): two words tidied by its recommended model, or the
+     * one its cleanup uses - a round trip that costs a fraction of a cent.
+     */
+    private suspend fun testCleanup(config: EngineConfig): Result {
+        val settings = graph.settings.value.withEngine(config)
+        val provider = ServerProviders.forUrl(config.baseUrl)
+        val model = settings.cleanup?.takeIf { it.engineId == config.id }?.model
+            ?: provider.cleanupModels.firstOrNull { it.recommended }?.id
+            ?: return Result.Failed(Texts.issue(context, ConfigIssue.NoSpeechRecognition(provider.name)))
+        val cleanup = graph.engineFactory.cleanupFor(CleanupChoice(config.id, model), settings)
+            ?: return Result.Failed(
+                EngineConfigValidator.validate(config, graph.secretStore.has(config.apiKeyAlias))
+                    .firstOrNull { !EngineConfigValidator.onlyAboutSpeech(it) }
+                    ?.let { Texts.issue(context, it) }
+                    ?: context.getString(R.string.problem_recognition_failed),
+            )
+        return cleanup.clean(TextCleanup.TEST_DICTATION).fold(
+            onSuccess = { Result.Ok(context.getString(R.string.test_cleanup_works, it.latencyMs, it.text)) },
+            onFailure = { Result.Failed(Texts.failure(context, it)) },
+        )
     }
 
     /** One second of a very quiet tone - enough to be valid audio, small enough to be cheap. */

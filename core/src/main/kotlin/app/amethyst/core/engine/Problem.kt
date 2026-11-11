@@ -43,6 +43,9 @@ sealed interface Problem {
 
     data class CleanupFailed(val code: Int) : Problem
 
+    /** [service] refused for the account's money: no credit left, or a spend limit reached. */
+    data class NoCredit(val service: String) : Problem
+
     /** The server answered 404 about [model]: a name typed wrong, or a model not (or no longer) on it. */
     data class CleanupModelUnknown(val model: String) : Problem
     data object CleanupUnreadable : Problem
@@ -70,6 +73,9 @@ sealed interface ConfigIssue {
     data object NoModelSelected : ConfigIssue
     data object NotSupported : ConfigIssue
     data object ModelNameMissing : ConfigIssue
+
+    /** A server at [service], which recognizes no speech: it is there for the cleanup only. */
+    data class NoSpeechRecognition(val service: String) : ConfigIssue
     data object ApiKeyMissing : ConfigIssue
 
     /** Tinfoil sends only to the address whose enclave Amber can verify. */

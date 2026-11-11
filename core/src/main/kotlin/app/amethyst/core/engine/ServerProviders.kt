@@ -5,6 +5,9 @@ import app.amethyst.core.net.LocalNetwork
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 
+/** The two ways Amber talks to a chat model. */
+enum class ChatDialect { OPENAI, ANTHROPIC }
+
 /**
  * Every server engine - Tinfoil, Groq, OpenAI, your own - goes through the same backend: the
  * OpenAI audio endpoint for recognition and the chat endpoint for cleanup. What differs is
@@ -33,6 +36,13 @@ data class ServerProvider(
      * unknown.
      */
     val streamsChat: Boolean = false,
+    /** How its chat endpoint is spoken to: the OpenAI dialect, or Anthropic's own Messages API. */
+    val chat: ChatDialect = ChatDialect.OPENAI,
+    /**
+     * Whether it recognizes speech at all. Claude does not: a server there is for the cleanup
+     * only ([Servers.cleanupOnly]), never a speech recognition to choose.
+     */
+    val recognizes: Boolean = true,
 ) {
     /** The lists came from the server, so they are all it takes; nothing else is typed. */
     val listsItself: Boolean get() = listedBy != null
@@ -109,6 +119,32 @@ object ServerProviders {
         streamsChat = true,
     )
 
+    /*
+     * Claude, from Anthropic's models overview (platform.claude.com/docs/en/about-claude/models/overview),
+     * November 2026: Haiku 5.5 $0.10 / $0.50 per million tokens (prompts up to 100K tokens),
+     * Sonnet 5.5 $2 / $10. Spoken to in its own Messages API: its OpenAI layer refuses the
+     * cleanup's temperature 0. Thinking before the answer is switched off, each model its way.
+     */
+    val ANTHROPIC = ServerProvider(
+        id = "anthropic",
+        name = "Claude",
+        hosts = setOf("api.anthropic.com"),
+        speechModels = emptyList(),
+        cleanupModels = listOf(
+            ModelChoice(
+                "claude-haiku-5-5", "Claude Haiku 5.5", "fast and cheap · ~\$0.0001",
+                recommended = true, usdPerMIn = 0.10, usdPerMOut = 0.50, thinkingOff = "disabled",
+            ),
+            ModelChoice(
+                "claude-sonnet-5-5", "Claude Sonnet 5.5", "smarter · ~\$0.002",
+                usdPerMIn = 2.0, usdPerMOut = 10.0, thinkingOff = "between_tools",
+            ),
+        ),
+        fixedAddress = true,
+        chat = ChatDialect.ANTHROPIC,
+        recognizes = false,
+    )
+
     /** Anything else: the user's own server, models typed by hand. */
     val CUSTOM = ServerProvider(
         id = "custom",
@@ -119,7 +155,7 @@ object ServerProviders {
         fixedAddress = false,
     )
 
-    val known = listOf(TINFOIL, GROQ, OPENAI)
+    val known = listOf(TINFOIL, GROQ, OPENAI, ANTHROPIC)
 
     fun forUrl(baseUrl: String?): ServerProvider {
         val host = EnginePresets.hostOf(baseUrl) ?: return CUSTOM

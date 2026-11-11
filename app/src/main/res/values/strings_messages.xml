@@ -32,6 +32,7 @@
     <string name="problem_enclave_cannot_bind">This connection cannot be bound to the enclave.</string>
     <string name="problem_unencrypted_refused">Refused an unencrypted connection to a public address - use https.</string>
     <string name="problem_cleanup_failed">Cleanup failed (%1$d).</string>
+    <string name="problem_no_credit">“%1$s” refused: the account has no credit left or reached its spend limit.</string>
     <string name="problem_cleanup_model_unknown">Cleanup failed: the server doesn\'t know the model %1$s.</string>
     <string name="problem_cleanup_unreadable">The cleanup\'s answer could not be read.</string>
     <string name="problem_cleanup_cut_off">The cleanup was cut off; kept the original.</string>
@@ -49,6 +50,7 @@
     <string name="issue_no_model_selected">No model is selected.</string>
     <string name="issue_not_supported">This speech recognition is not supported.</string>
     <string name="issue_model_name_missing">The model name is missing.</string>
+    <string name="issue_no_speech_recognition">%1$s has no speech recognition - it is there for the cleanup only.</string>
     <string name="issue_api_key_missing">The API key is missing.</string>
     <string name="issue_enclave_address_only">This speech recognition only sends to its verifiable enclave address (%1$s).</string>
     <string name="issue_invalid_language_code">“%1$s” is not a valid language code (e.g. de-DE or de).</string>

@@ -1,7 +1,11 @@
 package app.amethyst.ui.onboarding
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -16,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -28,6 +34,8 @@ import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
+import app.amethyst.core.engine.ServerProvider
+import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.onboarding.CleanupPick
 import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.onboarding.EngineNames
@@ -64,12 +72,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * Tidy the text? Off, Tinfoil with a key, or another service - Groq and OpenAI told by the key,
+ * Tidy the text? Off, Tinfoil with a key, or another service - Claude, Groq and OpenAI told by the key,
  * anything else by its address: an Amber server's own models, another server's list to pick
  * from, or a model's name typed (see [CleanupPick] and [CleanupService]). [onNextWith] moves on
  * as the settings will be once the choice is written, so the styles step appears right after a
  * cleanup was switched on.
  */
+@OptIn(ExperimentalFoundationApi::class) // bringIntoViewRequester
 @Composable
 internal fun CleanupStep(
     settings: AmethystSettings,
@@ -109,6 +118,14 @@ internal fun CleanupStep(
         else -> null
     }
     val modelFor = answer is ServiceAnswer.Pick || answer is ServiceAnswer.Type
+    // A server's answer comes below the fold on a small phone: scrolled to as it arrives.
+    val answerInView = remember { BringIntoViewRequester() }
+    LaunchedEffect(answer) {
+        if (modelFor) {
+            withFrameNanos { } // laid out first
+            answerInView.bringIntoView()
+        }
+    }
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
@@ -171,7 +188,7 @@ internal fun CleanupStep(
                 check(route)
             }
             is ServiceRoute.Fix -> tried = true
-            // No key and no address, or a Claude key alone: on without a cleanup, as the hint says.
+            // No key and no address: on without a cleanup.
             ServiceRoute.Skip -> write()
         }
     }
@@ -201,56 +218,67 @@ internal fun CleanupStep(
             if (hasKey) {
                 Hint(stringResource(R.string.cleanup_step_key_stored), AmberPalette.TrustOnDevice)
             } else {
-                KeyField(key, stringResource(R.string.cleanup_step_key)) { key = it }
-                Hint(stringResource(R.string.engine_key_stored))
-                GhostButton(stringResource(R.string.cleanup_step_get_key), { runCatching { uri.openUri("https://tinfoil.sh") } })
-                if (key.isBlank()) Hint(stringResource(R.string.cleanup_step_no_key))
+                FieldGroup {
+                    KeyField(key, stringResource(R.string.cleanup_step_key)) { key = it }
+                    Hint(stringResource(R.string.engine_key_stored))
+                    if (key.isBlank()) Hint(stringResource(R.string.cleanup_step_no_key))
+                    GhostButton(stringResource(R.string.cleanup_step_get_key), { runCatching { uri.openUri("https://tinfoil.sh") } })
+                }
             }
         }
         if (pick == CleanupPick.SERVICE) {
             // An address, an Amber PC's pairing link or its address with the key in it, pasted
             // here, goes where it belongs ([ServiceFields]).
-            KeyField(fields.key, stringResource(R.string.engine_api_key), enabled = !checking) { edit(fields.withKey(it)) }
-            Hint(stringResource(R.string.engine_key_stored))
-            if (!asksAddress) {
-                when (read) {
-                    is ServiceKey.Known -> Hint(stringResource(R.string.server_recognized, catalog(read.quick.provider.name)), AmberPalette.TrustOnDevice)
-                    ServiceKey.Claude -> Hint(stringResource(R.string.cleanup_step_claude), AmberPalette.Error)
-                    else -> Hint(stringResource(R.string.cleanup_step_service_no_key))
+            FieldGroup {
+                KeyField(fields.key, stringResource(R.string.engine_api_key), enabled = !checking) { edit(fields.withKey(it)) }
+                Hint(stringResource(R.string.engine_key_stored))
+                if (!asksAddress) {
+                    when (read) {
+                        // The service, and the model that will tidy: changed later on the Cleanup page.
+                        is ServiceKey.Known -> Recognized(read.quick.provider)
+                        ServiceKey.Claude -> Recognized(ServerProviders.ANTHROPIC)
+                        else -> Hint(stringResource(R.string.cleanup_step_service_no_key))
+                    }
+                    // Claude is only ever Anthropic's own address.
+                    if (read !is ServiceKey.Claude) {
+                        GhostButton(stringResource(R.string.cleanup_step_other_address), { otherAddress = true; answer = null; model = "" })
+                    }
                 }
-                if (read !is ServiceKey.Claude) {
-                    GhostButton(stringResource(R.string.cleanup_step_other_address), { otherAddress = true; answer = null; model = "" })
-                }
-            } else {
-                OutlinedTextField(
-                    value = fields.address,
-                    onValueChange = { edit(fields.withAddress(it)) },
-                    enabled = !checking,
-                    label = { Text(stringResource(R.string.engine_address)) },
-                    placeholder = { Text("http://192.168.1.20:11434/v1") },
-                    singleLine = true,
-                    shape = AmberShapes.Inner,
-                    colors = fieldColors(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Hint(stringResource(R.string.cleanup_step_address))
-                if (fields.address.isNotBlank() || tried) addressProblems.forEach { Hint(words(it), AmberPalette.Error) }
-                // Opened for a Groq or OpenAI key by mistake: one tap back to that service.
-                if (read is ServiceKey.Known && fields.address.isBlank() && !checking) {
-                    GhostButton(
-                        stringResource(R.string.cleanup_step_back_to, catalog(read.quick.provider.name)),
-                        { otherAddress = false; answer = null; model = "" },
+            }
+            if (asksAddress) {
+                FieldGroup {
+                    OutlinedTextField(
+                        value = fields.address,
+                        onValueChange = { edit(fields.withAddress(it)) },
+                        enabled = !checking,
+                        label = { Text(stringResource(R.string.engine_address)) },
+                        placeholder = { Text("http://192.168.1.20:11434/v1") },
+                        singleLine = true,
+                        shape = AmberShapes.Inner,
+                        colors = fieldColors(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    if ((fields.address.isNotBlank() || tried) && addressProblems.isNotEmpty()) {
+                        addressProblems.forEach { Hint(words(it), AmberPalette.Error) }
+                    } else if (answer == null) {
+                        Hint(stringResource(R.string.cleanup_step_address))
+                    }
+                    // Opened for a Groq or OpenAI key by mistake: one tap back to that service.
+                    if (read is ServiceKey.Known && fields.address.isBlank() && !checking) {
+                        GhostButton(
+                            stringResource(R.string.cleanup_step_back_to, catalog(read.quick.provider.name)),
+                            { otherAddress = false; answer = null; model = "" },
+                        )
+                    }
+                    if (checking) ProgressLine(null)
                 }
-                if (checking) ProgressLine(null)
                 when (val said = answer) {
                     null, is ServiceAnswer.Ready -> Unit
                     ServiceAnswer.NoCleanupModel -> Hint(stringResource(R.string.cleanup_step_no_model), AmberPalette.Error)
-                    is ServiceAnswer.Pick -> {
-                        // OpenRouter lists hundreds: a long list is searched, a dozen rows at most.
+                    is ServiceAnswer.Pick -> FieldGroup(Modifier.bringIntoViewRequester(answerInView)) {
+                        // OpenRouter lists hundreds: a long list is searched, a few rows at most.
                         if (CleanupService.searchable(said.models)) {
-                            Hint(stringResource(R.string.cleanup_step_search_models, said.models.size), AmberPalette.TrustOnDevice)
                             OutlinedTextField(
                                 value = query,
                                 onValueChange = { query = it },
@@ -261,10 +289,11 @@ internal fun CleanupStep(
                                 colors = fieldColors(),
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            Hint(stringResource(R.string.cleanup_step_search_models, said.models.size), AmberPalette.TrustOnDevice)
                         } else {
                             Hint(stringResource(R.string.cleanup_step_pick_model), AmberPalette.TrustOnDevice)
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column {
                             CleanupService.shownModels(said.models, query).forEach { id ->
                                 RadioRow(id, null, selected = model == id, onSelect = { model = id })
                             }
@@ -274,11 +303,7 @@ internal fun CleanupStep(
                             }
                         }
                     }
-                    is ServiceAnswer.Type -> {
-                        Hint(
-                            stringResource(if (said.answered) R.string.cleanup_step_type_model else R.string.cleanup_step_no_answer),
-                            if (said.answered) AmberPalette.Muted else AmberPalette.Error,
-                        )
+                    is ServiceAnswer.Type -> FieldGroup(Modifier.bringIntoViewRequester(answerInView)) {
                         OutlinedTextField(
                             value = model,
                             onValueChange = { model = it },
@@ -289,17 +314,38 @@ internal fun CleanupStep(
                             colors = fieldColors(),
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        Hint(
+                            stringResource(if (said.answered) R.string.cleanup_step_type_model else R.string.cleanup_step_no_answer),
+                            if (said.answered) AmberPalette.Muted else AmberPalette.Error,
+                        )
                     }
                 }
             }
         }
-        val sendsOut = pick == CleanupPick.TINFOIL || (pick == CleanupPick.SERVICE && (read is ServiceKey.Known || asksAddress))
+        val sendsOut = pick == CleanupPick.TINFOIL || (pick == CleanupPick.SERVICE && (read is ServiceKey.Known || read is ServiceKey.Claude || asksAddress))
         if (sendsOut) {
             if (settings.activeEngine?.trustLevelForDisplay() == TrustLevel.ON_DEVICE) {
                 Hint(stringResource(R.string.cleanup_step_leaves), AmberPalette.Primary)
             }
         }
     }
+}
+
+/** A field with its notes and buttons: close together, apart from the next choice. */
+@Composable
+private fun FieldGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+}
+
+/** "Recognized: Claude, with Claude Haiku 5.5." - the service a key named, and its recommended cleanup model. */
+@Composable
+private fun Recognized(provider: ServerProvider) {
+    val model = provider.cleanupModels.firstOrNull { it.recommended } ?: provider.cleanupModels.firstOrNull()
+    Hint(
+        if (model != null) stringResource(R.string.cleanup_step_recognized, catalog(provider.name), model.label)
+        else stringResource(R.string.server_recognized, catalog(provider.name)),
+        AmberPalette.TrustOnDevice,
+    )
 }
 
 /** A key, masked: off screenshots, recordings and other eyes. */

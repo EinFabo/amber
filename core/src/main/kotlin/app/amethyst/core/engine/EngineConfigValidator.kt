@@ -27,7 +27,12 @@ object EngineConfigValidator {
 
             EngineKind.OPENAI_COMPATIBLE -> {
                 addAll(validateUrl(config))
-                if (config.modelId.isNullOrBlank()) add(ConfigIssue.ModelNameMissing)
+                val provider = ServerProviders.forUrl(config.baseUrl)
+                when {
+                    // Claude: no speech model to name, it has none.
+                    !provider.recognizes -> add(ConfigIssue.NoSpeechRecognition(provider.name))
+                    config.modelId.isNullOrBlank() -> add(ConfigIssue.ModelNameMissing)
+                }
                 when {
                     // A key for another host stays there; it has to be given again for this one.
                     config.apiKeyAlias != null && hasApiKey && !KeyBinding.allows(config) ->
@@ -59,11 +64,16 @@ object EngineConfigValidator {
 
     /**
      * Whether a server can clean up text: address and key as for recognition, but no speech
-     * model needed - an own server (Ollama, LM Studio ...) may be there for the cleanup only.
+     * model needed - an own server (Ollama, LM Studio ...) may be there for the cleanup only,
+     * and Claude has none.
      */
     fun readyForCleanup(config: EngineConfig, hasApiKey: Boolean): Boolean =
         config.kind == EngineKind.OPENAI_COMPATIBLE &&
-            validate(config, hasApiKey).all { it == ConfigIssue.ModelNameMissing || it is ConfigIssue.InvalidLanguageCode }
+            validate(config, hasApiKey).all(::onlyAboutSpeech)
+
+    /** An issue that matters for recognition only: a server for the cleanup does without. */
+    fun onlyAboutSpeech(issue: ConfigIssue): Boolean =
+        issue == ConfigIssue.ModelNameMissing || issue is ConfigIssue.NoSpeechRecognition || issue is ConfigIssue.InvalidLanguageCode
 
     /** What is wrong with the address alone; empty when requests may go to it. */
     fun addressProblems(config: EngineConfig): List<ConfigIssue> = validateUrl(config)

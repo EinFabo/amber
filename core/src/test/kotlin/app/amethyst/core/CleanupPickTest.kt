@@ -78,7 +78,7 @@ class CleanupPickTest {
     // "Another service": a key, and an address when the key does not say where it goes.
 
     @Test
-    fun `a key says which service it is, a claude key that it cannot be used yet`() {
+    fun `a key says which service it is, a claude key that it is claude`() {
         assertEquals(ServiceKey.Blank, CleanupService.read("  "))
         assertEquals(ServiceKey.Claude, CleanupService.read(" sk-ant-api03-abc"))
         assertEquals(ServerProviders.GROQ, (CleanupService.read("gsk_abc") as ServiceKey.Known).quick.provider)
@@ -103,6 +103,49 @@ class CleanupPickTest {
         assertEquals(CleanupChoice(engine.id, ServerProviders.GROQ.cleanupModels.first { it.recommended }.id), after.cleanup)
         assertEquals(parakeet.id, after.activeEngineId, "the recognition stays as it was")
         assertEquals(after, Servers.normalized(after), "stored as the settings store would")
+    }
+
+    @Test
+    fun `a claude key sets up claude for the cleanup only, with haiku first`() {
+        assertFalse(CleanupService.asksAddress(ServiceFields("sk-ant-api03-abc"), otherAddress = false), "its address is known")
+        val plan = CleanupService.claude()
+        assertEquals(ServicePlan("https://api.anthropic.com/v1", null, "claude-haiku-5-5"), plan)
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 0xc1a0de })
+        val after = CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE, setup)
+
+        val engine = after.engines.single { it.id == "server-c1a0de" }
+        assertEquals("Claude", engine.displayName)
+        assertEquals("api.anthropic.com", engine.keyHost, "the key goes to Anthropic only")
+        assertNull(engine.modelId, "no speech model: Claude recognizes none")
+        assertEquals(CleanupChoice(engine.id, "claude-haiku-5-5"), after.cleanup)
+        assertEquals(parakeet.id, after.activeEngineId, "the recognition stays as it was")
+        // Ready for the cleanup, never for recognition.
+        assertTrue(CleanupRouting.ready(after, after.cleanup!!) { true })
+        assertTrue(Servers.cleanupOnly(after, engine))
+        assertFalse(engine in Servers.recognizers(after))
+        assertEquals(plan, CleanupService.knownAt(" https://api.anthropic.com/v1 "), "its address typed by hand")
+    }
+
+    @Test
+    fun `claude is never a recognition, whatever points at it`() {
+        val claude = Servers.newServer("server-c", "de-DE").copy(baseUrl = "https://api.anthropic.com/v1", keyHost = "api.anthropic.com")
+        val added = local.withEngine(claude)
+        // Not even while nothing cleans up with it, nor with a model typed into it.
+        assertTrue(Servers.cleanupOnly(added, claude))
+        assertTrue(Servers.cleanupOnly(added, claude.copy(modelId = "whisper-1")))
+        assertFalse(claude in Servers.recognizers(added))
+        assertFalse(Servers.recognizes(claude))
+        assertTrue(Servers.recognizes(parakeet))
+        // Its problem is that it recognizes nothing, not a missing model name; the cleanup does without.
+        assertEquals(
+            listOf(ConfigIssue.NoSpeechRecognition("Claude")),
+            app.amethyst.core.engine.EngineConfigValidator.validate(claude, hasApiKey = true),
+        )
+        assertTrue(app.amethyst.core.engine.EngineConfigValidator.readyForCleanup(claude, hasApiKey = true))
+        assertFalse(app.amethyst.core.engine.EngineConfigValidator.readyForCleanup(claude, hasApiKey = false))
+        // Removing the active engine never hands dictation to Claude.
+        assertEquals(parakeet.id, Servers.nextActive(listOf(claude, parakeet)))
+        assertEquals("", Servers.nextActive(listOf(claude)))
     }
 
     @Test
@@ -193,7 +236,7 @@ class CleanupPickTest {
         val groq = CleanupService.route(ServiceFields("gsk_abc"), otherAddress = false)
         assertEquals("https://api.groq.com/openai/v1", assertIs<ServiceRoute.Write>(groq).plan.baseUrl)
         assertEquals(ServiceRoute.Skip, CleanupService.route(ServiceFields(""), otherAddress = false))
-        assertEquals(ServiceRoute.Skip, CleanupService.route(ServiceFields("sk-ant-api03-x"), otherAddress = false))
+        assertEquals(ServiceRoute.Write(CleanupService.claude()), CleanupService.route(ServiceFields("sk-ant-api03-x"), otherAddress = false))
         // An sk- key for OpenRouter: "Other address" makes it an own server, asked for its models.
         assertEquals(
             ServiceRoute.Check("https://openrouter.ai/api/v1", "sk-or-v1-abc"),

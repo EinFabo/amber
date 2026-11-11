@@ -12,7 +12,7 @@
     <string name="char_count">%1$d / %2$d</string>
     <string name="cleanup_view_prompt">View system prompt</string>
     <string name="cleanup_prompt_note">Shown for the As spoken style. Each app\'s style and own instruction take their place at the end, the dictation\'s language is named when it is known, and %1$d worked examples follow before the dictation. The prompt is sent in English.</string>
-    <string name="cleanup_no_server">Add a server under Speech recognition (Tinfoil, Groq, OpenAI or your own) to use one of its models.</string>
+    <string name="cleanup_no_server">Add a server under Speech recognition (Tinfoil, Groq, OpenAI or your own) to use its models - or Claude below.</string>
     <string name="cleanup_set_up_first">Set up first</string>
     <string name="cleanup_none_offered">None offered right now</string>
     <string name="cleanup_own_model">Your own model</string>
@@ -22,6 +22,9 @@
     <string name="cleanup_chat_model">Chat model</string>
     <string name="cleanup_use_model">Use %1$s</string>
     <string name="cleanup_in_use">In use for cleanup.</string>
+    <string name="cleanup_claude_add">Add with its API key</string>
+    <string name="cleanup_claude_not_a_key">Claude keys start with sk-ant-.</string>
+    <string name="cleanup_claude_use">Use Claude</string>
     <string name="fallback_who">Who steps in</string>
     <string name="fallback_who_subtitle">When the server can\'t take a recording.</string>
     <string name="fallback_who_more">No connection, a timeout or a server down: the speech recognition chosen here recognizes the recording instead. Never one less private than the one it stands in for.</string>

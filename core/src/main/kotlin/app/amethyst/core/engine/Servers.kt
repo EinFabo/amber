@@ -45,16 +45,29 @@ object Servers {
         engine.kind == EngineKind.OPENAI_COMPATIBLE && !engine.requireEnclave
 
     /**
-     * A server there for the cleanup only: no speech model, and a cleanup - for every app or
-     * one app's own - runs on it (an Ollama set up in the introduction). It is not offered for
-     * recognition; a server just added, still without a model, is not this. Nor is the active
-     * engine: dictation goes to it, and its missing speech model must be said as the error it is.
+     * A server there for the cleanup only: at a service that recognizes no speech (Claude), or
+     * with no speech model and a cleanup - for every app or one app's own - running on it (an
+     * Ollama set up in the introduction). It is not offered for recognition; a server just
+     * added, still without a model, is not this. Nor is the active engine: dictation goes to
+     * it, and what it lacks for that must be said as the error it is.
      */
     fun cleanupOnly(settings: AmethystSettings, engine: EngineConfig): Boolean {
-        if (!isServer(engine) || !engine.modelId.isNullOrBlank() || engine.id == settings.activeEngineId) return false
+        if (!isServer(engine) || engine.id == settings.activeEngineId) return false
+        if (!recognizes(engine)) return true
+        if (!engine.modelId.isNullOrBlank()) return false
         return settings.cleanup?.engineId == engine.id ||
             settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL && it.appCleanup.choice?.engineId == engine.id }
     }
+
+    /** Whether [engine] can recognize speech at all: every one but a server at a service without (Claude). */
+    fun recognizes(engine: EngineConfig): Boolean =
+        !isServer(engine) || ServerProviders.forUrl(engine.baseUrl).recognizes
+
+    /**
+     * The engine dictation goes to once the active one is removed: the first of [remaining]
+     * that can recognize, or none.
+     */
+    fun nextActive(remaining: List<EngineConfig>): String = remaining.firstOrNull(::recognizes)?.id ?: ""
 
     /** The engines that can be chosen for recognition: every one but those for the cleanup only. */
     fun recognizers(settings: AmethystSettings): List<EngineConfig> =
@@ -85,10 +98,14 @@ object Servers {
      * OpenAI's own key shapes only: "sk-proj-", "sk-svcacct-", "sk-admin-", or the legacy "sk-"
      * with one long run of letters and digits. Many others copy the "sk-" start with a prefix of
      * their own - "sk-or-v1-" OpenRouter, "sk-cp-" a local proxy, "sk-ant-" Anthropic - and
-     * must not send their key to OpenAI: they ask for the address instead.
+     * must not send their key to OpenAI: they ask for the address instead (a Claude key sets
+     * up Claude's cleanup, [isClaudeKey]).
      */
     private fun isOpenAiKey(key: String): Boolean =
         OPENAI_PREFIXES.any { key.startsWith(it) } || LEGACY_OPENAI.matches(key)
+
+    /** An Anthropic API key: Claude, for the cleanup only. */
+    fun isClaudeKey(key: String): Boolean = key.trim().startsWith("sk-ant-")
 
     private val OPENAI_PREFIXES = listOf("sk-proj-", "sk-svcacct-", "sk-admin-")
     private val LEGACY_OPENAI = Regex("^sk-[A-Za-z0-9]{32,}$")
