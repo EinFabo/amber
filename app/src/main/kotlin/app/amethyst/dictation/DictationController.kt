@@ -54,6 +54,7 @@ import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.SelfCapturingSttEngine
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
@@ -1112,7 +1113,7 @@ class DictationController(
     private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel, skip: String? = null): Transcript? {
         val settings = graph.settings.value
         val primary = runRouting?.engine ?: return null
-        val candidates = Fallback.candidates(settings.fallback, settings.engines, primary, ::trustOf).filter { it.id != skip }
+        val candidates = Fallback.candidates(settings.fallback, Servers.recognizers(settings), primary, ::trustOf).filter { it.id != skip }
         for (config in candidates) {
             val other = graph.engineFactory.create(config).getOrNull() ?: continue
             Log.i(TAG, "server unavailable (${Anonymize.line(cause.technical).take(80)}) - recognizing with ${config.id}")

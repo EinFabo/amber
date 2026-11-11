@@ -695,6 +695,14 @@ open class Screenshots {
         answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OLLAMA, listOf("llama3.2:3b", "qwen3:4b", "gemma3:4b")),
     )
 
+    /** Not part of the listing set: OpenRouter's few hundred models, searched before they are shown. */
+    @Test
+    @Config(qualifiers = "+w360dp-h1300dp-xxhdpi")
+    fun onboardingCleanupLongList() = cleanupService(
+        "long-list", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc", OPENROUTER), otherAddress = true,
+        answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OPENROUTER, (1..320).map { "vendor-${it % 7}/model-$it" }),
+    )
+
     /** Not part of the listing set: a server that sent no list - the model's name is typed. */
     @Test
     @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
@@ -884,6 +892,7 @@ open class Screenshots {
     private companion object {
         /** An own server in the home network, for the cleanup step. */
         const val OLLAMA = "http://192.168.1.20:11434/v1"
+        const val OPENROUTER = "https://openrouter.ai/api/v1"
 
         /** A fixed "now" for the pages that say how long ago something was. */
         const val NOW = 1_800_000_000_000L

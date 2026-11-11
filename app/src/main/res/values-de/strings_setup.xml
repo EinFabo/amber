@@ -77,9 +77,11 @@
     <string name="cleanup_step_claude">Claude-Schlüssel gehen noch nicht: Amber kann bisher nicht mit Claude sprechen. Groq, OpenAI, dein eigener Server oder Tinfoil gehen. Weiter lässt die Bereinigung, wie sie ist.</string>
     <string name="cleanup_step_address">Die Adresse deines Servers oder Dienstes: ein Amber PC, Ollama, LM Studio, OpenRouter ... Amber fragt ihn nach seinen Modellen.</string>
     <string name="cleanup_step_no_model">Dieser Server bietet kein Modell für die Bereinigung.</string>
-    <string name="cleanup_step_no_answer">Keine Antwort von dieser Adresse mit diesem Schlüssel. Prüfe beides - oder gib den Namen des Modells ein, um ihn trotzdem einzurichten.</string>
+    <string name="cleanup_step_no_answer">Keine Antwort von dieser Adresse. Prüfe sie, und den Schlüssel, falls der Server einen braucht - oder gib den Namen des Modells ein, um ihn trotzdem einzurichten.</string>
     <string name="cleanup_step_type_model">Der Server nennt keine Modelle. Gib den Namen des Modells für die Bereinigung ein.</string>
     <string name="cleanup_step_pick_model">Der Server bietet diese Modelle. Wähle das für die Bereinigung.</string>
+    <string name="cleanup_step_search">Modelle suchen</string>
+    <string name="cleanup_step_search_models">Der Server bietet %1$d Modelle. Suche das für die Bereinigung.</string>
     <string name="cleanup_step_back_to">Zurück zu %1$s</string>
     <string name="cleanup_step_other_address">Andere Adresse</string>
     <string name="cleanup_step_service_no_key">Füge den API-Schlüssel des Dienstes ein. Dein eigener Server braucht vielleicht keinen: Gib seine Adresse an.</string>

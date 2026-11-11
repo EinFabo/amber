@@ -50,7 +50,7 @@ object ReadyFallback {
         ready: (EngineConfig) -> Boolean,
     ): EngineConfig? {
         if (!settings.fallback.prepare || trustOf(primary) == TrustLevel.ON_DEVICE) return null
-        val first = Fallback.candidates(settings.fallback, settings.engines, primary, trustOf).firstOrNull(ready) ?: return null
+        val first = Fallback.candidates(settings.fallback, Servers.recognizers(settings), primary, trustOf).firstOrNull(ready) ?: return null
         return first.takeIf(::isLocal)
     }
 

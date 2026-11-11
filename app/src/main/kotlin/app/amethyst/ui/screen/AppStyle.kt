@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineRouting
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanup
 import app.amethyst.core.settings.AppCleanupMode
@@ -236,7 +237,8 @@ private fun RecognitionChoices(
             selected = own.mode == AppEngineMode.DEFAULT,
             onSelect = { onChoose(AppEngine()) },
         )
-        settings.engines.forEach { engine ->
+        // Not a server for the cleanup only: it recognizes nothing.
+        Servers.recognizers(settings).forEach { engine ->
             val usable = EngineRouting.notUsable(engine, hasKeyFor, modelReady) == null
             RadioRow(
                 engineName(engine),

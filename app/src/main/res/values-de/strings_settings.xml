@@ -25,6 +25,7 @@
     <string name="recognition_group_enclave">Geprüfte Enklave</string>
     <string name="recognition_group_server">Server</string>
     <string name="recognition_add">Spracherkennung hinzufügen</string>
+    <string name="recognition_cleanup_only">Nur für die Bereinigung</string>
     <string name="recording_ending">Ende</string>
     <string name="recording_auto_stop">Bei Stille automatisch stoppen</string>
     <string name="recording_auto_stop_note">Aus: Sie läuft bis zum nächsten Tippen.</string>

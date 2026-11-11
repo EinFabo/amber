@@ -1,6 +1,7 @@
 package app.amethyst.core
 
 import app.amethyst.core.engine.Problem
+import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.net.SecureChannel
@@ -135,6 +136,15 @@ class ChatCleanupTest {
     fun `server errors fail the cleanup, not the caller`() = runTest {
         val transport = FakeHttpTransport.json("busy", code = 503)
         assertTrue(cleanup(transport).clean("hallo").isFailure)
+    }
+
+    @Test
+    fun `a model the server does not know is named, any other 404 stays a plain failure`() = runTest {
+        val ollama = """{"error":"model \"deepseek-v4-1-flash\" not found, try pulling it first"}"""
+        val unknown = cleanup(FakeHttpTransport.json(ollama, code = 404)).clean("hallo").exceptionOrNull() as SttFailure
+        assertEquals(Problem.CleanupModelUnknown("deepseek-v4-1-flash"), unknown.problem)
+        val elsewhere = cleanup(FakeHttpTransport.json("Not Found", code = 404)).clean("hallo").exceptionOrNull() as SttFailure
+        assertEquals(Problem.CleanupFailed(404), elsewhere.problem)
     }
 
     @Test

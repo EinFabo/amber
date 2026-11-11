@@ -32,6 +32,7 @@
     <string name="problem_enclave_cannot_bind">This connection cannot be bound to the enclave.</string>
     <string name="problem_unencrypted_refused">Refused an unencrypted connection to a public address - use https.</string>
     <string name="problem_cleanup_failed">Cleanup failed (%1$d).</string>
+    <string name="problem_cleanup_model_unknown">Cleanup failed: the server doesn\'t know the model %1$s.</string>
     <string name="problem_cleanup_unreadable">The cleanup\'s answer could not be read.</string>
     <string name="problem_cleanup_cut_off">The cleanup was cut off; kept the original.</string>
     <string name="problem_cleanup_changed_too_much">The cleanup changed too much; kept the original.</string>

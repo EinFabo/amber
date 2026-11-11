@@ -54,9 +54,14 @@ object ServerModels {
         AmberCatalog.parse(body)?.let { return ModelList.Amber(it) }
         val data = runCatching { (json.parseToJsonElement(body) as? JsonObject)?.get("data") as? JsonArray }.getOrNull()
             ?: return ModelList.Failed("not a model list")
-        val ids = data.mapNotNull { entry ->
-            ((entry as? JsonObject)?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()?.takeIf { it.isNotEmpty() }
-        }.distinct()
+        // A stranger's list: only plain ids, as on Amber's - no control or bidi characters, no
+        // overlong names - and no more than a picker can hold.
+        val ids = data.asSequence().mapNotNull { entry ->
+            ((entry as? JsonObject)?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()?.takeIf(AmberCatalog::isPlainModelId)
+        }.distinct().take(MAX_MODELS).toList()
         return ModelList.Plain(ids)
     }
+
+    /** More than any server needs to offer for one cleanup (OpenRouter lists a few hundred). */
+    const val MAX_MODELS = 400
 }

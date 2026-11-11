@@ -42,6 +42,9 @@ sealed interface Problem {
     data object UnencryptedRefused : Problem
 
     data class CleanupFailed(val code: Int) : Problem
+
+    /** The server answered 404 about [model]: a name typed wrong, or a model not (or no longer) on it. */
+    data class CleanupModelUnknown(val model: String) : Problem
     data object CleanupUnreadable : Problem
     data object CleanupCutOff : Problem
 

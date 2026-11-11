@@ -1,6 +1,7 @@
 package app.amethyst.core.engine
 
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.EngineConfig
 
 /**
@@ -42,6 +43,21 @@ object Servers {
     /** A server engine, not Tinfoil: the ones named by [ServerNames] and edited freely. */
     fun isServer(engine: EngineConfig): Boolean =
         engine.kind == EngineKind.OPENAI_COMPATIBLE && !engine.requireEnclave
+
+    /**
+     * A server there for the cleanup only: no speech model, and a cleanup - for every app or
+     * one app's own - runs on it (an Ollama set up in the introduction). It is not offered for
+     * recognition; a server just added, still without a model, is not this.
+     */
+    fun cleanupOnly(settings: AmethystSettings, engine: EngineConfig): Boolean {
+        if (!isServer(engine) || !engine.modelId.isNullOrBlank()) return false
+        return settings.cleanup?.engineId == engine.id ||
+            settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL && it.appCleanup.choice?.engineId == engine.id }
+    }
+
+    /** The engines that can be chosen for recognition: every one but those for the cleanup only. */
+    fun recognizers(settings: AmethystSettings): List<EngineConfig> =
+        settings.engines.filterNot { cleanupOnly(settings, it) }
 
     /** The known services a server's page offers as one tap: their address and first model. */
     val QUICK = listOf(

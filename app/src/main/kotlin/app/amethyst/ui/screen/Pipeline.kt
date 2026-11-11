@@ -36,6 +36,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -326,7 +327,7 @@ fun FallbackScreen(
                 selected = fallback.mode == FallbackMode.OFF,
                 onSelect = { choose(FallbackSettings(FallbackMode.OFF)) },
             )
-            val choices = primary?.let { Fallback.choices(settings.engines, it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
+            val choices = primary?.let { Fallback.choices(Servers.recognizers(settings), it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
             choices.forEach { engine ->
                 RadioRow(
                     engineName(engine),

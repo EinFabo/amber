@@ -80,6 +80,7 @@ object Texts {
             Problem.EnclaveCannotBind -> getString(R.string.problem_enclave_cannot_bind)
             Problem.UnencryptedRefused -> getString(R.string.problem_unencrypted_refused)
             is Problem.CleanupFailed -> getString(R.string.problem_cleanup_failed, problem.code)
+            is Problem.CleanupModelUnknown -> getString(R.string.problem_cleanup_model_unknown, problem.model)
             Problem.CleanupUnreadable -> getString(R.string.problem_cleanup_unreadable)
             Problem.CleanupCutOff -> getString(R.string.problem_cleanup_cut_off)
             is Problem.CleanupChangedTooMuch -> getString(R.string.problem_cleanup_changed_too_much)

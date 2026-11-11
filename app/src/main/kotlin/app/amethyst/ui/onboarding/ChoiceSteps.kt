@@ -102,7 +102,13 @@ internal fun CleanupStep(
     val asksAddress = CleanupService.asksAddress(fields, otherAddress)
     val addressProblems = CleanupService.addressProblems(fields.address)
     // A server that answered without a ready choice: its model is picked or typed here.
-    val modelFor = (answer as? ServiceAnswer.Pick)?.baseUrl ?: (answer as? ServiceAnswer.Type)?.baseUrl
+    var query by remember { mutableStateOf("") }
+    val chosenPlan = when (val said = answer) {
+        is ServiceAnswer.Pick -> CleanupService.picked(said, model)
+        is ServiceAnswer.Type -> CleanupService.chosen(said.baseUrl, model)
+        else -> null
+    }
+    val modelFor = answer is ServiceAnswer.Pick || answer is ServiceAnswer.Type
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
@@ -125,6 +131,7 @@ internal fun CleanupStep(
         fields = changed
         answer = null
         model = ""
+        query = ""
     }
 
     fun check(route: ServiceRoute.Check) {
@@ -153,8 +160,8 @@ internal fun CleanupStep(
     fun apply() {
         if (written || checking) return
         if (pick != CleanupPick.SERVICE) return write()
-        if (modelFor != null) {
-            CleanupService.chosen(modelFor, model)?.let { writeService(it) }
+        if (modelFor) {
+            chosenPlan?.let { writeService(it) }
             return
         }
         when (val route = CleanupService.route(fields, otherAddress)) {
@@ -172,7 +179,7 @@ internal fun CleanupStep(
     StepPage(
         title = stringResource(R.string.cleanup_step_title),
         lead = stringResource(R.string.cleanup_step_lead),
-        buttons = { ContinueButton(::apply, enabled = !checking && !written && (modelFor == null || model.isNotBlank())) },
+        buttons = { ContinueButton(::apply, enabled = !checking && !written && (!modelFor || chosenPlan != null)) },
     ) {
         RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = pick == CleanupPick.OFF, onSelect = { if (!checking) pick = CleanupPick.OFF })
         RadioRow(
@@ -241,9 +248,30 @@ internal fun CleanupStep(
                     null, is ServiceAnswer.Ready -> Unit
                     ServiceAnswer.NoCleanupModel -> Hint(stringResource(R.string.cleanup_step_no_model), AmberPalette.Error)
                     is ServiceAnswer.Pick -> {
-                        Hint(stringResource(R.string.cleanup_step_pick_model), AmberPalette.TrustOnDevice)
+                        // OpenRouter lists hundreds: a long list is searched, a dozen rows at most.
+                        if (CleanupService.searchable(said.models)) {
+                            Hint(stringResource(R.string.cleanup_step_search_models, said.models.size), AmberPalette.TrustOnDevice)
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                label = { Text(stringResource(R.string.cleanup_step_search)) },
+                                placeholder = { Text("haiku, llama, qwen ...") }, // English: model names
+                                singleLine = true,
+                                shape = AmberShapes.Inner,
+                                colors = fieldColors(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            Hint(stringResource(R.string.cleanup_step_pick_model), AmberPalette.TrustOnDevice)
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            said.models.forEach { id -> RadioRow(id, null, selected = model == id, onSelect = { model = id }) }
+                            CleanupService.shownModels(said.models, query).forEach { id ->
+                                RadioRow(id, null, selected = model == id, onSelect = { model = id })
+                            }
+                            // Picked, then searched past: it stays in view as chosen.
+                            if (model.isNotEmpty() && model in said.models && model !in CleanupService.shownModels(said.models, query)) {
+                                RadioRow(model, null, selected = true, onSelect = {})
+                            }
                         }
                     }
                     is ServiceAnswer.Type -> {

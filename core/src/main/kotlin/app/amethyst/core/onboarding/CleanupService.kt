@@ -156,6 +156,23 @@ object CleanupService {
         }
     }
 
+    /** Rows a server's list shows at most; a longer one is searched first. */
+    const val MODELS_SHOWN = 12
+
+    /** Whether [models] is too long to show whole: a search field comes over it. */
+    fun searchable(models: List<String>): Boolean = models.size > MODELS_SHOWN
+
+    /** The rows shown for [query]: a short list whole, a long one's matches, at most [MODELS_SHOWN]. */
+    fun shownModels(models: List<String>, query: String): List<String> {
+        if (!searchable(models)) return models
+        val q = query.trim()
+        return models.filter { q.isEmpty() || it.contains(q, ignoreCase = true) }.take(MODELS_SHOWN)
+    }
+
+    /** A model picked from a server's list - only one on it. */
+    fun picked(answer: ServiceAnswer.Pick, model: String): ServicePlan? =
+        model.trim().takeIf { it in answer.models }?.let { ServicePlan(answer.baseUrl, null, it) }
+
     /** An own server's chat model, picked from its list or typed; null while none is given. */
     fun chosen(baseUrl: String, model: String): ServicePlan? =
         model.trim().takeIf { it.isNotEmpty() }?.let { ServicePlan(baseUrl.trim(), null, it) }

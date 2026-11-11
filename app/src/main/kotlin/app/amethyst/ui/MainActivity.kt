@@ -58,6 +58,7 @@ import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.ServerModels
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
@@ -741,6 +742,7 @@ private fun AmethystScreens(
                                     }
                                 },
                                 onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
+                                cleanupOnly = Servers.cleanupOnly(settings, config),
                                 onDelete = {
                                     updateSettings { current ->
                                         val remaining = current.engines.filterNot { it.id == config.id }

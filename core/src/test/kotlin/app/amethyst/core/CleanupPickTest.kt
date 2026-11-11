@@ -14,6 +14,7 @@ import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.onboarding.ServiceAnswer
 import app.amethyst.core.onboarding.ServiceFields
 import app.amethyst.core.onboarding.ServiceKey
+import app.amethyst.core.onboarding.ServicePlan
 import app.amethyst.core.onboarding.ServiceRoute
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -212,6 +213,55 @@ class CleanupPickTest {
         assertEquals(ModelList.Plain(listOf("llama3.2", "qwen3:4b")), ServerModels.parse("""{"object":"list","data":[{"id":"llama3.2","object":"model"},{"id":"qwen3:4b"},{"id":"llama3.2"},{"object":"model"}]}"""))
         assertEquals(ModelList.Plain(emptyList()), ServerModels.parse("""{"data":[]}"""))
         assertIs<ModelList.Failed>(ServerModels.parse("<html>portal</html>"))
+    }
+
+    @Test
+    fun `a stranger's model ids are plain, not too long, and not too many`() {
+        val bidi = "gpt‮evil"
+        val long = "m".repeat(129)
+        val body = """{"data":[{"id":"$bidi"},{"id":"$long"},{"id":"ok\nno"},{"id":"../x"},{"id":"meta-llama/llama-3.3-70b"}]}"""
+        assertEquals(ModelList.Plain(listOf("meta-llama/llama-3.3-70b")), ServerModels.parse(body))
+        val many = (1..1000).joinToString(",") { """{"id":"m$it"}""" }
+        val list = assertIs<ModelList.Plain>(ServerModels.parse("""{"data":[$many]}""")).ids
+        assertEquals(ServerModels.MAX_MODELS, list.size)
+        assertEquals("m1", list.first())
+    }
+
+    @Test
+    fun `a long list is searched, a short one shown whole, and only a listed model is picked`() {
+        val few = listOf("llama3.2", "qwen3:4b")
+        assertFalse(CleanupService.searchable(few))
+        assertEquals(few, CleanupService.shownModels(few, "zzz"))
+        val many = (1..300).map { "vendor/model-$it" } + "anthropic/claude-haiku"
+        assertTrue(CleanupService.searchable(many))
+        assertEquals(CleanupService.MODELS_SHOWN, CleanupService.shownModels(many, "").size)
+        assertEquals(listOf("anthropic/claude-haiku"), CleanupService.shownModels(many, " CLAUDE "))
+        val pick = ServiceAnswer.Pick("https://openrouter.ai/api/v1", many)
+        assertEquals(ServicePlan("https://openrouter.ai/api/v1", null, "vendor/model-7"), CleanupService.picked(pick, "vendor/model-7"))
+        assertNull(CleanupService.picked(pick, "vendor/model"))
+    }
+
+    @Test
+    fun `a server for the cleanup only is no choice for recognition, one just added still is`() {
+        val ollama = Servers.newServer("server-9", "de-DE").copy(baseUrl = "http://192.168.1.20:11434/v1")
+        val added = local.withEngine(ollama)
+        assertFalse(Servers.cleanupOnly(added, ollama), "just added, no model yet: still being set up")
+        assertTrue(ollama in Servers.recognizers(added))
+        val forCleanup = added.copy(cleanup = CleanupChoice("server-9", "llama3.2"))
+        assertTrue(Servers.cleanupOnly(forCleanup, ollama))
+        assertFalse(ollama in Servers.recognizers(forCleanup))
+        assertTrue(parakeet.id in Servers.recognizers(forCleanup).map { it.id })
+        val withSpeech = ollama.copy(modelId = "whisper")
+        assertFalse(Servers.cleanupOnly(forCleanup.withEngine(withSpeech), withSpeech))
+        val perApp = added.copy(
+            profiles = listOf(
+                app.amethyst.core.settings.AppProfile(
+                    "com.whatsapp", "WhatsApp",
+                    appCleanup = app.amethyst.core.settings.AppCleanup(app.amethyst.core.settings.AppCleanupMode.MODEL, CleanupChoice("server-9", "x")),
+                ),
+            ),
+        )
+        assertTrue(Servers.cleanupOnly(perApp, ollama))
     }
 
     @Test

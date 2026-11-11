@@ -56,6 +56,7 @@ import app.amethyst.Texts
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
+import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
@@ -125,6 +126,8 @@ fun EngineDetailScreen(
     onCancelParakeet: () -> Unit,
     onDeleteParakeet: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A server there for the cleanup only ([Servers.cleanupOnly]): no recognition from it until it has a speech model. */
+    cleanupOnly: Boolean = false,
 ) {
     var baseUrl by remember(config.id) { mutableStateOf(config.baseUrl.orEmpty()) }
     var modelId by remember(config.id) { mutableStateOf(config.modelId.orEmpty()) }
@@ -191,14 +194,17 @@ fun EngineDetailScreen(
             }
             if (preset?.note?.isNotBlank() == true) Hint(catalog(preset.note))
 
-            if (problems.isEmpty()) {
-                Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
+            // Without a speech model on purpose: said plainly, not as an error.
+            val shown = if (cleanupOnly) problems.filterNot { it == ConfigIssue.ModelNameMissing } else problems
+            if (cleanupOnly) Hint(stringResource(R.string.recognition_cleanup_only))
+            if (shown.isEmpty()) {
+                if (!cleanupOnly) Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
             } else {
                 // Listed while typing, so the user is never left guessing which field the
                 // engine is still waiting for.
-                problems.forEach { problem -> Hint(words(problem), AmberPalette.Error) }
+                shown.forEach { problem -> Hint(words(problem), AmberPalette.Error) }
             }
-            if (!active) PrimaryButton(stringResource(R.string.engine_use_active), onActivate)
+            if (!active && !cleanupOnly) PrimaryButton(stringResource(R.string.engine_use_active), onActivate)
         }
 
         when (config.kind) {

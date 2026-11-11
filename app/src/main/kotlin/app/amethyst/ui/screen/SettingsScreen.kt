@@ -242,13 +242,16 @@ fun RecognitionScreen(
             if (engines.isNotEmpty()) {
                 SectionCard(title = title, subtitle = level.placeExplanation()) {
                     engines.forEach { engine ->
+                        // A server for the cleanup only cannot be chosen here; it opens instead.
+                        val cleanupOnly = Servers.cleanupOnly(settings, engine)
                         EngineRow(
                             config = engine,
                             active = engine.id == settings.activeEngineId,
                             problems = problemsByEngine[engine.id].orEmpty(),
                             measuredWaitMs = medianWaitMs[engine.id],
-                            onSelect = { onUpdateSettings { it.copy(activeEngineId = engine.id) } },
+                            onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ onUpdateSettings { it.copy(activeEngineId = engine.id) } }),
                             onOpen = { onOpenEngine(engine.id) },
+                            cleanupOnly = cleanupOnly,
                         )
                     }
                 }
@@ -581,12 +584,15 @@ private fun EngineRow(
     measuredWaitMs: Long?,
     onSelect: () -> Unit,
     onOpen: () -> Unit,
+    cleanupOnly: Boolean = false,
 ) {
     RadioRow(
         label = engineName(config),
         // Name the first missing thing rather than a generic "not configured":
-        // the user should not have to open the detail screen to find out.
-        note = problems.firstOrNull()?.let { words(it) }
+        // the user should not have to open the detail screen to find out. A server for the
+        // cleanup only misses its speech model on purpose.
+        note = (if (cleanupOnly) stringResource(R.string.recognition_cleanup_only) else null)
+            ?: problems.firstOrNull()?.let { words(it) }
             ?: listOfNotNull(
                 config.modelId ?: stringResource(R.string.engine_system_model),
                 // Android's recognizer ends at a pause by itself, whatever the recording settings say.
@@ -595,7 +601,7 @@ private fun EngineRow(
             ).joinToString(" · "),
         selected = active,
         onSelect = onSelect,
-        noteColor = if (problems.isEmpty()) AmberPalette.Muted else AmberPalette.Error,
+        noteColor = if (problems.isEmpty() || cleanupOnly) AmberPalette.Muted else AmberPalette.Error,
     ) {
         GhostButton(stringResource(R.string.open), onOpen)
     }

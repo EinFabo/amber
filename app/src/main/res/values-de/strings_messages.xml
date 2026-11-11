@@ -30,6 +30,7 @@
     <string name="problem_enclave_cannot_bind">Diese Verbindung kann nicht an die Enklave gebunden werden.</string>
     <string name="problem_unencrypted_refused">Unverschlüsselte Verbindung zu einer öffentlichen Adresse abgelehnt - nimm https.</string>
     <string name="problem_cleanup_failed">Die Bereinigung ist fehlgeschlagen (%1$d).</string>
+    <string name="problem_cleanup_model_unknown">Die Bereinigung ist fehlgeschlagen: Der Server kennt das Modell %1$s nicht.</string>
     <string name="problem_cleanup_unreadable">Die Antwort der Bereinigung konnte nicht gelesen werden.</string>
     <string name="problem_cleanup_cut_off">Die Bereinigung wurde abgeschnitten; der ursprüngliche Text bleibt.</string>
     <string name="problem_cleanup_changed_too_much">Die Bereinigung hat zu viel geändert; der ursprüngliche Text bleibt.</string>

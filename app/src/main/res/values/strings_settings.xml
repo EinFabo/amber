@@ -25,6 +25,7 @@
     <string name="recognition_group_enclave">Verified enclave</string>
     <string name="recognition_group_server">Server</string>
     <string name="recognition_add">Add speech recognition</string>
+    <string name="recognition_cleanup_only">Used for the cleanup only</string>
     <string name="recording_ending">Ending</string>
     <string name="recording_auto_stop">Stop automatically on silence</string>
     <string name="recording_auto_stop_note">Off: it runs until the next tap.</string>

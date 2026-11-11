@@ -112,7 +112,15 @@ class ChatCleanup(
         val sent = channel.send(request, what = Problem.Payload.TEXT).getOrElse { return Result.failure(it) }
         val response = sent.response
         if (!response.isSuccessful) {
-            return Result.failure(SttFailure(Problem.CleanupFailed(response.code), "HTTP ${response.code}: ${response.bodyAsText().take(200)}"))
+            val said = response.bodyAsText()
+            // Ollama, OpenAI, LM Studio all say "model" in a 404 for a model they do not have;
+            // a 404 for a wrong address does not, and stays a plain failure.
+            val problem = if (response.code == 404 && said.contains("model", ignoreCase = true)) {
+                Problem.CleanupModelUnknown(model)
+            } else {
+                Problem.CleanupFailed(response.code)
+            }
+            return Result.failure(SttFailure(problem, "HTTP ${response.code}: ${said.take(200)}"))
         }
         val reply = runCatching { replyOf(response.bodyAsText()) }.getOrNull()
             ?: return Result.failure(SttFailure(Problem.CleanupUnreadable, "unparseable reply, ${response.body.size} bytes"))
