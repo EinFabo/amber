@@ -141,6 +141,16 @@ series and one store release per phase, each after his OK.
 
 ## In progress: bubble and keyboard
 
+- [ ] **The bubble sometimes does not go away** (Fabi, 2026-11-11): it stays on screen after it
+      should hide (no field focused, keyboard gone, other app). Not reproduced yet - catch it
+      with a diagnostics report or live logs (which app, what was tapped last) before changing
+      the hide logic.
+- [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): its
+      behaviour in relation to the keyboard still doesn't feel good - where it sits above the
+      keys, how it follows when the keyboard opens, closes or changes height. Go through it
+      with Fabi on the device; see also "Bubble starts clearly after the keyboard, jumps
+      instead of gliding" below and "Research: bubble position and field detection".
+
 - [ ] **A finished dictation is never lost at insertion** (Fabi, 2026-11-10; built): reported in
       WhatsApp and the Claude app - `No text field has focus any more - not inserted.` after a
       120.2 s recording, the clipboard not allowed, so the words only went to the diagnostics.
