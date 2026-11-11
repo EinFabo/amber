@@ -171,7 +171,7 @@ object CleanupService {
 
     /** A model picked from a server's list - only one on it. */
     fun picked(answer: ServiceAnswer.Pick, model: String): ServicePlan? =
-        model.trim().takeIf { it in answer.models }?.let { ServicePlan(answer.baseUrl, null, it) }
+        model.trim().takeIf { it in answer.models }?.let { ServicePlan(answer.baseUrl.trim(), null, it) }
 
     /** An own server's chat model, picked from its list or typed; null while none is given. */
     fun chosen(baseUrl: String, model: String): ServicePlan? =

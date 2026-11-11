@@ -236,7 +236,7 @@ class CleanupPickTest {
         assertTrue(CleanupService.searchable(many))
         assertEquals(CleanupService.MODELS_SHOWN, CleanupService.shownModels(many, "").size)
         assertEquals(listOf("anthropic/claude-haiku"), CleanupService.shownModels(many, " CLAUDE "))
-        val pick = ServiceAnswer.Pick("https://openrouter.ai/api/v1", many)
+        val pick = ServiceAnswer.Pick(" https://openrouter.ai/api/v1 ", many)
         assertEquals(ServicePlan("https://openrouter.ai/api/v1", null, "vendor/model-7"), CleanupService.picked(pick, "vendor/model-7"))
         assertNull(CleanupService.picked(pick, "vendor/model"))
     }
@@ -262,6 +262,10 @@ class CleanupPickTest {
             ),
         )
         assertTrue(Servers.cleanupOnly(perApp, ollama))
+        // Its speech model cleared while dictation goes to it: a recognition engine missing its model.
+        val active = forCleanup.copy(activeEngineId = "server-9")
+        assertFalse(Servers.cleanupOnly(active, ollama))
+        assertTrue(ollama in Servers.recognizers(active))
     }
 
     @Test

@@ -47,10 +47,11 @@ object Servers {
     /**
      * A server there for the cleanup only: no speech model, and a cleanup - for every app or
      * one app's own - runs on it (an Ollama set up in the introduction). It is not offered for
-     * recognition; a server just added, still without a model, is not this.
+     * recognition; a server just added, still without a model, is not this. Nor is the active
+     * engine: dictation goes to it, and its missing speech model must be said as the error it is.
      */
     fun cleanupOnly(settings: AmethystSettings, engine: EngineConfig): Boolean {
-        if (!isServer(engine) || !engine.modelId.isNullOrBlank()) return false
+        if (!isServer(engine) || !engine.modelId.isNullOrBlank() || engine.id == settings.activeEngineId) return false
         return settings.cleanup?.engineId == engine.id ||
             settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL && it.appCleanup.choice?.engineId == engine.id }
     }
