@@ -59,6 +59,7 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.catalog
 import app.amethyst.ui.words
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -125,8 +126,16 @@ internal fun CleanupStep(
                 checking = true
                 answer = null
                 scope.launch {
-                    val said = CleanupService.answer(typed, content.fetchModels(typed, asked.key.trim()))
-                    checking = false
+                    // fetchModels never throws but to cancel; should it all the same, it is no answer.
+                    val said = try {
+                        CleanupService.answer(typed, content.fetchModels(typed, asked.key.trim()))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        ServiceAnswer.NoAnswer
+                    } finally {
+                        checking = false
+                    }
                     if (pick != CleanupPick.SERVICE || fields != asked) return@launch
                     answer = said
                     if (said is ServiceAnswer.Ready) writeService(said.plan, asked.key)

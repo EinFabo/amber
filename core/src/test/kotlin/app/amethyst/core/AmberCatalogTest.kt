@@ -192,6 +192,11 @@ class AmberCatalogTest {
         assertIs<CatalogFetch.Failed>(AmberCatalog.fetch(FakeHttpTransport.json(AMBER_PC_MODELS, code = 401), own.baseUrl!!, null))
         assertIs<CatalogFetch.Failed>(AmberCatalog.fetch(FakeHttpTransport.json("Bad gateway", code = 502), own.baseUrl!!, null))
         assertIs<CatalogFetch.Failed>(AmberCatalog.fetch(FakeHttpTransport.json("<html>portal</html>"), own.baseUrl!!, null))
+        // The transport reads the whole body inside execute(): a body that breaks off is an
+        // exception there, and bytes that are no text decode without throwing.
+        assertIs<CatalogFetch.Failed>(AmberCatalog.fetch(FakeHttpTransport.failing(java.io.EOFException("body cut off")), own.baseUrl!!, null))
+        val garbled = FakeHttpTransport { app.amethyst.core.net.HttpResponse(200, byteArrayOf(0xC3.toByte(), 0x28, 0xFF.toByte())) }
+        assertIs<CatalogFetch.Failed>(AmberCatalog.fetch(garbled, own.baseUrl!!, null))
     }
 
     // --- the provider ---
