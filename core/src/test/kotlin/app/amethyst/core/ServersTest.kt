@@ -64,6 +64,21 @@ class ServersTest {
     }
 
     @Test
+    fun `only openai's own key shapes go to openai, other sk- keys ask for their address`() {
+        val openai = ServerProviders.OPENAI
+        assertEquals(openai, Servers.quickForKey("sk-proj-Ab3_x-9Yz")?.provider)
+        assertEquals(openai, Servers.quickForKey("sk-svcacct-Ab3x9Yz")?.provider)
+        assertEquals(openai, Servers.quickForKey("sk-admin-Ab3x9Yz")?.provider)
+        assertEquals(openai, Servers.quickForKey("sk-" + "Ab3xT3BlbkFJ9Yz".repeat(4).take(48))?.provider, "a legacy key")
+        assertEquals(null, Servers.quickForKey("sk-cp-4f9a2b7c1d8e"), "a local proxy's key")
+        assertEquals(null, Servers.quickForKey("sk-or-v1-0123456789abcdef0123456789abcdef"), "OpenRouter")
+        assertEquals(null, Servers.quickForKey("sk-lf-0123456789abcdef"))
+        assertEquals(null, Servers.quickForKey("sk-ant-api03-" + "a".repeat(48)))
+        assertEquals(null, Servers.quickForKey("sk-short"))
+        assertEquals(ServerProviders.GROQ, Servers.quickForKey("gsk_" + "a".repeat(52))?.provider)
+    }
+
+    @Test
     fun `a key is needed at a known service, optional at an own server`() {
         val server = Servers.newServer("server-1", null)
         assertTrue(Servers.keyRequired(server.copy(baseUrl = "https://api.openai.com/v1")))

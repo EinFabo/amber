@@ -70,16 +70,28 @@ object Servers {
 
     /**
      * The known service a pasted [key] belongs to, by its prefix - Groq's start with "gsk_",
-     * OpenAI's with "sk-" - so a key alone fills in the address. Null for anything else.
+     * OpenAI's in its own shapes ([isOpenAiKey]) - so a key alone fills in the address. Null for anything else.
      */
     fun quickForKey(key: String): Quick? {
         val k = key.trim()
         return when {
             k.startsWith("gsk_") -> QUICK.first { it.provider == ServerProviders.GROQ }
-            k.startsWith("sk-") && !k.startsWith("sk-ant-") -> QUICK.first { it.provider == ServerProviders.OPENAI }
+            isOpenAiKey(k) -> QUICK.first { it.provider == ServerProviders.OPENAI }
             else -> null
         }
     }
+
+    /**
+     * OpenAI's own key shapes only: "sk-proj-", "sk-svcacct-", "sk-admin-", or the legacy "sk-"
+     * with one long run of letters and digits. Many others copy the "sk-" start with a prefix of
+     * their own - "sk-or-v1-" OpenRouter, "sk-cp-" a local proxy, "sk-ant-" Anthropic - and
+     * must not send their key to OpenAI: they ask for the address instead.
+     */
+    private fun isOpenAiKey(key: String): Boolean =
+        OPENAI_PREFIXES.any { key.startsWith(it) } || LEGACY_OPENAI.matches(key)
+
+    private val OPENAI_PREFIXES = listOf("sk-proj-", "sk-svcacct-", "sk-admin-")
+    private val LEGACY_OPENAI = Regex("^sk-[A-Za-z0-9]{32,}$")
 
     /**
      * [engine] pointed at [quick]'s service: its address, and its recommended model unless the

@@ -205,6 +205,13 @@ class CleanupPickTest {
         // A known service's address typed by hand is that service.
         assertIs<ServiceRoute.Write>(CleanupService.route(ServiceFields("xyz", "https://api.openai.com/v1"), otherAddress = false))
         assertTrue(CleanupService.asksAddress(ServiceFields("abcdefghjkmnpqrstuvw"), otherAddress = false))
+        // Fabi's own proxy: an sk- key that is no OpenAI key asks for its address by itself.
+        assertEquals(ServiceKey.Unknown, CleanupService.read("sk-cp-4f9a2b7c1d8e"))
+        assertTrue(CleanupService.asksAddress(ServiceFields("sk-cp-4f9a2b7c1d8e"), otherAddress = false))
+        assertEquals(
+            ServiceRoute.Check("http://192.168.178.107:8787/v1", "sk-cp-4f9a2b7c1d8e"),
+            CleanupService.route(ServiceFields("sk-cp-4f9a2b7c1d8e", "http://192.168.178.107:8787/v1"), otherAddress = false),
+        )
         assertFalse(CleanupService.asksAddress(ServiceFields("gsk_abc"), otherAddress = false))
     }
 
