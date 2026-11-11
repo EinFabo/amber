@@ -25,17 +25,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
-import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.CleanupPick
 import app.amethyst.core.onboarding.CleanupService
+import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.onboarding.ServiceAnswer
+import app.amethyst.core.onboarding.ServiceFields
 import app.amethyst.core.onboarding.ServiceKey
 import app.amethyst.core.onboarding.ServicePlan
 import app.amethyst.core.onboarding.ServiceSetup
-import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
@@ -83,19 +83,22 @@ internal fun CleanupStep(
     // Not saveable: a key must never land in the saved-state bundle (security review L1). Nor
     // the address, which can carry an Amber PC's key in its path.
     var key by remember { mutableStateOf("") }
-    var serviceKey by remember { mutableStateOf(initialServiceKey) }
-    var address by remember { mutableStateOf("") }
+    var fields by remember { mutableStateOf(ServiceFields(key = initialServiceKey)) }
     var tried by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
+    // Written once: a second tap on Continue must not add a second server.
+    var written by remember { mutableStateOf(false) }
     var answer by remember { mutableStateOf<ServiceAnswer?>(null) }
     val hasKey = remember(alias) { content.hasKeyFor(alias) }
     val keyReady = hasKey || key.isNotBlank()
-    val read = CleanupService.read(serviceKey)
-    val addressProblems = CleanupService.addressProblems(address)
+    val read = CleanupService.read(fields.key)
+    val addressProblems = CleanupService.addressProblems(fields.address)
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
-    fun write(service: ServiceSetup? = null) {
+    fun write(service: ServiceSetup? = null, serviceKey: String = fields.key) {
+        if (written) return
+        written = true
         if (pick == CleanupPick.TINFOIL && key.isNotBlank() && alias != null) content.onSaveKey(alias, key.trim())
         service?.engine?.apiKeyAlias?.let { content.onSaveKey(it, serviceKey.trim()) }
         val phone = PhoneLocales.tags()
@@ -103,25 +106,30 @@ internal fun CleanupStep(
         onNextWith(pick.applyTo(settings, keyReady, phone, service))
     }
 
-    fun writeService(plan: ServicePlan) = write(CleanupService.setup(settings, plan, PhoneLocales.tags()))
+    fun writeService(plan: ServicePlan, serviceKey: String = fields.key) =
+        write(CleanupService.setup(settings, plan, PhoneLocales.tags()), serviceKey)
 
     fun apply() {
+        if (written || checking) return
         if (pick != CleanupPick.SERVICE) return write()
         when (read) {
             is ServiceKey.Known -> writeService(CleanupService.known(read.quick))
             ServiceKey.Unknown -> {
                 tried = true
-                CleanupService.knownAt(address)?.let { return writeService(it) }
+                CleanupService.knownAt(fields.address)?.let { return writeService(it) }
                 if (addressProblems.isNotEmpty()) return
                 // An own server says itself which models it has: an Amber PC or Amber Server.
-                val typed = address.trim()
+                // The rows and fields wait meanwhile; the answer counts only for what was asked.
+                val asked = fields
+                val typed = asked.address.trim()
                 checking = true
                 answer = null
                 scope.launch {
-                    val said = CleanupService.answer(typed, content.fetchModels(typed, serviceKey.trim()))
+                    val said = CleanupService.answer(typed, content.fetchModels(typed, asked.key.trim()))
                     checking = false
+                    if (pick != CleanupPick.SERVICE || fields != asked) return@launch
                     answer = said
-                    if (said is ServiceAnswer.Ready) writeService(said.plan)
+                    if (said is ServiceAnswer.Ready) writeService(said.plan, asked.key)
                 }
             }
             // No key, or one Amber cannot use yet: on without a cleanup, as the hint says.
@@ -132,23 +140,23 @@ internal fun CleanupStep(
     StepPage(
         title = stringResource(R.string.cleanup_step_title),
         lead = stringResource(R.string.cleanup_step_lead),
-        buttons = { ContinueButton(::apply, enabled = !checking) },
+        buttons = { ContinueButton(::apply, enabled = !checking && !written) },
     ) {
-        RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = pick == CleanupPick.OFF, onSelect = { pick = CleanupPick.OFF })
+        RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = pick == CleanupPick.OFF, onSelect = { if (!checking) pick = CleanupPick.OFF })
         RadioRow(
             "Tinfoil", // English: a name
             stringResource(R.string.cleanup_step_tinfoil_note),
             selected = pick == CleanupPick.TINFOIL,
-            onSelect = { pick = CleanupPick.TINFOIL },
+            onSelect = { if (!checking) pick = CleanupPick.TINFOIL },
         )
         RadioRow(
             stringResource(R.string.cleanup_step_service),
             stringResource(R.string.cleanup_step_service_note),
             selected = pick == CleanupPick.SERVICE,
-            onSelect = { pick = CleanupPick.SERVICE },
+            onSelect = { if (!checking) pick = CleanupPick.SERVICE },
         )
         if (current != null && current.engineId != tinfoil.id) {
-            RadioRow(stringResource(R.string.cleanup_step_keep), settings.cleanupSummary(), selected = pick == CleanupPick.KEEP, onSelect = { pick = CleanupPick.KEEP })
+            RadioRow(stringResource(R.string.cleanup_step_keep), settings.cleanupSummary(), selected = pick == CleanupPick.KEEP, onSelect = { if (!checking) pick = CleanupPick.KEEP })
         }
         if (pick == CleanupPick.TINFOIL) {
             if (hasKey) {
@@ -161,15 +169,9 @@ internal fun CleanupStep(
             }
         }
         if (pick == CleanupPick.SERVICE) {
-            KeyField(serviceKey, stringResource(R.string.engine_api_key)) { typed ->
-                // An Amber PC's pairing link, or its address with the key in it: split as on a server's page.
-                val split = AmberAddress.split(typed)
-                if (split != null) {
-                    serviceKey = split.key
-                    address = split.baseUrl
-                } else {
-                    serviceKey = typed
-                }
+            // An Amber PC's pairing link, or its address with the key in it, goes apart ([ServiceFields]).
+            KeyField(fields.key, stringResource(R.string.engine_api_key), enabled = !checking) { typed ->
+                fields = fields.withKey(typed)
                 answer = null
             }
             Hint(stringResource(R.string.engine_key_stored))
@@ -179,8 +181,12 @@ internal fun CleanupStep(
                 is ServiceKey.Known -> Hint(stringResource(R.string.server_recognized, catalog(read.quick.provider.name)), AmberPalette.TrustOnDevice)
                 ServiceKey.Unknown -> {
                     OutlinedTextField(
-                        value = address,
-                        onValueChange = { address = it; answer = null },
+                        value = fields.address,
+                        onValueChange = { typed ->
+                            fields = fields.withAddress(typed)
+                            answer = null
+                        },
+                        enabled = !checking,
                         label = { Text(stringResource(R.string.engine_address)) },
                         placeholder = { Text("http://192.168.1.20:8000/v1") },
                         singleLine = true,
@@ -190,7 +196,7 @@ internal fun CleanupStep(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Hint(stringResource(R.string.cleanup_step_address))
-                    if (address.isNotBlank() || tried) addressProblems.forEach { Hint(words(it), AmberPalette.Error) }
+                    if (fields.address.isNotBlank() || tried) addressProblems.forEach { Hint(words(it), AmberPalette.Error) }
                     if (checking) ProgressLine(null)
                     when (answer) {
                         null, is ServiceAnswer.Ready -> Unit
@@ -212,10 +218,11 @@ internal fun CleanupStep(
 
 /** A key, masked: off screenshots, recordings and other eyes. */
 @Composable
-private fun KeyField(value: String, label: String, onChange: (String) -> Unit) {
+private fun KeyField(value: String, label: String, enabled: Boolean = true, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
+        enabled = enabled,
         label = { Text(label) },
         singleLine = true,
         shape = AmberShapes.Inner,

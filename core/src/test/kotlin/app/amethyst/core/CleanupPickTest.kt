@@ -10,13 +10,13 @@ import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.CleanupPick
 import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.onboarding.ServiceAnswer
+import app.amethyst.core.onboarding.ServiceFields
 import app.amethyst.core.onboarding.ServiceKey
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -158,6 +158,16 @@ class CleanupPickTest {
     @Test
     fun `another service without a setup changes nothing`() {
         assertEquals(onGroq, CleanupPick.SERVICE.applyTo(onGroq, keyReady = true, TEST_PHONE, null))
-        assertFalse(CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE).cleanup != null)
+        assertNull(CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE).cleanup)
+    }
+
+    @Test
+    fun `an amber address with its key in it goes apart, whichever field it is typed into`() {
+        val key = "abcdefghjkmnpqrstuvw"
+        val own = "http://192.168.1.20:8000/v1"
+        assertEquals(ServiceFields(key, own), ServiceFields().withAddress("http://192.168.1.20:8000/$key/v1"))
+        assertEquals(ServiceFields(key, own), ServiceFields().withKey("http://192.168.1.20:8000/$key/v1"))
+        assertEquals(ServiceFields("gsk_x", own), ServiceFields("gsk_x").withAddress(own))
+        assertEquals(ServiceFields("gsk_y", own), ServiceFields("gsk_x", own).withKey("gsk_y"))
     }
 }

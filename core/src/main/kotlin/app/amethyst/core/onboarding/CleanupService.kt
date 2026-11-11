@@ -1,5 +1,6 @@
 package app.amethyst.core.onboarding
 
+import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.CatalogFetch
@@ -24,6 +25,20 @@ sealed interface ServiceKey {
 
     /** Neither - an own server, an Amber PC: its address is asked for. */
     data object Unknown : ServiceKey
+}
+
+/**
+ * The step's two fields: the API key, and the address asked for when the key names no service.
+ * An Amber PC's pairing link or its address with the key in its path, typed into either, goes
+ * apart as on a server's page: the address without the key, the key into its own field - so a
+ * key never ends up in the stored address.
+ */
+data class ServiceFields(val key: String = "", val address: String = "") {
+    fun withKey(typed: String): ServiceFields =
+        AmberAddress.split(typed)?.let { ServiceFields(it.key, it.baseUrl) } ?: copy(key = typed)
+
+    fun withAddress(typed: String): ServiceFields =
+        AmberAddress.split(typed)?.let { ServiceFields(it.key, it.baseUrl) } ?: copy(address = typed)
 }
 
 /** Where a cleanup server is and which two models it gets: speech (every server has one) and chat. */
