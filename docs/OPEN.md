@@ -24,6 +24,15 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
       OpenAI compatibility layer refuses `temperature` below 1 on Claude 4.7 and later (the cleanup
       sends 0), Anthropic calls it not production-ready, and a cleanup-only provider would need
       hiding from every recognition list - Fabi's call.
+      Round 3, 2026-11-11: Claude built as a cleanup service. Its own client (`ClaudeCleanup` in
+      :core) speaks Anthropic's Messages API (`POST /v1/messages`, `x-api-key`, API version
+      2026-10-21): no sampling settings, the prompt as `system`, thinking switched off per model,
+      errors named (key, model, credit, rate limit, overloaded). `ServerProviders.ANTHROPIC`
+      offers Claude Haiku 5.5 (recommended) and Claude Sonnet 5.5; it recognizes no speech, so a
+      server there is always cleanup-only (`Servers.cleanupOnly`, `recognizes`) - never a
+      recognition, fallback or active engine. An `sk-ant-` key in setup step 5 says "Recognized:
+      Claude" and sets up its cleanup; Settings → Cleanup adds Claude from its key. Step 5's
+      fields are grouped with their notes, the notes shorter, a long model list shows 8 rows.
 
 ## Roadmap (Fabi's plan, 2026-11-06)
 
