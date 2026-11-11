@@ -20,7 +20,7 @@ object CleanupRouting {
     fun ready(settings: AmethystSettings, choice: CleanupChoice, hasKey: (String?) -> Boolean): Boolean {
         val engine = settings.engines.firstOrNull { it.id == choice.engineId } ?: return false
         return engine.kind == EngineKind.OPENAI_COMPATIBLE && choice.model.isNotBlank() &&
-            EngineConfigValidator.isReady(engine, hasKey(engine.apiKeyAlias))
+            EngineConfigValidator.readyForCleanup(engine, hasKey(engine.apiKeyAlias))
     }
 
     /**

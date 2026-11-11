@@ -162,7 +162,7 @@ class EngineFactory(
      */
     fun cleanupFor(choice: CleanupChoice, settings: AmethystSettings): ChatCleanup? {
         val config = settings.engines.firstOrNull { it.id == choice.engineId } ?: return null
-        if (!EngineConfigValidator.isReady(config, secrets.has(config.apiKeyAlias))) return null
+        if (!EngineConfigValidator.readyForCleanup(config, secrets.has(config.apiKeyAlias))) return null
         val model = choice.model.trim().takeIf { it.isNotEmpty() } ?: return null
         if (config.kind != EngineKind.OPENAI_COMPATIBLE) return null
         val baseUrl = config.baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null

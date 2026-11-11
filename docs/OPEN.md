@@ -16,6 +16,14 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
       or OpenAI key sets up the same server and recommended cleanup model as the settings would,
       any other key asks for the address and takes an Amber PC's or Amber Server's models from its
       list; a Claude key says plainly that it can't be used yet. Open: a Claude client.
+      Round 2, 2026-11-11 (Fabi's test): any own server finishes inside setup - key optional, an
+      Amber server's own models, any other server's `GET /models` list to pick from, or the model's
+      name typed when there is no list; "Other address" under a recognized key (OpenRouter,
+      DeepSeek, LiteLLM ...). A server is ready for the cleanup without a speech model
+      (`EngineConfigValidator.readyForCleanup`), on the Cleanup page too. Claude still not: its
+      OpenAI compatibility layer refuses `temperature` below 1 on Claude 4.7 and later (the cleanup
+      sends 0), Anthropic calls it not production-ready, and a cleanup-only provider would need
+      hiding from every recognition list - Fabi's call.
 
 ## Roadmap (Fabi's plan, 2026-11-06)
 

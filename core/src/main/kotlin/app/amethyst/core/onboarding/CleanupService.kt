@@ -3,11 +3,11 @@ package app.amethyst.core.onboarding
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
-import app.amethyst.core.engine.CatalogFetch
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ModelList
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.settings.AmethystSettings
@@ -23,7 +23,7 @@ sealed interface ServiceKey {
     /** Groq or OpenAI, told by the key's prefix: address and models are known. */
     data class Known(val quick: Servers.Quick) : ServiceKey
 
-    /** Neither - an own server, an Amber PC: its address is asked for. */
+    /** Neither - an own server, an Amber PC, another cloud service: its address is asked for. */
     data object Unknown : ServiceKey
 }
 
@@ -31,37 +31,60 @@ sealed interface ServiceKey {
  * The step's two fields: the API key, and the address asked for when the key names no service.
  * An Amber PC's pairing link or its address with the key in its path, typed into either, goes
  * apart as on a server's page: the address without the key, the key into its own field - so a
- * key never ends up in the stored address.
+ * key never ends up in the stored address. An address pasted into the key field moves over.
  */
 data class ServiceFields(val key: String = "", val address: String = "") {
-    fun withKey(typed: String): ServiceFields =
-        AmberAddress.split(typed)?.let { ServiceFields(it.key, it.baseUrl) } ?: copy(key = typed)
+    fun withKey(typed: String): ServiceFields {
+        AmberAddress.split(typed)?.let { return ServiceFields(it.key, it.baseUrl) }
+        val t = typed.trim()
+        if (t.startsWith("http://", ignoreCase = true) || t.startsWith("https://", ignoreCase = true)) return ServiceFields("", t)
+        return copy(key = typed)
+    }
 
     fun withAddress(typed: String): ServiceFields =
         AmberAddress.split(typed)?.let { ServiceFields(it.key, it.baseUrl) } ?: copy(address = typed)
 }
 
-/** Where a cleanup server is and which two models it gets: speech (every server has one) and chat. */
+/**
+ * Where a cleanup server is and its models: the chat model for the cleanup, and a speech model
+ * when the server is known to have one - an own server used for the cleanup only has none.
+ */
 data class ServicePlan(
     val baseUrl: String,
-    val speechModel: String,
+    val speechModel: String?,
     val cleanupModel: String,
     /** The model list an Amber PC or Amber Server sent, kept as the settings keep it. */
     val catalog: AmberCatalog? = null,
 )
 
+/** What pressing Continue on "Another service" does with the two fields. */
+sealed interface ServiceRoute {
+    /** A known service, by its key or its address: written at once. */
+    data class Write(val plan: ServicePlan) : ServiceRoute
+
+    /** An own server: asked for its models first. */
+    data class Check(val address: String, val key: String) : ServiceRoute
+
+    /** The address cannot be asked yet. */
+    data class Fix(val problems: List<ConfigIssue>) : ServiceRoute
+
+    /** No key and no address, or a Claude key alone: on without a cleanup. */
+    data object Skip : ServiceRoute
+}
+
 /** What an own server's answer to "which models?" comes to. */
 sealed interface ServiceAnswer {
+    /** An Amber PC or Amber Server: its own speech and cleanup models, written at once. */
     data class Ready(val plan: ServicePlan) : ServiceAnswer
-
-    /** A server, but not an Amber one: its models have to be typed, in the settings. */
-    data object NotAmber : ServiceAnswer
 
     /** An Amber that offers no chat model to clean up with. */
     data object NoCleanupModel : ServiceAnswer
 
-    /** No answer, a refusal, or nothing readable. */
-    data object NoAnswer : ServiceAnswer
+    /** Another server listed its models: one is picked. */
+    data class Pick(val baseUrl: String, val models: List<String>) : ServiceAnswer
+
+    /** No list to pick from - the model's name is typed. [answered]: the server answered, with an empty list. */
+    data class Type(val baseUrl: String, val answered: Boolean) : ServiceAnswer
 }
 
 /** The server engine a cleanup runs on, and its chat model: what [CleanupPick.SERVICE] writes. */
@@ -88,6 +111,25 @@ object CleanupService {
         cleanupModel = quick.provider.cleanupModels.first { it.recommended }.id,
     )
 
+    /**
+     * Whether the address field shows: for a key that names no service, when the user asked
+     * for another address ([otherAddress]), or when one is in it already.
+     */
+    fun asksAddress(fields: ServiceFields, otherAddress: Boolean): Boolean =
+        otherAddress || fields.address.isNotBlank() || read(fields.key) == ServiceKey.Unknown
+
+    /** Where Continue goes from [fields]. A key is optional at an own server ([Servers.keyRequired]). */
+    fun route(fields: ServiceFields, otherAddress: Boolean): ServiceRoute {
+        val key = read(fields.key)
+        if (!asksAddress(fields, otherAddress)) {
+            return if (key is ServiceKey.Known) ServiceRoute.Write(known(key.quick)) else ServiceRoute.Skip
+        }
+        knownAt(fields.address)?.let { return ServiceRoute.Write(it) }
+        val problems = addressProblems(fields.address)
+        if (problems.isNotEmpty()) return ServiceRoute.Fix(problems)
+        return ServiceRoute.Check(fields.address.trim(), fields.key.trim())
+    }
+
     /** What is wrong with a typed own server's address; empty when its model list may be asked for. */
     fun addressProblems(address: String): List<ConfigIssue> =
         EngineConfigValidator.addressProblems(probe(address))
@@ -98,18 +140,25 @@ object CleanupService {
         return Servers.QUICK.firstOrNull { it.provider === provider }?.let(::known)
     }
 
-    /** [outcome] of asking the own server at [baseUrl] for its models. */
-    fun answer(baseUrl: String, outcome: CatalogFetch): ServiceAnswer = when (outcome) {
-        is CatalogFetch.Found -> {
-            val catalog = outcome.catalog
-            val speech = AmberCatalogs.speechModelToPreselect(null, catalog)
-            val cleanup = (catalog.cleanup.firstOrNull { it.recommended } ?: catalog.cleanup.firstOrNull())?.id
-            if (speech == null || cleanup == null) ServiceAnswer.NoCleanupModel
-            else ServiceAnswer.Ready(ServicePlan(baseUrl.trim(), speech, cleanup, catalog))
+    /** [list], the own server at [baseUrl]'s answer to `GET /models`. */
+    fun answer(baseUrl: String, list: ModelList): ServiceAnswer {
+        val address = baseUrl.trim()
+        return when (list) {
+            is ModelList.Amber -> {
+                val catalog = list.catalog
+                val speech = AmberCatalogs.speechModelToPreselect(null, catalog)
+                val cleanup = (catalog.cleanup.firstOrNull { it.recommended } ?: catalog.cleanup.firstOrNull())?.id
+                if (cleanup == null) ServiceAnswer.NoCleanupModel
+                else ServiceAnswer.Ready(ServicePlan(address, speech, cleanup, catalog))
+            }
+            is ModelList.Plain -> if (list.ids.isEmpty()) ServiceAnswer.Type(address, answered = true) else ServiceAnswer.Pick(address, list.ids)
+            is ModelList.Failed -> ServiceAnswer.Type(address, answered = false)
         }
-        CatalogFetch.NotAmber -> ServiceAnswer.NotAmber
-        is CatalogFetch.Failed -> ServiceAnswer.NoAnswer
     }
+
+    /** An own server's chat model, picked from its list or typed; null while none is given. */
+    fun chosen(baseUrl: String, model: String): ServicePlan? =
+        model.trim().takeIf { it.isNotEmpty() }?.let { ServicePlan(baseUrl.trim(), null, it) }
 
     /**
      * The server for [plan]: one already at that address (its speech model kept), else a new

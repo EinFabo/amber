@@ -54,10 +54,10 @@ import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.dictation.DictationLog
-import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
@@ -535,7 +535,7 @@ private fun AmethystScreens(
                                 bubbleEvents = graph.bubbleEvents,
                                 hasLastDictation = DictationLog.lastDictation(records) != null,
                                 fetchModels = { baseUrl, key ->
-                                    withContext(Dispatchers.IO) { AmberCatalog.fetch(graph.httpTransport, baseUrl, key) }
+                                    withContext(Dispatchers.IO) { ServerModels.fetch(graph.httpTransport, baseUrl, key) }
                                 },
                             ),
                             onStep = { step = it },

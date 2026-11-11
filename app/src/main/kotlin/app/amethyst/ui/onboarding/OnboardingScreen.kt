@@ -26,7 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
-import app.amethyst.core.engine.CatalogFetch
+import app.amethyst.core.engine.ModelList
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
@@ -124,7 +124,7 @@ class OnboardingContent(
     /** There is a last dictation for the quick menu's "Copy last", for the practice step. */
     val hasLastDictation: Boolean = false,
     /** Asks an own server at an address, with its key, which models it has - for the cleanup step. */
-    val fetchModels: suspend (baseUrl: String, key: String) -> CatalogFetch = { _, _ -> CatalogFetch.Failed("not asked") }, // English: a diagnostic detail, never shown
+    val fetchModels: suspend (baseUrl: String, key: String) -> ModelList = { _, _ -> ModelList.Failed("not asked") }, // English: a diagnostic detail, never shown
 )
 
 /** "Step 4 of 10" between Back and Skip. */

@@ -182,7 +182,7 @@ private fun CleanupInstructionCard(
 internal fun rememberCleanupReadiness(settings: AmethystSettings, hasKeyFor: (String?) -> Boolean): Map<String, Boolean> =
     remember(settings) {
         settings.engines.filter { it.kind == EngineKind.OPENAI_COMPATIBLE }.associate { engine ->
-            engine.id to EngineConfigValidator.validate(engine, hasApiKey = hasKeyFor(engine.apiKeyAlias)).isEmpty()
+            engine.id to EngineConfigValidator.readyForCleanup(engine, hasApiKey = hasKeyFor(engine.apiKeyAlias))
         }
     }
 

@@ -1,7 +1,9 @@
 package app.amethyst.core
 
 import app.amethyst.core.engine.AmberCatalog
-import app.amethyst.core.engine.CatalogFetch
+import app.amethyst.core.engine.CleanupRouting
+import app.amethyst.core.engine.ModelList
+import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EnginePresets.ModelChoice
@@ -12,11 +14,13 @@ import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.onboarding.ServiceAnswer
 import app.amethyst.core.onboarding.ServiceFields
 import app.amethyst.core.onboarding.ServiceKey
+import app.amethyst.core.onboarding.ServiceRoute
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -133,7 +137,7 @@ class CleanupPickTest {
     @Test
     fun `an amber pc's list gives the speech and cleanup models it recommends, and is kept`() {
         val address = "http://192.168.1.20:8000/v1"
-        val answer = CleanupService.answer(address, CatalogFetch.Found(amberPc))
+        val answer = CleanupService.answer(address, ModelList.Amber(amberPc))
         val plan = assertIs<ServiceAnswer.Ready>(answer).plan
         assertEquals("turbo", plan.speechModel)
         assertEquals("qwen", plan.cleanupModel)
@@ -148,11 +152,76 @@ class CleanupPickTest {
     }
 
     @Test
-    fun `another server, one without cleanup models, or no answer, sets nothing up`() {
-        val address = "http://192.168.1.20:8000/v1"
-        assertEquals(ServiceAnswer.NotAmber, CleanupService.answer(address, CatalogFetch.NotAmber))
-        assertEquals(ServiceAnswer.NoCleanupModel, CleanupService.answer(address, CatalogFetch.Found(amberPc.copy(cleanup = emptyList()))))
-        assertEquals(ServiceAnswer.NoAnswer, CleanupService.answer(address, CatalogFetch.Failed("HTTP 401")))
+    fun `another server's list is picked from, no list or no answer asks for the model's name`() {
+        val address = " http://192.168.1.20:11434/v1 "
+        val own = "http://192.168.1.20:11434/v1"
+        assertEquals(ServiceAnswer.NoCleanupModel, CleanupService.answer(address, ModelList.Amber(amberPc.copy(cleanup = emptyList()))))
+        assertEquals(ServiceAnswer.Pick(own, listOf("llama3.2", "qwen3:4b")), CleanupService.answer(address, ModelList.Plain(listOf("llama3.2", "qwen3:4b"))))
+        assertEquals(ServiceAnswer.Type(own, answered = true), CleanupService.answer(address, ModelList.Plain(emptyList())))
+        assertEquals(ServiceAnswer.Type(own, answered = false), CleanupService.answer(address, ModelList.Failed("HTTP 401")))
+    }
+
+    @Test
+    fun `an ollama for the cleanup only - no key, no speech model, its chat model - is ready for the cleanup`() {
+        val plan = CleanupService.chosen("http://192.168.1.20:11434/v1", " llama3.2 ")!!
+        assertNull(CleanupService.chosen("http://192.168.1.20:11434/v1", "  "))
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 9 })
+        val after = CleanupPick.SERVICE.applyTo(local, keyReady = false, TEST_PHONE, setup)
+        val engine = after.engines.single { it.id == "server-000009" }
+        assertEquals("http://192.168.1.20:11434/v1", engine.baseUrl)
+        assertNull(engine.modelId)
+        assertEquals("192.168.1.20", engine.displayName)
+        assertEquals(CleanupChoice(engine.id, "llama3.2"), after.cleanup)
+        assertTrue(CleanupRouting.ready(after, after.cleanup!!) { false }, "a key is optional at an own server")
+        assertEquals(parakeet.id, after.activeEngineId)
+    }
+
+    @Test
+    fun `a cloud server still needs its key for the cleanup, and an address`() {
+        val openRouter = Servers.newServer("server-1", null).copy(baseUrl = "https://openrouter.ai/api/v1")
+        val settings = local.withEngine(openRouter).copy(cleanup = CleanupChoice("server-1", "x"))
+        assertTrue(CleanupRouting.ready(settings, settings.cleanup!!) { true })
+        val groq = local.withEngine(openRouter.copy(baseUrl = "https://api.groq.com/openai/v1")).copy(cleanup = CleanupChoice("server-1", "x"))
+        assertFalse(CleanupRouting.ready(groq, groq.cleanup!!) { false })
+        val nowhere = local.withEngine(openRouter.copy(baseUrl = null)).copy(cleanup = CleanupChoice("server-1", "x"))
+        assertFalse(CleanupRouting.ready(nowhere, nowhere.cleanup!!) { true })
+    }
+
+    @Test
+    fun `continue goes by the key, or by the address once one is asked for`() {
+        val groq = CleanupService.route(ServiceFields("gsk_abc"), otherAddress = false)
+        assertEquals("https://api.groq.com/openai/v1", assertIs<ServiceRoute.Write>(groq).plan.baseUrl)
+        assertEquals(ServiceRoute.Skip, CleanupService.route(ServiceFields(""), otherAddress = false))
+        assertEquals(ServiceRoute.Skip, CleanupService.route(ServiceFields("sk-ant-api03-x"), otherAddress = false))
+        // An sk- key for OpenRouter: "Other address" makes it an own server, asked for its models.
+        assertEquals(
+            ServiceRoute.Check("https://openrouter.ai/api/v1", "sk-or-v1-abc"),
+            CleanupService.route(ServiceFields("sk-or-v1-abc", " https://openrouter.ai/api/v1 "), otherAddress = true),
+        )
+        assertEquals(ServiceRoute.Fix(listOf(ConfigIssue.AddressMissing)), CleanupService.route(ServiceFields("sk-or-v1-abc"), otherAddress = true))
+        // No key at all: an own server in the home network.
+        assertEquals(ServiceRoute.Check("http://192.168.1.20:11434/v1", ""), CleanupService.route(ServiceFields("", "http://192.168.1.20:11434/v1"), otherAddress = true))
+        // A known service's address typed by hand is that service.
+        assertIs<ServiceRoute.Write>(CleanupService.route(ServiceFields("xyz", "https://api.openai.com/v1"), otherAddress = false))
+        assertTrue(CleanupService.asksAddress(ServiceFields("abcdefghjkmnpqrstuvw"), otherAddress = false))
+        assertFalse(CleanupService.asksAddress(ServiceFields("gsk_abc"), otherAddress = false))
+    }
+
+    @Test
+    fun `a model list is amber's, another server's ids, or nothing`() {
+        assertEquals(ModelList.Plain(listOf("llama3.2", "qwen3:4b")), ServerModels.parse("""{"object":"list","data":[{"id":"llama3.2","object":"model"},{"id":"qwen3:4b"},{"id":"llama3.2"},{"object":"model"}]}"""))
+        assertEquals(ModelList.Plain(emptyList()), ServerModels.parse("""{"data":[]}"""))
+        assertIs<ModelList.Failed>(ServerModels.parse("<html>portal</html>"))
+    }
+
+    @Test
+    fun `a model list is asked once, with the key, and an error is no list`() = kotlinx.coroutines.test.runTest {
+        val transport = FakeHttpTransport.json("""{"data":[{"id":"gpt-oss:20b"}]}""")
+        assertEquals(ModelList.Plain(listOf("gpt-oss:20b")), ServerModels.fetch(transport, "http://192.168.1.20:11434/v1", "k"))
+        assertEquals("http://192.168.1.20:11434/v1/models", transport.requests.single().url)
+        assertEquals("Bearer k", transport.requests.single().headers["Authorization"])
+        assertIs<ModelList.Failed>(ServerModels.fetch(FakeHttpTransport.failing(java.io.IOException("x")), "http://h:1/v1", null))
+        assertIs<ModelList.Failed>(ServerModels.fetch(FakeHttpTransport.json("{}", code = 401), "http://h:1/v1", null))
     }
 
     @Test
@@ -169,5 +238,6 @@ class CleanupPickTest {
         assertEquals(ServiceFields(key, own), ServiceFields().withKey("http://192.168.1.20:8000/$key/v1"))
         assertEquals(ServiceFields("gsk_x", own), ServiceFields("gsk_x").withAddress(own))
         assertEquals(ServiceFields("gsk_y", own), ServiceFields("gsk_x", own).withKey("gsk_y"))
+        assertEquals(ServiceFields("", "http://192.168.1.20:11434/v1"), ServiceFields("gsk_x").withKey(" http://192.168.1.20:11434/v1"))
     }
 }

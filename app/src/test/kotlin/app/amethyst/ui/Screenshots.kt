@@ -656,25 +656,52 @@ open class Screenshots {
     @Test
     fun onboardingCleanup() = onboarding("5-cleanup", OnboardingStep.CLEANUP, ready, parakeetActive)
 
-    /** Not part of the listing set: "Another service" with a key that names no service - the address is asked for. */
-    @Test
-    fun onboardingCleanupService() = shoot("x-onboarding-5-cleanup-service", null) {
+    /** "Another service" as the step shows it, with the fields and the server's answer given. */
+    private fun cleanupService(
+        name: String,
+        fields: app.amethyst.core.onboarding.ServiceFields,
+        otherAddress: Boolean = false,
+        answer: app.amethyst.core.onboarding.ServiceAnswer? = null,
+    ) = shoot("x-onboarding-5-cleanup-$name", null) {
         app.amethyst.ui.onboarding.CleanupStep(
             parakeetActive, content(),
             initialPick = app.amethyst.core.onboarding.CleanupPick.SERVICE,
-            initialServiceKey = "abcdefghjkmnpqrstuvw",
+            initialFields = fields,
+            initialOtherAddress = otherAddress,
+            initialAnswer = answer,
         ) {}
     }
 
+    /** Not part of the listing set: a key that names no service - the address is asked for. */
+    @Test
+    fun onboardingCleanupService() = cleanupService("service", app.amethyst.core.onboarding.ServiceFields("abcdefghjkmnpqrstuvw"))
+
     /** Not part of the listing set: a Claude key, which Amber cannot use yet. */
     @Test
-    fun onboardingCleanupClaude() = shoot("x-onboarding-5-cleanup-claude", null) {
-        app.amethyst.ui.onboarding.CleanupStep(
-            parakeetActive, content(),
-            initialPick = app.amethyst.core.onboarding.CleanupPick.SERVICE,
-            initialServiceKey = "sk-ant-api03-abc",
-        ) {}
-    }
+    fun onboardingCleanupClaude() = cleanupService("claude", app.amethyst.core.onboarding.ServiceFields("sk-ant-api03-abc"))
+
+    /** Not part of the listing set: an OpenAI-looking key for another address (OpenRouter and the like). */
+    @Test
+    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
+    fun onboardingCleanupOtherAddress() = cleanupService(
+        "other-address", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc"), otherAddress = true,
+    )
+
+    /** Not part of the listing set: Ollama in the home network, no key, its models to pick from. */
+    @Test
+    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
+    fun onboardingCleanupModelList() = cleanupService(
+        "model-list", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
+        answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OLLAMA, listOf("llama3.2:3b", "qwen3:4b", "gemma3:4b")),
+    )
+
+    /** Not part of the listing set: a server that sent no list - the model's name is typed. */
+    @Test
+    @Config(qualifiers = "+w360dp-h1150dp-xxhdpi")
+    fun onboardingCleanupTypedModel() = cleanupService(
+        "typed-model", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
+        answer = app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = true),
+    )
 
     @Test
     fun onboardingStyles() = onboarding(
@@ -855,6 +882,9 @@ open class Screenshots {
     }
 
     private companion object {
+        /** An own server in the home network, for the cleanup step. */
+        const val OLLAMA = "http://192.168.1.20:11434/v1"
+
         /** A fixed "now" for the pages that say how long ago something was. */
         const val NOW = 1_800_000_000_000L
 

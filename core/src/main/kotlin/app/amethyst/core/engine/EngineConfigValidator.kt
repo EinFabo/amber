@@ -57,6 +57,14 @@ object EngineConfigValidator {
     fun isReady(config: EngineConfig, hasApiKey: Boolean): Boolean =
         validate(config, hasApiKey).isEmpty()
 
+    /**
+     * Whether a server can clean up text: address and key as for recognition, but no speech
+     * model needed - an own server (Ollama, LM Studio ...) may be there for the cleanup only.
+     */
+    fun readyForCleanup(config: EngineConfig, hasApiKey: Boolean): Boolean =
+        config.kind == EngineKind.OPENAI_COMPATIBLE &&
+            validate(config, hasApiKey).all { it == ConfigIssue.ModelNameMissing || it is ConfigIssue.InvalidLanguageCode }
+
     /** What is wrong with the address alone; empty when requests may go to it. */
     fun addressProblems(config: EngineConfig): List<ConfigIssue> = validateUrl(config)
 
