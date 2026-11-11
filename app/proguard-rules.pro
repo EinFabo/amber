@@ -21,7 +21,8 @@
 -keep class go.** { *; }
 -keep class sh.tinfoil.** { *; }
 
-# sherpa-onnx: its JNI library reads and writes these config and result classes by name.
+# sherpa-onnx: libsherpa-onnx-jni.so reads and writes these config and result classes, and
+# their fields, by name (the Kotlin API compiled from third_party/sherpa-onnx).
 -keep class com.k2fsa.sherpa.onnx.** { *; }
 
 # Tink (security-crypto) references compile-time-only annotations.

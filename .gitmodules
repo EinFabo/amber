@@ -1,0 +1,40 @@
+[submodule "third_party/whisper.cpp"]
+	path = third_party/whisper.cpp
+	url = https://github.com/ggml-org/whisper.cpp
+	shallow = true
+[submodule "third_party/sherpa-onnx"]
+	path = third_party/sherpa-onnx
+	url = https://github.com/k2-fsa/sherpa-onnx.git
+	shallow = true
+[submodule "third_party/kaldi-native-fbank"]
+	path = third_party/kaldi-native-fbank
+	url = https://github.com/csukuangfj/kaldi-native-fbank.git
+	shallow = true
+[submodule "third_party/kaldi-decoder"]
+	path = third_party/kaldi-decoder
+	url = https://github.com/k2-fsa/kaldi-decoder.git
+	shallow = true
+[submodule "third_party/openfst"]
+	path = third_party/openfst
+	url = https://github.com/csukuangfj/openfst.git
+	shallow = true
+[submodule "third_party/simple-sentencepiece"]
+	path = third_party/simple-sentencepiece
+	url = https://github.com/pkufool/simple-sentencepiece.git
+	shallow = true
+[submodule "third_party/json"]
+	path = third_party/json
+	url = https://github.com/nlohmann/json.git
+	shallow = true
+[submodule "third_party/eigen"]
+	path = third_party/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+	shallow = true
+[submodule "third_party/kissfft"]
+	path = third_party/kissfft
+	url = https://github.com/mborgerding/kissfft.git
+	shallow = true
+[submodule "third_party/kaldifst"]
+	path = third_party/kaldifst
+	url = https://github.com/k2-fsa/kaldifst.git
+	shallow = true

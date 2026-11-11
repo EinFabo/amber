@@ -295,7 +295,9 @@ with the release key, the enclave path solid. Each finding was checked against t
       signature shown (apksigcopier), APK SHA-256 in each release note; later reproducible
       builds (IzzyOnDroid/F-Droid).
 - [ ] M3 dependency verification metadata (SHA-256, then PGP); Kotlin 2.1.20 -> 2.4.20
-      (CVE-2026-53914, build-cache deserialization), AGP and the Compose BOM.
+      (CVE-2026-53914, build-cache deserialization), AGP and the Compose BOM. With AGP >= 8.11.2
+      drop the R8 8.13.25 pin in `settings.gradle.kts` (AGP 8.9.2's own R8 8.9.35 makes the ART
+      profile nondeterministic, b/434861604).
 - [ ] M4b bind an http engine to the network it was set up on, or https with a pinned cert.
 - [ ] Replace androidx.security-crypto (deprecated) with an AndroidKeyStore AES-GCM key.
 - [ ] L3 `ACTION_SET_TEXT` rewrites the whole field (chips, races) - see plan item 4.
@@ -646,16 +648,34 @@ The full task prompt, with causes, code pointers and acceptance criteria:
 Amber in F-Droid, built there from source. What stands in the way today, found in the repo:
 - [x] **A license** (2026-11-06): Apache 2.0, with a `NOTICE` for what Amber is built from and
       the speech models' licenses; both ship in the app (Settings -> Licenses).
-- [ ] **No prebuilt binaries.** `tools/fetch-sherpa-aar.sh` downloads sherpa-onnx's released
-      AAR. The way F-Droid takes (checked 2026-11-10): Marmalade STT (`app.marmalade.stt`, in
-      F-Droid, reproducible) builds sherpa-onnx 1.13.8 from git submodules through Gradle's CMake
-      (`FETCHCONTENT_FULLY_DISCONNECTED`, `FETCHCONTENT_SOURCE_DIR_<dep>`) against ONNX Runtime
-      from Maven Central (`com.microsoft.onnxruntime:onnxruntime-android:1.28.0`, headers and
-      `libonnxruntime.so` unpacked from it, `SHERPA_ONNXRUNTIME_*`); about 4 minutes on F-Droid's
-      server. Ramblr does the same. whisper.cpp likewise as a submodule (Voxscribe, Scrib).
-- [ ] **The Tinfoil AAR** is built with gomobile (`tools/build-tinfoil-aar.sh`, pinned tarball):
-      in the recipe as Cryptocam does it - `golang-go` from Debian, `go install gomobile@<pin>`,
-      `gomobile bind`.
+- [x] **No prebuilt binaries** (2026-11-10, branch `fdroid-build`): whisper.cpp and sherpa-onnx
+      1.13.8 (with its eight dependencies) are git submodules under `third_party/`, built by
+      Gradle's CMake with `FETCHCONTENT_FULLY_DISCONNECTED`; ONNX Runtime 1.28.0 comes from Maven
+      Central. `tools/fetch-sherpa-aar.sh` is gone. The way F-Droid takes: Marmalade STT
+      (`app.marmalade.stt`) and Ramblr do the same.
+- [x] **The Tinfoil AAR** is in the recipe (`build:` runs `tools/build-tinfoil-aar.sh`; Go from
+      bookworm-backports, gomobile and the Go version pinned from tinfoil-go's go.mod).
+- [x] **Reproducible build and signing** (`tools/check-reproducible.sh`; release signed with
+      `apksigner --alignment-preserved true`, so `apksigcopier` works).
+- [x] **Recipe draft** `docs/fdroid/app.amber.yml` + `docs/fdroid/README.md`: `fdroid lint`
+      clean, `fdroid scanner` 0 problems (submodule examples and test binaries via `scandelete`).
+      Its `Builds` entry is a placeholder (0.31.0 / 59) - v0.31.0 predates the from-source build.
+- [ ] **Device test by Fabi** of a build from this branch (whisper, Parakeet, Tinfoil).
+- [ ] **First release tagged from this branch**; then bump the recipe's `Builds`,
+      `CurrentVersion` and `CurrentVersionCode` to it.
+- [ ] **Cross-machine reproducibility**: confirm with CI's SHA-256 against a local build (the
+      check so far compares two builds on one machine).
+- [ ] **Signing host needs build-tools >= 35.0.0** for `--alignment-preserved`.
+- [ ] **`sign-release.sh` and gitignored files**: it refuses changed and untracked files, but
+      not ignored ones (`local.properties`, `.gradle/` and `.cxx/` caches, a leftover
+      `app/libs/*.jar`) that could reach the APK. Hardening option: build from a fresh clone of
+      HEAD, as `tools/check-reproducible.sh` does.
+- [ ] **Recipe JDK**: README and CI build with JDK 21; F-Droid's build server may default to
+      17. Either install 21 in the recipe (`sudo:`) or prove that 17 gives the same bytes - and
+      check whether `bookworm-backports` exists on the build server for `golang-go` at all
+      (Cryptocam's recipe installs Go with `-t testing`).
+- [ ] **NOTICE is incomplete** (from before this branch): ONNX Runtime's own third-party notices
+      and the Go modules compiled into `libgojni.so` (tinfoil-go's dependencies) are not listed.
 - [ ] **Not before 2027-01-27**: F-Droid closes requests for apps developed for less than three
       months (first commit 2026-10-27). Built with Claude Code is no barrier there today (no rule;
       vibe-coded apps that said so were merged, fdroid/admin #641 still open); cloud speech and
@@ -670,8 +690,8 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
 - [x] `dependenciesInfo` off in `app/build.gradle.kts` (2026-11-10). Our APKs never carried the
       block (signed outside AGP), but scanners read the build file.
 - [ ] **Signing.** F-Droid signs with its own key unless the build is reproducible and matches
-      ours - then it ships our signature and updates cross over with our release APKs. That is the
-      reproducible-build item of M1 above; without it, the two are separate installs.
+      ours - then it ships our signature and updates cross over with our release APKs. The
+      build is reproducible now (see above); `AllowedAPKSigningKeys` is in the recipe.
 - [ ] **IzzyOnDroid** (checked 2026-11-10): requests go to
       codeberg.org/IzzyOnDroid/repodata (template "App Inclusion Request", Codeberg account).
       APK from the GitHub release, at most 30 MB (ours: 21 MB), signing key pinned on first
@@ -866,7 +886,7 @@ Candidates, done in 0.15.0 unless marked open:
       large-v3-turbo took 109 s for 30 s of speech - unusable locally. Parakeet reads the whole
       recording at once (no 30 s window), 25 European languages, German FLEURS WER 5.0
       (large-v3: 4.3). sherpa-onnx 1.13.8 AAR pinned and checksummed
-      (tools/fetch-sherpa-aar.sh), four model files pinned by revision/size/hash (670 MB),
+      (built from the sherpa-onnx submodule since 2026-11-10), four model files pinned by revision/size/hash (670 MB),
       resumable download, own thread at display priority, released after 3 idle minutes.
 - [ ] **Parakeet on the device**: download, a short and a 30 s dictation, compare "recognition"
       time and accuracy with FUTO-244 and Tinfoil; note memory if the phone struggles (~700 MB).

@@ -7,9 +7,22 @@ This app contains, or is built from, the following third-party software:
 
 - whisper.cpp / ggml (https://github.com/ggml-org/whisper.cpp) - MIT License,
   Copyright (c) 2023-2026 The ggml authors
-- sherpa-onnx (https://github.com/k2-fsa/sherpa-onnx) - Apache License 2.0
-- ONNX Runtime (https://github.com/microsoft/onnxruntime), inside sherpa-onnx - MIT License,
-  Copyright (c) Microsoft Corporation
+- sherpa-onnx (https://github.com/k2-fsa/sherpa-onnx) - Apache License 2.0, built from source
+  without its text-to-speech part, together with the libraries it compiles in:
+  - kaldi-native-fbank (https://github.com/csukuangfj/kaldi-native-fbank) - Apache License 2.0
+  - KISS FFT (https://github.com/mborgerding/kissfft) - BSD 3-Clause License,
+    Copyright (c) 2003-2010 Mark Borgerding
+  - kaldi-decoder (https://github.com/k2-fsa/kaldi-decoder) - Apache License 2.0
+  - kaldifst (https://github.com/k2-fsa/kaldifst) - Apache License 2.0
+  - OpenFst (https://github.com/csukuangfj/openfst, from https://www.openfst.org) -
+    Apache License 2.0, Copyright 2005-2026 Google LLC
+  - Eigen (https://gitlab.com/libeigen/eigen) - Mozilla Public License 2.0; its source code is
+    available at that address
+  - simple-sentencepiece (https://github.com/pkufool/simple-sentencepiece) - Apache License 2.0
+  - JSON for Modern C++ (https://github.com/nlohmann/json) - MIT License,
+    Copyright (c) 2013-2025 Niels Lohmann
+- ONNX Runtime (https://github.com/microsoft/onnxruntime), the Android library from Maven Central
+  that sherpa-onnx runs on - MIT License, Copyright (c) Microsoft Corporation
 - tinfoil-go (https://github.com/tinfoilsh/tinfoil-go) - Apache License 2.0
 - OkHttp and Okio (https://square.github.io/okhttp/) - Apache License 2.0
 - Kotlin, kotlinx.coroutines, kotlinx.serialization (https://kotlinlang.org) - Apache License 2.0
@@ -25,8 +38,8 @@ Speech models are not part of the app; Amber downloads them when you choose one:
   Apache License 2.0
 
 The MIT License, as it applies to whisper.cpp (Copyright (c) 2023-2026 The ggml authors),
-ONNX Runtime (Copyright (c) Microsoft Corporation) and the FUTO models (Copyright (c) 2024 FUTO
-Organization):
+ONNX Runtime (Copyright (c) Microsoft Corporation), JSON for Modern C++ (Copyright (c) 2013-2025
+Niels Lohmann) and the FUTO models (Copyright (c) 2024 FUTO Organization):
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -42,3 +55,29 @@ NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPO
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The BSD 3-Clause License, as it applies to KISS FFT (Copyright (c) 2003-2010 Mark Borgerding.
+All rights reserved.):
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of
+   conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other materials provided
+   with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to
+   endorse or promote products derived from this software without specific prior written
+   permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

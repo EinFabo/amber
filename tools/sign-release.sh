@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Builds Amber's release APK and has it signed on a signing host: the unsigned APK goes there
-# over ssh, is aligned and signed with apksigner, comes back and is checked against the
-# expected key's fingerprint. The key and its passwords never leave that host. Which key signs
-# is set by SIGN_PROPERTIES; SIGN_CERT_SHA256 says which one that must be.
+# over ssh, is signed with apksigner as it is (AGP has aligned it; aligning it again could move
+# bytes, see below), comes back and is checked against the expected key's fingerprint. The key
+# and its passwords never leave that host. Which key signs is set by SIGN_PROPERTIES;
+# SIGN_CERT_SHA256 says which one that must be.
 #
 # Settings come from the environment or from tools/sign-release.local (untracked; KEY=value
 # lines, # for comments; an exported variable wins over the file):
@@ -15,11 +16,18 @@
 #                     hex characters (required; the GitHub release key's is in README.md)
 #   SIGN_OUTPUT       file name of the signed APK in the project root, ending in .apk
 #                     (default: amber-release.apk)
-# Paths on the signing host are absolute or relative to its home directory (~/ allowed).
+# Paths on the signing host are absolute or relative to its home directory (~/ allowed). Its
+# newest build-tools must be 35.0.0 or later (apksigner --alignment-preserved).
 #
 # A run with the GitHub release key sets its own properties, fingerprint and output, e.g.
 #   SIGN_PROPERTIES=<its keystore.properties> SIGN_CERT_SHA256=<its fingerprint> \
 #     SIGN_OUTPUT=amber-github.apk tools/sign-release.sh
+#
+# Run it from a normal clone (not a linked worktree) with nothing changed and the submodules at
+# their pinned commits; it refuses otherwise, and when anything asks for the adb test hook
+# (amber.insertTestHook). It rebuilds the Tinfoil AAR (Go, pinned NDK), checks that the APK
+# names HEAD as its commit and has no test hook in it, prints the unsigned APK's SHA-256 (the
+# one a rebuild of this commit gives) and warns when HEAD is not tagged v<versionName>.
 #
 # Output: $SIGN_OUTPUT in the project root (gitignored, *.apk).
 set -euo pipefail
@@ -78,11 +86,121 @@ BT=$(ls -d "$ANDROID_HOME"/build-tools/* | tail -1)
 UNSIGNED="$ROOT/app/build/outputs/apk/release/app-release-unsigned.apk"
 DEST="$ROOT/$SIGN_OUTPUT"
 
-echo "==> building the release APK"
+# What gets signed is the reproducible build of one commit, the build anybody (F-Droid) gets
+# from that commit: so only from a normal clone with nothing changed and the submodules at
+# their pinned commits. A linked worktree (git worktree add) builds other bytes: AGP finds no
+# git directory there and writes NO_VALID_GIT_FOUND instead of the commit into the APK.
+GIT_DIRS=$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir --git-common-dir) \
+  || { echo "$ROOT is not a git checkout - only a build of a commit is signed; not signing" >&2; exit 1; }
+if [ "$(sed -n 1p <<<"$GIT_DIRS")" != "$(sed -n 2p <<<"$GIT_DIRS")" ]; then
+  echo "$ROOT is a linked git worktree - its release APK differs from a clone's (no commit in" \
+    "its build info). Sign from a normal clone (git clone --recursive); not signing" >&2
+  exit 1
+fi
+DIRTY=$(git -C "$ROOT" status --porcelain --ignore-submodules=none)
+if [ -n "$DIRTY" ]; then
+  echo "the checkout has changes - commit or remove them, and put the submodules at their" \
+    "pinned commits (git submodule update --init --recursive); not signing:" >&2
+  printf '%s\n' "$DIRTY" | head -20 >&2
+  exit 1
+fi
+HEAD=$(git -C "$ROOT" rev-parse HEAD)
+
+# The adb test hook (-Pamber.insertTestHook=true, see app/build.gradle.kts) must never be in an
+# APK signed with a release key: it lets the adb shell type into any field. Refused wherever
+# Gradle could read the property from - the command line, the environment
+# (ORG_GRADLE_PROJECT_amber.insertTestHook, -Dorg.gradle.project.... in GRADLE_OPTS or
+# JAVA_OPTS), the gradle.properties files - and the built APK is checked for the hook below,
+# whichever way the property got set.
+HOOK=insertTestHook
+GRADLE_HOME_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}"
+case " ${AMBER_GRADLE_ARGS:-} " in
+  *"$HOOK"*)
+    echo "AMBER_GRADLE_ARGS names amber.$HOOK - the adb test hook never goes into a signed" \
+      "release; not signing" >&2
+    exit 1 ;;
+  *" -g"*|*" --gradle-user-home"*)
+    echo "AMBER_GRADLE_ARGS sets another Gradle user home, whose gradle.properties is not" \
+      "checked for amber.$HOOK; not signing" >&2
+    exit 1 ;;
+esac
+# Read whole, not with grep -q in a pipe: an early exit there makes env die of SIGPIPE, and
+# pipefail would then turn a match into a "no".
+HOOK_ENV=$(env | grep "$HOOK" | sed 's/=.*//' || true)
+if [ -n "$HOOK_ENV" ]; then
+  echo "the environment names amber.$HOOK (e.g. ORG_GRADLE_PROJECT_amber.$HOOK, GRADLE_OPTS) -" \
+    "the adb test hook never goes into a signed release; not signing:" >&2
+  printf '%s\n' "$HOOK_ENV" >&2
+  exit 1
+fi
+for f in "$ROOT/gradle.properties" "$ROOT/app/gradle.properties" "$ROOT/core/gradle.properties" \
+         "$GRADLE_HOME_DIR/gradle.properties" "$GRADLE_HOME_DIR"/wrapper/dists/*/*/*/gradle.properties; do
+  if [ -f "$f" ] && grep -q "$HOOK" "$f"; then
+    echo "$f names amber.$HOOK - the adb test hook never goes into a signed release;" \
+      "remove it there; not signing" >&2
+    exit 1
+  fi
+done
+
+# Rebuilt every time rather than trusted: the AAR is not in git, and one left from an older
+# script (another pin, other flags, or from before the build was reproducible) puts other
+# bytes into the APK than the commit's build has. It takes a minute or two. OUT and CI are set
+# here, not inherited: an exported OUT would build the AAR elsewhere and leave a stale one in
+# app/libs for Gradle to package, and CI=true makes an NDK other than the pinned one (another
+# ANDROID_NDK_HOME) a refusal instead of a warning.
+echo "==> building the Tinfoil AAR"
+OUT="$ROOT/app/libs/tinfoil-mobile.aar" CI=true "$ROOT/tools/build-tinfoil-aar.sh" >/dev/null
+
+echo "==> building the release APK of $HEAD"
 rm -f "$UNSIGNED"
-# AMBER_GRADLE_ARGS: extra Gradle arguments, e.g. -Pamber.insertTestHook=true for a test build.
+# AMBER_GRADLE_ARGS: extra Gradle arguments (never the test hook, see above).
 (cd "$ROOT" && ./gradlew -q :app:assembleRelease ${AMBER_GRADLE_ARGS:-})
 [ -f "$UNSIGNED" ] || { echo "no unsigned release APK - is a local keystore.properties signing it already?" >&2; exit 1; }
+# The build names its commit (AGP's vcsInfo); it has to be this one.
+python3 -I - "$UNSIGNED" "$HEAD" <<'PY' || exit 1
+import sys, zipfile
+info = "META-INF/version-control-info.textproto"
+try:
+    text = zipfile.ZipFile(sys.argv[1]).read(info).decode("utf-8", "replace")
+except KeyError:
+    sys.exit(f"the unsigned APK has no {info} - not signing")
+if f'revision: "{sys.argv[2]}"' not in [line.strip() for line in text.splitlines()]:
+    sys.exit(f"the unsigned APK's {info} does not name commit {sys.argv[2]} - not signing:\n{text}")
+PY
+# And the hook is not in the APK: neither its receivers in the manifest nor their classes in
+# the dex files.
+MANIFEST=$("$BT/aapt2" dump xmltree --file AndroidManifest.xml "$UNSIGNED") \
+  || { echo "cannot read the unsigned APK's manifest (aapt2) - not signing" >&2; exit 1; }
+if grep -qE 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST"; then
+  echo "the unsigned APK's manifest has the adb test hook - not signing:" >&2
+  grep -E 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST" >&2
+  exit 1
+fi
+python3 -I - "$UNSIGNED" <<'PY' || exit 1
+import re, sys, zipfile
+apk = zipfile.ZipFile(sys.argv[1])
+dex = [n for n in apk.namelist() if re.fullmatch(r"classes\d*\.dex", n)]
+if not dex:
+    sys.exit("the unsigned APK has no classes.dex - not signing")
+for name in dex:
+    data = apk.read(name)
+    for mark in (b"InsertTestReceiver", b"CommandTestReceiver", b"Lapp/amethyst/debug/"):
+        if mark in data:
+            sys.exit(f"the unsigned APK's {name} has the adb test hook ({mark.decode()}) - not signing")
+PY
+echo "==> unsigned APK, SHA-256 $(sha256sum "$UNSIGNED" | cut -d' ' -f1)"
+VERSION=$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' "$ROOT/app/build.gradle.kts" | head -1)
+if ! git -C "$ROOT" tag --points-at HEAD | grep -qxF "v$VERSION"; then
+  echo "warning: HEAD is not tagged v${VERSION:-?} - fine for a test; a release is signed from its tag" >&2
+fi
+# Signed as built, never re-aligned: the signed APK must be the unsigned one plus a signature
+# and nothing else, so that a rebuild from the same commit (F-Droid's) can be compared with it
+# and carry over its signature (apksigcopier). AGP's output is aligned already; if it is not,
+# something changed in the build and that has to be looked at, not papered over here.
+if ! "$BT/zipalign" -c -p 4 "$UNSIGNED" >/dev/null; then
+  echo "the unsigned APK is not aligned (zipalign -c -p 4 fails) - not signing it; see: $BT/zipalign -c -v -p 4 $UNSIGNED" >&2
+  exit 1
+fi
 
 echo "==> signing on $SIGN_HOST"
 ssh -o BatchMode=yes "$SIGN_HOST" "mkdir -p $(sq "$SIGN_DIR")"
@@ -96,11 +214,11 @@ ssh -o BatchMode=yes "$SIGN_HOST" "set -e
   done < "$P"
   BT=$(cd "$B" && ls -d "$PWD"/* | tail -1)
   cd "$D"
-  "$BT/zipalign" -f -p 4 unsigned.apk aligned.apk
-  "$BT/apksigner" sign --ks "$RELEASE_storeFile" --ks-key-alias "$RELEASE_keyAlias" \
+  "$BT/apksigner" sign --alignment-preserved true \
+    --ks "$RELEASE_storeFile" --ks-key-alias "$RELEASE_keyAlias" \
     --ks-pass env:RELEASE_storePassword --key-pass env:RELEASE_keyPassword \
-    --out signed.apk aligned.apk
-  rm -f unsigned.apk aligned.apk'
+    --out signed.apk unsigned.apk
+  rm -f unsigned.apk'
 scp -o BatchMode=yes -q "$SIGN_HOST:$SIGN_DIR/signed.apk" "$DEST"
 ssh -o BatchMode=yes "$SIGN_HOST" "cd $(sq "$SIGN_DIR") && rm -f signed.apk signed.apk.idsig"
 
@@ -112,10 +230,10 @@ if [ "$GOT" != "$SIGN_CERT_SHA256" ]; then
   exit 1
 fi
 
-# And it is the APK that was sent: every entry byte for byte, nothing added but v1 signature
-# files. The signing host can sign; it must not be able to change what is signed.
+# And it is the APK that was sent: every entry byte for byte, nothing added but the signature.
+# The signing host can sign; it must not be able to change what is signed.
 python3 -I - "$UNSIGNED" "$DEST" <<'PY' || { rm -f "$DEST"; exit 1; }
-import re, sys, zipfile
+import re, struct, sys, zipfile
 sent, back = zipfile.ZipFile(sys.argv[1]), zipfile.ZipFile(sys.argv[2])
 a, b = {i.filename: i for i in sent.infolist()}, {i.filename: i for i in back.infolist()}
 extra = [n for n in b if n not in a and not re.fullmatch(r"META-INF/(MANIFEST\.MF|[^/]+\.(SF|RSA|EC|DSA))", n)]
@@ -123,5 +241,18 @@ missing = [n for n in a if n not in b]
 changed = [n for n in a if n in b and sent.read(n) != back.read(n)]
 if extra or missing or changed:
     sys.exit(f"signed APK differs from the one sent: extra {extra[:5]}, missing {missing[:5]}, changed {changed[:5]}")
+# Byte for byte, too, which is what `apksigcopier compare` needs to match a rebuild: the sent
+# entries where they were (not re-padded), their directory records unchanged, then only the v1
+# files and the APK Signing Block, and the same archive comment.
+def layout(path):
+    data = open(path, "rb").read()
+    end = data.rfind(b"PK\x05\x06")
+    size, start = struct.unpack_from("<II", data, end + 12)
+    return data, start, data[start:start + size], data[end + 4:end + 8] + data[end + 20:]
+u, u_cd, u_dir, u_end = layout(sys.argv[1])
+s, s_cd, s_dir, s_end = layout(sys.argv[2])
+if s[:u_cd] != u[:u_cd] or not s_dir.startswith(u_dir) or s_end != u_end \
+        or not s[u_cd:s_cd].endswith(b"APK Sig Block 42"):
+    sys.exit("signed APK is not the one sent plus a signature - its entries were moved or re-padded")
 PY
 echo "==> signed with the key $SIGN_CERT_SHA256: $DEST ($(du -h "$DEST" | cut -f1))"

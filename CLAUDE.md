@@ -30,7 +30,8 @@ Commits and pull requests carry Fabi's name only:
   Claude Code" line in PR descriptions or release notes
 - `.claude/settings.json` turns Claude Code's attribution off; `tools/hooks/commit-msg`
   strips such lines from every commit message as a safety net
-  (`git config core.hooksPath tools/hooks` once per clone)
+  (`git config core.hooksPath tools/hooks` once per clone; `git config submodule.recurse true`
+  as well, so pulls move the submodules to their pins)
 
 ## Where things live
 
@@ -45,11 +46,11 @@ Commits and pull requests carry Fabi's name only:
 ## Building
 
 ```bash
+git submodule update --init --recursive   # whisper.cpp, sherpa-onnx in third_party/; after every pull that moves a pin
 ./gradlew :core:test                 # pure JVM, no SDK needed
 python3 -I tools/check_refs.py       # imports, R ids, manifest classes
 python3 -I tools/check_strings.py    # English and German alike, no English left in the screens
-tools/build-tinfoil-aar.sh           # once per tinfoil-go pin: Tinfoil's verifier as an AAR
-tools/fetch-sherpa-aar.sh            # once per sherpa-onnx pin: the Parakeet runtime
+tools/build-tinfoil-aar.sh           # Tinfoil's verifier as an AAR; again whenever the script changes
 ./gradlew :app:lintDebug :app:assembleDebug
 tools/typecheck-android.sh           # non-Compose sources against real android-all
 ```
