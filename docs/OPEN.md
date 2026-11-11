@@ -285,7 +285,9 @@ with the release key, the enclave path solid. Each finding was checked against t
       signature shown (apksigcopier), APK SHA-256 in each release note; later reproducible
       builds (IzzyOnDroid/F-Droid).
 - [ ] M3 dependency verification metadata (SHA-256, then PGP); Kotlin 2.1.20 -> 2.4.20
-      (CVE-2026-53914, build-cache deserialization), AGP and the Compose BOM.
+      (CVE-2026-53914, build-cache deserialization), AGP and the Compose BOM. With AGP >= 8.11.2
+      drop the R8 8.13.25 pin in `settings.gradle.kts` (AGP 8.9.2's own R8 8.9.35 makes the ART
+      profile nondeterministic, b/434861604).
 - [ ] M4b bind an http engine to the network it was set up on, or https with a pinned cert.
 - [ ] Replace androidx.security-crypto (deprecated) with an AndroidKeyStore AES-GCM key.
 - [ ] L3 `ACTION_SET_TEXT` rewrites the whole field (chips, races) - see plan item 4.

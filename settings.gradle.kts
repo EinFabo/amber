@@ -13,6 +13,15 @@ pluginManagement {
         mavenCentral()
         google()
     }
+    // R8 8.13.25 instead of the 8.9.35 that AGP 8.9.2 bundles: that one has a race in
+    // horizontal class merging that makes the ART profile in the APK nondeterministic
+    // (b/434861604, "Fix race in horizontal merging leading to nondeterministic art profile",
+    // fixed in 8.11.21+), so two builds of one commit can differ in assets/dexopt/baseline.prof.
+    // Remove this block when AGP >= 8.11.2 (it bundles a fixed R8).
+    buildscript {
+        repositories { google(); mavenCentral() }
+        dependencies { classpath("com.android.tools:r8:8.13.25") }
+    }
 }
 
 @Suppress("UnstableApiUsage")
