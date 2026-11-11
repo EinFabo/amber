@@ -72,6 +72,13 @@
     <string name="cleanup_step_get_key">Schlüssel bei tinfoil.sh holen</string>
     <string name="cleanup_step_no_key">Ohne Schlüssel bleibt die Bereinigung aus. Du kannst später einen unter Einstellungen → Bereinigung eintragen.</string>
     <string name="cleanup_step_leaves">Der erkannte Text verlässt für die Bereinigung das Handy - deine Aufnahme nicht.</string>
+    <string name="cleanup_step_service">Anderer Dienst</string>
+    <string name="cleanup_step_service_note">Groq, OpenAI oder dein eigener Server, etwa ein Amber PC: mit seinem API-Schlüssel.</string>
+    <string name="cleanup_step_claude">Claude-Schlüssel gehen noch nicht: Amber kann bisher nicht mit Claude sprechen. Groq, OpenAI, dein eigener Server oder Tinfoil gehen.</string>
+    <string name="cleanup_step_address">Kein Groq- oder OpenAI-Schlüssel: die Adresse deines Servers, etwa eines Amber PC. Amber fragt ihn nach seinen Modellen.</string>
+    <string name="cleanup_step_not_amber">Dieser Server antwortet, ist aber kein Amber PC und kein Amber Server - Amber kann seine Modelle nicht wählen. Füge ihn unter Einstellungen → Spracherkennung hinzu und wähle sein Modell unter Einstellungen → Bereinigung.</string>
+    <string name="cleanup_step_no_model">Dieser Server bietet kein Modell für die Bereinigung.</string>
+    <string name="cleanup_step_no_answer">Keine Antwort von dieser Adresse mit diesem Schlüssel. Prüfe beides, oder richte es später unter Einstellungen → Bereinigung ein.</string>
     <string name="styles_step_lead">Die Bereinigung schreibt locker in Messengern, förmlich in E-Mails und knapp in Notizen.</string>
     <string name="styles_step_none">Keine der üblichen Apps ist auf diesem Handy.</string>
     <string name="styles_step_more">Weitere Apps kannst du jederzeit unter Einstellungen → Stil pro App hinzufügen.</string>

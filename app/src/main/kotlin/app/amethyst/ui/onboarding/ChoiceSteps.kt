@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,10 +25,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
+import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.CleanupPick
+import app.amethyst.core.onboarding.CleanupService
+import app.amethyst.core.onboarding.ServiceAnswer
+import app.amethyst.core.onboarding.ServiceKey
+import app.amethyst.core.onboarding.ServicePlan
+import app.amethyst.core.onboarding.ServiceSetup
 import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
@@ -50,36 +57,82 @@ import app.amethyst.ui.screen.label
 import app.amethyst.ui.screen.trustLevelForDisplay
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.catalog
 import app.amethyst.ui.words
+import kotlinx.coroutines.launch
 
 /**
- * Tidy the text? Off, or Tinfoil with a key (see [CleanupPick]). [onNextWith] moves on as the
- * settings will be once the choice is written, so the styles step appears right after a cleanup
- * was switched on.
+ * Tidy the text? Off, Tinfoil with a key, or another service from its key - Groq and OpenAI
+ * told by the key, anything else by its address and its model list (see [CleanupPick] and
+ * [CleanupService]). [onNextWith] moves on as the settings will be once the choice is written,
+ * so the styles step appears right after a cleanup was switched on.
  */
 @Composable
-internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent, onNextWith: (AmethystSettings) -> Unit) {
+internal fun CleanupStep(
+    settings: AmethystSettings,
+    content: OnboardingContent,
+    // For the screenshots: the step with a choice made and a key typed.
+    initialPick: CleanupPick? = null,
+    initialServiceKey: String = "",
+    onNextWith: (AmethystSettings) -> Unit,
+) {
     val tinfoil = EnginePresets.TINFOIL
     val alias = EngineConfig.fromPreset(tinfoil).apiKeyAlias
     val current = settings.cleanup
-    var pick by rememberSaveable { mutableStateOf(CleanupPick.initial(settings)) }
-    // Not saveable: a key must never land in the saved-state bundle (security review L1).
+    var pick by rememberSaveable { mutableStateOf(initialPick ?: CleanupPick.initial(settings)) }
+    // Not saveable: a key must never land in the saved-state bundle (security review L1). Nor
+    // the address, which can carry an Amber PC's key in its path.
     var key by remember { mutableStateOf("") }
+    var serviceKey by remember { mutableStateOf(initialServiceKey) }
+    var address by remember { mutableStateOf("") }
+    var tried by remember { mutableStateOf(false) }
+    var checking by remember { mutableStateOf(false) }
+    var answer by remember { mutableStateOf<ServiceAnswer?>(null) }
     val hasKey = remember(alias) { content.hasKeyFor(alias) }
     val keyReady = hasKey || key.isNotBlank()
+    val read = CleanupService.read(serviceKey)
+    val addressProblems = CleanupService.addressProblems(address)
     val uri = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
+
+    fun write(service: ServiceSetup? = null) {
+        if (pick == CleanupPick.TINFOIL && key.isNotBlank() && alias != null) content.onSaveKey(alias, key.trim())
+        service?.engine?.apiKeyAlias?.let { content.onSaveKey(it, serviceKey.trim()) }
+        val phone = PhoneLocales.tags()
+        content.onUpdateSettings { pick.applyTo(it, keyReady, phone, service) }
+        onNextWith(pick.applyTo(settings, keyReady, phone, service))
+    }
+
+    fun writeService(plan: ServicePlan) = write(CleanupService.setup(settings, plan, PhoneLocales.tags()))
 
     fun apply() {
-        if (pick == CleanupPick.TINFOIL && key.isNotBlank() && alias != null) content.onSaveKey(alias, key.trim())
-        val phone = PhoneLocales.tags()
-        content.onUpdateSettings { pick.applyTo(it, keyReady, phone) }
-        onNextWith(pick.applyTo(settings, keyReady, phone))
+        if (pick != CleanupPick.SERVICE) return write()
+        when (read) {
+            is ServiceKey.Known -> writeService(CleanupService.known(read.quick))
+            ServiceKey.Unknown -> {
+                tried = true
+                CleanupService.knownAt(address)?.let { return writeService(it) }
+                if (addressProblems.isNotEmpty()) return
+                // An own server says itself which models it has: an Amber PC or Amber Server.
+                val typed = address.trim()
+                checking = true
+                answer = null
+                scope.launch {
+                    val said = CleanupService.answer(typed, content.fetchModels(typed, serviceKey.trim()))
+                    checking = false
+                    answer = said
+                    if (said is ServiceAnswer.Ready) writeService(said.plan)
+                }
+            }
+            // No key, or one Amber cannot use yet: on without a cleanup, as the hint says.
+            ServiceKey.Blank, ServiceKey.Claude -> write()
+        }
     }
 
     StepPage(
         title = stringResource(R.string.cleanup_step_title),
         lead = stringResource(R.string.cleanup_step_lead),
-        buttons = { ContinueButton(::apply) },
+        buttons = { ContinueButton(::apply, enabled = !checking) },
     ) {
         RadioRow(stringResource(R.string.off), stringResource(R.string.cleanup_off_note), selected = pick == CleanupPick.OFF, onSelect = { pick = CleanupPick.OFF })
         RadioRow(
@@ -88,6 +141,12 @@ internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent,
             selected = pick == CleanupPick.TINFOIL,
             onSelect = { pick = CleanupPick.TINFOIL },
         )
+        RadioRow(
+            stringResource(R.string.cleanup_step_service),
+            stringResource(R.string.cleanup_step_service_note),
+            selected = pick == CleanupPick.SERVICE,
+            onSelect = { pick = CleanupPick.SERVICE },
+        )
         if (current != null && current.engineId != tinfoil.id) {
             RadioRow(stringResource(R.string.cleanup_step_keep), settings.cleanupSummary(), selected = pick == CleanupPick.KEEP, onSelect = { pick = CleanupPick.KEEP })
         }
@@ -95,26 +154,76 @@ internal fun CleanupStep(settings: AmethystSettings, content: OnboardingContent,
             if (hasKey) {
                 Hint(stringResource(R.string.cleanup_step_key_stored), AmberPalette.TrustOnDevice)
             } else {
-                OutlinedTextField(
-                    value = key,
-                    onValueChange = { key = it },
-                    label = { Text(stringResource(R.string.cleanup_step_key)) },
-                    singleLine = true,
-                    shape = AmberShapes.Inner,
-                    colors = fieldColors(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                KeyField(key, stringResource(R.string.cleanup_step_key)) { key = it }
                 Hint(stringResource(R.string.engine_key_stored))
                 GhostButton(stringResource(R.string.cleanup_step_get_key), { runCatching { uri.openUri("https://tinfoil.sh") } })
                 if (key.isBlank()) Hint(stringResource(R.string.cleanup_step_no_key))
             }
+        }
+        if (pick == CleanupPick.SERVICE) {
+            KeyField(serviceKey, stringResource(R.string.engine_api_key)) { typed ->
+                // An Amber PC's pairing link, or its address with the key in it: split as on a server's page.
+                val split = AmberAddress.split(typed)
+                if (split != null) {
+                    serviceKey = split.key
+                    address = split.baseUrl
+                } else {
+                    serviceKey = typed
+                }
+                answer = null
+            }
+            Hint(stringResource(R.string.engine_key_stored))
+            when (read) {
+                ServiceKey.Blank -> Hint(stringResource(R.string.cleanup_step_no_key))
+                ServiceKey.Claude -> Hint(stringResource(R.string.cleanup_step_claude), AmberPalette.Error)
+                is ServiceKey.Known -> Hint(stringResource(R.string.server_recognized, catalog(read.quick.provider.name)), AmberPalette.TrustOnDevice)
+                ServiceKey.Unknown -> {
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it; answer = null },
+                        label = { Text(stringResource(R.string.engine_address)) },
+                        placeholder = { Text("http://192.168.1.20:8000/v1") },
+                        singleLine = true,
+                        shape = AmberShapes.Inner,
+                        colors = fieldColors(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Hint(stringResource(R.string.cleanup_step_address))
+                    if (address.isNotBlank() || tried) addressProblems.forEach { Hint(words(it), AmberPalette.Error) }
+                    if (checking) ProgressLine(null)
+                    when (answer) {
+                        null, is ServiceAnswer.Ready -> Unit
+                        ServiceAnswer.NotAmber -> Hint(stringResource(R.string.cleanup_step_not_amber), AmberPalette.Error)
+                        ServiceAnswer.NoCleanupModel -> Hint(stringResource(R.string.cleanup_step_no_model), AmberPalette.Error)
+                        ServiceAnswer.NoAnswer -> Hint(stringResource(R.string.cleanup_step_no_answer), AmberPalette.Error)
+                    }
+                }
+            }
+        }
+        val sendsOut = pick == CleanupPick.TINFOIL || (pick == CleanupPick.SERVICE && (read is ServiceKey.Known || read == ServiceKey.Unknown))
+        if (sendsOut) {
             if (settings.activeEngine?.trustLevelForDisplay() == TrustLevel.ON_DEVICE) {
                 Hint(stringResource(R.string.cleanup_step_leaves), AmberPalette.Primary)
             }
         }
     }
+}
+
+/** A key, masked: off screenshots, recordings and other eyes. */
+@Composable
+private fun KeyField(value: String, label: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        shape = AmberShapes.Inner,
+        colors = fieldColors(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** Messages casual, mail formal, notes short - the stock styles, for the apps on this phone. */

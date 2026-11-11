@@ -72,6 +72,13 @@
     <string name="cleanup_step_get_key">Get a key at tinfoil.sh</string>
     <string name="cleanup_step_no_key">Without a key, cleanup stays off. You can add one later in Settings → Cleanup.</string>
     <string name="cleanup_step_leaves">The recognized text leaves the phone for the cleanup - your recording does not.</string>
+    <string name="cleanup_step_service">Another service</string>
+    <string name="cleanup_step_service_note">Groq, OpenAI or your own server, such as an Amber PC: with its API key.</string>
+    <string name="cleanup_step_claude">Claude keys can\'t be used yet: Amber can\'t talk to Claude so far. Groq, OpenAI, your own server or Tinfoil work.</string>
+    <string name="cleanup_step_address">Not a Groq or OpenAI key: the address of your server, such as an Amber PC. Amber asks it for its models.</string>
+    <string name="cleanup_step_not_amber">This server answered, but it is no Amber PC or Amber Server, so Amber can\'t pick its models. Add it in Settings → Speech recognition, then choose its model in Settings → Cleanup.</string>
+    <string name="cleanup_step_no_model">This server offers no model for the cleanup.</string>
+    <string name="cleanup_step_no_answer">No answer from this address with this key. Check both, or set it up later in Settings → Cleanup.</string>
     <string name="styles_step_lead">The cleanup writes casually in messengers, formally in mail and briefly in notes.</string>
     <string name="styles_step_none">None of the usual apps are on this phone.</string>
     <string name="styles_step_more">Add more apps any time in Settings → Style per app.</string>

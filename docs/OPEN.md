@@ -4,7 +4,7 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
 
 ## Bugs (Fabi, 2026-11-11)
 
-- [ ] **Setup step 5 of 9 (cleanup) offers only Off or Tinfoil**: no way to enter a key for
+- [x] **Setup step 5 of 9 (cleanup) offers only Off or Tinfoil**: no way to enter a key for
       another service (OpenAI, Claude, Groq ...), although the settings take any
       OpenAI-compatible server. Proposal: a third choice "Another service" with one key field;
       `Servers.quickForKey` already knows the service from the key's prefix (`gsk_` Groq,
@@ -12,6 +12,10 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
       (own server, Amber PC). Claude keys (`sk-ant-`) are excluded today: needs Anthropic's
       OpenAI-compatible endpoint (or its own client) first, and a cleanup model for it.
       `CleanupPick` (:core) gets the new pick, `CleanupStep` in `ChoiceSteps.kt` the field.
+      Built 2026-11-11: "Another service" with one API key field (`CleanupService` in :core); a Groq
+      or OpenAI key sets up the same server and recommended cleanup model as the settings would,
+      any other key asks for the address and takes an Amber PC's or Amber Server's models from its
+      list; a Claude key says plainly that it can't be used yet. Open: a Claude client.
 
 ## Roadmap (Fabi's plan, 2026-11-06)
 

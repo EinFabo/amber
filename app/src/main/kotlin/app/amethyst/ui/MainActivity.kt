@@ -54,6 +54,7 @@ import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
@@ -533,6 +534,9 @@ private fun AmethystScreens(
                                 onUpdateSettings = ::updateSettings,
                                 bubbleEvents = graph.bubbleEvents,
                                 hasLastDictation = DictationLog.lastDictation(records) != null,
+                                fetchModels = { baseUrl, key ->
+                                    withContext(Dispatchers.IO) { AmberCatalog.fetch(graph.httpTransport, baseUrl, key) }
+                                },
                             ),
                             onStep = { step = it },
                             onFinish = {

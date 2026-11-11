@@ -656,6 +656,26 @@ open class Screenshots {
     @Test
     fun onboardingCleanup() = onboarding("5-cleanup", OnboardingStep.CLEANUP, ready, parakeetActive)
 
+    /** Not part of the listing set: "Another service" with a key that names no service - the address is asked for. */
+    @Test
+    fun onboardingCleanupService() = shoot("x-onboarding-5-cleanup-service", null) {
+        app.amethyst.ui.onboarding.CleanupStep(
+            parakeetActive, content(),
+            initialPick = app.amethyst.core.onboarding.CleanupPick.SERVICE,
+            initialServiceKey = "abcdefghjkmnpqrstuvw",
+        ) {}
+    }
+
+    /** Not part of the listing set: a Claude key, which Amber cannot use yet. */
+    @Test
+    fun onboardingCleanupClaude() = shoot("x-onboarding-5-cleanup-claude", null) {
+        app.amethyst.ui.onboarding.CleanupStep(
+            parakeetActive, content(),
+            initialPick = app.amethyst.core.onboarding.CleanupPick.SERVICE,
+            initialServiceKey = "sk-ant-api03-abc",
+        ) {}
+    }
+
     @Test
     fun onboardingStyles() = onboarding(
         "6-styles", OnboardingStep.APP_STYLES, ready,
