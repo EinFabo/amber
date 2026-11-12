@@ -1,0 +1,4 @@
+- Claude bereinigt: sk-ant-Schlüssel in der Einrichtung einfügen oder Claude unter Einstellungen → Bereinigung hinzufügen (Haiku 5.5 oder Sonnet 5.5)
+- Der Bereinigungs-Schritt der Einrichtung nimmt jeden Dienst: Groq, OpenAI, eine andere Adresse oder deinen eigenen Server (Amber PC, Ollama, LM Studio)
+- Server nur für die Bereinigung tauchen nicht mehr bei der Spracherkennung auf
+- Komplett aus dem Quellcode gebaut, reproduzierbar; kein Sprachausgabe-Code mehr darin

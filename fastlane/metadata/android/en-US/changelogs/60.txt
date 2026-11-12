@@ -1,0 +1,4 @@
+- Claude cleans up: paste an sk-ant- key in setup, or add Claude under Settings → Cleanup (Haiku 5.5 or Sonnet 5.5)
+- Setup's cleanup step takes any service: Groq, OpenAI, another address, or your own server (Amber PC, Ollama, LM Studio) with its model list
+- Servers used only for the cleanup are kept out of speech recognition
+- Built entirely from source, reproducibly; no text-to-speech code inside any more
