@@ -226,7 +226,14 @@ series and one store release per phase, each after his OK.
       yet, and the first sight of the keyboard sliding in counts as shown
       (`KeyboardPolicy.Decision.shown`). The price: after a tap on a field that had no focus
       the bubble comes with the keyboard's window (about 0.3 s on the Pixel) instead of at
-      once. Not yet tried on the phone (it was locked).
+      once. Tried over adb on the Pixel 9a, 2026-11-13 (Telegram's saved messages - the same
+      start of input without a keyboard as WhatsApp): no bubble as the chat opens; it comes
+      with the keyboard, also after Back and after 20 s; seven lines typed move nothing.
+      Against Wispr Flow in a screen recording: Amber's bubble began 40 ms before Flow's
+      but faded in over 180 ms and was fully there 50 ms after it; with 100 ms
+      (`BubbleView.APPEAR_MS`) it begins 33 ms and is there 16 ms before Flow's. Open: a
+      field that had no focus (YouTube's search) against Flow - not measured, the taps
+      went astray; Fabi's own impression.
 - [ ] **Battery, from a review of the code** (2026-11-13; nothing measured). No drain at
       rest: nothing polls, animates or holds the CPU while nothing changes. Per-event costs,
       heaviest first: (1) `onStartInput` asks the app for the focused node (password check)

@@ -466,7 +466,7 @@ class BubbleView(context: Context) : View(context) {
             .alpha(targetAlpha())
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(180)
+            .setDuration(APPEAR_MS)
             .setInterpolator(DecelerateInterpolator())
             .withEndAction(null)
             .start()
@@ -496,6 +496,12 @@ class BubbleView(context: Context) : View(context) {
     }
 
     private companion object {
+        /**
+         * Short: the bubble starts with the keyboard's first frames and should be there
+         * before the keyboard is. At 180 ms it began 40 ms before Wispr Flow's bubble and
+         * was fully there 50 ms after it (Pixel 9a, screen recording, 2026-11-13).
+         */
+        const val APPEAR_MS = 100L
         const val LISTENING_FRAME_MS = 16L
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f
