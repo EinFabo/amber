@@ -64,11 +64,12 @@ series and one store release per phase, each after his OK.
 - [ ] **P2 - Bubble edge-dock + quick menu** (schema 11), built 2026-11-06: docks left or right
       (fling over 750 px/s changes side, spring), inside the bars and the cutout; its own height
       above the keyboard (80 dp, set by dragging with the keyboard up); placed before it appears;
-      rotation keeps side and height. Long-press = quick menu, 4 slots - Idle: cleanup off/on here,
+      rotation keeps side and height (the keyboard height went with schema 14, 2026-11-13: one
+      place). Long-press = quick menu, 4 slots - Idle: cleanup off/on here,
       insert again, copy last, hide here; Listening: start over, cancel, send as spoken; Working:
       cancel, keep as heard. Hold-to-talk removed. Open: the device test (portrait and landscape,
       WhatsApp/Gmail/Chrome with the keyboard, send buttons not covered, fling both ways, every
-      slot), then tune the 80 dp and the menu radius. Later: magnetic hide target, idle fade/peek.
+      slot), then tune the menu radius. Later: magnetic hide target, idle fade/peek.
       Redone after Fabi's design lab (layout and buttons, Amber's own style): a hold ring, the screen
       dims, four round buttons on a fan that tilts to fit (84 dp, nearest direction within 32 deg,
       26 dp dead zone), the lit one a pill with its name; icons drawn like the flame glyph. Same
@@ -205,21 +206,42 @@ series and one store release per phase, each after his OK.
       window unreported for longer than 250 ms hides the bubble until the next window change
       (not seen in this session); asking the field's node whether it is still there, if a
       field goes with its keyboard up.
-- [ ] **The bubble jumps up while typing** (Fabi, 2026-11-13). Built 2026-11-13: it keeps its
-      place while that is allowed and gives way once, with room for four more lines
-      (`BubbleHold`); every move says why on Diagnostics → Keyboard. Tried on the Pixel 9a in
-      Telegram, 2026-11-13: the cause is the growing input - with room for two lines the
-      bubble moved at line 4 and again at line 6, with four lines once (line 3) over the
-      seven lines the field grows to. Text put in with `adb shell input text` does not move
-      it at all: the field is only read again when the keyboard's window changes, so a field
-      that grows without the keyboard (paste, a dictation's text) can end up under the
-      bubble - open. Open too: it does not come back down when the text is deleted, only
-      when the keyboard closes; Fabi's feel for it with real typing.
-- [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): its
-      behaviour in relation to the keyboard still doesn't feel good - where it sits above the
-      keys, how it follows when the keyboard opens, closes or changes height. Go through it
-      with Fabi on the device; see also "Bubble starts clearly after the keyboard, jumps
-      instead of gliding" below and "Research: bubble position and field detection".
+- [ ] **The bubble jumps up while typing** (Fabi, 2026-11-13). First built the same day as
+      "keeps its place, gives way once" (`BubbleHold`); on the Pixel 9a in Telegram that
+      still meant one or two moves over the seven lines a chat input grows to. Measured
+      against Wispr Flow on the same phone: its bubble has one place and never moves by
+      itself, also not when the field grows under it. Fabi: do it like that. Rebuilt
+      2026-11-13 (schema 14): one place along the edge (`edgeY`), with or without a keyboard;
+      no height of its own above the keyboard, no stepping around the field, the field's
+      bounds are no longer looked up. It only leaves a place that is on the keys - a docked
+      keyboard's (the nearest place above them) or a floating one's. The default is a third
+      down (0.32, was 0.72 - where the keyboard opens); an install still at the old default
+      moves there, a chosen place stays. Open: Fabi's word on the device.
+- [ ] **The bubble shows for a second when a chat opens, and comes later than Flow's**
+      (Fabi, 2026-11-13, WhatsApp). From his log: WhatsApp starts input for its field as the
+      chat opens, without a keyboard; the bubble showed for the 1.5 s a keyboard is waited
+      for. And with the field already in focus, a tap brought the bubble only once the
+      keyboard had come to rest, 213 ms after its first sight. Built the same day: on a
+      phone that reports its keyboard a field that starts with no keyboard up is not active
+      yet, and the first sight of the keyboard sliding in counts as shown
+      (`KeyboardPolicy.Decision.shown`). The price: after a tap on a field that had no focus
+      the bubble comes with the keyboard's window (about 0.3 s on the Pixel) instead of at
+      once. Not yet tried on the phone (it was locked).
+- [ ] **Battery, from a review of the code** (2026-11-13; nothing measured). No drain at
+      rest: nothing polls, animates or holds the CPU while nothing changes. Per-event costs,
+      heaviest first: (1) `onStartInput` asks the app for the focused node (password check)
+      and logs, also on restarts - per keystroke in apps that restart input; (2) the window
+      list is read on every burst of window changes while a field has input, also after the
+      keyboard was closed with Back, and the bubble's own moves cause such bursts; (3) the
+      spark overlay is a second window brought up at every appearance of the bubble; (4) the
+      diagnostics log's dedup fails on "keyboard moving (bottom N)"; (5) `TYPE_VIEW_FOCUSED`
+      is delivered but ignored from Android 13. The fixed place already removed the largest
+      cost while typing (a node lookup per input start and keyboard change, the glides).
+- [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): mostly
+      answered by the fixed place above. Left of it: the bubble appears at once while the
+      keyboard still slides ("Bubble starts clearly after the keyboard, jumps instead of
+      gliding" below) - see whether that still matters now that it does not move; shrinking
+      or fading when idle, as Flow offers, if covering a corner of the text bothers.
 
 - [ ] **A finished dictation is never lost at insertion** (Fabi, 2026-11-10; built): reported in
       WhatsApp and the Claude app - `No text field has focus any more - not inserted.` after a
@@ -1213,7 +1235,7 @@ Fire design
 - [ ] Launcher icon, Android 13 themed icon (Material You "themed icons"), notification icon.
 
 Keyboard
-- [ ] Tap into fields in WhatsApp, Chrome, Gmail: the bubble moves up together with the keyboard.
+- [ ] Tap into fields in WhatsApp, Chrome, Gmail: the bubble shows with the keyboard, at its place, and does not move.
 - [ ] Back to close the keyboard while the field stays focused: the bubble drops back down.
 - [ ] Drag the bubble while dictating (tap mode and hold mode): it keeps recording.
 - [ ] If it jumps or lags: Diagnostics → "Keyboard", screenshot the lines.

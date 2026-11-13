@@ -55,10 +55,13 @@ class KeyboardPolicy(
     /**
      * [top] is where the bubble has to stay above, or null for "no keyboard". [recheckInMs]
      * asks for another reading after that delay while something is still settling. [shown]
-     * says whether a keyboard is on screen for the field in focus: true once one is seen, false
-     * when it has closed or - on a phone that reports its keyboard - never came, null while
-     * that is still open (on its way, moving, briefly unreported). It is what lets the bubble
-     * go with the keyboard when an app takes its field away without a word ([FieldPresence]).
+     * says whether a keyboard is on screen for the field in focus: true from the first sight of
+     * one, still sliding in; false when it has closed or - on a phone that reports its
+     * keyboard - is not there: at once for a field that starts with none up (a chat opens
+     * with its input in focus and no keyboard), so the bubble comes with the keyboard and not
+     * a second before it for nothing. Null says nothing new (on its way, briefly unreported,
+     * or a phone whose keyboard is never reported). It is what lets the bubble go with the
+     * keyboard when an app takes its field away without a word ([FieldPresence]).
      */
     data class Decision(val top: Int?, val recheckInMs: Long?, val why: String, val floating: Box? = null, val shown: Boolean? = null)
 
@@ -82,6 +85,9 @@ class KeyboardPolicy(
 
     /** The keyboard is up and has come to rest - so the next move below the edge is a close. */
     private var resting = false
+
+    /** The last word on [Decision.shown]: a keyboard is on screen, in whatever shape. */
+    private var up = false
 
     /** It started sliding away; the next missing report is a close, not a gap. */
     private var leaving = false
@@ -120,7 +126,7 @@ class KeyboardPolicy(
         }
         // Moving at once is the point: the bubble and the keyboard should travel together.
         return if (focused) {
-            decide(predicted(screenHeight), RECHECK_MS, "field focused, keyboard expected")
+            decide(predicted(screenHeight), RECHECK_MS, "field focused, keyboard expected", shown = unlessUp())
         } else {
             decide(current, RECHECK_MS, "focus gone, waiting for keyboard")
         }
@@ -137,8 +143,14 @@ class KeyboardPolicy(
         seenThisFocus = false
         leaving = false
         missingSince = null
-        return decide(current ?: predicted(screenHeight), RECHECK_MS, "another field, keyboard expected")
+        return decide(current ?: predicted(screenHeight), RECHECK_MS, "another field, keyboard expected", shown = unlessUp())
     }
+
+    /**
+     * What a field that starts says about its keyboard: nothing while one is up - it stays,
+     * field to field - and "not there" otherwise, on a phone that would report it.
+     */
+    private fun unlessUp(): Boolean? = if (phoneReportsKeyboard && !up) false else null
 
     fun onReading(reading: Reading, now: Long, screenHeight: Int): Decision {
         // Bounds that make no sense are treated like a keyboard in motion: looked at again,
@@ -174,8 +186,11 @@ class KeyboardPolicy(
                         decide(null, recheck, "keyboard sliding away (bottom ${reading.bottom})", shown = false)
                     } else {
                         // Sliding in. Hold position and look again shortly - but only for as
-                        // long as an animation can take.
-                        decide(top ?: if (focused && !leaving) predicted(screenHeight) else null, recheck, "keyboard moving (bottom ${reading.bottom})")
+                        // long as an animation can take. For a field in focus this first
+                        // sight is the keyboard coming: waiting until it rests showed the
+                        // bubble a fifth of a second after it.
+                        val coming = focused && !leaving
+                        decide(top ?: if (coming) predicted(screenHeight) else null, recheck, "keyboard moving (bottom ${reading.bottom})", shown = if (coming) true else null)
                     }
                 }
 
@@ -215,7 +230,10 @@ class KeyboardPolicy(
                 resting = false
                 decide(null, null, "keyboard closed", shown = false)
             }
-            !focused -> decide(null, null, "no keyboard").also { resting = false }
+            !focused -> decide(null, null, "no keyboard").also {
+                resting = false
+                up = false
+            }
             // It was up for this field and is not reported now. Android drops the keyboard
             // window from the list for a moment now and then (seen on a device: up at +66 ms,
             // missing at +156 ms, field still focused) - only a gap that lasts is a close.
@@ -242,6 +260,7 @@ class KeyboardPolicy(
 
     private fun decide(top: Int?, recheckInMs: Long?, why: String, shown: Boolean? = null): Decision {
         current = top
+        if (shown != null) up = shown
         return Decision(top, recheckInMs, why, shown = shown)
     }
 

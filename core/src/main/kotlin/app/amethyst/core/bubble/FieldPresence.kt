@@ -7,10 +7,11 @@ package app.amethyst.core.bubble
  * field away inside the same window (YouTube after pressing Search, Spotify's search) sends
  * no end of input and no focus event, and some only hide the keyboard and leave the field in
  * focus. What does happen every time is that the keyboard closes. So a field counts as active
- * while it takes text and its keyboard has not closed: at once when the field starts - the
- * keyboard is on its way - until the keyboard closes or, on a phone that reports its keyboard,
- * never comes ([KeyboardPolicy.Decision.shown]); and again when the keyboard is back. A phone
- * that never reports a keyboard window gives no answer, and the field alone decides as before.
+ * while it takes text and its keyboard is not said to be away ([KeyboardPolicy.Decision.shown]):
+ * from the first sight of the keyboard - a field that starts without one, as a chat's input
+ * does when the chat opens, is not active yet - until it closes, and again when it is back. A
+ * field that starts while a keyboard is up is active at once. A phone that never reports a
+ * keyboard window gives no answer, and the field alone decides as before.
  */
 class FieldPresence {
 
