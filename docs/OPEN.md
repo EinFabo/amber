@@ -233,7 +233,7 @@ series and one store release per phase, each after his OK.
       `c3f65d69b773e00897541779c25f92e24b8781322903c8e1ecd4a6ec3ca92e6f`. The first release from
       the from-source build: unsigned APK SHA-256
       `b998af161b291251d2ccf321af656c3643e06064c03bfc1b1039aca987872ba9`, the same in both
-      signing runs. Open: compare with CI's for the tag; the recipe's `Builds`,
+      signing runs and in CI's build of the same commit. Open: the recipe's `Builds`,
       `CurrentVersion` and `CurrentVersionCode`.
 - [x] 0.32.0 in Fabi's store (2026-11-13, store key), installed over 0.31.0 on the Pixel by adb:
       it starts; the screen was locked, so nothing more was looked at.
