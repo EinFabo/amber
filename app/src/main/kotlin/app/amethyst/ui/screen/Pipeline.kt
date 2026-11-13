@@ -56,6 +56,7 @@ import app.amethyst.ui.Unfold
 import app.amethyst.ui.catalog
 import app.amethyst.ui.engineName
 import app.amethyst.ui.foldState
+import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeLabel
@@ -252,7 +253,7 @@ fun FallbackScreen(
             val choices = primary?.let { Fallback.choices(Servers.recognizers(settings), it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
             choices.forEach { engine ->
                 RadioRow(
-                    engineName(engine),
+                    recognitionRowName(engine),
                     engine.trustLevelForDisplay().badgeLabel(),
                     selected = fallback.mode == FallbackMode.ENGINE && fallback.engineId == engine.id,
                     onSelect = { choose(FallbackSettings(FallbackMode.ENGINE, engine.id)) },

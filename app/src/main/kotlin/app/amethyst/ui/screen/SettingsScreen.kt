@@ -50,6 +50,8 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.RecognitionNote
+import app.amethyst.core.settings.RecognitionRows
 import app.amethyst.core.settings.SettingsGroupKind
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
@@ -77,7 +79,7 @@ import app.amethyst.ui.SetupState
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.catalog
-import app.amethyst.ui.engineName
+import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.placeExplanation
@@ -280,7 +282,7 @@ fun RecognitionScreen(
                             config = engine,
                             active = engine.id == settings.activeEngineId,
                             problems = problemsByEngine[engine.id].orEmpty(),
-                            measuredWaitMs = medianWaitMs[engine.id],
+                            note = RecognitionRows.note(engine, settings, medianWaitMs[engine.id]),
                             onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ onUpdateSettings { it.copy(activeEngineId = engine.id) } }),
                             onOpen = { onOpenEngine(engine.id) },
                             cleanupOnly = cleanupOnly,
@@ -607,24 +609,24 @@ private fun EngineRow(
     config: EngineConfig,
     active: Boolean,
     problems: List<ConfigIssue>,
-    measuredWaitMs: Long?,
+    note: RecognitionNote,
     onSelect: () -> Unit,
     onOpen: () -> Unit,
     cleanupOnly: Boolean = false,
 ) {
     RadioRow(
-        label = engineName(config),
+        label = recognitionRowName(config),
         // Name the first missing thing rather than a generic "not configured":
         // the user should not have to open the detail screen to find out. A server for the
         // cleanup only misses its speech model on purpose.
         note = (if (cleanupOnly) stringResource(R.string.recognition_cleanup_only) else null)
             ?: problems.firstOrNull()?.let { words(it) }
             ?: listOfNotNull(
-                config.modelId ?: stringResource(R.string.engine_system_model),
+                note.model?.let { catalog(it) },
                 // Android's recognizer ends at a pause by itself, whatever the recording settings say.
-                if (config.kind == EngineKind.ANDROID_ON_DEVICE) stringResource(R.string.engine_stops_at_pause) else null,
-                measuredWaitMs?.let { stringResource(R.string.engine_typically, formatSeconds(it)) },
-            ).joinToString(" · "),
+                if (note.stopsAtPause) stringResource(R.string.engine_stops_at_pause) else null,
+                note.typicalMs?.let { stringResource(R.string.engine_typically, formatSeconds(it)) },
+            ).takeIf { it.isNotEmpty() }?.joinToString(" · "),
         selected = active,
         onSelect = onSelect,
         noteColor = if (problems.isEmpty() || cleanupOnly) AmberPalette.Muted else AmberPalette.Error,

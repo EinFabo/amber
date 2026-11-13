@@ -83,9 +83,8 @@
     <string name="bubble_preview_text">Hi, I\'ll be there in ten minutes - bring the key, I left mine at home again.</string>
     <string name="reliability_subtitle">Optional. Keeps Android from cutting off the microphone.</string>
     <string name="reliability_more">Android may cut off the microphone of an app in the background. The microphone service keeps it ready while you are in other apps, its silent notification says so, and unrestricted battery stops some manufacturers from killing the service.</string>
-    <string name="engine_system_model">System model</string>
-    <string name="engine_stops_at_pause">stops at a pause</string>
-    <string name="engine_typically">typically %1$s here</string>
+    <string name="engine_stops_at_pause">Stops at a pause</string>
+    <string name="engine_typically">Typically %1$s here</string>
     <string name="open">Open</string>
     <string name="bubble_size">Size</string>
     <string name="dp">%1$d dp</string>

@@ -50,6 +50,7 @@ import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.Unfold
 import app.amethyst.ui.engineName
+import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeLabel
@@ -270,7 +271,7 @@ private fun RecognitionChoices(
         Servers.recognizers(settings).forEach { engine ->
             val usable = EngineRouting.notUsable(engine, hasKeyFor, modelReady) == null
             RadioRow(
-                engineName(engine),
+                recognitionRowName(engine),
                 if (usable) engine.trustLevelForDisplay().badgeLabel() else stringResource(R.string.style_recognition_engine_not_ready),
                 selected = own.mode == AppEngineMode.ENGINE && own.engineId == engine.id,
                 onSelect = { onChoose(AppEngine(AppEngineMode.ENGINE, engine.id)) },

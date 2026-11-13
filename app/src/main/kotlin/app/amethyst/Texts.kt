@@ -17,6 +17,7 @@ import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.InsertPart
+import app.amethyst.core.settings.RecognitionRows
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
 import app.amethyst.core.settings.ThemeMode
@@ -252,6 +253,15 @@ object Texts {
     /** [engineName] without its bracketed note: "Tinfoil (Enklave)" becomes "Tinfoil". */
     fun engineShortName(context: Context, engine: EngineConfig): String =
         SettingsSummaries.shortName(engineName(context, engine))
+
+    /**
+     * A speech recognition in a list that says where it runs beside it ([RecognitionRows.name]):
+     * "Parakeet TDT", "Tinfoil" - the name without the place.
+     */
+    fun recognitionRowName(context: Context, engine: EngineConfig): String = when (val name = RecognitionRows.name(engine)) {
+        is EngineName.Own -> engineShortName(context, name.engine)
+        else -> engineName(context, name)
+    }
 
     fun quickAction(context: Context, action: QuickAction): String = context.getString(
         when (action) {
