@@ -1,4 +1,4 @@
-- Claude cleans up: paste an sk-ant- key in setup, or add Claude under Settings → Cleanup (Haiku 5.5 or Sonnet 5.5)
-- Setup's cleanup step takes any service: Groq, OpenAI, another address, or your own server (Amber PC, Ollama, LM Studio) with its model list
-- Servers used only for the cleanup are kept out of speech recognition
+- Cleanup choice rebuilt: one list of services (Tinfoil, Claude, Groq, OpenAI, your own server), one sheet each for key and model - in setup too
+- Claude cleans up (Haiku 5.5, Sonnet 5.5); a typed key is tested before it is saved
+- The bubble has one fixed place, comes and goes with the keyboard, and no longer hops while you type
 - Built entirely from source, reproducibly; no text-to-speech code inside any more

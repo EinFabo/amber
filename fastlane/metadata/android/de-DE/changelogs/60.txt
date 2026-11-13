@@ -1,4 +1,4 @@
-- Claude bereinigt: sk-ant-Schlüssel in der Einrichtung einfügen oder Claude unter Einstellungen → Bereinigung hinzufügen (Haiku 5.5 oder Sonnet 5.5)
-- Der Bereinigungs-Schritt der Einrichtung nimmt jeden Dienst: Groq, OpenAI, eine andere Adresse oder deinen eigenen Server (Amber PC, Ollama, LM Studio)
-- Server nur für die Bereinigung tauchen nicht mehr bei der Spracherkennung auf
+- Bereinigung neu gewählt: eine Liste der Dienste (Tinfoil, Claude, Groq, OpenAI, eigener Server), je ein Blatt für Schlüssel und Modell - auch in der Einrichtung
+- Claude bereinigt (Haiku 5.5, Sonnet 5.5); ein eingegebener Schlüssel wird vor dem Speichern geprüft
+- Die Bubble hat einen festen Platz, kommt und geht mit der Tastatur und springt beim Tippen nicht mehr
 - Komplett aus dem Quellcode gebaut, reproduzierbar; kein Sprachausgabe-Code mehr darin

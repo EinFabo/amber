@@ -91,7 +91,7 @@ saved compares typing at 40 words a minute (adjustable) with speaking plus waiti
 | Whisper locally through whisper.cpp with the FUTO models (Multilingual-74, 82 MB, and more) | `ON_DEVICE` | ✅ 0.2 |
 | Whisper large-v3-turbo locally, ACFT fine-tune: the encoder stops at the end of the speech - as accurate as the stock model, about three times faster on short dictations | `ON_DEVICE` | ✅ 0.16 |
 | Parakeet TDT 0.6B v3 locally through sherpa-onnx: near Whisper large-v3 accuracy at small-model speed, 25 European languages | `ON_DEVICE` | ✅ 0.10 |
-| Claude (Haiku 5.5, Sonnet 5.5) through Anthropic's own Messages API - for the cleanup only, it has no speech recognition | `CLOUD` | ✅ next release |
+| Claude (Haiku 5.5, Sonnet 5.5) through Anthropic's own Messages API - for the cleanup only, it has no speech recognition | `CLOUD` | ✅ 0.32 |
 
 **Recognized while you speak.** Longer dictations are cut at natural pauses, and every
 finished part is recognized in the background while you keep talking - each with the text so
