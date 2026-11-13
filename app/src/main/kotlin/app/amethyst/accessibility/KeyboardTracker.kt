@@ -30,8 +30,11 @@ class KeyboardTracker(
     private val log: MutableStateFlow<List<String>>,
     /** The package of the keyboard in use, e.g. "com.google.android.inputmethod.latin". */
     private val keyboardPackage: () -> String?,
-    /** The docked keyboard's top edge (null: none) and a floating keyboard's bounds. */
-    private val onKeyboard: (top: Int?, floating: Box?) -> Unit,
+    /**
+     * The docked keyboard's top edge (null: none), a floating keyboard's bounds, and whether a
+     * keyboard is on screen for the field in focus ([KeyboardPolicy.Decision.shown]).
+     */
+    private val onKeyboard: (top: Int?, floating: Box?, shown: Boolean?) -> Unit,
 ) {
 
     /** Where the keyboard settled, so the first field after a restart needs no estimate. */
@@ -55,6 +58,13 @@ class KeyboardTracker(
         apply(policy.onFocusChanged(isFocused, focusedAt, screenHeight()))
     }
 
+    /** Another field took input while one was in focus: its keyboard is expected anew. */
+    fun newField() {
+        if (!focused) return focusChanged(true)
+        focusedAt = SystemClock.elapsedRealtime()
+        apply(policy.onNewField(focusedAt, screenHeight()))
+    }
+
     /**
      * Window changes come in bursts - the bubble's own moves report as window changes too - so
      * they collapse into one lookup instead of one round trip each. Without a field, a
@@ -76,7 +86,7 @@ class KeyboardTracker(
     }
 
     private fun apply(decision: KeyboardPolicy.Decision) {
-        onKeyboard(decision.top, decision.floating)
+        onKeyboard(decision.top, decision.floating, decision.shown)
         record(decision)
         policy.settled?.takeIf { it != kept }?.let { settled ->
             kept = settled
@@ -179,7 +189,7 @@ class KeyboardTracker(
         const val COALESCE_MS = 16L
         const val MAX_NODES = 80
         const val MAX_DEPTH = 6
-        const val LOG_LINES = 12
+        const val LOG_LINES = 40
         const val KEY_TOP = "top"
         const val KEY_HEIGHT = "screenHeight"
     }

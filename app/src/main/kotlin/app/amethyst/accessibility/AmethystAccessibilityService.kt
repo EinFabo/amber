@@ -25,6 +25,7 @@ import app.amethyst.R
 import app.amethyst.bubble.BubbleController
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
+import app.amethyst.core.bubble.FieldPresence
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
 import app.amethyst.core.insert.InputTarget
@@ -137,8 +138,14 @@ class AmethystAccessibilityService : AccessibilityService() {
         )
 
         defaultKeyboard.start()
-        keyboard = KeyboardTracker(this, graph.keyboardLog, defaultKeyboard::packageName) { top, floating ->
+        bubble?.onNote = ::note
+        keyboard = KeyboardTracker(this, graph.keyboardLog, defaultKeyboard::packageName) { top, floating, shown ->
+            // Measured for the first time for this field: placed afresh, not kept above the estimate.
+            if (shown == true && !keyboardSeen) bubble?.keyboardMeasured()
+            if (shown != null) keyboardSeen = shown
             bubble?.setKeyboard(top, floating)
+            // The keyboard closing is the one sign of a field an app took away without a word.
+            if (presence.keyboard(shown)) applyPresence()
             // Apps move their fields when the keyboard comes or goes; look once they have.
             fieldCheck.schedule(FIELD_SETTLE_MS)
         }
@@ -220,13 +227,13 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
                 // went away, so look at what has input focus now.
-                if (!tracksInputDirectly) updateTextFieldFocus(currentFocusKind())
+                if (!tracksInputDirectly) updateTextFieldFocus(currentFocusKind(), fresh = false)
             }
 
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> if (!tracksInputDirectly) {
                 val kind = kindOf(event.source)
                 if (kind != TextFieldKind.NONE) event.packageName?.toString()?.let { bubble?.setCurrentApp(it) }
-                updateTextFieldFocus(kind)
+                updateTextFieldFocus(kind, fresh = kind != TextFieldKind.NONE)
             }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
@@ -335,18 +342,48 @@ class AmethystAccessibilityService : AccessibilityService() {
     @Volatile
     private var inputKind = TextFieldKind.NONE
 
-    private fun updateTextFieldFocus(focusedKind: TextFieldKind) {
+    /** Whether a field is there to dictate into: it takes text and its keyboard has not closed. */
+    private val presence = FieldPresence()
+
+    /** [fresh]: another field than before took input - not a restart of the input in the same one. */
+    private fun updateTextFieldFocus(focusedKind: TextFieldKind, fresh: Boolean) {
         val kind = if (inputKind != TextFieldKind.NONE) inputKind else focusedKind
-        val dictatable = kind.wantsDictation
-        if (dictatable && !editableFieldFocused) graph.textFieldFocused(::targetPackage)
-        editableFieldFocused = dictatable
+        val another = fresh && kind != TextFieldKind.NONE && presence.kind != TextFieldKind.NONE
+        presence.field(kind, fresh)
+        if (fresh || kind == TextFieldKind.NONE) keyboardSeen = false
+        if (fresh) bubble?.newField()
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
         // on the next window event - this is what lets the bubble move with the keyboard.
         // Before the bubble is told about the field: it is placed above the keyboard that is
         // on its way first, and then appears there, instead of sliding up once visible.
-        keyboard?.focusChanged(kind != TextFieldKind.NONE)
-        bubble?.setTextFieldFocused(dictatable)
+        if (another) keyboard?.newField() else keyboard?.focusChanged(kind != TextFieldKind.NONE)
+        applyPresence()
         fieldCheck.schedule(0)
+    }
+
+    private fun applyPresence() {
+        // Two answers: a field takes text - what inserting, the quick menu and the field's
+        // bounds go by, keyboard or not - and the bubble is wanted for it, which ends with
+        // the keyboard.
+        val takesText = presence.kind.wantsDictation
+        val active = presence.active
+        if (active != bubbleField) note("field ${if (active) "active" else "gone"}: ${presence.why}")
+        if (takesText && !editableFieldFocused) graph.textFieldFocused(::targetPackage)
+        editableFieldFocused = takesText
+        bubbleField = active
+        bubble?.setTextFieldFocused(active)
+    }
+
+    /** The bubble is wanted for a field right now ([FieldPresence.active]). */
+    private var bubbleField = false
+
+    /** A keyboard was measured for the field in focus. */
+    private var keyboardSeen = false
+
+    /** One line for logcat and Diagnostics → Keyboard: why the bubble came, went or moved. */
+    private fun note(line: String) {
+        Log.i(TAG, line)
+        graph.keyboardLog.value = (listOf(line) + graph.keyboardLog.value).take(NOTE_LINES)
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -354,15 +391,17 @@ class AmethystAccessibilityService : AccessibilityService() {
         override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
             super.onStartInput(attribute, restarting)
             inputKind = TextFieldKind.of(attribute.inputType, isPassword = focusedIsPassword())
+            Log.i(TAG, "field: input started in ${attribute.packageName}, $inputKind${if (restarting) ", restarting" else ""}")
             // The field's own app: the surest answer to "where is the user typing".
             if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
-            updateTextFieldFocus(TextFieldKind.NONE)
+            updateTextFieldFocus(TextFieldKind.NONE, fresh = !restarting)
         }
 
         override fun onFinishInput() {
             super.onFinishInput()
+            Log.i(TAG, "field: input finished")
             inputKind = TextFieldKind.NONE
-            updateTextFieldFocus(TextFieldKind.NONE)
+            updateTextFieldFocus(TextFieldKind.NONE, fresh = false)
         }
     }
 
@@ -468,5 +507,8 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         /** Long enough for an app to relayout after the keyboard settled. */
         const val FIELD_SETTLE_MS = 150L
+
+        /** Lines kept for Diagnostics → Keyboard, the keyboard's readings and these notes together. */
+        const val NOTE_LINES = 40
     }
 }

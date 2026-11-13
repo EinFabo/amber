@@ -22,6 +22,7 @@ import android.view.animation.PathInterpolator
 import app.amethyst.DebugLog
 import app.amethyst.core.bubble.BubbleDock
 import app.amethyst.core.bubble.BubbleGesture
+import app.amethyst.core.bubble.BubbleHold
 import app.amethyst.core.bubble.BubblePlacement
 import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.bubble.BubbleSpring
@@ -351,6 +352,7 @@ class BubbleController(
             moveAnimator?.cancel()
             layoutParams.x = targetX()
             layoutParams.y = targetY()
+            heldY = layoutParams.y
             update()
         }
         applyVisibility(immediate = true)
@@ -372,6 +374,7 @@ class BubbleController(
         takePosition(settings, layoutParams.height)
         layoutParams.x = targetX()
         layoutParams.y = targetY()
+        heldY = layoutParams.y
         update()
     }
 
@@ -392,30 +395,67 @@ class BubbleController(
      */
     fun setKeyboard(top: Int?, floating: Box?) {
         if (top == keyboardTop && floating == floatingKeyboard) return
+        // A keyboard opening or closing puts the bubble back at its own height.
+        if ((top == null) != (keyboardTop == null) || (floating == null) != (floatingKeyboard == null)) heldY = null
         keyboardTop = top
         floatingKeyboard = floating
-        Log.i(TAG, "keyboard top ${top ?: "none"}${floating?.let { ", floating $it" } ?: ""}")
-        reposition()
+        reposition("keyboard top ${top ?: "none"}${floating?.let { ", floating ${it.top}..${it.bottom}" } ?: ""}")
     }
 
     /** Where the focused field is on screen, or null without one. */
     fun setField(bounds: Box?) {
         if (bounds == field) return
         field = bounds
-        reposition()
+        reposition("field ${bounds?.let { "${it.top}..${it.bottom}" } ?: "not found"}")
     }
 
-    private fun reposition() {
+    /** Another field took input: the bubble takes its own height again at the next placing. */
+    fun newField() {
+        heldY = null
+    }
+
+    /**
+     * Where the bubble was last put while this keyboard and field lasted. It stays there as
+     * long as that is allowed ([BubbleHold]) instead of following every line a field grows
+     * and every pixel the keyboard's edge moves; null: its own height is taken.
+     */
+    private var heldY: Int? = null
+
+    /** Told every move and why, for Diagnostics → Keyboard. */
+    var onNote: ((String) -> Unit)? = null
+
+    /** The first measured keyboard edge for a field: the place taken above an estimate is not kept. */
+    fun keyboardMeasured() {
+        heldY = null
+    }
+
+    /** Where the bubble goes now: the place it holds while a keyboard is up and that place is allowed, else its own. */
+    private fun calmY(): Int {
+        val keyboardUp = keyboardTop != null || floatingKeyboard != null
+        return targetY(hold = heldY.takeIf { keyboardUp }).also { heldY = it.takeIf { keyboardUp } }
+    }
+
+    private fun reposition(cause: String) {
         if (touching) return
         val layoutParams = params ?: return
-        moveTo(layoutParams, targetY())
+        val y = calmY()
+        if (y != layoutParams.y) {
+            val line = "bubble ${layoutParams.y} → $y ($cause)"
+            // The note logs the line as well; without one it still has to reach logcat.
+            onNote?.takeIf { shown }?.invoke(line) ?: Log.i(TAG, line)
+        } else {
+            Log.i(TAG, "bubble stays at $y ($cause)")
+        }
+        moveTo(layoutParams, y)
     }
 
     /** The bubble's left edge on its side, clear of a cutout or bar there. */
     private fun targetX(size: Int = params?.width ?: dp(settings.sizeDp)): Int = BubbleDock.x(side, size, screen())
 
-    private fun targetY(size: Int = params?.height ?: dp(settings.sizeDp), x: Int = params?.x ?: targetX(size)): Int =
-        BubblePlacement.y(
+    private fun targetY(size: Int = params?.height ?: dp(settings.sizeDp), x: Int = params?.x ?: targetX(size), hold: Int? = null): Int =
+        BubbleHold.y(
+            current = hold,
+            headroom = dp(HOLD_HEADROOM_DP),
             restY = restY,
             x = x,
             size = size,
@@ -526,6 +566,7 @@ class BubbleController(
                     moveAnimator?.cancel()
                     layoutParams.x = targetX()
                     layoutParams.y = targetY()
+                    heldY = layoutParams.y
                 }
                 update()
                 vanished = false
@@ -661,7 +702,7 @@ class BubbleController(
 
                 is BubbleGesture.Event.Tap -> {
                     // A keyboard that came or went while the finger was down was not followed.
-                    moveTo(layoutParams, targetY())
+                    moveTo(layoutParams, calmY())
                     haptic(Haptics.Kind.CLICK)
                     // The recording the first tap started becomes a command instead of stopping.
                     val wasDoubleTap = event.doubleTap && onDoubleTap()
@@ -774,7 +815,7 @@ class BubbleController(
 
     /** Back from leaning toward the finger, to its edge - wherever a keyboard has put that meanwhile. */
     private fun settleAfterMenu(layoutParams: WindowManager.LayoutParams) {
-        springTo(layoutParams, targetX(), targetY(), 0f, 0f)
+        springTo(layoutParams, targetX(), calmY(), 0f, 0f)
     }
 
     /**
@@ -925,7 +966,10 @@ class BubbleController(
             aboveKeyboardDp = aboveDp ?: settings.aboveKeyboardDp,
         )
         placedFrom = settings
-        springTo(layoutParams, dock.x, targetY(size, dock.x), velocityX, 0f)
+        // Where it was let go is its place now.
+        val y = targetY(size, dock.x)
+        heldY = y
+        springTo(layoutParams, dock.x, y, velocityX, 0f)
         onMoved(side, edgeY, aboveDp)
     }
 
@@ -1034,6 +1078,11 @@ class BubbleController(
         const val HIDE_DELAY_MS = 400L
         const val APPEAR_SPARK_DELAY_MS = 100L
         const val KEYBOARD_GAP_DP = 12
+
+        /** Kept free above a field the bubble had to give way to: about four more lines of text -
+         *  a chat's input stops growing at six or seven, so it gives way once (two lines meant
+         *  twice on the Pixel 9a, Telegram, 2026-11-13). */
+        const val HOLD_HEADROOM_DP = 80
         const val HIDE_TARGET_DP = 64
 
         /** Above the gesture bar and clear of the bottom edge, where thumbs end a drag. */

@@ -189,10 +189,32 @@ series and one store release per phase, each after his OK.
 
 ## In progress: bubble and keyboard
 
-- [ ] **The bubble sometimes does not go away** (Fabi, 2026-11-11): it stays on screen after it
-      should hide (no field focused, keyboard gone, other app). Not reproduced yet - catch it
-      with a diagnostics report or live logs (which app, what was tapped last) before changing
-      the hide logic.
+- [ ] **The bubble sometimes does not go away** (Fabi, 2026-11-11; where: 2026-11-13 - YouTube
+      after pressing Search, Spotify's search, any app that takes its field away itself).
+      Built 2026-11-13: a field now counts for the bubble only while its keyboard has not
+      closed (`FieldPresence`, `KeyboardPolicy.Decision.shown`). Findings and decisions:
+      [`plans/2026-11-13-bubble-presence-and-calm.md`](plans/2026-11-13-bubble-presence-and-calm.md).
+      Tried over adb on the Pixel 9a (Android 17, Gboard), 2026-11-13: YouTube sends no end of
+      input when the keyboard's search key or a suggestion is pressed - the bubble went as
+      "field without its keyboard", about 0.75 s after the key (250 ms unreported, then
+      closed). Spotify (search key, scrolling the results) and YouTube with a hardware Enter
+      do send the end of input. Back in Telegram: the bubble goes, a tap on the field brings
+      both back.
+      Open: Fabi's word on the bubble going when Back closes the keyboard, and on the 0.75 s;
+      a dictation running while the keyboard closes (needs speech, not tried); a keyboard
+      window unreported for longer than 250 ms hides the bubble until the next window change
+      (not seen in this session); asking the field's node whether it is still there, if a
+      field goes with its keyboard up.
+- [ ] **The bubble jumps up while typing** (Fabi, 2026-11-13). Built 2026-11-13: it keeps its
+      place while that is allowed and gives way once, with room for four more lines
+      (`BubbleHold`); every move says why on Diagnostics → Keyboard. Tried on the Pixel 9a in
+      Telegram, 2026-11-13: the cause is the growing input - with room for two lines the
+      bubble moved at line 4 and again at line 6, with four lines once (line 3) over the
+      seven lines the field grows to. Text put in with `adb shell input text` does not move
+      it at all: the field is only read again when the keyboard's window changes, so a field
+      that grows without the keyboard (paste, a dictation's text) can end up under the
+      bubble - open. Open too: it does not come back down when the text is deleted, only
+      when the keyboard closes; Fabi's feel for it with real typing.
 - [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): its
       behaviour in relation to the keyboard still doesn't feel good - where it sits above the
       keys, how it follows when the keyboard opens, closes or changes height. Go through it

@@ -54,9 +54,13 @@ class KeyboardPolicy(
 
     /**
      * [top] is where the bubble has to stay above, or null for "no keyboard". [recheckInMs]
-     * asks for another reading after that delay while something is still settling.
+     * asks for another reading after that delay while something is still settling. [shown]
+     * says whether a keyboard is on screen for the field in focus: true once one is seen, false
+     * when it has closed or - on a phone that reports its keyboard - never came, null while
+     * that is still open (on its way, moving, briefly unreported). It is what lets the bubble
+     * go with the keyboard when an app takes its field away without a word ([FieldPresence]).
      */
-    data class Decision(val top: Int?, val recheckInMs: Long?, val why: String, val floating: Box? = null)
+    data class Decision(val top: Int?, val recheckInMs: Long?, val why: String, val floating: Box? = null, val shown: Boolean? = null)
 
     private var focused = false
     private var focusedAt = 0L
@@ -65,7 +69,7 @@ class KeyboardPolicy(
     private var seenThisFocus = false
 
     /** This phone reports keyboard windows at all. Until then, missing proves nothing. */
-    private var phoneReportsKeyboard = false
+    private var phoneReportsKeyboard = remembered != null
 
     private var lastSettledTop: Int? = remembered?.top
 
@@ -122,6 +126,20 @@ class KeyboardPolicy(
         }
     }
 
+    /**
+     * Another field took input while one was already in focus: the keyboard is expected anew.
+     * One that closed for the field before counts for nothing here, and one that stays up is
+     * simply seen again at the next look.
+     */
+    fun onNewField(now: Long, screenHeight: Int): Decision {
+        if (!focused) return onFocusChanged(true, now, screenHeight)
+        focusedAt = now
+        seenThisFocus = false
+        leaving = false
+        missingSince = null
+        return decide(current ?: predicted(screenHeight), RECHECK_MS, "another field, keyboard expected")
+    }
+
     fun onReading(reading: Reading, now: Long, screenHeight: Int): Decision {
         // Bounds that make no sense are treated like a keyboard in motion: looked at again,
         // but only for as long as an animation can take.
@@ -153,7 +171,7 @@ class KeyboardPolicy(
                         // the bubble goes down now, together with it, not half a second later.
                         resting = false
                         leaving = true
-                        decide(null, recheck, "keyboard sliding away (bottom ${reading.bottom})")
+                        decide(null, recheck, "keyboard sliding away (bottom ${reading.bottom})", shown = false)
                     } else {
                         // Sliding in. Hold position and look again shortly - but only for as
                         // long as an animation can take.
@@ -163,7 +181,7 @@ class KeyboardPolicy(
 
                 reading.bottom - reading.top > screenHeight * TALL_FRAME -> {
                     seenThisFocus = true
-                    decide(predicted(screenHeight), null, "keyboard frame nearly screen-high")
+                    decide(predicted(screenHeight), null, "keyboard frame nearly screen-high", shown = true)
                 }
 
                 else -> {
@@ -172,7 +190,7 @@ class KeyboardPolicy(
                     leaving = false
                     lastSettledTop = reading.top
                     settledAtHeight = screenHeight
-                    decide(reading.top, null, "keyboard settled at ${reading.top}")
+                    decide(reading.top, null, "keyboard settled at ${reading.top}", shown = true)
                 }
             }
         }
@@ -182,20 +200,20 @@ class KeyboardPolicy(
             seenThisFocus = true
             resting = false
             leaving = false
-            decide(null, null, "keyboard floating at ${reading.box.top}..${reading.box.bottom}").copy(floating = reading.box)
+            decide(null, null, "keyboard floating at ${reading.box.top}..${reading.box.bottom}", shown = true).copy(floating = reading.box)
         }
 
         Reading.Unmeasurable -> {
             phoneReportsKeyboard = true
             seenThisFocus = true
-            decide(predicted(screenHeight), null, "keyboard up, height unknown")
+            decide(predicted(screenHeight), null, "keyboard up, height unknown", shown = true)
         }
 
         Reading.Absent -> when {
             leaving -> {
                 leaving = false
                 resting = false
-                decide(null, null, "keyboard closed")
+                decide(null, null, "keyboard closed", shown = false)
             }
             !focused -> decide(null, null, "no keyboard").also { resting = false }
             // It was up for this field and is not reported now. Android drops the keyboard
@@ -207,14 +225,14 @@ class KeyboardPolicy(
                     decide(current, RECHECK_MS, "keyboard briefly unreported")
                 } else {
                     resting = false
-                    decide(null, null, "keyboard closed")
+                    decide(null, null, "keyboard closed", shown = false)
                 }
             }
             now - focusedAt < ARRIVAL_WINDOW_MS -> decide(predicted(screenHeight), RECHECK_MS, "keyboard still on its way")
             // This phone never shows its keyboard window; trust the focus alone.
             !phoneReportsKeyboard -> decide(predicted(screenHeight), null, "keyboard window never reported, estimated")
             // Long enough that a keyboard would have arrived: there is none for this field.
-            else -> decide(null, null, "field without keyboard")
+            else -> decide(null, null, "field without keyboard", shown = false)
         }
     }
 
@@ -222,9 +240,9 @@ class KeyboardPolicy(
         lastSettledTop?.takeIf { settledAtHeight == screenHeight }
             ?: (screenHeight * defaultTopFraction).toInt()
 
-    private fun decide(top: Int?, recheckInMs: Long?, why: String): Decision {
+    private fun decide(top: Int?, recheckInMs: Long?, why: String, shown: Boolean? = null): Decision {
         current = top
-        return Decision(top, recheckInMs, why)
+        return Decision(top, recheckInMs, why, shown = shown)
     }
 
     companion object {
