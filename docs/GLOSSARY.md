@@ -33,6 +33,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | | clipboard | Zwischenablage | |
 | Wireless network | Wi-Fi | WLAN | |
 | The settings pages | Diagnostics, Statistics, Reliability | Diagnose, Statistik, Zuverlässigkeit | |
+| Light or dark (added with P8, not yet approved) | Appearance: Like the phone, Light, Dark | Darstellung: Wie das Handy, Hell, Dunkel | theme, mode, system default |
 | Hidden for now (`Features.VOICE_COMMANDS`) | voice commands | Sprachbefehle | |
 
 Names stay as they are: Amber, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI, Android.

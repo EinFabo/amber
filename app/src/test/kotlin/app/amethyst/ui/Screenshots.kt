@@ -84,6 +84,16 @@ open class Screenshots {
 
     private val actions = SetupActions({}, {}, {}, {}, {}, {}, {})
 
+    /** The theme of the picture being taken: dark as the listing shows Amber, or light ([light]). */
+    private var dark = true
+    private val suffix get() = if (dark) "" else "-light"
+
+    /** [shot] once more in the light theme, into "<name>-light.png". */
+    private fun light(shot: () -> Unit) {
+        dark = false
+        shot()
+    }
+
     private val settings = AmethystSettings.defaults(PHONE).let { base ->
         listOf(EnginePresets.LOCAL_PARAKEET, EnginePresets.LOCAL_WHISPER, EnginePresets.TINFOIL)
             .fold(base) { s, preset -> s.withEngine(EngineConfig.fromPreset(preset, EngineConfig.defaultLanguageTag(preset.kind, PHONE))) }
@@ -169,7 +179,7 @@ open class Screenshots {
     fun settingsList() = shoot("5-settings", "Settings") {
         SettingsScreen(
             settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
@@ -181,7 +191,7 @@ open class Screenshots {
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id, ui = app.amethyst.core.settings.UiSettings(advanced = true)),
             setup = ready.copy(batteryUnrestricted = false),
             diagnosticsCount = 12, version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
@@ -574,7 +584,7 @@ open class Screenshots {
     fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
-            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onOpen = {}, onReplayIntroduction = {},
+            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
         )
     }
 
@@ -887,6 +897,32 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: the choice of light or dark, in both. */
+    @Test
+    fun appearance() = shootDialog("x-appearance") {
+        app.amethyst.ui.screen.ThemeDialog(app.amethyst.core.settings.ThemeMode.SYSTEM, onChange = {}, onDismiss = {})
+    }
+
+    // Not part of the listing set: a handful of screens in the light theme - each kind of
+    // surface once (cards, rows, badges, fields, a sheet, a dialog), not every picture twice.
+    @Test fun homeLight() = light(::home)
+    @Test fun doneLight() = light(::done)
+    @Test fun statisticsLight() = light(::statistics)
+    @Test fun enginesLight() = light(::engines)
+
+    @Test
+    @Config(qualifiers = "w360dp-h1160dp-xxhdpi")
+    fun settingsTallLight() = light(::settingsTall)
+
+    @Test fun bubbleSettingsLight() = light(::bubbleSettings)
+    @Test fun groqEngineLight() = light(::groqEngine)
+    @Test fun cleanupLight() = light(::cleanup)
+    @Test fun onboardingWelcomeLight() = light(::onboardingWelcome)
+    @Test fun onboardingEngineLight() = light(::onboardingEngine)
+    @Test fun onboardingCleanupClaudeLight() = light(::onboardingCleanupClaude)
+    @Test fun appearanceLight() = light(::appearance)
+    @Test fun appPickerLight() = light(::appPicker)
+
     /** Not part of the listing set: a look at the picker, which lives in its own dialog window. */
     @Test
     fun appPicker() = shootDialog("x-app-picker") {
@@ -905,12 +941,12 @@ open class Screenshots {
     /** A dialog draws in a window of its own; this takes that window. */
     private fun shootDialog(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
-        activity.setContent { AmberTheme { content() } }
+        activity.setContent { AmberTheme(dark) { content() } }
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
         val view = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
-        val file = File(out, "$name.png")
+        val file = File(out, "$name$suffix.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         assertTrue(file.length() > 0)
     }
@@ -919,7 +955,8 @@ open class Screenshots {
     private fun shootBare(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
-            AmberTheme {
+            // Over another app the card is dark, whatever Amber's theme (QuickStyleActivity).
+            AmberTheme(dark = true) {
                 Box(Modifier.fillMaxSize().background(Color(0xFFECE5DD))) { content() }
             }
         }
@@ -927,7 +964,7 @@ open class Screenshots {
         val view = activity.window.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
-        val file = File(out, "$name.png")
+        val file = File(out, "$name$suffix.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         assertTrue(file.length() > 0)
     }
@@ -935,7 +972,7 @@ open class Screenshots {
     private fun shoot(name: String, title: String?, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
-            AmberTheme {
+            AmberTheme(dark) {
                 AmberBackground {
                     Column(Modifier.fillMaxSize().padding(top = 28.dp)) {
                         if (title != null) TopBar(title = title, showBack = title != "Amber", showSettings = title == "Amber", onBack = {}, onSettings = {})
@@ -948,7 +985,7 @@ open class Screenshots {
         val view = activity.window.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
-        val file = File(out, "$name.png")
+        val file = File(out, "$name$suffix.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         assertTrue(file.length() > 0)
     }

@@ -21,6 +21,11 @@
     <string name="settings_version">Amber %1$s</string>
     <string name="settings_advanced">Advanced settings</string>
     <string name="settings_advanced_all">Every setting is shown</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">Like the phone</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_bubble_note">The bubble and its quick menu keep their colours.</string>
     <string name="recognition_group_phone">On this phone</string>
     <string name="recognition_group_enclave">Verified enclave</string>
     <string name="recognition_group_server">Server</string>

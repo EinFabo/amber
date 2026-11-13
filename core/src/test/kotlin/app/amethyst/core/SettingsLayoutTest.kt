@@ -10,6 +10,7 @@ import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.SettingsGroupKind
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
+import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.settings.UiSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,13 +41,41 @@ class SettingsLayoutTest {
     }
 
     @Test
+    fun `settings from before light and dark follow the phone`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],"ui":{"advanced":false},"schemaVersion":14}"""
+        val decoded = SettingsCodec.decode(old, TEST_PHONE)
+        assertEquals(ThemeMode.SYSTEM, decoded.ui.theme)
+        assertFalse(decoded.ui.advanced)
+        // ... and those from before the "ui" section too, as does a new install.
+        val older = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}"""
+        assertEquals(ThemeMode.SYSTEM, SettingsCodec.decode(older, TEST_PHONE).ui.theme)
+        assertEquals(ThemeMode.SYSTEM, AmethystSettings.defaults(TEST_PHONE).ui.theme)
+    }
+
+    @Test
+    fun `the chosen theme survives a save`() {
+        for (theme in ThemeMode.entries) {
+            val settings = AmethystSettings.defaults(TEST_PHONE).let { it.copy(ui = it.ui.copy(theme = theme)) }
+            assertEquals(theme, SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).ui.theme)
+        }
+    }
+
+    @Test
+    fun `light and dark are as chosen, and as the phone is set otherwise`() {
+        assertTrue(ThemeMode.SYSTEM.dark(systemDark = true))
+        assertFalse(ThemeMode.SYSTEM.dark(systemDark = false))
+        assertFalse(ThemeMode.LIGHT.dark(systemDark = true))
+        assertTrue(ThemeMode.DARK.dark(systemDark = false))
+    }
+
+    @Test
     fun `the simple view is recognition, cleanup, bubble and app styles, plus Amber itself`() {
         val simple = SettingsLayout.groups(advanced = false, voiceCommands = false)
         assertEquals(
             listOf(
                 SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE),
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
-                SettingsGroupKind.AMBER to listOf(SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION),
+                SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION),
             ),
             simple.map { it.kind to it.items },
         )
@@ -61,7 +90,7 @@ class SettingsLayoutTest {
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
                 SettingsGroupKind.ADVANCED to listOf(SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY),
                 SettingsGroupKind.AMBER to listOf(
-                    SettingsItem.STATISTICS, SettingsItem.DIAGNOSTICS, SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION,
+                    SettingsItem.APPEARANCE, SettingsItem.STATISTICS, SettingsItem.DIAGNOSTICS, SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION,
                 ),
             ),
             all.map { it.kind to it.items },

@@ -48,6 +48,9 @@ sealed interface Summary {
     /** ...or what in it needs a look. */
     data class ReliabilityOpen(val open: Int) : Summary
 
+    /** Light, dark, or as the phone is set. */
+    data class Theme(val mode: ThemeMode) : Summary
+
     /** A folded server on a model list: "3 models". */
     data class Models(val count: Int) : Summary
 }
@@ -82,6 +85,10 @@ object SettingsSummaries {
     }
 
     fun appStyles(count: Int): Summary = Summary.Apps(count)
+
+    fun appearance(ui: UiSettings): Summary = theme(ui.theme)
+
+    fun theme(mode: ThemeMode): Summary = Summary.Theme(mode)
 
     /** Who takes over a failed server dictation; with [recognition] on the phone, no server can fail. */
     fun fallback(settings: AmethystSettings, recognition: TrustLevel?): Summary {

@@ -37,6 +37,7 @@ import app.amethyst.R
 import app.amethyst.bubble.Fire
 import app.amethyst.bubble.SparkField
 import app.amethyst.dictation.DictationState
+import app.amethyst.ui.theme.AmberColors
 import app.amethyst.ui.theme.AmberPalette
 import kotlin.math.PI
 import kotlin.math.cos
@@ -62,8 +63,9 @@ fun DictateOrb(
     val stone by animateColorAsState(
         when {
             !enabled -> AmberPalette.Outline
-            state is DictationState.Failed -> AmberPalette.Error
-            else -> AmberPalette.Primary
+            // The disc is the bubble's, in the bubble's colours: its dark flame needs the bright amber.
+            state is DictationState.Failed -> AmberColors.Dark.error
+            else -> AmberPalette.Flame
         },
         tween(250),
         label = "stone",
@@ -214,8 +216,8 @@ fun FlameMark(modifier: Modifier = Modifier, size: Dp = 88.dp) {
         val cx = this.size.width / 2
         val cy = this.size.height / 2
         val r = this.size.width / 2 * Fire.DISC
-        drawCircle(AmberPalette.Primary, radius = r, center = Offset(cx, cy))
-        drawFlame(Color(Fire.INK), AmberPalette.Primary, cx, cy, r)
+        drawCircle(AmberPalette.Flame, radius = r, center = Offset(cx, cy))
+        drawFlame(Color(Fire.INK), AmberPalette.Flame, cx, cy, r)
     }
 }
 

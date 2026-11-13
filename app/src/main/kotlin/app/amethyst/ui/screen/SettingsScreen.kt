@@ -54,6 +54,7 @@ import app.amethyst.core.settings.SettingsGroupKind
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
@@ -101,6 +102,7 @@ fun SettingsScreen(
     /** Which build this is - only the GitHub build checks for updates itself; null until known. */
     releaseChannel: ReleaseChannel?,
     onAdvancedChange: (Boolean) -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
     onOpen: (SettingsPage) -> Unit,
     onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
@@ -111,6 +113,7 @@ fun SettingsScreen(
     val advanced = settings.ui.advanced
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
+    var choosingTheme by remember { mutableStateOf(false) }
 
     @Composable
     fun ItemRow(item: SettingsItem) = when (item) {
@@ -136,6 +139,9 @@ fun SettingsScreen(
             stringResource(R.string.settings_reliability), words(SettingsSummaries.reliability(reliabilityOpen)), icon = AmberIcons.Battery,
             summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RELIABILITY) }
+        SettingsItem.APPEARANCE -> NavRow(
+            stringResource(R.string.settings_appearance), words(SettingsSummaries.appearance(settings.ui)), icon = AmberIcons.Contrast, trailing = null,
+        ) { choosingTheme = true }
         SettingsItem.STATISTICS -> NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
         SettingsItem.DIAGNOSTICS -> NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
         SettingsItem.UPDATES -> NavRow(
@@ -182,6 +188,32 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
         )
     }
+
+    if (choosingTheme) ThemeDialog(settings.ui.theme, onThemeChange) { choosingTheme = false }
+}
+
+/** Light, dark, or as the phone is set. A choice shows at once, behind the dialog. */
+@Composable
+internal fun ThemeDialog(current: ThemeMode, onChange: (ThemeMode) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AmberPalette.Surface,
+        shape = AmberShapes.Card,
+        title = { Text(stringResource(R.string.settings_appearance), color = AmberPalette.Text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                ThemeMode.entries.forEach { mode ->
+                    RadioRow(label = words(SettingsSummaries.theme(mode)), note = null, selected = mode == current, onSelect = { onChange(mode) })
+                }
+                Hint(stringResource(R.string.theme_bubble_note), modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.style_here_done), color = AmberPalette.Primary)
+            }
+        },
+    )
 }
 
 /**
@@ -538,7 +570,7 @@ private fun BubbleOpacityPreview(opacity: Float) {
             modifier = Modifier.fillMaxWidth(),
         )
         Canvas(Modifier.padding(end = 8.dp).size(52.dp).alpha(animated)) {
-            drawCircle(AmberPalette.Primary)
+            drawCircle(AmberPalette.Flame)
         }
     }
 }
@@ -648,7 +680,7 @@ internal fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
 private fun BubblePreview(size: androidx.compose.ui.unit.Dp) {
     val animated by animateDpAsState(size, tween(150), label = "bubbleSize")
     Canvas(Modifier.size(animated)) {
-        drawCircle(AmberPalette.Primary, radius = this.size.minDimension / 2 * 0.78f)
+        drawCircle(AmberPalette.Flame, radius = this.size.minDimension / 2 * 0.78f)
     }
 }
 

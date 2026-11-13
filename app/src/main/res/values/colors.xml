@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="amber_background">#0A0A0A</color>
+    <!-- The window before the first frame: light here, dark in values-night (AmberColors). -->
+    <color name="amber_background">#F6F3EE</color>
     <color name="amber_primary">#FFB020</color>
 </resources>

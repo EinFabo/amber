@@ -94,10 +94,12 @@ internal fun StatusDot(done: Boolean) {
         label = "dotFill",
     )
     val tick by animateFloatAsState(if (done) 1f else 0f, tween(250), label = "tick")
+    val ring = AmberPalette.Outline
+    val onFill = AmberPalette.Background
     Canvas(Modifier.size(22.dp)) {
         drawCircle(fill)
         if (!done) {
-            drawCircle(AmberPalette.Outline, style = Stroke(1.5.dp.toPx()))
+            drawCircle(ring, style = Stroke(1.5.dp.toPx()))
         }
         if (tick > 0f) {
             val path = Path().apply {
@@ -108,7 +110,7 @@ internal fun StatusDot(done: Boolean) {
             val measure = PathMeasure().apply { setPath(path, false) }
             val partial = Path()
             measure.getSegment(0f, measure.length * tick, partial, true)
-            drawPath(partial, AmberPalette.Background, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+            drawPath(partial, onFill, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
         }
     }
 }
@@ -175,7 +177,8 @@ fun IconAction(
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.size(22.dp)) { glyph(AmberPalette.Text) }
+        val ink = AmberPalette.Text
+        Canvas(Modifier.size(22.dp)) { glyph(ink) }
     }
 }
 
@@ -338,12 +341,14 @@ fun GroupLabel(text: String, modifier: Modifier = Modifier, trailing: (@Composab
 @Composable
 fun DayBars(values: List<Int>, modifier: Modifier = Modifier) {
     val top = (values.maxOrNull() ?: 0).coerceAtLeast(1)
+    val today = AmberPalette.Primary
+    val earlier = AmberPalette.Outline
     Canvas(modifier.fillMaxWidth().height(56.dp)) {
         val gap = 6.dp.toPx()
         val width = (size.width - gap * (values.size - 1)) / values.size
         values.forEachIndexed { i, value ->
             val x = i * (width + gap)
-            val color = if (i == values.lastIndex) AmberPalette.Primary else AmberPalette.Outline
+            val color = if (i == values.lastIndex) today else earlier
             val h = if (value == 0) 2.dp.toPx() else (size.height * value / top).coerceAtLeast(3.dp.toPx())
             drawRoundRect(
                 color = color,

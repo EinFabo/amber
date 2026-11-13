@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Amber is dark-only by design; no light variant exists. -->
-    <style name="Theme.Amber" parent="android:Theme.Material.NoActionBar">
+    <!-- The window until the first frame, light or dark as the phone - or, from Android 12,
+         as chosen in Amber (MainActivity.applyTheme). The screens are Compose's (AmberTheme). -->
+    <style name="Theme.Amber" parent="android:Theme.Material.Light.NoActionBar">
         <!-- statusBarColor/navigationBarColor are ignored from targetSdk 35 (enforced
              edge-to-edge); the insets are handled by Scaffold and TopAppBar instead. -->
-        <item name="android:windowBackground">#0A0A0A</item>
-        <item name="android:colorAccent">#FFB020</item>
+        <item name="android:windowBackground">@color/amber_background</item>
+        <item name="android:colorAccent">@color/amber_primary</item>
     </style>
 
     <style name="Theme.Amber.Invisible" parent="android:Theme.Material.NoActionBar">

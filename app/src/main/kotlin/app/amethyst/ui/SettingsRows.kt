@@ -374,6 +374,7 @@ fun ExpandChevron(expanded: Boolean, color: Color = AmberPalette.Muted) {
 
 @Composable
 fun ChevronRight() {
+    val color = AmberPalette.Muted
     Canvas(
         Modifier
             .size(24.dp)
@@ -384,6 +385,6 @@ fun ChevronRight() {
             lineTo(size.width * 0.75f, size.height / 2)
             lineTo(size.width * 0.3f, size.height)
         }
-        drawPath(path, AmberPalette.Muted, style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(path, color, style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
     }
 }

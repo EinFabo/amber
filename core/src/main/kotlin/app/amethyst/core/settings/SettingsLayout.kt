@@ -18,6 +18,8 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     RECORDING(simple = false, SettingsGroupKind.ADVANCED),
     INSERTING(simple = false, SettingsGroupKind.ADVANCED),
     RELIABILITY(simple = false, SettingsGroupKind.ADVANCED),
+    /** Light or dark: how Amber looks, for everyone. */
+    APPEARANCE(simple = true, SettingsGroupKind.AMBER),
     STATISTICS(simple = false, SettingsGroupKind.AMBER),
     DIAGNOSTICS(simple = false, SettingsGroupKind.AMBER),
 

@@ -1,8 +1,11 @@
 package app.amethyst.ui
 
 import android.Manifest
+import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -10,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -18,6 +22,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -67,6 +73,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
+import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
@@ -96,6 +103,7 @@ import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.UpdatesScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
+import app.amethyst.ui.theme.AmberColors
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +140,8 @@ class MainActivity : ComponentActivity() {
         // Diagnostics and the test field show recent dictations: keep them out of the Recents
         // thumbnail. Screenshots stay possible - they are how a problem gets reported.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
-        // The glass background runs behind the status and navigation bars.
+        // The background runs behind the status and navigation bars; their icons follow the
+        // theme once it is known (applyTheme), the phone's until then.
         enableEdgeToEdge()
         val graph = AmethystApp.graph(this)
         accessibilityTried = savedInstanceState?.getBoolean(KEY_ACCESSIBILITY_TRIED) ?: false
@@ -141,7 +150,12 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) takeAppPage(intent)
 
         setContent {
-            AmberTheme {
+            // Null until the settings are read: as the phone is set, which on Android 12 and
+            // later already is the choice made last time (applyTheme).
+            val theme = graph.loadedSettings.collectAsStateWithLifecycle().value?.ui?.theme
+            val dark = (theme ?: ThemeMode.SYSTEM).dark(isSystemInDarkTheme())
+            LaunchedEffect(theme, dark) { applyTheme(theme, dark) }
+            AmberTheme(dark) {
                 AmethystRoot(
                     graph = graph,
                     appPage = appPageRequest.collectAsStateWithLifecycle().value,
@@ -169,6 +183,30 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    /**
+     * What of the theme lies outside the screens: the status and navigation bar icons, dark on
+     * a light page, and the window behind the page. From Android 12 the choice is also given to
+     * Android ([theme], null while not read yet), which then starts Amber in it - no flash of
+     * the other theme at the next launch. Before Android 12 a launch shows the phone's theme
+     * for a moment when the choice differs.
+     */
+    private fun applyTheme(theme: ThemeMode?, dark: Boolean) {
+        if (theme != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService(UiModeManager::class.java)?.setApplicationNightMode(
+                when (theme) {
+                    ThemeMode.SYSTEM -> UiModeManager.MODE_NIGHT_AUTO
+                    ThemeMode.LIGHT -> UiModeManager.MODE_NIGHT_NO
+                    ThemeMode.DARK -> UiModeManager.MODE_NIGHT_YES
+                },
+            )
+        }
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
+            navigationBarStyle = SystemBarStyle.auto(NAV_SCRIM_LIGHT, NAV_SCRIM_DARK) { dark },
+        )
+        window.setBackgroundDrawable(ColorDrawable(AmberColors.of(dark).background.toArgb()))
     }
 
     /** Brought to the front again by the quick menu, perhaps for an app's page. */
@@ -279,6 +317,10 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val SERVICE_START_GRACE_MS = 600L
         private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
+
+        /** Behind a three-button navigation bar, as androidx.activity's own defaults. */
+        private val NAV_SCRIM_LIGHT = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)
+        private val NAV_SCRIM_DARK = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
 
         /**
          * The package whose page to open, from the quick menu. The activity is exported: only an
@@ -608,6 +650,7 @@ private fun AmethystScreens(
                             version = build?.version.orEmpty(),
                             releaseChannel = build?.channel,
                             onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
+                            onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
                             onOpen = { page -> open(Screen.Page(page)) },
                             onReplayIntroduction = {
                                 // On top of Settings, the flag left alone: Back on the first step

@@ -162,7 +162,26 @@ series and one store release per phase, each after his OK.
       Android may hide System UI's package from Amber, then the actions are grey there).
 - [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**: the engine chosen by the device
       (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
-- [ ] **P8 - Light mode**: System/Light/Dark, colours through a CompositionLocal.
+- [ ] **P8 - Light mode**: built, not yet on a phone. Settings -> Amber -> Appearance: like the
+      phone (the default, also for an existing install - until now Amber was dark on every
+      phone), light, dark (`UiSettings.theme`, no schema change: absent, it follows the phone).
+      `AmberColors.Dark`/`.Light` through `LocalAmberColors`; `AmberPalette.Text` etc. read the
+      one in effect, so the screens are unchanged - only a draw lambda takes its colour into a
+      value first. The light amber is the same hue burnt darker (#9A4D00), since #FFB020 does
+      not read as text on paper; the bright one stays for the tint behind icons and for every
+      picture of the bubble (home orb, flame, size and opacity previews: `AmberPalette.Flame`).
+      Contrast is measured, not judged (`Contrast` in `:core`, `AmberColorsTest`): text, muted
+      text, amber and error hold 4.5:1 on page, card and raised part in both themes. System bar
+      icons and the window follow (`MainActivity.applyTheme`); `values-night` gives the window
+      before the first frame; from Android 12 the choice is handed to Android
+      (`setApplicationNightMode`), so the next launch starts in it. Dark whatever the theme: the
+      bubble, the quick menu and its "Style here" card. Screenshots: 13 pictures also as
+      `*-light.png`. Open: the device test (the phone's theme switched with Amber open and
+      closed; each choice, then a cold start - no flash of the other theme on Android 12+,
+      status and navigation bar icons readable; the cleanup sheet, a dialog and the keyboard
+      in light; on Android 9-11 a choice against the phone's theme flashes the phone's at
+      launch - known); unselected radio rings and dividers are as faint in light as in dark
+      (decoration under 3:1, as before); the listing screenshots stay dark.
 
 ## Releases of 2026-11-06
 

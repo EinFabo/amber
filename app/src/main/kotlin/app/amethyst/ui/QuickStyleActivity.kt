@@ -71,7 +71,8 @@ class QuickStyleActivity : ComponentActivity() {
         }
 
         setContent {
-            AmberTheme {
+            // Opened from the quick menu, over another app: dark like the menu, whatever Amber's theme.
+            AmberTheme(dark = true) {
                 // Read from the store, not the defaults the process starts on.
                 val settings = graph.loadedSettings.collectAsStateWithLifecycle().value ?: return@AmberTheme
                 val profile = AppProfiles.forPackage(settings.profiles, app)

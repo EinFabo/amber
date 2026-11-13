@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -292,7 +291,7 @@ private fun SheetFrame(onDismiss: () -> Unit, content: @Composable ColumnScope.(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = AmberPalette.Surface,
         contentColor = AmberPalette.Text,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
+        scrimColor = AmberPalette.Scrim,
         dragHandle = { BottomSheetDefaults.DragHandle(color = AmberPalette.Outline) },
     ) { content(close) }
 }

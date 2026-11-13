@@ -330,6 +330,7 @@ data class AmethystSettings(
          * The update check ([updates]) needed no new version: an absent field decodes to its
          * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
          * (settings from before it), and a new install starts with it off ([defaults]).
+         * Nor did light and dark ([UiSettings.theme]): absent, it follows the phone.
          * See [SettingsCodec.migrate].
          */
         const val SCHEMA_VERSION = 14
@@ -572,7 +573,28 @@ data class UiSettings(
      * a new install starts with it off ([AmethystSettings.defaults]).
      */
     val advanced: Boolean = true,
+    /**
+     * Light or dark. The default follows the phone, also for settings from before the choice:
+     * until then Amber was dark on every phone.
+     */
+    val theme: ThemeMode = ThemeMode.SYSTEM,
 )
+
+/** Whether Amber's own screens are light or dark. The bubble and its quick menu keep their colours. */
+@Serializable
+enum class ThemeMode {
+    /** As the phone is set. */
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    /** Dark screens? [systemDark]: the phone is in its dark theme. */
+    fun dark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+}
 
 @Serializable
 enum class FallbackMode {

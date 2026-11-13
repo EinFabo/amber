@@ -19,6 +19,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.InsertPart
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
+import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.update.Ago
 import app.amethyst.core.update.LastCheck
@@ -173,6 +174,7 @@ object Texts {
             is Summary.MoreSettings -> count(R.plurals.summary_more_settings, summary.hidden)
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
+            is Summary.Theme -> theme(this, summary.mode)
         }
     }
 
@@ -182,6 +184,14 @@ object Texts {
             InsertPart.CAPITALS -> R.string.insert_part_capitals
             InsertPart.PUNCTUATION -> R.string.insert_part_punctuation
             InsertPart.CLIPBOARD -> R.string.insert_part_clipboard
+        },
+    )
+
+    private fun theme(context: Context, mode: ThemeMode): String = context.getString(
+        when (mode) {
+            ThemeMode.SYSTEM -> R.string.theme_system
+            ThemeMode.LIGHT -> R.string.theme_light
+            ThemeMode.DARK -> R.string.theme_dark
         },
     )
 
