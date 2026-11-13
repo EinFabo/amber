@@ -185,6 +185,16 @@ series and one store release per phase, each after his OK.
 - [x] GitHub release v0.31.0 (2026-11-10, Latest): everything since 0.30.2, signed with the GitHub
       key (`CN=Amber`), APK SHA-256
       `2aaaab14015da2dece67fc4677c85771370ed916821441705686b93f887b09ff`.
+- [x] GitHub release v0.32.0 (2026-11-13, Latest): everything since 0.31.0 (the cleanup choice
+      as one list, Claude, a key tested before it is saved, the bubble with one place that
+      comes and goes with the keyboard), signed with the GitHub key (`CN=Amber`), APK SHA-256
+      `c3f65d69b773e00897541779c25f92e24b8781322903c8e1ecd4a6ec3ca92e6f`. The first release from
+      the from-source build: unsigned APK SHA-256
+      `b998af161b291251d2ccf321af656c3643e06064c03bfc1b1039aca987872ba9`, the same in both
+      signing runs. Open: compare with CI's for the tag; the recipe's `Builds`,
+      `CurrentVersion` and `CurrentVersionCode`.
+- [x] 0.32.0 in Fabi's store (2026-11-13, store key), installed over 0.31.0 on the Pixel by adb:
+      it starts; the screen was locked, so nothing more was looked at.
 - [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
       app in front), a pause left for 5 min, keyboard with "Always" and a WebView field.
 
@@ -767,7 +777,8 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
       Its `Builds` entry is a placeholder (0.31.0 / 59) - v0.31.0 predates the from-source build.
 - [x] **Device test by Fabi** (2026-11-11) of the debug build: Parakeet German/English and a
       30 s dictation in parts, Tinfoil "Verified enclave" - fine. Local Whisper not dictated.
-- [ ] **First release from the from-source build** (Fabi, 2026-11-11: no release of its own -
+- [x] **First release from the from-source build**: v0.32.0, 2026-11-13 (see "Releases of
+      2026-11-06"). As decided (Fabi, 2026-11-11: no release of its own -
       the next regular feature release is it). For that release:
       `git submodule update --init --recursive`; `fastlane/metadata/android/{en-US,de-DE}/changelogs/<versionCode>.txt`
       committed **before** the tag; sign with `tools/sign-release.sh` and the GitHub key from a
