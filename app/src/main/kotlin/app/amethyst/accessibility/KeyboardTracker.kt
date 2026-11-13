@@ -177,8 +177,11 @@ class KeyboardTracker(
 
     private fun record(decision: KeyboardPolicy.Decision) {
         val line = "${decision.why} → ${decision.top ?: "down"}"
-        if (line == lastLogged) return
-        lastLogged = line
+        // One line per state, not per reading: a keyboard sliding in reports another bottom
+        // edge each time it is looked at.
+        val state = "${decision.why.substringBefore(" (")} → ${decision.top ?: "down"}"
+        if (state == lastLogged) return
+        lastLogged = state
         val since = SystemClock.elapsedRealtime() - focusedAt
         Log.i(TAG, "keyboard: $line (+$since ms)")
         log.value = (listOf("+$since ms  $line") + log.value).take(LOG_LINES)

@@ -237,6 +237,12 @@ series and one store release per phase, each after his OK.
       diagnostics log's dedup fails on "keyboard moving (bottom N)"; (5) `TYPE_VIEW_FOCUSED`
       is delivered but ignored from Android 13. The fixed place already removed the largest
       cost while typing (a node lookup per input start and keyboard change, the glides).
+      Built 2026-11-13: (1) a restart of the input keeps the field's answer and logs
+      nothing, and an input type that says "secret" asks no node; (4) one log line per
+      keyboard state; of (2) only the cheap part - window changes that are no window added,
+      removed or resized are not looked at. Left: not reading the window list while a
+      field has focus but its keyboard is closed (the event does not say it is the
+      keyboard's - needs a device to find a safe sign), the bubble's own moves, (3), (5).
 - [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): mostly
       answered by the fixed place above. Left of it: the bubble appears at once while the
       keyboard still slides ("Bubble starts clearly after the keyboard, jumps instead of

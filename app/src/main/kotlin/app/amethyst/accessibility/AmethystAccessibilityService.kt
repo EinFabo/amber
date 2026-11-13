@@ -220,10 +220,17 @@ class AmethystAccessibilityService : AccessibilityService() {
                 updateTextFieldFocus(kind, fresh = kind != TextFieldKind.NONE)
             }
 
-            // Each one costs a getWindows() call; only the bubble needs the keyboard's edge.
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
+            // Each one costs a getWindows() call; only the bubble needs the keyboard's edge,
+            // and a keyboard only comes, goes or changes size - a window that changed its
+            // title, layer or focus is none of these.
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown && mayMoveKeyboard(event.windowChanges)) {
+                keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
+            }
         }
     }
+
+    /** Whether a window change of these kinds can be a keyboard coming, going or resizing; 0 says nothing. */
+    private fun mayMoveKeyboard(changes: Int): Boolean = changes == 0 || changes and KEYBOARD_WINDOW_CHANGES != 0
 
     private val bubbleShown: Boolean
         get() = graph.settings.value.bubble.enabled
@@ -367,8 +374,16 @@ class AmethystAccessibilityService : AccessibilityService() {
     override fun onCreateInputMethod(): InputMethod = object : InputMethod(this) {
         override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
             super.onStartInput(attribute, restarting)
-            inputKind = TextFieldKind.of(attribute.inputType, isPassword = focusedIsPassword())
-            Log.i(TAG, "field: input started in ${attribute.packageName}, $inputKind${if (restarting) ", restarting" else ""}")
+            val before = inputKind
+            // Asking the app for the focused node is a round trip into it. A restart is the
+            // same field - some apps restart the input with every keystroke - so its answer
+            // stands, and an input type that says "secret" needs no second opinion.
+            val again = restarting && before != TextFieldKind.NONE
+            if (!again) inputIsPassword = TextFieldKind.of(attribute.inputType) != TextFieldKind.SECRET && focusedIsPassword()
+            inputKind = TextFieldKind.of(attribute.inputType, isPassword = inputIsPassword)
+            if (!again || inputKind != before) {
+                Log.i(TAG, "field: input started in ${attribute.packageName}, $inputKind${if (restarting) ", restarting" else ""}")
+            }
             // The field's own app: the surest answer to "where is the user typing".
             if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
             updateTextFieldFocus(TextFieldKind.NONE, fresh = !restarting)
@@ -378,9 +393,13 @@ class AmethystAccessibilityService : AccessibilityService() {
             super.onFinishInput()
             Log.i(TAG, "field: input finished")
             inputKind = TextFieldKind.NONE
+            inputIsPassword = false
             updateTextFieldFocus(TextFieldKind.NONE, fresh = false)
         }
     }
+
+    /** The node of the field taking input called itself a password field, asked once per field. */
+    private var inputIsPassword = false
 
     override fun onInterrupt() = Unit
 
@@ -458,6 +477,11 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         /** Window id of a target known only through the input connection. */
         const val NO_WINDOW = -1
+
+        /** The window changes a keyboard shows up as: its window added, removed or resized. */
+        const val KEYBOARD_WINDOW_CHANGES = AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+            AccessibilityEvent.WINDOWS_CHANGE_REMOVED or
+            AccessibilityEvent.WINDOWS_CHANGE_BOUNDS
 
         /** Lines kept for Diagnostics → Keyboard, the keyboard's readings and these notes together. */
         const val NOTE_LINES = 40
