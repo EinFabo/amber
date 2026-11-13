@@ -1,9 +1,12 @@
 package app.amethyst.ui.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
@@ -83,9 +88,18 @@ fun OnboardingScreen(
             onBack = Onboarding.previous(step, settings, path)?.let { previous -> { onStep(previous) } },
             onSkip = next.takeIf { Onboarding.skippable(step) },
         )
+        val shift = with(LocalDensity.current) { STEP_SHIFT.roundToPx() }
         AnimatedContent(
             targetState = step,
-            transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+            // The next step comes a short way from the right, the one before from the left -
+            // each settling into place while the step it replaces is gone at once.
+            transitionSpec = {
+                val from = if (Onboarding.forward(initialState, targetState)) 1 else -1
+                val arrive = tween<Float>(STEP_IN_MS, easing = LinearOutSlowInEasing)
+                val settle = tween<IntOffset>(STEP_IN_MS, easing = LinearOutSlowInEasing)
+                (fadeIn(arrive) + slideInHorizontally(settle) { from * shift }) togetherWith
+                    (fadeOut(tween(100)) + slideOutHorizontally(tween(100)) { -from * shift / 3 })
+            },
             label = "step",
             modifier = Modifier.weight(1f),
         ) { current ->
@@ -105,6 +119,10 @@ fun OnboardingScreen(
         }
     }
 }
+
+/** How far a step travels as it comes in, and how long it takes to settle. */
+private val STEP_SHIFT = 30.dp
+private const val STEP_IN_MS = 280
 
 /** What the steps after the permissions need from the app; gathered by MainActivity. */
 class OnboardingContent(

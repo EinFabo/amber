@@ -48,6 +48,9 @@ object Onboarding {
     fun previous(current: OnboardingStep, settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): OnboardingStep? =
         steps(settings, path).lastOrNull { it < current }
 
+    /** Whether going from [from] to [to] leads on through the introduction, rather than back. */
+    fun forward(from: OnboardingStep, to: OnboardingStep): Boolean = to >= from
+
     /**
      * 1-based position and total, for "Step 4 of 10" - null on the welcome step, where the
      * way and with it the number of steps is still to be chosen.

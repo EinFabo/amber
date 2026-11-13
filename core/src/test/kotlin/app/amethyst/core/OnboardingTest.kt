@@ -92,6 +92,16 @@ class OnboardingTest {
     }
 
     @Test
+    fun `a later step is forward, an earlier one back - also across the steps a way leaves out`() {
+        assertTrue(Onboarding.forward(OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY))
+        assertTrue(Onboarding.forward(OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE))
+        assertFalse(Onboarding.forward(OnboardingStep.PRACTICE, OnboardingStep.MICROPHONE))
+        // The practice step's way back to the service it needs.
+        assertFalse(Onboarding.forward(OnboardingStep.PRACTICE, OnboardingStep.ACCESSIBILITY))
+        assertFalse(Onboarding.forward(OnboardingStep.DONE, OnboardingStep.WELCOME))
+    }
+
+    @Test
     fun `the welcome step has no number - the way is chosen there`() {
         assertNull(Onboarding.position(OnboardingStep.WELCOME, plain))
         assertNull(Onboarding.position(OnboardingStep.WELCOME, plain, OnboardingPath.QUICK))
