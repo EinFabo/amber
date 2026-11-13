@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import app.amethyst.bubble.SparkField
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.theme.AmberColors
 import app.amethyst.ui.theme.AmberPalette
+import app.amethyst.ui.theme.LocalAmberColors
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -148,7 +150,17 @@ fun DictateOrb(
 
 private const val SETTLE_MS = 900L
 
-private fun DrawScope.drawFuse(cx: Float, cy: Float, r: Float, w: Float, elapsed: Float, still: Boolean) {
+/** A burst's colour on the page itself: the pale fire in the dark, the burnt amber on paper. */
+internal val pageSpark: Color
+    @Composable @ReadOnlyComposable
+    get() = if (LocalAmberColors.current.dark) Color(Fire.SPARK) else AmberPalette.Primary
+
+/*
+ * The orb's parts, drawn around a disc of radius r at cx/cy on a canvas w wide. The
+ * introduction's pictures of the bubble are made of the same parts.
+ */
+
+internal fun DrawScope.drawFuse(cx: Float, cy: Float, r: Float, w: Float, elapsed: Float, still: Boolean) {
     val fr = r * Fire.FUSE_RADIUS
     val stroke = w * 0.034f
     val alpha = (elapsed / 200f).coerceIn(0f, 1f)
@@ -175,7 +187,7 @@ private fun DrawScope.drawFuse(cx: Float, cy: Float, r: Float, w: Float, elapsed
 }
 
 /** The rim as a progress ring: a faint track, the filled part, a spark at its head. */
-private fun DrawScope.drawProgress(cx: Float, cy: Float, r: Float, w: Float, progress: Float, elapsed: Float) {
+internal fun DrawScope.drawProgress(cx: Float, cy: Float, r: Float, w: Float, progress: Float, elapsed: Float) {
     val fr = r * Fire.FUSE_RADIUS
     val stroke = w * 0.034f
     val enter = (elapsed / 200f).coerceIn(0f, 1f)
@@ -195,12 +207,13 @@ private fun DrawScope.drawProgress(cx: Float, cy: Float, r: Float, w: Float, pro
     drawCircle(Color(Fire.SPARK).copy(alpha = enter), stroke * 1.1f, Offset(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr))
 }
 
-private fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elapsed: Float) {
+/** The burst's eight short rays flying off the disc, in [spark] where the ground is not the dark page. */
+internal fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elapsed: Float, spark: Color = Color(Fire.SPARK)) {
     if (elapsed >= Fire.BURST_MS) return
     val u = elapsed / Fire.BURST_MS
     val d1 = r * (1.06f + 0.3f * Fire.easeOut(u))
     val d2 = d1 + r * 0.2f * (1 - u)
-    val color = Color(Fire.SPARK).copy(alpha = 1 - u)
+    val color = spark.copy(alpha = spark.alpha * (1 - u))
     for (i in 0 until 8) {
         val a = i * PI / 4 + PI / 8
         val dx = cos(a).toFloat()
@@ -225,7 +238,7 @@ fun FlameMark(modifier: Modifier = Modifier, size: Dp = 88.dp) {
  * The flame glyph from [Fire.flame], its inner tongue cut back out in the disc's colour;
  * burning (flickering) while [burningMs] runs, still at 0.
  */
-private fun DrawScope.drawFlame(ink: Color, disc: Color, cx: Float, cy: Float, r: Float, burningMs: Float = 0f) {
+internal fun DrawScope.drawFlame(ink: Color, disc: Color, cx: Float, cy: Float, r: Float, burningMs: Float = 0f) {
     fun flamePath(inner: Boolean) = Path().also { path ->
         val (tip, sway) = if (burningMs > 0f) Fire.flicker(burningMs, phase = if (inner) 2.1f else 0f) else 1f to 0f
         Fire.flame(cx, cy, r, inner, tip = tip, sway = sway, ops = object : Fire.FlameOps {
@@ -241,7 +254,7 @@ private fun DrawScope.drawFlame(ink: Color, disc: Color, cx: Float, cy: Float, r
     drawPath(flamePath(inner = true), disc)
 }
 
-private fun DrawScope.drawBars(ink: Color, cx: Float, cy: Float, r: Float, level: Float, elapsed: Float, still: Boolean) {
+internal fun DrawScope.drawBars(ink: Color, cx: Float, cy: Float, r: Float, level: Float, elapsed: Float, still: Boolean) {
     val profile = floatArrayOf(0.75f, 1f, 0.75f)
     val speed = floatArrayOf(2.6f, 3.2f, 2.2f)
     for (i in 0 until 3) {
@@ -252,7 +265,7 @@ private fun DrawScope.drawBars(ink: Color, cx: Float, cy: Float, r: Float, level
     }
 }
 
-private fun DrawScope.drawTick(ink: Color, cx: Float, cy: Float, r: Float, progress: Float) {
+internal fun DrawScope.drawTick(ink: Color, cx: Float, cy: Float, r: Float, progress: Float) {
     val path = Path().apply {
         moveTo(cx - r * 0.3f, cy + r * 0.02f)
         lineTo(cx - r * 0.07f, cy + r * 0.25f)

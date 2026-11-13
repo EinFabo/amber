@@ -1058,7 +1058,8 @@ open class Screenshots {
                 AmberBackground {
                     Column(Modifier.fillMaxSize().padding(top = 28.dp)) {
                         if (title != null) TopBar(title = title, showBack = title != "Amber", showSettings = title == "Amber", onBack = {}, onSettings = {})
-                        content()
+                        // Every drawn scene at rest, as with animations off: a looping one would never let the clock below run out.
+                        androidx.compose.runtime.CompositionLocalProvider(LocalTimelineAt provides 1f) { content() }
                     }
                 }
             }

@@ -136,22 +136,43 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         },
     ) {
         when {
-            on -> Done(stringResource(R.string.setup_accessibility), stringResource(R.string.access_done))
+            on -> ServiceOn()
             waiting -> {
-                if (locked) RestrictedSettingsSteps(actions.openAppInfo) else SwitchOnSteps()
+                WayToTheSwitch(locked, actions)
                 FullDisclosure(stringResource(R.string.disclosure_title))
             }
-            else -> Column {
-                if (setup.restrictedSettings) RestrictedSettingsNote()
-                AccessibilityDisclosure()
-                SwitchOnNote()
-            }
+            else -> BeforeTheSettings(setup)
         }
     }
 }
 
 /** How long the ticked row shows before the step moves on by itself. */
 private const val DONE_BEAT_MS = 900L
+
+/** The service is on: the ticked row. */
+@Composable
+private fun ServiceOn() {
+    Done(stringResource(R.string.setup_accessibility), stringResource(R.string.access_done))
+}
+
+/**
+ * Back from Android's settings without the service on: the taps to make there - or, on an
+ * install Android may lock ([SetupState.restrictedSettings]), the way past the lock.
+ */
+@Composable
+private fun WayToTheSwitch(locked: Boolean, actions: SetupActions) {
+    if (locked) RestrictedSettingsSteps(actions.openAppInfo) else SwitchOnSteps()
+}
+
+/** Before the settings open: what the service reads and does, and what to do once there. */
+@Composable
+private fun BeforeTheSettings(setup: SetupState) {
+    Column {
+        if (setup.restrictedSettings) RestrictedSettingsNote()
+        AccessibilityDisclosure()
+        SwitchOnNote()
+    }
+}
 
 @Composable
 internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {

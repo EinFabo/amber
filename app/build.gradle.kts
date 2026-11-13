@@ -177,6 +177,8 @@ android {
     testOptions {
         // Robolectric renders with the real resources and native graphics.
         unitTests.isIncludeAndroidResources = true
+        // A few hundred pages drawn at 1080 x 2340, the introduction's frames among them: more than the default half gigabyte holds.
+        unitTests.all { it.maxHeapSize = "1g" }
     }
 
     lint {
