@@ -1,6 +1,7 @@
 package app.amethyst.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import app.amethyst.R
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.Servers
+import app.amethyst.core.onboarding.CleanupServices
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanup
 import app.amethyst.core.settings.AppCleanupMode
@@ -46,6 +48,7 @@ import app.amethyst.ui.DangerAction
 import app.amethyst.ui.Hint
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.Unfold
 import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -66,16 +69,21 @@ fun AppStyleScreen(
     profile: AppProfile,
     settings: AmethystSettings,
     apps: AppSource,
-    hasKeyFor: (String?) -> Boolean,
+    /** Keys, settings and servers, for the cleanup's service list. */
+    access: CleanupAccess,
     /** Whether a speech recognition's model is on the phone (true for one elsewhere). */
     modelReady: (EngineConfig) -> Boolean,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onRemoved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ready = rememberCleanupReadiness(settings, hasKeyFor)
+    val hasKeyFor = access.hasKeyFor
+    val services = rememberServiceRows(settings, access)
+    // "Own model" tapped, none chosen yet: the list is open, the choice still as it was.
+    var pickOwn by rememberSaveable { mutableStateOf(false) }
+    val sheet = remember { mutableStateOf<ServiceSheet?>(null) }
     // Once per settings change rather than on every recomposition.
-    val decision = remember(settings) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
+    val decision = remember(settings, services.keysSaved) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
     // Not remembered: a model downloaded or a key stored while the page is open changes it, not the settings.
     val routing = EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady)
     val own = profile.appCleanup
@@ -107,20 +115,41 @@ fun AppStyleScreen(
                 stringResource(R.string.style_default),
                 settings.cleanupSummary() ?: stringResource(R.string.style_default_off),
                 selected = own.mode == AppCleanupMode.DEFAULT,
-                onSelect = { edit { it.copy(appCleanup = AppCleanup()) } },
+                onSelect = {
+                    pickOwn = false
+                    edit { it.copy(appCleanup = AppCleanup()) }
+                },
             )
             RadioRow(
                 stringResource(R.string.off),
                 stringResource(R.string.cleanup_off_note),
                 selected = own.mode == AppCleanupMode.OFF,
-                onSelect = { edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.OFF)) } },
+                onSelect = {
+                    pickOwn = false
+                    edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.OFF)) }
+                },
             )
-            CleanupModelChoices(settings, ready, selected = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }) { choice ->
-                edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.MODEL, choice)) }
+            // A model of its own: the same service list as Settings → Cleanup, unfolded here; a
+            // service's sheet writes this app's choice.
+            val ownChoice = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }
+            RadioRow(
+                stringResource(R.string.style_own_model),
+                settings.cleanupSummary(ownChoice) ?: stringResource(R.string.style_own_model_note),
+                selected = own.mode == AppCleanupMode.MODEL,
+                onSelect = { pickOwn = true },
+            )
+            Unfold(own.mode == AppCleanupMode.MODEL || pickOwn) {
+                Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CleanupServiceList(
+                        settings, access, services,
+                        inUse = ownChoice,
+                        sheet = sheet,
+                        write = { all, setup -> CleanupServices.forApp(all, setup, profile.packageName) },
+                    )
+                }
             }
             // Its own model chosen but not set up: what is used instead.
-            val ownChoice = own.choice
-            if (own.mode == AppCleanupMode.MODEL && ownChoice != null && !CleanupRouting.ready(settings, ownChoice, hasKeyFor)) {
+            if (ownChoice != null && !CleanupRouting.ready(settings, ownChoice, hasKeyFor)) {
                 Hint(
                     stringResource(if (decision.choice != null) R.string.style_own_not_ready_default else R.string.style_own_not_ready_none),
                     AmberPalette.Error,

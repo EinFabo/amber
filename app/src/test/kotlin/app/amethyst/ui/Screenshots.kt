@@ -314,10 +314,27 @@ open class Screenshots {
         cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
     )
 
+    private val cleanupAccess = app.amethyst.ui.screen.CleanupAccess(hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
+
+    /** No key stored anywhere: every service one key away. */
+    private val noKeys = app.amethyst.ui.screen.CleanupAccess(hasKeyFor = { false }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
+
     /** Not part of the listing set: the cleanup page. */
     @Test
     fun cleanup() = shoot("x-cleanup", "Cleanup") {
-        CleanupScreen(settings = pipeline, hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
+        CleanupScreen(settings = pipeline, access = cleanupAccess)
+    }
+
+    @Test
+    @Config(qualifiers = "+w411dp-h891dp")
+    fun cleanupW411() = shoot("x-cleanup-w411", "Cleanup") {
+        CleanupScreen(settings = pipeline, access = cleanupAccess)
+    }
+
+    /** Not part of the listing set: the cleanup page on a new phone - off, nothing set up. */
+    @Test
+    fun cleanupOff() = shoot("x-cleanup-off", "Cleanup") {
+        CleanupScreen(settings = settings.copy(engines = settings.engines.filterNot { it.id == EnginePresets.TINFOIL.id }), access = noKeys)
     }
 
     /** Claude for the cleanup only: its two models, the recognition on the phone. */
@@ -332,32 +349,34 @@ open class Screenshots {
 
     private val onClaude = pipeline.withEngine(claude).copy(cleanup = app.amethyst.core.settings.CleanupChoice(claude.id, "claude-haiku-5-5"))
 
-    private fun claudeCleanup(name: String) = shoot(name, "Cleanup") {
-        CleanupScreen(settings = onClaude, hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
+    /** Not part of the listing set: the cleanup page with Claude in use. */
+    @Test
+    fun cleanupClaude() = shoot("x-cleanup-claude", "Cleanup") {
+        CleanupScreen(settings = onClaude, access = cleanupAccess)
     }
 
-    /** Not part of the listing set: the cleanup page with Claude chosen, a small phone and a bigger one. */
+    /** A sheet over the cleanup page: a dialog window of its own. */
+    private fun cleanupSheet(name: String, settings: AmethystSettings, access: app.amethyst.ui.screen.CleanupAccess, sheet: app.amethyst.ui.screen.ServiceSheet) =
+        shootDialog("x-cleanup-sheet-$name") {
+            AmberBackground { CleanupScreen(settings = settings, access = access, initialSheet = sheet) }
+        }
+
+    /** Not part of the listing set: the sheets - a service in use, one that needs its key, a key of another service, a new own server. */
     @Test
-    fun cleanupClaude() = claudeCleanup("x-cleanup-claude")
+    fun cleanupSheetTinfoil() = cleanupSheet("tinfoil", pipeline, cleanupAccess, app.amethyst.ui.screen.ServiceSheet.Of(EnginePresets.TINFOIL.id))
+
+    @Test
+    fun cleanupSheetClaudeNew() = cleanupSheet("claude-new", pipeline, noKeys, app.amethyst.ui.screen.ServiceSheet.Of("CLAUDE"))
 
     @Test
     @Config(qualifiers = "+w411dp-h891dp")
-    fun cleanupClaudeW411() = claudeCleanup("x-cleanup-claude-w411")
-
-    private fun addClaude(name: String) = shoot(name, "Cleanup") {
-        CleanupScreen(
-            settings = pipeline.copy(cleanup = null), hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {},
-            initialClaudeKey = "sk-ant-api03-abc",
-        )
-    }
-
-    /** Not part of the listing set: Claude added on the cleanup page from its key. */
-    @Test
-    fun cleanupAddClaude() = addClaude("x-cleanup-add-claude")
+    fun cleanupSheetClaudeNewW411() = cleanupSheet("claude-new-w411", pipeline, noKeys, app.amethyst.ui.screen.ServiceSheet.Of("CLAUDE"))
 
     @Test
-    @Config(qualifiers = "+w411dp-h891dp")
-    fun cleanupAddClaudeW411() = addClaude("x-cleanup-add-claude-w411")
+    fun cleanupSheetOtherKey() = cleanupSheet("other-key", pipeline, noKeys, app.amethyst.ui.screen.ServiceSheet.Of("CLAUDE", key = "gsk_abc"))
+
+    @Test
+    fun cleanupSheetNewServer() = cleanupSheet("new-server", pipeline, cleanupAccess, app.amethyst.ui.screen.ServiceSheet.NewServer())
 
     /** An own server that turned out to be an Amber PC, with the one model of each kind it uses. */
     private val amberPc = EngineConfig.fromPreset(EnginePresets.SELF_HOSTED)
@@ -392,17 +411,18 @@ open class Screenshots {
      */
     @Test
     fun amberPcCleanup() = shoot("x-amber-pc-cleanup", "Cleanup") {
-        CleanupScreen(
-            settings = pipeline.withEngine(amberPc).copy(
-                activeEngineId = amberPc.id,
-                cleanup = app.amethyst.core.settings.CleanupChoice(amberPc.id, "qwen2.5-3b-instruct-q4km"),
-                serverCatalogs = mapOf(amberPc.id to app.amethyst.core.settings.StoredCatalog.of(amberPc.baseUrl!!, amberPcCatalog)),
-            ),
-            hasKeyFor = { true },
-            onSaveKey = { _, _ -> },
-            onUpdateSettings = {},
-        )
+        CleanupScreen(settings = onAmberPc, access = cleanupAccess)
     }
+
+    private val onAmberPc get() = pipeline.withEngine(amberPc).copy(
+        activeEngineId = amberPc.id,
+        cleanup = app.amethyst.core.settings.CleanupChoice(amberPc.id, "qwen2.5-3b-instruct-q4km"),
+        serverCatalogs = mapOf(amberPc.id to app.amethyst.core.settings.StoredCatalog.of(amberPc.baseUrl!!, amberPcCatalog)),
+    )
+
+    /** Not part of the listing set: the Amber PC's sheet - its own list, the model in use no longer on it. */
+    @Test
+    fun cleanupSheetAmberPc() = cleanupSheet("amber-pc", onAmberPc, cleanupAccess, app.amethyst.ui.screen.ServiceSheet.Of(amberPc.id))
 
     /** Keep with a cleanup model of its own. */
     private val keep = app.amethyst.core.settings.AppProfile(
@@ -415,7 +435,7 @@ open class Screenshots {
 
     @Composable
     private fun KeepStyle() = app.amethyst.ui.screen.AppStyleScreen(
-        profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, hasKeyFor = { true },
+        profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, access = cleanupAccess,
         modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
     )
 
@@ -620,9 +640,8 @@ open class Screenshots {
         onOpenRecognition = {},
         download = download,
         apps = FakeApps,
-        hasKeyFor = { false },
-        onSaveKey = { _, _ -> },
         onUpdateSettings = {},
+        cleanup = noKeys,
         bubbleEvents = kotlinx.coroutines.flow.flowOf(*bubbleEvents.toTypedArray()),
     )
 
@@ -696,61 +715,65 @@ open class Screenshots {
     @Test
     fun onboardingCleanup() = onboarding("5-cleanup", OnboardingStep.CLEANUP, ready, parakeetActive)
 
-    /** "Another service" as the step shows it, with the fields and the server's answer given. */
-    private fun cleanupService(
-        name: String,
-        fields: app.amethyst.core.onboarding.ServiceFields,
-        otherAddress: Boolean = false,
-        answer: app.amethyst.core.onboarding.ServiceAnswer? = null,
-    ) = shoot("x-onboarding-5-cleanup-$name", null) {
-        app.amethyst.ui.onboarding.CleanupStep(
-            parakeetActive, content(),
-            initialPick = app.amethyst.core.onboarding.CleanupPick.SERVICE,
-            initialFields = fields,
-            initialOtherAddress = otherAddress,
-            initialAnswer = answer,
-        ) {}
+    /** The step with a sheet open over it: a dialog window of its own. */
+    private fun cleanupStepSheet(name: String, sheet: app.amethyst.ui.screen.ServiceSheet) = shootDialog("x-onboarding-5-cleanup-$name") {
+        AmberBackground { app.amethyst.ui.onboarding.CleanupStep(parakeetActive, content(), initialSheet = sheet) {} }
     }
 
-    /**
-     * Not part of the listing set: "Another service" in each case, on a small phone (360 dp
-     * wide) and a bigger one (411 dp, "-w411"), as the step shows them - Continue at the bottom.
-     */
-    private fun claudeKey(suffix: String = "") = cleanupService("claude$suffix", app.amethyst.core.onboarding.ServiceFields("sk-ant-api03-abc"))
-    private fun groqKey(suffix: String = "") = cleanupService("groq$suffix", app.amethyst.core.onboarding.ServiceFields("gsk_abc"))
-    private fun otherAddress(suffix: String = "") = cleanupService(
-        "other-address$suffix", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc"), otherAddress = true,
-    )
-    private fun modelList(suffix: String = "") = cleanupService(
-        "model-list$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
-        answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OLLAMA, listOf("llama3.2:3b", "qwen3:4b", "gemma3:4b")),
-    )
-    private fun longList(suffix: String = "") = cleanupService(
-        "long-list$suffix", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc", OPENROUTER), otherAddress = true,
-        answer = app.amethyst.core.onboarding.ServiceAnswer.Pick(OPENROUTER, (1..320).map { "vendor-${it % 7}/model-$it" }),
-    )
-    private fun typedModel(suffix: String = "") = cleanupService(
-        "typed-model$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
-        answer = app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = true),
-    )
-    private fun noAnswer(suffix: String = "") = cleanupService(
-        "no-answer$suffix", app.amethyst.core.onboarding.ServiceFields("", OLLAMA), otherAddress = true,
-        answer = app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = false),
+    /** Not part of the listing set: the step's sheets - a service's key and models, a new own server. */
+    @Test fun onboardingCleanupClaude() = cleanupStepSheet("claude", app.amethyst.ui.screen.ServiceSheet.Of("CLAUDE"))
+    @Test fun onboardingCleanupTinfoil() = cleanupStepSheet("tinfoil", app.amethyst.ui.screen.ServiceSheet.Of("TINFOIL"))
+    @Test fun onboardingCleanupNewServer() = cleanupStepSheet("new-server", app.amethyst.ui.screen.ServiceSheet.NewServer())
+
+    /** Not part of the listing set: the step on a replay, a cleanup in use. */
+    @Test
+    fun onboardingCleanupInUse() = onboarding(
+        "5-cleanup-in-use", OnboardingStep.CLEANUP, ready,
+        parakeetActive.withEngine(EngineConfig.fromPreset(EnginePresets.TINFOIL))
+            .copy(cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"), onboardingDone = true),
     )
 
-    @Test fun onboardingCleanupService() = cleanupService("service", app.amethyst.core.onboarding.ServiceFields("abcdefghjkmnpqrstuvw"))
-    @Test fun onboardingCleanupClaude() = claudeKey()
-    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupClaudeW411() = claudeKey("-w411")
-    @Test fun onboardingCleanupGroq() = groqKey()
-    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupGroqW411() = groqKey("-w411")
-    @Test fun onboardingCleanupOtherAddress() = otherAddress()
-    @Test fun onboardingCleanupModelList() = modelList()
-    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupModelListW411() = modelList("-w411")
-    @Test fun onboardingCleanupLongList() = longList()
-    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupLongListW411() = longList("-w411")
-    @Test fun onboardingCleanupTypedModel() = typedModel()
-    @Test @Config(qualifiers = "+w411dp-h891dp") fun onboardingCleanupTypedModelW411() = typedModel("-w411")
-    @Test fun onboardingCleanupNoAnswer() = noAnswer()
+    @Test
+    @Config(qualifiers = "+w411dp-h891dp")
+    fun onboardingCleanupW411() = onboarding("5-cleanup-w411", OnboardingStep.CLEANUP, ready, parakeetActive)
+
+    /**
+     * Not part of the listing set: an own server's sheet in each case - its list to pick from, a
+     * long one searched, the model's name typed, no answer.
+     */
+    private fun newServer(name: String, fields: app.amethyst.core.onboarding.ServiceFields, answer: app.amethyst.core.onboarding.ServiceAnswer?) =
+        shootBare("x-cleanup-new-server-$name") {
+            Box(Modifier.fillMaxSize().background(app.amethyst.ui.theme.AmberPalette.Surface).padding(top = 48.dp)) {
+                app.amethyst.ui.screen.NewServerSheetBody(
+                    settings = parakeetActive, access = cleanupAccess, carriedKey = "", onSwitch = { _, _ -> }, onUse = { _, _ -> },
+                    initialFields = fields, initialAnswer = answer,
+                )
+            }
+        }
+
+    @Test fun newServerModelList() = newServer(
+        "model-list", app.amethyst.core.onboarding.ServiceFields("", OLLAMA),
+        app.amethyst.core.onboarding.ServiceAnswer.Pick(OLLAMA, listOf("llama3.2:3b", "qwen3:4b", "gemma3:4b")),
+    )
+    @Test fun newServerLongList() = newServer(
+        "long-list", app.amethyst.core.onboarding.ServiceFields("sk-or-v1-abc", OPENROUTER),
+        app.amethyst.core.onboarding.ServiceAnswer.Pick(OPENROUTER, (1..320).map { "vendor-${it % 7}/model-$it" }),
+    )
+    @Test fun newServerTypedModel() = newServer(
+        "typed-model", app.amethyst.core.onboarding.ServiceFields("", OLLAMA),
+        app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = true),
+    )
+    @Test fun newServerNoAnswer() = newServer(
+        "no-answer", app.amethyst.core.onboarding.ServiceFields("", OLLAMA),
+        app.amethyst.core.onboarding.ServiceAnswer.Type(OLLAMA, answered = false),
+    )
+    @Test fun newServerKnownAddress() = newServer(
+        "known-address", app.amethyst.core.onboarding.ServiceFields("gsk_abc", "https://api.groq.com/openai/v1"), null,
+    )
+    @Test fun newServerAmberPc() = newServer(
+        "amber-pc", app.amethyst.core.onboarding.ServiceFields("", "http://192.168.1.20:8765/v1"),
+        app.amethyst.core.onboarding.CleanupService.answer("http://192.168.1.20:8765/v1", app.amethyst.core.engine.ModelList.Amber(amberPcCatalog)),
+    )
 
     @Test
     fun onboardingStyles() = onboarding(

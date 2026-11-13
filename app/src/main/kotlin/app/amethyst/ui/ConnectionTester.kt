@@ -90,14 +90,25 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
      * one its cleanup uses - a round trip that costs a fraction of a cent.
      */
     private suspend fun testCleanup(config: EngineConfig): Result {
-        val settings = graph.settings.value.withEngine(config)
         val provider = ServerProviders.forUrl(config.baseUrl)
-        val model = settings.cleanup?.takeIf { it.engineId == config.id }?.model
+        val model = graph.settings.value.cleanup?.takeIf { it.engineId == config.id }?.model
             ?: provider.cleanupModels.firstOrNull { it.recommended }?.id
             ?: return Result.Failed(Texts.issue(context, ConfigIssue.NoSpeechRecognition(provider.name)))
-        val cleanup = graph.engineFactory.cleanupFor(CleanupChoice(config.id, model), settings)
+        return testCleanup(config, model, typedKey = null)
+    }
+
+    /**
+     * A cleanup before it is chosen: the test dictation tidied by [model] on [config]. With
+     * [typedKey], a key typed just now and not stored yet, so a wrong key is found before it
+     * is kept; [config] is then the server as it will be stored, bound to its address.
+     */
+    suspend fun testCleanup(config: EngineConfig, model: String, typedKey: String?): Result {
+        // Named as the store will name it: a failure says "Claude", not "Server".
+        val settings = Servers.normalized(graph.settings.value.withEngine(config))
+        val typed = typedKey?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanup = graph.engineFactory.cleanupFor(CleanupChoice(config.id, model), settings, typed)
             ?: return Result.Failed(
-                EngineConfigValidator.validate(config, graph.secretStore.has(config.apiKeyAlias))
+                EngineConfigValidator.validate(config, typed != null || graph.secretStore.has(config.apiKeyAlias))
                     .firstOrNull { !EngineConfigValidator.onlyAboutSpeech(it) }
                     ?.let { Texts.issue(context, it) }
                     ?: context.getString(R.string.test_cleanup_failed),

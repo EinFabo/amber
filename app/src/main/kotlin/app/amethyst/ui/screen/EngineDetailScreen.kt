@@ -300,8 +300,8 @@ fun EngineDetailScreen(
                                     baseUrl = typed
                                 }
                             },
+                            // No example in the field: what stands in a field reads as filled in. It is in the note below.
                             label = { Text(stringResource(R.string.engine_address)) },
-                            placeholder = { Text("http://192.168.1.20:8000/v1") },
                             singleLine = true,
                             shape = AmberShapes.Inner,
                             colors = fieldColors(),

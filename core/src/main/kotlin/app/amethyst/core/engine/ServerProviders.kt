@@ -43,6 +43,8 @@ data class ServerProvider(
      * only ([Servers.cleanupOnly]), never a speech recognition to choose.
      */
     val recognizes: Boolean = true,
+    /** Where its API keys are made, for "Get a key"; null for a server of one's own. */
+    val keyPage: String? = null,
 ) {
     /** The lists came from the server, so they are all it takes; nothing else is typed. */
     val listsItself: Boolean get() = listedBy != null
@@ -73,6 +75,7 @@ object ServerProviders {
         cleanupModels = EnginePresets.TINFOIL_CLEANUP_MODELS,
         fixedAddress = true,
         streamsChat = true,
+        keyPage = "https://tinfoil.sh",
     )
 
     /*
@@ -98,6 +101,7 @@ object ServerProviders {
         ),
         fixedAddress = true,
         streamsChat = true,
+        keyPage = "https://console.groq.com/keys",
     )
 
     val OPENAI = ServerProvider(
@@ -117,6 +121,7 @@ object ServerProviders {
         ),
         fixedAddress = true,
         streamsChat = true,
+        keyPage = "https://platform.openai.com/api-keys",
     )
 
     /*
@@ -143,6 +148,7 @@ object ServerProviders {
         fixedAddress = true,
         chat = ChatDialect.ANTHROPIC,
         recognizes = false,
+        keyPage = "https://platform.claude.com/settings/keys",
     )
 
     /** Anything else: the user's own server, models typed by hand. */

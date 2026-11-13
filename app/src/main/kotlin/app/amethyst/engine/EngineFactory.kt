@@ -162,10 +162,15 @@ class EngineFactory(
      * with that engine's address, key and enclave check, whichever engine recognized. Null
      * when its engine is gone or not ready. Which choice applies decides
      * [app.amethyst.core.engine.CleanupRouting].
+     *
+     * [typedKey] is a key typed just now for this very server and not stored yet: the cleanup
+     * uses it instead of the stored one, so a key can be tested before it is kept. It goes to
+     * this server's address only, as any key does.
      */
-    fun cleanupFor(choice: CleanupChoice, settings: AmethystSettings): TextCleanup? {
+    fun cleanupFor(choice: CleanupChoice, settings: AmethystSettings, typedKey: String? = null): TextCleanup? {
         val config = settings.engines.firstOrNull { it.id == choice.engineId } ?: return null
-        if (!EngineConfigValidator.readyForCleanup(config, secrets.has(config.apiKeyAlias))) return null
+        val typed = typedKey?.trim()?.takeIf { it.isNotEmpty() }
+        if (!EngineConfigValidator.readyForCleanup(config, typed != null || secrets.has(config.apiKeyAlias))) return null
         val model = choice.model.trim().takeIf { it.isNotEmpty() } ?: return null
         if (config.kind != EngineKind.OPENAI_COMPATIBLE) return null
         val baseUrl = config.baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
@@ -181,7 +186,7 @@ class EngineFactory(
         val provider = ServerProviders.forUrl(baseUrl)
         val known = provider.cleanupModel(model)
         // Only to the host the key was given for.
-        val key = { secrets.get(config.apiKeyAlias)?.takeIf { KeyBinding.allows(config) } }
+        val key = { if (KeyBinding.allows(config)) typed ?: secrets.get(config.apiKeyAlias) else null }
         return when (provider.chat) {
             // Claude in its own Messages API.
             ChatDialect.ANTHROPIC -> ClaudeCleanup(

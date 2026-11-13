@@ -34,6 +34,22 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
       Claude" and sets up its cleanup; Settings → Cleanup adds Claude from its key. Step 5's
       fields are grouped with their notes, the notes shorter, a long model list shows 8 rows.
 
+## Cleanup picker (Fabi, 2026-11-12)
+
+- [ ] **The cleanup choice was too cluttered, in Settings and in the introduction**: built
+      2026-11-12, not yet tried on the phone. One service list (Tinfoil, Claude, Groq, OpenAI,
+      own servers, "Add own server") and one sheet per service (key, models, Use) in Settings →
+      Cleanup, the introduction's step 5 and one app's own model; the model is picked in the
+      introduction too; Groq and OpenAI need no detour through Speech recognition; a key typed
+      for a known service is tested before it is stored; address examples stand under the
+      field, none in the own network. Design and plan:
+      [`plans/2026-11-12-cleanup-picker-design.md`](plans/2026-11-12-cleanup-picker-design.md).
+      Open: the device test (the sheet with the keyboard up, a real key's test, an Ollama's
+      list), "Get a key" links looked at once (`ServerProvider.keyPage`), Skip right after Off
+      in a replay taking the settings from before the tap (a few milliseconds' window), no
+      model list refresh for an Amber PC inside the introduction, and no way from there to a
+      server's own page when a service needs setting up (Settings has "Edit server").
+
 ## Roadmap (Fabi's plan, 2026-11-06)
 
 The order Fabi decided: [`plans/2026-11-06-roadmap.md`](plans/2026-11-06-roadmap.md), one commit

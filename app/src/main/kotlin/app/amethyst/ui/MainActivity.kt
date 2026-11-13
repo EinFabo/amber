@@ -57,6 +57,7 @@ import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.Onboarding
@@ -78,6 +79,7 @@ import app.amethyst.ui.onboarding.OnboardingScreen
 import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
+import app.amethyst.ui.screen.CleanupAccess
 import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.DiagnosticsScreen
 import app.amethyst.ui.screen.EngineDetailScreen
@@ -454,6 +456,29 @@ private fun AmethystScreens(
         stack = stack + next
     }
 
+    // What the cleanup's service list needs, wherever it shows: Settings → Cleanup, the
+    // introduction's step, one app's own model.
+    fun cleanupAccess(onOpenEngine: ((String) -> Unit)?) = CleanupAccess(
+        hasKeyFor = { alias -> graph.secretStore.has(alias) },
+        onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
+        onUpdateSettings = ::updateSettings,
+        fetchModels = { baseUrl, key ->
+            withContext(Dispatchers.IO) { ServerModels.fetch(graph.httpTransport, baseUrl, key) }
+        },
+        fetchModelsOf = { engine ->
+            withContext(Dispatchers.IO) {
+                // Only to the host the key was given for.
+                val key = graph.secretStore.get(engine.apiKeyAlias)?.takeIf { KeyBinding.allows(engine) }
+                ServerModels.fetch(graph.httpTransport, engine.baseUrl.orEmpty(), key)
+            }
+        },
+        testKey = { engine, model, key -> tester.testCleanup(engine, model, key) },
+        onOpenEngine = onOpenEngine,
+    )
+    // Built once: the pages remember their rows by it.
+    val cleanupAccess = remember(graph, tester) { cleanupAccess { engineId -> open(Screen.EngineDetail(engineId)) } }
+    val introductionCleanup = remember(graph, tester) { cleanupAccess(onOpenEngine = null) }
+
     // Only for the introduction, and off the main thread: it loads the Whisper library to ask
     // about the CPU. Read once - memory and the CPU do not change.
     val phone by produceState<PhoneFacts?>(null, screen == Screen.Onboarding) {
@@ -530,14 +555,11 @@ private fun AmethystScreens(
                                 onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
                                 download = download,
                                 apps = apps,
-                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                                onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
                                 onUpdateSettings = ::updateSettings,
                                 bubbleEvents = graph.bubbleEvents,
                                 hasLastDictation = DictationLog.lastDictation(records) != null,
-                                fetchModels = { baseUrl, key ->
-                                    withContext(Dispatchers.IO) { ServerModels.fetch(graph.httpTransport, baseUrl, key) }
-                                },
+                                // No way from the introduction to a server's own page.
+                                cleanup = introductionCleanup,
                             ),
                             onStep = { step = it },
                             onFinish = {
@@ -609,12 +631,7 @@ private fun AmethystScreens(
                                 onUpdateSettings = ::updateSettings,
                                 onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
                             )
-                            SettingsPage.CLEANUP -> CleanupScreen(
-                                settings = settings,
-                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                                onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
-                                onUpdateSettings = ::updateSettings,
-                            )
+                            SettingsPage.CLEANUP -> CleanupScreen(settings = settings, access = cleanupAccess)
                             SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
                             SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                             SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
@@ -699,7 +716,7 @@ private fun AmethystScreens(
                                 profile = profile,
                                 settings = settings,
                                 apps = apps,
-                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                access = cleanupAccess,
                                 modelReady = graph::modelReady,
                                 onUpdateSettings = ::updateSettings,
                                 onRemoved = ::back,

@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
-import app.amethyst.core.engine.ModelList
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
@@ -41,6 +40,7 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.IconAction
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
+import app.amethyst.ui.screen.CleanupAccess
 import app.amethyst.ui.theme.AmberPalette
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -116,15 +116,13 @@ class OnboardingContent(
     /** The active engine's download while it runs, for the last step. */
     val download: ModelDownload?,
     val apps: AppSource,
-    val hasKeyFor: (alias: String?) -> Boolean,
-    val onSaveKey: (alias: String, key: String) -> Unit,
     val onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     /** What the real bubble does, for the practice step; see [app.amethyst.Graph.bubbleEvents]. */
     val bubbleEvents: Flow<BubbleEvent> = emptyFlow(),
     /** There is a last dictation for the quick menu's "Copy last", for the practice step. */
     val hasLastDictation: Boolean = false,
-    /** Asks an own server at an address, with its key, which models it has - for the cleanup step. */
-    val fetchModels: suspend (baseUrl: String, key: String) -> ModelList = { _, _ -> ModelList.Failed("not asked") }, // English: a diagnostic detail, never shown
+    /** What the cleanup step's service list needs: keys, settings, a server's models, a key's test. */
+    val cleanup: CleanupAccess,
 )
 
 /** "Step 4 of 10" between Back and Skip. */

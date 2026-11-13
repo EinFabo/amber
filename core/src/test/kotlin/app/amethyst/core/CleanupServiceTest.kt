@@ -9,13 +9,12 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EnginePresets.ModelChoice
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
-import app.amethyst.core.onboarding.CleanupPick
+import app.amethyst.core.onboarding.CleanupServices
 import app.amethyst.core.onboarding.CleanupService
 import app.amethyst.core.onboarding.ServiceAnswer
 import app.amethyst.core.onboarding.ServiceFields
 import app.amethyst.core.onboarding.ServiceKey
 import app.amethyst.core.onboarding.ServicePlan
-import app.amethyst.core.onboarding.ServiceRoute
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
@@ -26,56 +25,11 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class CleanupPickTest {
+/** A cleanup's server from a key or an address: what [CleanupService] makes of them. */
+class CleanupServiceTest {
 
-    private val tinfoil = EnginePresets.TINFOIL.id
     private val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)
     private val local = AmethystSettings.defaults(TEST_PHONE).withEngine(parakeet).copy(activeEngineId = parakeet.id)
-    private val onGemma = local
-        .withEngine(EngineConfig.fromPreset(EnginePresets.TINFOIL))
-        .copy(cleanup = CleanupChoice(tinfoil, "gemma-4-31b"))
-    private val onGroq = local
-        .withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
-        .copy(cleanup = CleanupChoice(EnginePresets.GROQ.id, "openai/gpt-oss-20b"))
-
-    @Test
-    fun `the first pick follows the current cleanup`() {
-        assertEquals(CleanupPick.OFF, CleanupPick.initial(local))
-        assertEquals(CleanupPick.TINFOIL, CleanupPick.initial(onGemma))
-        assertEquals(CleanupPick.KEEP, CleanupPick.initial(onGroq))
-    }
-
-    @Test
-    fun `off switches the cleanup off`() {
-        assertNull(CleanupPick.OFF.applyTo(onGroq, keyReady = false, TEST_PHONE).cleanup)
-    }
-
-    @Test
-    fun `tinfoil with a key adds the engine and the recommended model`() {
-        val after = CleanupPick.TINFOIL.applyTo(local, keyReady = true, TEST_PHONE)
-        assertEquals(CleanupChoice(tinfoil, "deepseek-v4-1-flash"), after.cleanup)
-        assertTrue(after.engines.any { it.id == tinfoil })
-        assertEquals(parakeet.id, after.activeEngineId)
-    }
-
-    @Test
-    fun `a tinfoil cleanup on another model keeps its model`() {
-        assertEquals(CleanupChoice(tinfoil, "gemma-4-31b"), CleanupPick.TINFOIL.applyTo(onGemma, keyReady = true, TEST_PHONE).cleanup)
-    }
-
-    @Test
-    fun `tinfoil without a key and keep change nothing`() {
-        assertEquals(local, CleanupPick.TINFOIL.applyTo(local, keyReady = false, TEST_PHONE))
-        assertEquals(onGroq, CleanupPick.KEEP.applyTo(onGroq, keyReady = false, TEST_PHONE))
-    }
-
-    @Test
-    fun `a tinfoil engine added here speaks the phone's language`() {
-        val after = CleanupPick.TINFOIL.applyTo(local, keyReady = true, listOf("en-GB"))
-        assertEquals("en-GB", after.engines.single { it.id == tinfoil }.languageTag)
-    }
-
-    // "Another service": a key, and an address when the key does not say where it goes.
 
     @Test
     fun `a key says which service it is, a claude key that it is claude`() {
@@ -89,8 +43,8 @@ class CleanupPickTest {
     @Test
     fun `a groq key sets up the same server the settings would, with its recommended cleanup model`() {
         val plan = CleanupService.known((CleanupService.read("gsk_abc") as ServiceKey.Known).quick)
-        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 0x123456 })
-        val after = CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE, setup)
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, keyGiven = true, random = { 0x123456 })
+        val after = CleanupServices.forEveryApp(local, setup)
 
         val engine = after.engines.single { it.id == "server-123456" }
         assertEquals(Servers.newServer("server-123456", "de-DE").copy(
@@ -107,11 +61,10 @@ class CleanupPickTest {
 
     @Test
     fun `a claude key sets up claude for the cleanup only, with haiku first`() {
-        assertFalse(CleanupService.asksAddress(ServiceFields("sk-ant-api03-abc"), otherAddress = false), "its address is known")
         val plan = CleanupService.claude()
         assertEquals(ServicePlan("https://api.anthropic.com/v1", null, "claude-haiku-5-5"), plan)
-        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 0xc1a0de })
-        val after = CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE, setup)
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, keyGiven = true, random = { 0xc1a0de })
+        val after = CleanupServices.forEveryApp(local, setup)
 
         val engine = after.engines.single { it.id == "server-c1a0de" }
         assertEquals("Claude", engine.displayName)
@@ -123,7 +76,6 @@ class CleanupPickTest {
         assertTrue(CleanupRouting.ready(after, after.cleanup!!) { true })
         assertTrue(Servers.cleanupOnly(after, engine))
         assertFalse(engine in Servers.recognizers(after))
-        assertEquals(plan, CleanupService.knownAt(" https://api.anthropic.com/v1 "), "its address typed by hand")
     }
 
     @Test
@@ -153,11 +105,11 @@ class CleanupPickTest {
         val own = Servers.newServer("server-000001", "de-DE").copy(baseUrl = "https://api.openai.com/v1", modelId = "whisper-1")
         val settings = local.withEngine(own)
         val plan = CleanupService.known((CleanupService.read("sk-proj-abc") as ServiceKey.Known).quick)
-        val setup = CleanupService.setup(settings, plan, TEST_PHONE)
+        val setup = CleanupService.setup(settings, plan, TEST_PHONE, keyGiven = true)
         assertEquals("server-000001", setup.engine.id)
         assertEquals("whisper-1", setup.engine.modelId)
         assertEquals("api.openai.com", setup.engine.keyHost)
-        val after = CleanupPick.SERVICE.applyTo(settings, keyReady = true, TEST_PHONE, setup)
+        val after = CleanupServices.forEveryApp(settings, setup)
         assertEquals(1, after.engines.count { Servers.isServer(it) })
         assertEquals(CleanupChoice("server-000001", "gpt-4.1-nano"), after.cleanup)
     }
@@ -167,8 +119,6 @@ class CleanupPickTest {
         assertEquals(listOf(ConfigIssue.AddressMissing), CleanupService.addressProblems(" "))
         assertTrue(CleanupService.addressProblems("192.168.1.20:8000").isNotEmpty())
         assertTrue(CleanupService.addressProblems("http://192.168.1.20:8000/v1").isEmpty())
-        assertEquals(null, CleanupService.knownAt("http://192.168.1.20:8000/v1"))
-        assertEquals("https://api.groq.com/openai/v1", CleanupService.knownAt("https://api.groq.com/openai/v1")?.baseUrl)
     }
 
     private val amberPc = AmberCatalog(
@@ -186,8 +136,8 @@ class CleanupPickTest {
         assertEquals("turbo", plan.speechModel)
         assertEquals("qwen", plan.cleanupModel)
 
-        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 7 })
-        val after = CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE, setup)
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, keyGiven = true, random = { 7 })
+        val after = CleanupServices.forEveryApp(local, setup)
         val engine = after.engines.single { it.id == "server-000007" }
         assertEquals("Amber PC", engine.displayName)
         assertEquals(amberPc.name, after.catalogFor(engine)?.name)
@@ -209,8 +159,8 @@ class CleanupPickTest {
     fun `an ollama for the cleanup only - no key, no speech model, its chat model - is ready for the cleanup`() {
         val plan = CleanupService.chosen("http://192.168.1.20:11434/v1", " llama3.2 ")!!
         assertNull(CleanupService.chosen("http://192.168.1.20:11434/v1", "  "))
-        val setup = CleanupService.setup(local, plan, TEST_PHONE, random = { 9 })
-        val after = CleanupPick.SERVICE.applyTo(local, keyReady = false, TEST_PHONE, setup)
+        val setup = CleanupService.setup(local, plan, TEST_PHONE, keyGiven = false, random = { 9 })
+        val after = CleanupServices.forEveryApp(local, setup)
         val engine = after.engines.single { it.id == "server-000009" }
         assertEquals("http://192.168.1.20:11434/v1", engine.baseUrl)
         assertNull(engine.modelId)
@@ -229,33 +179,6 @@ class CleanupPickTest {
         assertFalse(CleanupRouting.ready(groq, groq.cleanup!!) { false })
         val nowhere = local.withEngine(openRouter.copy(baseUrl = null)).copy(cleanup = CleanupChoice("server-1", "x"))
         assertFalse(CleanupRouting.ready(nowhere, nowhere.cleanup!!) { true })
-    }
-
-    @Test
-    fun `continue goes by the key, or by the address once one is asked for`() {
-        val groq = CleanupService.route(ServiceFields("gsk_abc"), otherAddress = false)
-        assertEquals("https://api.groq.com/openai/v1", assertIs<ServiceRoute.Write>(groq).plan.baseUrl)
-        assertEquals(ServiceRoute.Skip, CleanupService.route(ServiceFields(""), otherAddress = false))
-        assertEquals(ServiceRoute.Write(CleanupService.claude()), CleanupService.route(ServiceFields("sk-ant-api03-x"), otherAddress = false))
-        // An sk- key for OpenRouter: "Other address" makes it an own server, asked for its models.
-        assertEquals(
-            ServiceRoute.Check("https://openrouter.ai/api/v1", "sk-or-v1-abc"),
-            CleanupService.route(ServiceFields("sk-or-v1-abc", " https://openrouter.ai/api/v1 "), otherAddress = true),
-        )
-        assertEquals(ServiceRoute.Fix(listOf(ConfigIssue.AddressMissing)), CleanupService.route(ServiceFields("sk-or-v1-abc"), otherAddress = true))
-        // No key at all: an own server in the home network.
-        assertEquals(ServiceRoute.Check("http://192.168.1.20:11434/v1", ""), CleanupService.route(ServiceFields("", "http://192.168.1.20:11434/v1"), otherAddress = true))
-        // A known service's address typed by hand is that service.
-        assertIs<ServiceRoute.Write>(CleanupService.route(ServiceFields("xyz", "https://api.openai.com/v1"), otherAddress = false))
-        assertTrue(CleanupService.asksAddress(ServiceFields("abcdefghjkmnpqrstuvw"), otherAddress = false))
-        // Fabi's own proxy: an sk- key that is no OpenAI key asks for its address by itself.
-        assertEquals(ServiceKey.Unknown, CleanupService.read("sk-cp-4f9a2b7c1d8e"))
-        assertTrue(CleanupService.asksAddress(ServiceFields("sk-cp-4f9a2b7c1d8e"), otherAddress = false))
-        assertEquals(
-            ServiceRoute.Check("http://192.168.178.107:8787/v1", "sk-cp-4f9a2b7c1d8e"),
-            CleanupService.route(ServiceFields("sk-cp-4f9a2b7c1d8e", "http://192.168.178.107:8787/v1"), otherAddress = false),
-        )
-        assertFalse(CleanupService.asksAddress(ServiceFields("gsk_abc"), otherAddress = false))
     }
 
     @Test
@@ -326,12 +249,6 @@ class CleanupPickTest {
         assertEquals("Bearer k", transport.requests.single().headers["Authorization"])
         assertIs<ModelList.Failed>(ServerModels.fetch(FakeHttpTransport.failing(java.io.IOException("x")), "http://h:1/v1", null))
         assertIs<ModelList.Failed>(ServerModels.fetch(FakeHttpTransport.json("{}", code = 401), "http://h:1/v1", null))
-    }
-
-    @Test
-    fun `another service without a setup changes nothing`() {
-        assertEquals(onGroq, CleanupPick.SERVICE.applyTo(onGroq, keyReady = true, TEST_PHONE, null))
-        assertNull(CleanupPick.SERVICE.applyTo(local, keyReady = true, TEST_PHONE).cleanup)
     }
 
     @Test
