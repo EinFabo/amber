@@ -66,7 +66,9 @@ import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.engine.Servers
+import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.Onboarding
+import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
@@ -441,6 +443,8 @@ private fun AmethystScreens(
     }
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
+    // The way through it, chosen on the welcome step.
+    var path by rememberSaveable { mutableStateOf(OnboardingPath.DEEP) }
     val testContext = LocalContext.current
     val tester = remember(graph, testContext) { ConnectionTester(graph, testContext) }
     val settings by graph.settings.collectAsStateWithLifecycle()
@@ -462,8 +466,10 @@ private fun AmethystScreens(
     }
     // Read so the line under the flame follows the download; forEngine reads their current values.
     // The stores read every model file when they are built, so only for a local engine or the
-    // introduction - not on every start for everyone.
-    val watchModels = screen == Screen.Onboarding || screen is Screen.EngineDetail ||
+    // introduction - not on every start for everyone. And while the recognition chosen for this
+    // phone waits for its model, Android's standing in.
+    val pendingOption = FirstRun.pending(settings)
+    val watchModels = screen == Screen.Onboarding || screen is Screen.EngineDetail || pendingOption != null ||
         settings.activeEngine?.let(ModelDownloads::downloadsModel) == true
     val parakeetState = if (watchModels) graph.parakeetModels.state.collectAsStateWithLifecycle().value else ParakeetState.Missing
     val whisperStates = if (watchModels) graph.whisperModels.states.collectAsStateWithLifecycle().value else emptyMap()
@@ -474,6 +480,12 @@ private fun AmethystScreens(
         }
     } else {
         null
+    }
+    val pending = pendingOption?.let { option ->
+        val (pendingDownload, failed) = remember(option, parakeetState, whisperStates, waitingFor) {
+            graph.modelDownloads.forOption(option) to graph.modelDownloads.failed(option)
+        }
+        PendingModel(option, pendingDownload, failed) { mobileData -> graph.firstRun.download(mobileData) }
     }
     val apps = remember(context) { AndroidAppSource(context) }
     val appUsage = remember(statList) { AppChoice.usage(statList) }
@@ -529,13 +541,7 @@ private fun AmethystScreens(
 
     /** The introduction's engine choice: added if missing, with its model, and made active. */
     fun useEngine(option: EngineOption) {
-        val preset = EnginePresets.byId(option.presetId) ?: return
-        updateSettings { current ->
-            val base = current.engines.firstOrNull { it.id == preset.id }
-                ?: EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags()))
-            val config = option.whisperModelId?.let { base.copy(modelId = it) } ?: base
-            current.withEngine(config).copy(activeEngineId = config.id)
-        }
+        updateSettings { FirstRun.use(it, option, PhoneLocales.tags()) }
     }
 
     fun back() {
@@ -543,8 +549,8 @@ private fun AmethystScreens(
     }
 
     BackHandler(enabled = stack.size > 1) { back() }
-    BackHandler(enabled = screen == Screen.Onboarding && Onboarding.previous(step, settings) != null) {
-        Onboarding.previous(step, settings)?.let { step = it }
+    BackHandler(enabled = screen == Screen.Onboarding && Onboarding.previous(step, settings, path) != null) {
+        Onboarding.previous(step, settings, path)?.let { step = it }
     }
 
     AmberBackground {
@@ -602,10 +608,25 @@ private fun AmethystScreens(
                                 hasLastDictation = DictationLog.lastDictation(records) != null,
                                 // No way from the introduction to a server's own page.
                                 cleanup = introductionCleanup,
+                                pending = pending,
                             ),
                             onStep = { step = it },
                             onFinish = {
                                 if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
+                                stack = listOf(Screen.Home)
+                            },
+                            path = path,
+                            onPath = { chosen ->
+                                path = chosen
+                                // Only a new install is given anything here: on a replay both
+                                // leave every choice as it is and just walk through the steps.
+                                if (chosen == OnboardingPath.QUICK) graph.firstRun.quick(finish = false) else graph.firstRun.appStyles()
+                                Onboarding.next(OnboardingStep.WELCOME, settings, chosen)?.let { step = it }
+                            },
+                            onSkipAll = {
+                                // What Quick decides, without asking for anything: Home shows
+                                // what is still missing. On a replay it only leaves.
+                                graph.firstRun.quick(finish = true)
                                 stack = listOf(Screen.Home)
                             },
                         )
@@ -618,6 +639,7 @@ private fun AmethystScreens(
                         dictationState = graph.dictation.state,
                         stats = stats,
                         download = download,
+                        pending = pending,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

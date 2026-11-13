@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.onboarding.Onboarding
+import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -67,5 +68,33 @@ class OnboardingTest {
         assertTrue(Onboarding.skippable(OnboardingStep.PRACTICE))
         assertTrue(Onboarding.skippable(OnboardingStep.RELIABILITY))
         assertFalse(Onboarding.skippable(OnboardingStep.DONE))
+    }
+
+    @Test
+    fun `the quick way asks for the two permissions, tries the bubble and is done`() {
+        val quick = listOf(OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE, OnboardingStep.DONE)
+        assertEquals(quick, Onboarding.steps(plain, OnboardingPath.QUICK))
+        // A cleanup someone has on a replay brings no styles step into it.
+        assertEquals(quick, Onboarding.steps(withCleanup, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.PRACTICE, Onboarding.next(OnboardingStep.MICROPHONE, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.DONE, Onboarding.next(OnboardingStep.PRACTICE, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.MICROPHONE, Onboarding.previous(OnboardingStep.PRACTICE, plain, OnboardingPath.QUICK))
+        assertNull(Onboarding.next(OnboardingStep.DONE, plain, OnboardingPath.QUICK))
+        assertEquals(2 to 5, Onboarding.position(OnboardingStep.ACCESSIBILITY, plain, OnboardingPath.QUICK))
+        assertEquals(5 to 5, Onboarding.position(OnboardingStep.DONE, plain, OnboardingPath.QUICK))
+    }
+
+    @Test
+    fun `step by step is the introduction as it was`() {
+        assertEquals(Onboarding.steps(plain), Onboarding.steps(plain, OnboardingPath.DEEP))
+        assertEquals(Onboarding.steps(withCleanup), Onboarding.steps(withCleanup, OnboardingPath.DEEP))
+        assertEquals(OnboardingStep.entries, Onboarding.steps(withCleanup, OnboardingPath.DEEP))
+    }
+
+    @Test
+    fun `the welcome step has no number - the way is chosen there`() {
+        assertNull(Onboarding.position(OnboardingStep.WELCOME, plain))
+        assertNull(Onboarding.position(OnboardingStep.WELCOME, plain, OnboardingPath.QUICK))
+        assertEquals(2 to 9, Onboarding.position(OnboardingStep.ACCESSIBILITY, plain))
     }
 }

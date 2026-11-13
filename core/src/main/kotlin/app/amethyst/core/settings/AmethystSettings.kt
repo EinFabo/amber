@@ -265,6 +265,8 @@ data class AmethystSettings(
     val fallback: FallbackSettings = FallbackSettings(),
     /** Whether the introduction ran; a fresh install starts without, see [SettingsCodec.migrate]. */
     val onboardingDone: Boolean = false,
+    /** What the first run decided for the user and has not finished; see [app.amethyst.core.onboarding.FirstRun]. */
+    val firstRun: FirstRunSettings = FirstRunSettings(),
     val commands: CommandSettings = CommandSettings(),
     /**
      * The model lists Amber PCs and Amber Servers sent, by engine id - kept so the pickers work
@@ -354,6 +356,8 @@ data class AmethystSettings(
                     EngineConfig.defaultLanguageTag(EngineKind.ANDROID_ON_DEVICE, phone),
                 ),
             ),
+            // None until the first run has seen which apps are on the phone; see [AppProfiles.defaultsFor].
+            profiles = emptyList(),
             // A new install sees the few settings most people need; see [SettingsLayout].
             ui = UiSettings(advanced = false),
         )
@@ -563,6 +567,21 @@ data class CommandSettings(val enabled: Boolean = false) {
      */
     fun effective(featureOn: Boolean = Features.VOICE_COMMANDS): Boolean = featureOn && enabled
 }
+
+/** What a new install's first run leaves behind. Absent in older settings: nothing. */
+@Serializable
+data class FirstRunSettings(
+    /**
+     * The known apps on the phone got their styles ([AppProfiles.defaultsFor]). Once only: a
+     * style the user removed afterwards stays removed, whatever the introduction is asked next.
+     */
+    val appStylesGiven: Boolean = false,
+    /**
+     * The speech recognition chosen for this phone whose model is still on its way, by its
+     * [app.amethyst.core.engine.EngineOption] name; Android's recognition stands in until then.
+     */
+    val pendingEngine: String? = null,
+)
 
 /** How the app itself looks. */
 @Serializable

@@ -26,7 +26,10 @@ import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.text.Transcript
 import app.amethyst.dictation.DictationState
+import app.amethyst.core.onboarding.FirstRun
+import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.core.onboarding.QuickPlan
 import app.amethyst.engine.ParakeetState
 import app.amethyst.ui.onboarding.OnboardingContent
 import app.amethyst.ui.onboarding.OnboardingScreen
@@ -97,7 +100,7 @@ open class Screenshots {
     private val settings = AmethystSettings.defaults(PHONE).let { base ->
         listOf(EnginePresets.LOCAL_PARAKEET, EnginePresets.LOCAL_WHISPER, EnginePresets.TINFOIL)
             .fold(base) { s, preset -> s.withEngine(EngineConfig.fromPreset(preset, EngineConfig.defaultLanguageTag(preset.kind, PHONE))) }
-            .copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id)
+            .copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id, profiles = app.amethyst.core.settings.AppProfiles.DEFAULTS)
     }
 
     private val today = 20_390L
@@ -639,6 +642,7 @@ open class Screenshots {
         metered: Boolean = false,
         download: app.amethyst.core.engine.ModelDownload? = null,
         bubbleEvents: List<app.amethyst.core.bubble.BubbleEvent> = emptyList(),
+        pending: PendingModel? = null,
     ) = OnboardingContent(
         phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
         metered = metered,
@@ -653,6 +657,7 @@ open class Screenshots {
         onUpdateSettings = {},
         cleanup = noKeys,
         bubbleEvents = kotlinx.coroutines.flow.flowOf(*bubbleEvents.toTypedArray()),
+        pending = pending,
     )
 
     private fun onboarding(
@@ -661,8 +666,9 @@ open class Screenshots {
         setup: SetupState = fresh,
         settings: AmethystSettings = AmethystSettings.defaults(PHONE),
         content: OnboardingContent = content(),
+        path: OnboardingPath = OnboardingPath.DEEP,
     ) = shoot("x-onboarding-$name", null) {
-        OnboardingScreen(step = step, settings = settings, setup = setup, actions = actions, content = content, onStep = {}, onFinish = {})
+        OnboardingScreen(step = step, settings = settings, setup = setup, actions = actions, content = content, onStep = {}, onFinish = {}, path = path)
     }
 
     @Test
@@ -719,8 +725,10 @@ open class Screenshots {
     @Test
     fun onboardingEngineMetered() = onboarding("4-engine-metered", OnboardingStep.ENGINE, ready, content = content(metered = true))
 
+    /** A new install on its way through the introduction: the known apps on the phone have their styles. */
     private val parakeetActive = AmethystSettings.defaults(PHONE)
-        .withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id)
+        .withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET))
+        .copy(activeEngineId = EnginePresets.LOCAL_PARAKEET.id, profiles = app.amethyst.core.settings.AppProfiles.defaultsFor(APP_NAMES.keys))
 
     @Test
     fun onboardingCleanup() = onboarding("5-cleanup", OnboardingStep.CLEANUP, ready, parakeetActive)
@@ -848,6 +856,60 @@ open class Screenshots {
         "9-done", OnboardingStep.DONE, ready, parakeetActive,
         content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)),
     )
+
+    /** The quick setup on a phone with room: Android's recognition until Parakeet is there. */
+    private val quick = FirstRun.quick(
+        AmethystSettings.defaults(PHONE),
+        QuickPlan(app.amethyst.core.engine.EngineOption.ANDROID, app.amethyst.core.engine.EngineOption.PARAKEET),
+        installed = APP_NAMES.keys, phoneTags = PHONE,
+    )
+
+    private fun parakeetPending(download: app.amethyst.core.engine.ModelDownload?, failed: Boolean = false) =
+        PendingModel(app.amethyst.core.engine.EngineOption.PARAKEET, download, failed) {}
+
+    private val parakeetLoading = parakeetPending(app.amethyst.core.engine.ModelDownload.Running(300_000_000, 670_000_000))
+
+    /** The quick way's steps count to five. */
+    @Test
+    fun onboardingQuickAccessibility() = onboarding("q2-accessibility", OnboardingStep.ACCESSIBILITY, settings = quick, path = OnboardingPath.QUICK)
+
+    /** The try right after the permissions, Android's recognition hearing it. */
+    @Test
+    fun onboardingQuickPractice() = onboarding(
+        "q4-practice", OnboardingStep.PRACTICE, ready, quick, content(pending = parakeetLoading), OnboardingPath.QUICK,
+    )
+
+    /** The quick way's last step: what was decided, and one line on the download. */
+    @Test
+    fun onboardingQuickDone() = onboarding(
+        "q5-done", OnboardingStep.DONE, ready, quick, content(pending = parakeetLoading), OnboardingPath.QUICK,
+    )
+
+    /** The same on mobile data: the download waits for Wi-Fi, with the way to start it anyway. */
+    @Test
+    fun onboardingQuickDoneWifi() = onboarding(
+        "q5-done-wifi", OnboardingStep.DONE, ready, quick,
+        content(metered = true, pending = parakeetPending(app.amethyst.core.engine.ModelDownload.WaitingForWifi)), OnboardingPath.QUICK,
+    )
+
+    /** The download gave up. */
+    @Test
+    fun onboardingQuickDoneFailed() = onboarding(
+        "q5-done-failed", OnboardingStep.DONE, ready, quick, content(pending = parakeetPending(null, failed = true)), OnboardingPath.QUICK,
+    )
+
+    /** Not part of the listing set: Home after "Skip the introduction" - what is missing, and the download held for Wi-Fi. */
+    @Test
+    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
+    fun homeSkipped() = shoot("x-home-skipped", "Amber") {
+        HomeScreen(
+            setup = fresh, actions = actions, settings = quick.copy(onboardingDone = true),
+            dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            pending = parakeetPending(app.amethyst.core.engine.ModelDownload.WaitingForWifi),
+        )
+    }
 
     /** What the GitHub build knows after a check three hours ago: 0.24.0 is out. */
     private val updateSeen = UpdateSettings(

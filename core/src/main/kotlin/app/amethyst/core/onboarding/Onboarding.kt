@@ -10,24 +10,51 @@ import app.amethyst.core.settings.AmethystSettings
 enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, PRACTICE, RELIABILITY, DONE }
 
 /**
+ * The way through the introduction, chosen on the welcome step. Its third choice, skipping
+ * it, is no path: it leaves for the app at once with what [FirstRun] decides.
+ */
+enum class OnboardingPath {
+    /** The two permissions and a try; everything else is decided for the phone ([FirstRun]). */
+    QUICK,
+
+    /** Every choice asked, one per screen. */
+    DEEP,
+}
+
+/**
  * Which screens the introduction shows and how it moves between them. The styles step only
  * makes sense with a cleanup model to apply them, so it comes and goes with the cleanup choice -
  * also while the user is in the middle of the flow.
  */
 object Onboarding {
 
-    fun steps(settings: AmethystSettings): List<OnboardingStep> =
-        OnboardingStep.entries.filter { it != OnboardingStep.APP_STYLES || settings.cleanup != null }
+    /**
+     * The quick way: what Android has to be asked for, the bubble tried once, and what was
+     * decided. The try stays in because it is the first time the bubble shows, and it can be
+     * skipped with one tap.
+     */
+    private val QUICK = listOf(
+        OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE, OnboardingStep.DONE,
+    )
 
-    fun next(current: OnboardingStep, settings: AmethystSettings): OnboardingStep? =
-        steps(settings).firstOrNull { it > current }
+    fun steps(settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): List<OnboardingStep> = when (path) {
+        OnboardingPath.QUICK -> QUICK
+        OnboardingPath.DEEP -> OnboardingStep.entries.filter { it != OnboardingStep.APP_STYLES || settings.cleanup != null }
+    }
 
-    fun previous(current: OnboardingStep, settings: AmethystSettings): OnboardingStep? =
-        steps(settings).lastOrNull { it < current }
+    fun next(current: OnboardingStep, settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): OnboardingStep? =
+        steps(settings, path).firstOrNull { it > current }
 
-    /** 1-based position and total, for "Step 4 of 10". */
-    fun position(current: OnboardingStep, settings: AmethystSettings): Pair<Int, Int> {
-        val steps = steps(settings)
+    fun previous(current: OnboardingStep, settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): OnboardingStep? =
+        steps(settings, path).lastOrNull { it < current }
+
+    /**
+     * 1-based position and total, for "Step 4 of 10" - null on the welcome step, where the
+     * way and with it the number of steps is still to be chosen.
+     */
+    fun position(current: OnboardingStep, settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): Pair<Int, Int>? {
+        if (current == OnboardingStep.WELCOME) return null
+        val steps = steps(settings, path)
         return (steps.count { it <= current }).coerceAtLeast(1) to steps.size
     }
 

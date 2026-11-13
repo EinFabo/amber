@@ -69,7 +69,11 @@ data class AppProfile(
 
 object AppProfiles {
 
-    /** What a fresh install starts with - common messengers casual, mail formal, notes concise. */
+    /**
+     * What every install started with before [KnownApps] - whether the apps were on the phone
+     * or not. Settings stored without profiles still decode to these; a new install starts
+     * with none and gets [defaultsFor] the apps it has.
+     */
     val DEFAULTS = listOf(
         AppProfile("com.whatsapp", "WhatsApp", WritingStyle.CASUAL),
         AppProfile("org.telegram.messenger", "Telegram", WritingStyle.CASUAL),
@@ -78,6 +82,22 @@ object AppProfiles {
         AppProfile("com.microsoft.office.outlook", "Outlook", WritingStyle.FORMAL),
         AppProfile("com.google.android.keep", "Keep", WritingStyle.CONCISE),
     )
+
+    /**
+     * The profiles a new install starts with: one for each known app ([KnownApps]) that is
+     * [installed], in the catalog's order - and none for an app that has one in [existing],
+     * so what the user set is never written over.
+     */
+    fun defaultsFor(installed: Set<String>, existing: List<AppProfile> = emptyList()): List<AppProfile> {
+        val taken = existing.mapTo(HashSet()) { it.packageName }
+        return KnownApps.ALL
+            .filter { it.packageName in installed && it.packageName !in taken }
+            .map(KnownApps::profile)
+    }
+
+    /** [profiles] untouched, with [defaultsFor] the installed apps that have none behind them. */
+    fun withDefaults(profiles: List<AppProfile>, installed: Set<String>): List<AppProfile> =
+        profiles + defaultsFor(installed, profiles)
 
     fun forPackage(profiles: List<AppProfile>, packageName: String?): AppProfile? =
         packageName?.let { name -> profiles.firstOrNull { it.packageName == name } }

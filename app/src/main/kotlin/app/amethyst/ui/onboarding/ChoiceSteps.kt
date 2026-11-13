@@ -21,9 +21,13 @@ import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.CleanupServices
 import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.KnownApps
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.Hint
+import app.amethyst.ui.PendingModel
+import app.amethyst.ui.PendingModelNote
 import app.amethyst.ui.ProgressLine
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SetupActions
@@ -88,7 +92,7 @@ internal fun CleanupStep(
     }
 }
 
-/** Messages casual, mail formal, notes short - the stock styles, for the apps on this phone. */
+/** Messages casual, mail formal, notes short - the stock styles, for the known apps on this phone ([KnownApps]). */
 @Composable
 internal fun AppStylesStep(settings: AmethystSettings, content: OnboardingContent, onNext: () -> Unit) {
     val installed by produceState<Set<String>?>(null, content.apps) {
@@ -99,15 +103,20 @@ internal fun AppStylesStep(settings: AmethystSettings, content: OnboardingConten
         lead = stringResource(R.string.styles_step_lead),
         buttons = { ContinueButton(onNext) },
     ) {
-        val here = installed?.let { apps -> AppProfiles.DEFAULTS.filter { it.packageName in apps } }
+        val here = installed?.let { apps -> KnownApps.ALL.filter { it.packageName in apps }.map(KnownApps::profile) }
         when {
             here == null -> Unit
             here.isEmpty() -> Hint(stringResource(R.string.styles_step_none))
             else -> here.forEach { profile ->
-                val on = settings.profiles.any { it.packageName == profile.packageName }
+                // Shown as the user has it, if they do; switching it on gives the stock one.
+                val own = AppProfiles.forPackage(settings.profiles, profile.packageName)
+                val on = own != null
                 ToggleRow(
                     label = profile.label,
-                    description = profile.style.label(),
+                    description = listOfNotNull(
+                        (own ?: profile).style.label(),
+                        stringResource(R.string.styles_cleanup_off).takeIf { (own ?: profile).appCleanup.mode == AppCleanupMode.OFF },
+                    ).joinToString(" · "),
                     checked = on,
                     onChange = { checked ->
                         content.onUpdateSettings { s ->
@@ -170,9 +179,13 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
     }
 }
 
-/** What was chosen and where to change it; "Try it" leads to the flame on Home. */
+/**
+ * What was chosen - or, on the quick way, decided for this phone - and where to change it;
+ * "Try it" leads to the flame on Home. A recognition that still waits for its model is named
+ * with one line on what happens until then ([PendingModelNote]).
+ */
 @Composable
-internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFinish: () -> Unit) {
+internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pending: PendingModel?, onFinish: () -> Unit) {
     StepPage(
         title = stringResource(R.string.done_title),
         lead = stringResource(R.string.done_lead),
@@ -181,9 +194,11 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFi
         // By the name the engine step gave it, not the one Settings lists it under.
         Chosen(
             stringResource(R.string.settings_recognition),
-            settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
+            pending?.let { stringResource(R.string.pending_then, words(EngineNames.of(it.option))) }
+                ?: settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
             stringResource(R.string.done_where_recognition),
         )
+        if (pending != null) PendingModelNote(pending)
         Chosen(stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup))
         Chosen(
             stringResource(R.string.settings_bubble),
@@ -191,7 +206,7 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, onFi
             stringResource(R.string.done_where_bubble),
         )
         Chosen(stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_advanced))
-        if (download != null) {
+        if (download != null && pending == null) {
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Hint(Texts.download(LocalContext.current, download), AmberPalette.Text)
                 ProgressLine((download as? ModelDownload.Running)?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f })

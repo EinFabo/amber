@@ -11,6 +11,8 @@ data class PhoneFacts(
     val whisperCpu: Boolean,
     /** Whether Android's recognizer keeps the voice on the phone. */
     val androidOnDevice: Boolean,
+    /** Whether the phone has a recognizer of Android's at all; a few come without one. */
+    val androidRecognizer: Boolean = true,
 )
 
 /** The engines the introduction offers, each with what it downloads. */

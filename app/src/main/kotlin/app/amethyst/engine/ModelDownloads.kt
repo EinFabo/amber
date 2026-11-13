@@ -13,8 +13,11 @@ import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.settings.EngineConfig
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /**
  * The introduction's downloads: started at once on Wi-Fi, over mobile data only when the user
@@ -103,23 +106,57 @@ class ModelDownloads(
         }
     }
 
+    /** Lets go of a download held for [option]; one held for another stays. */
+    fun cancelWait(option: EngineOption) {
+        if (_waiting.value == option) stopWaiting()
+    }
+
+    /** Whether [option]'s model is on the phone, as it changes - for the recognition that waits for it. */
+    fun ready(option: EngineOption): Flow<Boolean> {
+        val whisperId = option.whisperModelId
+        return when {
+            option == EngineOption.PARAKEET -> parakeet.state.map { it is ParakeetState.Ready }
+            whisperId != null -> whisper.states.map { it[whisperId] is SlotState.Ready }
+            else -> flowOf(true)
+        }
+    }
+
     /** The download the [config] engine is waiting for, or null when it is not downloading. */
     fun forEngine(config: EngineConfig): ModelDownload? = when (config.kind) {
-        // A model on the phone wins over a wait held for it - it was fetched some other way.
-        EngineKind.LOCAL_SHERPA -> when (val state = parakeet.state.value) {
-            is ParakeetState.Busy -> ModelDownload.Running(state.received, state.total)
-            is ParakeetState.Ready -> null
-            else -> ModelDownload.WaitingForWifi.takeIf { _waiting.value == EngineOption.PARAKEET }
-        }
-        EngineKind.WHISPER_CPP -> {
-            val modelId = config.modelId ?: WhisperModels.default.id
-            when (val state = whisper.states.value[modelId]) {
-                is SlotState.Busy -> ModelDownload.Running(state.received, state.total ?: 0)
-                is SlotState.Ready -> null
-                else -> ModelDownload.WaitingForWifi.takeIf { _waiting.value?.whisperModelId == modelId }
-            }
-        }
+        EngineKind.LOCAL_SHERPA -> forOption(EngineOption.PARAKEET)
+        EngineKind.WHISPER_CPP -> forWhisper(config.modelId ?: WhisperModels.default.id)
         else -> null
+    }
+
+    /** Whether [option]'s download gave up - nothing waiting will fix that, only another try. */
+    fun failed(option: EngineOption): Boolean {
+        val whisperId = option.whisperModelId
+        return when {
+            option == EngineOption.PARAKEET -> parakeet.state.value is ParakeetState.Failed
+            whisperId != null -> whisper.states.value[whisperId] is SlotState.Failed
+            else -> false
+        }
+    }
+
+    /** The same for one of the introduction's options, active or not. */
+    fun forOption(option: EngineOption): ModelDownload? {
+        val whisperId = option.whisperModelId
+        return when {
+            // A model on the phone wins over a wait held for it - it was fetched some other way.
+            option == EngineOption.PARAKEET -> when (val state = parakeet.state.value) {
+                is ParakeetState.Busy -> ModelDownload.Running(state.received, state.total)
+                is ParakeetState.Ready -> null
+                else -> ModelDownload.WaitingForWifi.takeIf { _waiting.value == EngineOption.PARAKEET }
+            }
+            whisperId != null -> forWhisper(whisperId)
+            else -> null
+        }
+    }
+
+    private fun forWhisper(modelId: String): ModelDownload? = when (val state = whisper.states.value[modelId]) {
+        is SlotState.Busy -> ModelDownload.Running(state.received, state.total ?: 0)
+        is SlotState.Ready -> null
+        else -> ModelDownload.WaitingForWifi.takeIf { _waiting.value?.whisperModelId == modelId }
     }
 
     companion object {

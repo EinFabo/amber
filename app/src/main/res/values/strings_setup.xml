@@ -44,7 +44,10 @@
     <string name="continue_">Continue</string>
     <string name="welcome_title">Speak instead of typing</string>
     <string name="welcome_lead">Amber turns your voice into text in any app: tap the bubble, speak, and the text appears where your cursor is.</string>
-    <string name="welcome_set_up">Set up</string>
+    <string name="welcome_quick">Quick setup</string>
+    <string name="welcome_deep">Step by step</string>
+    <string name="welcome_skip">Skip the introduction</string>
+    <string name="welcome_ways">Quick setup asks for two permissions and picks the speech recognition that fits this phone. Step by step, you choose everything yourself.</string>
     <string name="welcome_every_app">In every app</string>
     <string name="welcome_every_app_note">A small bubble floats over the app you are in.</string>
     <string name="welcome_private">Private by default</string>
@@ -97,6 +100,10 @@
     <string name="done_else_value">Recording, inserting, statistics, diagnostics</string>
     <string name="done_where_advanced">Settings → Advanced settings</string>
     <string name="done_download_note">Amber is ready when it is done; until then the bubble says so.</string>
+    <string name="pending_downloading">Downloading the speech model - until then Android\'s speech recognition is used.</string>
+    <string name="pending_wifi">The speech model (%1$s) downloads on Wi-Fi - until then Android\'s speech recognition is used.</string>
+    <string name="pending_stopped">The speech model has not been downloaded yet - until then Android\'s speech recognition is used.</string>
+    <string name="pending_then">%1$s, once its model is here</string>
     <string name="practice_title">Try it</string>
     <string name="practice_lead">The real bubble, above the keyboard. Each try ticks off when Amber sees it.</string>
     <string name="practice_switch_on">Switch it on</string>

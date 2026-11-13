@@ -27,6 +27,7 @@ import app.amethyst.data.StrategyStore
 import app.amethyst.dictation.DictationController
 import app.amethyst.engine.AmberCatalogRefresher
 import app.amethyst.engine.EngineFactory
+import app.amethyst.engine.FirstRunSetup
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.NativeWhisperRuntime
 import app.amethyst.engine.OpusEncoder
@@ -172,6 +173,9 @@ class Graph(app: Application) {
 
     /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */
     val launcherList = LauncherList(app)
+
+    /** What a new install is given without being asked, and the recognition that waits for its model. */
+    val firstRun = FirstRunSetup(app, appScope, settingsStore, loadedSettings, { modelDownloads }, launcherList)
 
     /**
      * How long recognition, upload and cleanup take per engine and model on this phone, for the

@@ -44,7 +44,10 @@
     <string name="continue_">Weiter</string>
     <string name="welcome_title">Sprechen statt tippen</string>
     <string name="welcome_lead">Amber macht aus deiner Stimme Text, in jeder App: Tippe auf die Bubble, sprich, und der Text erscheint dort, wo dein Cursor ist.</string>
-    <string name="welcome_set_up">Einrichten</string>
+    <string name="welcome_quick">Schnell einrichten</string>
+    <string name="welcome_deep">Schritt für Schritt</string>
+    <string name="welcome_skip">Einführung überspringen</string>
+    <string name="welcome_ways">Schnell einrichten fragt nach zwei Berechtigungen und wählt die Spracherkennung, die zu diesem Handy passt. Schritt für Schritt entscheidest du alles selbst.</string>
     <string name="welcome_every_app">In jeder App</string>
     <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist.</string>
     <string name="welcome_private">Privat von Anfang an</string>
@@ -97,6 +100,10 @@
     <string name="done_else_value">Aufnahme, Einfügen, Statistik, Diagnose</string>
     <string name="done_where_advanced">Einstellungen → Erweiterte Einstellungen</string>
     <string name="done_download_note">Amber ist bereit, wenn es fertig ist; bis dahin sagt die Bubble Bescheid.</string>
+    <string name="pending_downloading">Das Sprachmodell wird geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
+    <string name="pending_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
+    <string name="pending_stopped">Das Sprachmodell ist noch nicht geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
+    <string name="pending_then">%1$s, sobald das Modell da ist</string>
     <string name="practice_title">Ausprobieren</string>
     <string name="practice_lead">Die echte Bubble, über der Tastatur. Jeder Versuch wird abgehakt, sobald Amber ihn sieht.</string>
     <string name="practice_switch_on">Einschalten</string>

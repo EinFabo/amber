@@ -63,6 +63,8 @@ import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
+import app.amethyst.ui.PendingModel
+import app.amethyst.ui.PendingModelNote
 import app.amethyst.ui.StatusRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.engineName
@@ -96,6 +98,8 @@ fun HomeScreen(
     update: UpdateNotice? = null,
     onDownloadUpdate: (UpdateNotice) -> Unit = {},
     onDismissUpdate: (UpdateNotice) -> Unit = {},
+    /** The recognition chosen for this phone that still waits for its model; Android's stands in. */
+    pending: PendingModel? = null,
 ) {
     val testField = remember { FocusRequester() }
 
@@ -124,6 +128,9 @@ fun HomeScreen(
         if (setup.otherAmbers.isNotEmpty()) OtherAmbersCard(setup.otherAmbers, actions.openAccessibilityList)
 
         EngineGroup(settings, onOpenRecognition, onOpenCleanup)
+
+        // Said here too: someone who skipped the introduction never saw its last step.
+        if (pending != null) PendingModelNote(pending, Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.

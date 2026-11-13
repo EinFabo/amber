@@ -31,6 +31,7 @@ import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.onboarding.Onboarding
+import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.engine.ParakeetState
@@ -38,6 +39,7 @@ import app.amethyst.ui.AppSource
 import app.amethyst.ui.BackGlyph
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.IconAction
+import app.amethyst.ui.PendingModel
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.screen.CleanupAccess
@@ -46,10 +48,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
 /**
- * The introduction: one decision per screen, from what Amber does to the first dictation. A
- * line on top says where you are, with Back and - once the permissions and the engine are
- * done - Skip, which keeps the step's current choice. The steps write their choices as they
- * are made, so leaving halfway keeps what was chosen.
+ * The introduction: one decision per screen, from what Amber does to the first dictation. The
+ * welcome step chooses the way ([OnboardingPath]): quick - the two permissions and a try, the
+ * rest decided for the phone - or step by step, or not at all ([onSkipAll]). A line on top says
+ * where you are, with Back and - once the permissions and the engine are done - Skip, which
+ * keeps the step's current choice. The steps write their choices as they are made, so leaving
+ * halfway keeps what was chosen.
  */
 @Composable
 fun OnboardingScreen(
@@ -61,18 +65,22 @@ fun OnboardingScreen(
     onStep: (OnboardingStep) -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
+    path: OnboardingPath = OnboardingPath.DEEP,
+    /** The way chosen on the welcome step; the caller decides what it sets up and moves on. */
+    onPath: (OnboardingPath) -> Unit = {},
+    /** "Skip the introduction": straight into the app. */
+    onSkipAll: () -> Unit = onFinish,
 ) {
     // Moves on as the settings will be once a step's choice is written - DataStore answers a
     // moment later, and the cleanup step decides whether the styles step comes next. Each step
     // moves on from itself: a step still fading out that calls it late only repeats the move
     // already made, never makes a second one past the step that came in.
-    val nextFrom: (OnboardingStep, AmethystSettings) -> Unit = { from, after -> Onboarding.next(from, after)?.let(onStep) ?: onFinish() }
+    val nextFrom: (OnboardingStep, AmethystSettings) -> Unit = { from, after -> Onboarding.next(from, after, path)?.let(onStep) ?: onFinish() }
     val next: () -> Unit = { nextFrom(step, settings) }
     Column(modifier.fillMaxSize()) {
         StepLine(
-            step = step,
-            settings = settings,
-            onBack = Onboarding.previous(step, settings)?.let { previous -> { onStep(previous) } },
+            position = Onboarding.position(step, settings, path),
+            onBack = Onboarding.previous(step, settings, path)?.let { previous -> { onStep(previous) } },
             onSkip = next.takeIf { Onboarding.skippable(step) },
         )
         AnimatedContent(
@@ -83,7 +91,7 @@ fun OnboardingScreen(
         ) { current ->
             val onward: () -> Unit = { nextFrom(current, settings) }
             when (current) {
-                OnboardingStep.WELCOME -> WelcomeStep(onward)
+                OnboardingStep.WELCOME -> WelcomeStep(onPath, onSkipAll)
                 OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, onward)
                 OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, onward)
                 OnboardingStep.ENGINE -> EngineStep(settings, content, onward)
@@ -92,7 +100,7 @@ fun OnboardingScreen(
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
                 OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
-                OnboardingStep.DONE -> DoneStep(settings, content.download, onFinish)
+                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, onFinish)
             }
         }
     }
@@ -123,12 +131,13 @@ class OnboardingContent(
     val hasLastDictation: Boolean = false,
     /** What the cleanup step's service list needs: keys, settings, a server's models, a key's test. */
     val cleanup: CleanupAccess,
+    /** The recognition chosen for this phone that still waits for its model, for the last step. */
+    val pending: PendingModel? = null,
 )
 
-/** "Step 4 of 10" between Back and Skip. */
+/** "Step 4 of 10" between Back and Skip - no number on the welcome step, where the way is chosen. */
 @Composable
-private fun StepLine(step: OnboardingStep, settings: AmethystSettings, onBack: (() -> Unit)?, onSkip: (() -> Unit)?) {
-    val (position, total) = Onboarding.position(step, settings)
+private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (() -> Unit)?) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -140,7 +149,7 @@ private fun StepLine(step: OnboardingStep, settings: AmethystSettings, onBack: (
     ) {
         if (onBack != null) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph) else Spacer(Modifier.size(44.dp))
         Text(
-            stringResource(R.string.step_of, position, total),
+            position?.let { (at, total) -> stringResource(R.string.step_of, at, total) }.orEmpty(),
             style = MaterialTheme.typography.labelLarge,
             color = AmberPalette.Muted,
             modifier = Modifier.weight(1f),

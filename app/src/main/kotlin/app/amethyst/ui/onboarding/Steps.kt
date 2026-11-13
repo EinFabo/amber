@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.ui.AccessibilityDisclosure
 import app.amethyst.ui.FlameMark
 import app.amethyst.ui.FullDisclosure
@@ -56,12 +57,21 @@ private fun Point(title: String, text: String) {
     }
 }
 
+/**
+ * What Amber is, and the three ways on: the quick setup as the filled button, every choice
+ * step by step, or none of it now - Home then shows what is still missing.
+ */
 @Composable
-internal fun WelcomeStep(onNext: () -> Unit) {
+internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
     StepPage(
         title = stringResource(R.string.welcome_title),
         lead = stringResource(R.string.welcome_lead),
-        buttons = { ContinueButton(onNext, stringResource(R.string.welcome_set_up)) },
+        buttons = {
+            Hint(stringResource(R.string.welcome_ways), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            ContinueButton({ onPath(OnboardingPath.QUICK) }, stringResource(R.string.welcome_quick))
+            GhostButton(stringResource(R.string.welcome_deep), { onPath(OnboardingPath.DEEP) })
+            LaterButton(stringResource(R.string.welcome_skip), onSkipAll)
+        },
     ) {
         FlameMark(Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
         Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))

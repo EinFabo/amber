@@ -160,8 +160,31 @@ series and one store release per phase, each after his OK.
       keyboard, its instruction heard in the next dictation; the app page left open in Amber
       while the card changes the instruction; a notification reply field and the launcher -
       Android may hide System UI's package from Amber, then the actions are grey there).
-- [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**: the engine chosen by the device
-      (`EngineAdvice.recommend`), app styles only for installed apps (`KnownApps`).
+- [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**, built 2026-11-13: the welcome
+      step offers three ways. Quick setup (the filled button): accessibility, microphone, "Try
+      it", done - five steps; the try stays because it is where the bubble shows for the first
+      time, and it is skipped with one tap. Step by step: the introduction as it was. Skip the
+      introduction: straight to Home, whose setup card shows what is missing. Quick and Skip
+      decide the same (`FirstRun` in `:core`): the recognition from `EngineAdvice.recommend`;
+      if its model has to be downloaded, Android's recognition is active until it is there and
+      the recommended one then takes over by itself (`firstRun.pendingEngine`, taken up again
+      with every process start by `FirstRunSetup`) - but only where Android's recognition keeps
+      the voice on the phone; elsewhere the recommended one is active at once and a dictation
+      waits for its download. The download waits for Wi-Fi unless "Download now - 670 MB of
+      mobile data" is tapped (last step and Home). Cleanup stays off. A recognition the user
+      chose meanwhile is never switched away from. App styles: `KnownApps` (34 apps: messengers
+      casual, mail and work formal, notes concise, terminals with the cleanup off) and
+      `AppProfiles.defaultsFor(installed)` - a new install starts with no styles and gets them
+      once for the apps on the phone (the launcher query the manifest already had); existing
+      installs keep theirs. A replay changes nothing by itself: no engine, cleanup or style.
+      The welcome step has no "Step 1 of n" any more - the number depends on the way chosen.
+      Open: the device test - a fresh install on Wi-Fi (Quick: the practice step with
+      Android's recognition, the switch to Parakeet by itself, also with Amber closed and the
+      service running) and on mobile data (the wait, "Download now", Wi-Fi coming later, a
+      restart in between); Skip, then Home; a replay by someone on Groq with a cleanup. Known:
+      a failed download is only tried again on the next process start or by "Try again";
+      nothing tells the user at the moment the recognition switches. Decide (Fabi): Slack and
+      Teams formal or casual; Android as the stand-in also where it is not on the phone.
 - [ ] **P8 - Light mode**: built, not yet on a phone. Settings -> Amber -> Appearance: like the
       phone (the default, also for an existing install - until now Amber was dark on every
       phone), light, dark (`UiSettings.theme`, no schema change: absent, it follows the phone).
