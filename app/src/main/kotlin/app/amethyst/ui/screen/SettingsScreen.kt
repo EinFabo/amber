@@ -219,8 +219,8 @@ internal fun ThemeDialog(current: ThemeMode, onChange: (ThemeMode) -> Unit, onDi
 }
 
 /**
- * The one switch between the simple and the full settings. Off, it says how much more there
- * is - or, first, what Reliability would flag, which is then out of sight.
+ * The one switch between the simple and the full settings. Off, it names the first rows it
+ * holds - or, first, what Reliability would flag, which is then out of sight.
  */
 @Composable
 private fun AdvancedSwitch(advanced: Boolean, reliabilityOpen: Int, onChange: (Boolean) -> Unit) {
@@ -232,6 +232,8 @@ private fun AdvancedSwitch(advanced: Boolean, reliabilityOpen: Int, onChange: (B
             Modifier.toggleable(value = advanced, role = Role.Switch, onValueChange = onChange),
             icon = AmberIcons.Tune,
             summaryColor = if (flagged) AmberPalette.Primary else AmberPalette.Muted,
+            // The titles it holds, which the switch beside them leaves little room for.
+            summaryMaxLines = 2,
             trailing = { AmberSwitch(advanced) },
             onClick = null,
         )

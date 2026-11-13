@@ -172,7 +172,8 @@ object Texts {
                 .ifEmpty { getString(R.string.summary_as_recognized) }
             is Summary.Reliability -> if (summary.open == 0) getString(R.string.summary_all_set) else count(R.plurals.summary_things_open, summary.open)
             is Summary.Diagnostics -> if (summary.count == 0) getString(R.string.summary_nothing_dictated) else count(R.plurals.summary_last_dictations, summary.count)
-            is Summary.MoreSettings -> count(R.plurals.summary_more_settings, summary.hidden)
+            is Summary.MoreSettings -> summary.first.joinToString(", ") { SettingsTitles.of(this, it) }
+                .let { titles -> if (summary.more) getString(R.string.summary_titles_and_more, titles) else titles }
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
             is Summary.Theme -> theme(this, summary.mode)

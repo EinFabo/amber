@@ -29,10 +29,7 @@
         <item quantity="one">Letztes Diktat</item>
         <item quantity="other">Letzte %d Diktate</item>
     </plurals>
-    <plurals name="summary_more_settings">
-        <item quantity="one">%d weitere Einstellung</item>
-        <item quantity="other">%d weitere Einstellungen</item>
-    </plurals>
+    <string name="summary_titles_and_more">%1$s …</string>
     <string name="summary_reliability_open">Zuverlässigkeit: %1$s</string>
     <plurals name="summary_models">
         <item quantity="one">%d Modell</item>

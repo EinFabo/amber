@@ -12,6 +12,8 @@ import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.InsertionSettings
 import app.amethyst.core.settings.InsertPart
+import app.amethyst.core.settings.SettingsItem
+import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
 import kotlin.test.Test
@@ -104,8 +106,26 @@ class SettingsSummariesTest {
 
     @Test
     fun `the folded advanced row names what needs a look before how much it holds`() {
-        assertEquals(Summary.MoreSettings(4), SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 0))
-        assertEquals(Summary.ReliabilityOpen(1), SettingsSummaries.advanced(hidden = 4, reliabilityOpen = 1))
+        val hidden = SettingsLayout.hiddenRows(voiceCommands = false)
+        assertEquals(
+            Summary.MoreSettings(listOf(SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING), more = true),
+            SettingsSummaries.advanced(hidden, reliabilityOpen = 0),
+        )
+        assertEquals(Summary.ReliabilityOpen(1), SettingsSummaries.advanced(hidden, reliabilityOpen = 1))
+    }
+
+    @Test
+    fun `the folded advanced row names the first rows it holds, as the switch would show them`() {
+        // With the voice commands, their row comes first: it is the first one the switch adds.
+        assertEquals(
+            Summary.MoreSettings(listOf(SettingsItem.VOICE_COMMANDS, SettingsItem.FALLBACK, SettingsItem.RECORDING), more = true),
+            SettingsSummaries.advanced(SettingsLayout.hiddenRows(voiceCommands = true), reliabilityOpen = 0),
+        )
+        // A few rows are all named, and nothing says there is more.
+        val few = listOf(SettingsItem.RECORDING, SettingsItem.DIAGNOSTICS)
+        assertEquals(Summary.MoreSettings(few, more = false), SettingsSummaries.advanced(few, reliabilityOpen = 0))
+        val three = listOf(SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.DIAGNOSTICS)
+        assertEquals(Summary.MoreSettings(three, more = false), SettingsSummaries.advanced(three, reliabilityOpen = 0))
     }
 
     @Test

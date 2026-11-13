@@ -146,9 +146,28 @@ class SettingsLayoutTest {
     }
 
     @Test
-    fun `the simple view says how many rows the switch hides`() {
-        assertEquals(6, SettingsLayout.hiddenRows(voiceCommands = false))
-        assertEquals(7, SettingsLayout.hiddenRows(voiceCommands = true))
+    fun `the simple view knows which rows the switch hides, in page order`() {
+        assertEquals(
+            listOf(
+                SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY,
+                SettingsItem.STATISTICS, SettingsItem.DIAGNOSTICS,
+            ),
+            SettingsLayout.hiddenRows(voiceCommands = false),
+        )
+        assertEquals(listOf(SettingsItem.VOICE_COMMANDS, SettingsItem.FALLBACK), SettingsLayout.hiddenRows(voiceCommands = true).take(2))
+        assertEquals(7, SettingsLayout.hiddenRows(voiceCommands = true).size)
+    }
+
+    @Test
+    fun `the hidden rows are what the switch adds, whatever the table says`() {
+        for (voiceCommands in listOf(false, true)) {
+            val simple = SettingsLayout.groups(advanced = false, voiceCommands).flatMap { it.items }
+            val all = SettingsLayout.groups(advanced = true, voiceCommands).flatMap { it.items }
+            val hidden = SettingsLayout.hiddenRows(voiceCommands)
+            assertEquals(all.toSet(), (simple + hidden).toSet())
+            assertTrue(hidden.none { it in simple })
+            assertTrue(hidden.all { it.group != null })
+        }
     }
 
     @Test

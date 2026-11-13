@@ -76,7 +76,12 @@ object SettingsLayout {
     fun showsQuickMenu(bubble: BubbleSettings, advanced: Boolean): Boolean =
         shows(SettingsItem.QUICK_MENU, advanced) || bubble.quickMenuIdle != null
 
-    /** How many rows of the Settings page only the advanced view shows. */
-    fun hiddenRows(voiceCommands: Boolean = Features.VOICE_COMMANDS): Int =
-        groups(advanced = true, voiceCommands).sumOf { it.items.size } - groups(advanced = false, voiceCommands).sumOf { it.items.size }
+    /**
+     * The rows of the Settings page only the advanced view shows, in page order - what the
+     * folded "Advanced settings" row says it holds ([SettingsSummaries.advanced]).
+     */
+    fun hiddenRows(voiceCommands: Boolean = Features.VOICE_COMMANDS): List<SettingsItem> {
+        val simple = groups(advanced = false, voiceCommands).flatMap { it.items }.toSet()
+        return groups(advanced = true, voiceCommands).flatMap { it.items }.filterNot { it in simple }
+    }
 }

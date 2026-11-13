@@ -42,8 +42,11 @@ sealed interface Summary {
     /** The last [count] dictations; nothing dictated yet at 0. */
     data class Diagnostics(val count: Int) : Summary
 
-    /** The folded "Advanced" row: how much it holds... */
-    data class MoreSettings(val hidden: Int) : Summary
+    /**
+     * The folded "Advanced" row: what it holds - the [first] few rows by their titles, and
+     * whether there are [more] ("When the server fails, Recording, Inserting ...")...
+     */
+    data class MoreSettings(val first: List<SettingsItem>, val more: Boolean) : Summary
 
     /** ...or what in it needs a look. */
     data class ReliabilityOpen(val open: Int) : Summary
@@ -120,8 +123,16 @@ object SettingsSummaries {
 
     fun diagnostics(count: Int): Summary = Summary.Diagnostics(count)
 
-    fun advanced(hidden: Int, reliabilityOpen: Int): Summary =
-        if (reliabilityOpen > 0) Summary.ReliabilityOpen(reliabilityOpen) else Summary.MoreSettings(hidden)
+    /** [hidden]: the rows the switch would show ([SettingsLayout.hiddenRows]), so the two never differ. */
+    fun advanced(hidden: List<SettingsItem>, reliabilityOpen: Int): Summary =
+        if (reliabilityOpen > 0) {
+            Summary.ReliabilityOpen(reliabilityOpen)
+        } else {
+            Summary.MoreSettings(hidden.take(ADVANCED_TITLES), more = hidden.size > ADVANCED_TITLES)
+        }
+
+    /** How many titles the folded "Advanced settings" row names: what fits a line on a phone. */
+    const val ADVANCED_TITLES = 3
 
     fun models(count: Int): Summary = Summary.Models(count)
 

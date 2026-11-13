@@ -31,10 +31,7 @@
         <item quantity="one">Last %d dictation</item>
         <item quantity="other">Last %d dictations</item>
     </plurals>
-    <plurals name="summary_more_settings">
-        <item quantity="one">%d more setting</item>
-        <item quantity="other">%d more settings</item>
-    </plurals>
+    <string name="summary_titles_and_more">%1$s …</string>
     <string name="summary_reliability_open">Reliability: %1$s</string>
     <plurals name="summary_models">
         <item quantity="one">%d model</item>
