@@ -259,7 +259,13 @@ series and one store release per phase, each after his OK.
       keyboard state; of (2) only the cheap part - window changes that are no window added,
       removed or resized are not looked at. Left: not reading the window list while a
       field has focus but its keyboard is closed (the event does not say it is the
-      keyboard's - needs a device to find a safe sign), the bubble's own moves, (3), (5).
+      keyboard's - needs a device to find a safe sign), the bubble's own moves, (3).
+      (5) built the same day: from Android 13 the service takes focus events off its list
+      when it connects. Measured on the Pixel 9a, `dumpsys batterystats --charged`,
+      2026-11-13, 13 h on battery, 2087 mAh drained in all: Amber's test build 7.2 mAh
+      (0.35 %; 4.5 mAh of it CPU over about 6.5 h with the service on, a day of testing
+      included), Wispr Flow 1.7 mAh over 1.8 h - both under 1 mAh per hour. The battery is
+      no problem here; the rest of the list is not worth a risk to the bubble coming back.
 - [ ] **Bubble position next to the keyboard still not right** (Fabi, 2026-11-11): mostly
       answered by the fixed place above. Left of it: the bubble appears at once while the
       keyboard still slides ("Bubble starts clearly after the keyboard, jumps instead of

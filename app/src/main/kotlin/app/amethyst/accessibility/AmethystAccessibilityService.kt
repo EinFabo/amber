@@ -101,6 +101,14 @@ class AmethystAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         Log.i(TAG, "accessibility service connected")
 
+        // From Android 13 the input method callbacks say which field takes text; the focus
+        // events every app sends all day are then delivered for nothing.
+        if (tracksInputDirectly) {
+            runCatching {
+                serviceInfo = serviceInfo?.apply { eventTypes = eventTypes and AccessibilityEvent.TYPE_VIEW_FOCUSED.inv() }
+            }.onFailure { Log.w(TAG, "could not narrow the event types", it) }
+        }
+
         if (!scope.isActive) scope = newScope()
 
         graph = AmethystApp.graph(this)
