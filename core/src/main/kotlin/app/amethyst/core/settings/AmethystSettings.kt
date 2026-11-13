@@ -178,15 +178,11 @@ data class BubbleSettings(
     /** The edge the bubble is docked on; a drag or a sideways fling changes it. */
     val side: BubbleSide = BubbleSide.RIGHT,
     /**
-     * Its height along the edge without a keyboard, as a share of the screen between the
-     * status bar and the gesture bar (0 = top, 1 = bottom), so a rotation keeps it in place.
+     * Its place along the edge, with or without a keyboard, as a share of the screen between
+     * the status bar and the gesture bar (0 = top, 1 = bottom), so a rotation keeps it in
+     * place. Until schema 14 a second height applied while a keyboard was up.
      */
     val edgeY: Float = DEFAULT_EDGE_Y,
-    /**
-     * Its height while a keyboard is up: the gap between the bubble and the keys. Its own,
-     * so the bubble clears an app's input bar; dragging it while the keyboard is up sets it.
-     */
-    val aboveKeyboardDp: Int = DEFAULT_ABOVE_KEYBOARD_DP,
     val sizeDp: Int = 56,
     val haptics: Boolean = true,
     /**
@@ -213,14 +209,14 @@ data class BubbleSettings(
     val quickMenuIdle: List<String?>? = null,
 ) {
     companion object {
-        /** About three quarters down, where a thumb rests. */
-        const val DEFAULT_EDGE_Y = 0.72f
-
         /**
-         * Clearly above a chat app's input bar (about 56-64 dp with its margins), so the bubble
-         * never lands on the send or microphone button at the bar's end.
+         * About a third down: above a keyboard and above a chat's input grown to its seven
+         * lines, so the bubble has nothing to give way to.
          */
-        const val DEFAULT_ABOVE_KEYBOARD_DP = 80
+        const val DEFAULT_EDGE_Y = 0.32f
+
+        /** Until schema 14 the default - behind the keyboard; an install that still has it gets [DEFAULT_EDGE_Y]. */
+        const val OLD_DEFAULT_EDGE_Y = 0.72f
     }
 }
 
@@ -327,6 +323,8 @@ data class AmethystSettings(
          * to none, and the next fetch fills it.
          * 11: the bubble docks on a side edge, with its own height above the keyboard - the
          * free position becomes a side and a height along it.
+         * 14: the bubble has one place, keyboard or not - the height above the keyboard goes,
+         * and the old default place, where the keyboard opens, becomes the new one.
          * 13: the longest recording grows from two minutes to five - a stored two minutes was
          * the old default (settings are saved with every field), any other value the user's.
          * The update check ([updates]) needed no new version: an absent field decodes to its
@@ -334,7 +332,7 @@ data class AmethystSettings(
          * (settings from before it), and a new install starts with it off ([defaults]).
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 13
+        const val SCHEMA_VERSION = 14
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -412,7 +410,9 @@ object SettingsCodec {
             // Version 8: whoever had settings before the introduction existed has set Amber up.
             onboardingDone = settings.onboardingDone || settings.schemaVersion < 8,
             profiles = if (settings.schemaVersion < 9) settings.profiles.map(::migrateProfile) else settings.profiles,
-            bubble = if (settings.schemaVersion < 11) migrateBubble(settings.bubble) else settings.bubble,
+            bubble = settings.bubble
+                .let { if (settings.schemaVersion < 11) migrateBubble(it) else it }
+                .let(::migrateBubblePlace),
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
@@ -444,6 +444,14 @@ private fun migrateBubble(bubble: BubbleSettings): BubbleSettings = bubble.copy(
     horizontalBias = null,
     verticalBias = null,
 )
+
+/**
+ * Version 14: the bubble has one place and no longer moves above the keyboard. The old default
+ * lay where the keyboard opens and would end up right on the keys' edge, on a chat's send
+ * button; a place the user chose stays as it is.
+ */
+private fun migrateBubblePlace(bubble: BubbleSettings): BubbleSettings =
+    if (bubble.edgeY == BubbleSettings.OLD_DEFAULT_EDGE_Y) bubble.copy(edgeY = BubbleSettings.DEFAULT_EDGE_Y) else bubble
 
 /**
  * Version 13: two minutes cut a dictation off mid-sentence. The old default becomes five

@@ -113,7 +113,6 @@ class SettingsTest {
         val migrated = SettingsCodec.decode(left, TEST_PHONE)
         assertEquals(BubbleSide.LEFT, migrated.bubble.side)
         assertEquals(0.4f, migrated.bubble.edgeY)
-        assertEquals(BubbleSettings.DEFAULT_ABOVE_KEYBOARD_DP, migrated.bubble.aboveKeyboardDp)
         assertEquals(64, migrated.bubble.sizeDp, "the rest of the bubble settings stay")
         assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
         @Suppress("DEPRECATION")
@@ -169,9 +168,45 @@ class SettingsTest {
     }
 
     @Test
+    fun `schema 14 lifts a bubble still at the old default out of the keyboard's way`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"side":"LEFT","edgeY":0.72,"aboveKeyboardDp":80},"schemaVersion":13}"""
+        val migrated = SettingsCodec.decode(old, TEST_PHONE)
+        assertEquals(BubbleSettings.DEFAULT_EDGE_Y, migrated.bubble.edgeY)
+        assertEquals(BubbleSide.LEFT, migrated.bubble.side)
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+    }
+
+    @Test
+    fun `schema 14 keeps a place the user chose, and drops the height above the keyboard`() {
+        val old = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"edgeY":0.43,"aboveKeyboardDp":120},"schemaVersion":13}"""
+        val migrated = SettingsCodec.decode(old, TEST_PHONE)
+        assertEquals(0.43f, migrated.bubble.edgeY)
+        assertEquals(false, SettingsCodec.encode(migrated).contains("aboveKeyboardDp"))
+    }
+
+    @Test
+    fun `a bubble put at the old default after schema 14 stays there`() {
+        val current = """{"activeEngineId":"android-on-device","engines":[],"bubble":{"edgeY":0.72},"schemaVersion":14}"""
+        assertEquals(0.72f, SettingsCodec.decode(current, TEST_PHONE).bubble.edgeY)
+    }
+
+    @Test
+    fun `settings from before the docked bubble go through both bubble migrations`() {
+        val atOldDefault = """{"activeEngineId":"android-on-device","engines":[],
+            "bubble":{"horizontalBias":0.1,"verticalBias":0.72},"schemaVersion":10}"""
+        val migrated = SettingsCodec.decode(atOldDefault, TEST_PHONE)
+        assertEquals(BubbleSide.LEFT, migrated.bubble.side)
+        assertEquals(BubbleSettings.DEFAULT_EDGE_Y, migrated.bubble.edgeY)
+        val without = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":13}"""
+        assertEquals(BubbleSettings.DEFAULT_EDGE_Y, SettingsCodec.decode(without, TEST_PHONE).bubble.edgeY)
+    }
+
+    @Test
     fun `the docked position survives a round trip`() {
         val settings = AmethystSettings.defaults(TEST_PHONE).copy(
-            bubble = BubbleSettings(side = BubbleSide.LEFT, edgeY = 0.31f, aboveKeyboardDp = 120),
+            bubble = BubbleSettings(side = BubbleSide.LEFT, edgeY = 0.31f),
         )
         assertEquals(settings.bubble, SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE).bubble)
     }

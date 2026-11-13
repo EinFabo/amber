@@ -8,7 +8,7 @@
     <string name="disclosure_field">Ob ein Textfeld den Fokus hat</string>
     <string name="disclosure_field_note">Um die Bubble zu zeigen, wenn du tippen kannst.</string>
     <string name="disclosure_keyboard">Wo die Tastatur ist</string>
-    <string name="disclosure_keyboard_note">Um die Bubble über ihr zu halten.</string>
+    <string name="disclosure_keyboard_note">Damit die Bubble nicht auf den Tasten liegt.</string>
     <string name="disclosure_text">Der Text im Feld</string>
     <string name="disclosure_text_note">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen.</string>
     <string name="disclosure_text_note_commands">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen - und, mit Sprachbefehlen, für einen Befehl, der dieses Feld bearbeitet.</string>

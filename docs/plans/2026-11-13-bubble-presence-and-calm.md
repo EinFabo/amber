@@ -93,3 +93,22 @@ log is marked.
 - Text that arrives without the keyboard (`input text`) does not get the field read again.
 - Back: the bubble goes; a tap on the field brings keyboard and bubble back.
 - Not tried: field to field in one form, a dictation while the keyboard closes.
+
+## One place (2026-11-13, later the same day)
+
+Decision 2 is replaced. Wispr Flow, measured on the same phone next to Amber (Telegram): its
+bubble is an ordinary overlay window at the place it was dragged to (by default about a third
+down the right edge), shown with the keyboard and gone with it, and it never moves by itself -
+not when the field grows towards it, and not when the field grows under it; then it covers the
+field's corner. Not seen: a keyboard taller than the letters (Gboard's menu is as tall).
+
+Fabi: the bubble does not move at all and only shows while the field is there.
+
+- One place along the edge, `BubbleSettings.edgeY`, with or without a keyboard. The second
+  height (`aboveKeyboardDp`), `BubbleHold` and the look-up of the field's bounds are gone.
+- `BubblePlacement.y`: that place, unless it is on the keys - then the nearest place off them
+  (just above a docked keyboard, above or below a floating one). A drop on the keys makes that
+  nearest place the bubble's place.
+- Default a third down (0.32) instead of 0.72, where the keyboard opens. Schema 14 moves an
+  install still at the old default; a chosen place stays.
+- Decisions 1 and 3 stand.

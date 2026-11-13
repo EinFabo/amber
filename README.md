@@ -51,9 +51,9 @@ Controls:
   While listening: cancel, send as spoken (without the cleanup), start over. While the text is
   being written: cancel, keep it as heard.
 - **Drag** moves the bubble at any time, even mid-dictation. Let go, it docks at the nearer
-  left or right edge - a sideways fling throws it to the other one. With a keyboard up it
-  keeps its own height above the keys, clear of the app's input bar; dragging it then sets
-  that height.
+  left or right edge - a sideways fling throws it to the other one. Where you let it go is
+  its place, with or without a keyboard: it does not move by itself, except off the keys
+  when its place is where the keyboard opens.
 - **Voice commands** ("zurück", "öffne WhatsApp", "zehnmal runter") are built but hidden in
   this version: no settings row, no double tap, and no command is carried out - also not for
   someone who had them on before. The code stays as the base of a later phone remote-control mode; one switch in `:core`

@@ -15,16 +15,12 @@ class BubblePlacementTest {
     private val x = 933
     private val gap = 31
 
-    /** 80 dp: clear of a chat app's input bar and its send button. */
-    private val above = 210
-
     private fun y(
         rest: Int,
         keyboardTop: Int? = null,
-        avoid: List<Box> = emptyList(),
-        aboveKeyboard: Int = above,
+        keyboards: List<Box> = emptyList(),
         screen: Screen = bare,
-    ) = BubblePlacement.y(rest, x, size, screen, gap, keyboardTop, aboveKeyboard, avoid)
+    ) = BubblePlacement.y(rest, x, size, screen, gap, keyboardTop, keyboards)
 
     @Test
     fun `with nothing in the way it stays where it was left`() {
@@ -32,36 +28,40 @@ class BubblePlacementTest {
     }
 
     @Test
-    fun `with a docked keyboard it sits at its own height above the keys`() {
-        assertEquals(1466 - above - size, y(1650, keyboardTop = 1466))
+    fun `a keyboard that opens below it does not move it`() {
+        assertEquals(777, y(777, keyboardTop = 1466))
+        assertEquals(777, y(777, keyboardTop = null))
     }
 
     @Test
-    fun `the height above the keyboard is its own, whatever the resting height`() {
-        // Resting high up: the keyboard brings it down to its keyboard height, and it goes
-        // back up when the keyboard leaves.
-        assertEquals(1466 - above - size, y(400, keyboardTop = 1466))
-        assertEquals(400, y(400, keyboardTop = null))
+    fun `it stays at the last place that is off the keys`() {
+        val lowest = 1466 - gap - size
+        assertEquals(lowest, y(lowest, keyboardTop = 1466))
+        assertEquals(lowest, y(lowest + 1, keyboardTop = 1466))
     }
 
     @Test
-    fun `the default keyboard height is well above the input bar, not on the send button`() {
-        // WhatsApp's input bar on a Pixel 9a: about 1300..1450 above a keyboard at 1466.
-        val bubbleBottom = y(1650, keyboardTop = 1466) + size
-        assertEquals(true, bubbleBottom <= 1300, "bubble bottom $bubbleBottom")
+    fun `a place where the keyboard opens is left for the one just above the keys, and taken again`() {
+        assertEquals(1466 - gap - size, y(1650, keyboardTop = 1466))
+        assertEquals(1650, y(1650, keyboardTop = null))
     }
 
     @Test
-    fun `a height below the gap is clamped to the gap above the keys`() {
-        assertEquals(1466 - gap - size, y(1650, keyboardTop = 1466, aboveKeyboard = 0))
+    fun `a taller keyboard lifts it only as far as the keys reach`() {
+        // Sitting right above the letters; an emoji panel 200 px taller comes up.
+        val place = 1466 - gap - size
+        assertEquals(1266 - gap - size, y(place, keyboardTop = 1266))
+        assertEquals(place, y(place, keyboardTop = 1466))
     }
 
     @Test
-    fun `a short screen clamps both heights to the safe area`() {
+    fun `a short screen clamps it to the safe area`() {
         // Landscape with the keyboard up: little room above it.
         val landscape = Screen(2424, 1080, SafeArea(top = 0, bottom = 63))
-        assertEquals(0, y(500, keyboardTop = 300, screen = landscape))
-        // Without the keyboard the resting height stays above the gesture bar.
+        assertEquals(300 - gap - size, y(500, keyboardTop = 300, screen = landscape))
+        // And none at all: the top of the screen rather than off it.
+        assertEquals(0, y(500, keyboardTop = 120, screen = landscape))
+        // Without the keyboard it stays above the gesture bar.
         assertEquals(1080 - 63 - size, y(2000, screen = landscape))
     }
 
@@ -73,59 +73,79 @@ class BubblePlacementTest {
     }
 
     @Test
-    fun `the keyboard height that a drag sets is measured from the bubble's bottom`() {
-        assertEquals(1466 - (1000 + size), BubblePlacement.aboveKeyboard(y = 1000, size = size, keyboardTop = 1466))
-        assertEquals(0, BubblePlacement.aboveKeyboard(y = 1400, size = size, keyboardTop = 1466), "dropped on the keys")
-    }
-
-    @Test
-    fun `it steps over the field being typed in`() {
-        // A tall field right above the keyboard, spanning the width.
-        val field = Box(30, 1000, 1050, 1290)
-        assertEquals(1000 - gap - size, y(1650, keyboardTop = 1466, avoid = listOf(field)))
-    }
-
-    @Test
-    fun `it moves to the nearer free side of a field`() {
-        val field = Box(0, 600, 1080, 760)
-        // Reaching into the field from above: up is nearer.
-        assertEquals(600 - gap - size, y(500, avoid = listOf(field)))
-        // Resting near its bottom: below is nearer.
-        assertEquals(760 + gap, y(740, avoid = listOf(field)))
-    }
-
-    @Test
-    fun `a field on the other side of the screen is no obstacle`() {
-        assertEquals(1650, y(1650, avoid = listOf(Box(0, 1600, 500, 1750))))
-    }
-
-    @Test
-    fun `a full-screen editor is not stepped around`() {
-        val editor = Box(0, 300, 1080, 1400)
-        assertEquals(1466 - above - size, y(1650, keyboardTop = 1466, avoid = listOf(editor)))
-    }
-
-    @Test
     fun `a floating keyboard is avoided only where it is`() {
         val floating = Box(500, 1500, 1060, 1900)
-        // The bubble rests in it: out to the nearer side, here below the panel.
-        assertEquals(1900 + gap, y(1650, avoid = listOf(floating)))
-        // Resting elsewhere, the floating keyboard does not move it at all.
-        assertEquals(800, y(800, avoid = listOf(floating)))
+        // The bubble's place is in it: out to the nearer side, here below the panel.
+        assertEquals(1900 + gap, y(1650, keyboards = listOf(floating)))
+        // Above it: up is nearer.
+        assertEquals(1500 - gap - size, y(1400, keyboards = listOf(floating)))
+        // Elsewhere, the floating keyboard does not move it at all.
+        assertEquals(800, y(800, keyboards = listOf(floating)))
     }
 
     @Test
-    fun `two obstacles on top of each other are both cleared`() {
-        // A field near the keyboard and a floating toolbar right above the field: stepping
-        // over the field alone would land in the toolbar.
-        val field = Box(0, 1150, 1080, 1300)
-        val floating = Box(600, 950, 1080, 1140)
-        assertEquals(950 - gap - size, y(1330, keyboardTop = 1500, avoid = listOf(field, floating)))
+    fun `a floating keyboard on the other side of the screen is no obstacle`() {
+        assertEquals(1650, y(1650, keyboards = listOf(Box(0, 1600, 500, 1750))))
+    }
+
+    @Test
+    fun `a floating keyboard as tall as the screen's half is still kept clear of`() {
+        val tall = Box(400, 300, 1080, 1700)
+        assertEquals(300 - gap - size, y(600, keyboards = listOf(tall)))
     }
 
     @Test
     fun `with no room on either side it stays put rather than leave the screen`() {
-        val field = Box(0, 20, 1080, 600)
-        assertEquals(100, y(100, keyboardTop = 700, aboveKeyboard = 453, avoid = listOf(field)))
+        val floating = Box(0, 20, 1080, 600)
+        assertEquals(100, y(100, keyboardTop = 700, keyboards = listOf(floating)))
+    }
+
+    @Test
+    fun `a place it was put at is one it stays at`() {
+        val floating = Box(500, 1500, 1060, 1900)
+        for (rest in listOf(0, 400, 1300, 1400, 1650, 1880, 2400)) {
+            val docked = y(rest, keyboardTop = 1466)
+            assertEquals(docked, y(docked, keyboardTop = 1466), "docked keyboard, from $rest")
+            val beside = y(rest, keyboards = listOf(floating))
+            assertEquals(beside, y(beside, keyboards = listOf(floating)), "floating keyboard, from $rest")
+        }
+    }
+
+    @Test
+    fun `between the status bar and a docked keyboard both edges hold`() {
+        val withBars = Screen(1080, 2424, SafeArea(top = 145, bottom = 63))
+        assertEquals(145, y(10, keyboardTop = 1466, screen = withBars))
+        assertEquals(1466 - gap - size, y(2000, keyboardTop = 1466, screen = withBars))
+    }
+
+    @Test
+    fun `below a floating keyboard is no place when the docked keys or the screen's end are there`() {
+        // Nearer below, but that is on the docked keys: up instead.
+        val floating = Box(500, 1000, 1060, 1350)
+        assertEquals(1000 - gap - size, y(1300, keyboardTop = 1466, keyboards = listOf(floating)))
+        // And at the bottom of the screen: up as well.
+        val low = Box(500, 2000, 1060, 2300)
+        assertEquals(2000 - gap - size, y(2250, keyboards = listOf(low)))
+    }
+
+    @Test
+    fun `let go off the keys, that is its place`() {
+        assertEquals(900, BubblePlacement.dropped(900, x, size, bare, gap, keyboardTop = 1466))
+        assertEquals(1900, BubblePlacement.dropped(1900, x, size, bare, gap, keyboardTop = null))
+    }
+
+    @Test
+    fun `let go on the keys, the nearest place off them is its place`() {
+        assertEquals(1466 - gap - size, BubblePlacement.dropped(1700, x, size, bare, gap, keyboardTop = 1466))
+        val floating = Box(500, 1500, 1060, 1900)
+        assertEquals(1900 + gap, BubblePlacement.dropped(1800, x, size, bare, gap, null, listOf(floating)))
+    }
+
+    @Test
+    fun `let go while a keyboard leaves no room, where it was let go stays its place`() {
+        val landscape = Screen(2424, 1080, SafeArea(top = 0, bottom = 63))
+        assertEquals(500, BubblePlacement.dropped(500, x, size, landscape, gap, keyboardTop = 120))
+        // Shown at the top for now.
+        assertEquals(0, y(500, keyboardTop = 120, screen = landscape))
     }
 }

@@ -8,10 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
-import android.graphics.Rect
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -120,18 +117,10 @@ class AmethystAccessibilityService : AccessibilityService() {
             onDoubleTap = { graph.dictation.commandInstead() },
             quickMenu = quickActions::slots,
             onQuickAction = quickActions::run,
-            onMoved = { side, edgeY, aboveKeyboardDp ->
+            onMoved = { side, edgeY ->
                 graph.bubbleEvents.tryEmit(BubbleEvent.Docked(side))
                 graph.appScope.launch {
-                    graph.settingsStore.update {
-                        it.copy(
-                            bubble = it.bubble.copy(
-                                side = side,
-                                edgeY = edgeY ?: it.bubble.edgeY,
-                                aboveKeyboardDp = aboveKeyboardDp ?: it.bubble.aboveKeyboardDp,
-                            ),
-                        )
-                    }
+                    graph.settingsStore.update { it.copy(bubble = it.bubble.copy(side = side, edgeY = edgeY)) }
                 }
             },
             onHideIn = ::hideBubbleIn,
@@ -140,14 +129,9 @@ class AmethystAccessibilityService : AccessibilityService() {
         defaultKeyboard.start()
         bubble?.onNote = ::note
         keyboard = KeyboardTracker(this, graph.keyboardLog, defaultKeyboard::packageName) { top, floating, shown ->
-            // Measured for the first time for this field: placed afresh, not kept above the estimate.
-            if (shown == true && !keyboardSeen) bubble?.keyboardMeasured()
-            if (shown != null) keyboardSeen = shown
             bubble?.setKeyboard(top, floating)
             // The keyboard closing is the one sign of a field an app took away without a word.
             if (presence.keyboard(shown)) applyPresence()
-            // Apps move their fields when the keyboard comes or goes; look once they have.
-            fieldCheck.schedule(FIELD_SETTLE_MS)
         }
 
         // The lock screen gets no bubble: told when the screen goes off, comes on and is unlocked.
@@ -350,21 +334,17 @@ class AmethystAccessibilityService : AccessibilityService() {
         val kind = if (inputKind != TextFieldKind.NONE) inputKind else focusedKind
         val another = fresh && kind != TextFieldKind.NONE && presence.kind != TextFieldKind.NONE
         presence.field(kind, fresh)
-        if (fresh || kind == TextFieldKind.NONE) keyboardSeen = false
-        if (fresh) bubble?.newField()
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
-        // on the next window event - this is what lets the bubble move with the keyboard.
-        // Before the bubble is told about the field: it is placed above the keyboard that is
-        // on its way first, and then appears there, instead of sliding up once visible.
+        // on the next window event, and before the bubble is told about the field: a bubble
+        // whose place is where the keyboard opens is put off the keys first and appears
+        // there, instead of sliding up once visible.
         if (another) keyboard?.newField() else keyboard?.focusChanged(kind != TextFieldKind.NONE)
         applyPresence()
-        fieldCheck.schedule(0)
     }
 
     private fun applyPresence() {
-        // Two answers: a field takes text - what inserting, the quick menu and the field's
-        // bounds go by, keyboard or not - and the bubble is wanted for it, which ends with
-        // the keyboard.
+        // Two answers: a field takes text - what inserting and the quick menu go by,
+        // keyboard or not - and the bubble is wanted for it, which ends with the keyboard.
         val takesText = presence.kind.wantsDictation
         val active = presence.active
         if (active != bubbleField) note("field ${if (active) "active" else "gone"}: ${presence.why}")
@@ -376,9 +356,6 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     /** The bubble is wanted for a field right now ([FieldPresence.active]). */
     private var bubbleField = false
-
-    /** A keyboard was measured for the field in focus. */
-    private var keyboardSeen = false
 
     /** One line for logcat and Diagnostics → Keyboard: why the bubble came, went or moved. */
     private fun note(line: String) {
@@ -404,28 +381,6 @@ class AmethystAccessibilityService : AccessibilityService() {
             updateTextFieldFocus(TextFieldKind.NONE, fresh = false)
         }
     }
-
-    /** Looks up the focused field's bounds, at most once per burst of focus and keyboard changes. */
-    private inner class FieldCheck : Runnable {
-        private val handler = Handler(Looper.getMainLooper())
-
-        fun schedule(delayMs: Long) {
-            handler.removeCallbacks(this)
-            handler.postDelayed(this, delayMs)
-        }
-
-        fun stop() = handler.removeCallbacks(this)
-
-        override fun run() {
-            if (!bubbleShown) return
-            val bounds = if (!editableFieldFocused) null else runCatching {
-                findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.let { node -> Rect().also(node::getBoundsInScreen) }
-            }.getOrNull()?.takeUnless { it.isEmpty }
-            bubble?.setField(bounds?.let { Box(it.left, it.top, it.right, it.bottom) })
-        }
-    }
-
-    private val fieldCheck = FieldCheck()
 
     override fun onInterrupt() = Unit
 
@@ -482,7 +437,6 @@ class AmethystAccessibilityService : AccessibilityService() {
             lockWatchRegistered = false
         }
         if (::commands.isInitialized) commands.close()
-        fieldCheck.stop()
         keyboard?.stop()
         keyboard = null
         defaultKeyboard.stop()
@@ -504,9 +458,6 @@ class AmethystAccessibilityService : AccessibilityService() {
 
         /** Window id of a target known only through the input connection. */
         const val NO_WINDOW = -1
-
-        /** Long enough for an app to relayout after the keyboard settled. */
-        const val FIELD_SETTLE_MS = 150L
 
         /** Lines kept for Diagnostics → Keyboard, the keyboard's readings and these notes together. */
         const val NOTE_LINES = 40

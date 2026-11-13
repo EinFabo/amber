@@ -8,7 +8,7 @@
     <string name="disclosure_field">Whether a text field has focus</string>
     <string name="disclosure_field_note">To show the bubble when you can type.</string>
     <string name="disclosure_keyboard">Where the keyboard is</string>
-    <string name="disclosure_keyboard_note">To keep the bubble above it.</string>
+    <string name="disclosure_keyboard_note">To keep the bubble off its keys.</string>
     <string name="disclosure_text">The text in the field</string>
     <string name="disclosure_text_note">Only while inserting a dictation, so the new words fit in at the cursor.</string>
     <string name="disclosure_text_note_commands">Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field.</string>

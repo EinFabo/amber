@@ -462,13 +462,7 @@ fun BubbleScreen(
                 }
                 GhostButton(stringResource(R.string.reset), {
                     onUpdateSettings {
-                        it.copy(
-                            bubble = it.bubble.copy(
-                                side = BubbleSettings().side,
-                                edgeY = BubbleSettings.DEFAULT_EDGE_Y,
-                                aboveKeyboardDp = BubbleSettings.DEFAULT_ABOVE_KEYBOARD_DP,
-                            ),
-                        )
+                        it.copy(bubble = it.bubble.copy(side = BubbleSettings().side, edgeY = BubbleSettings.DEFAULT_EDGE_Y))
                     }
                 })
             }
