@@ -7,6 +7,7 @@
     <string name="problem_no_answer_in_time">„%1$s“ hat nicht rechtzeitig geantwortet.</string>
     <string name="problem_key_rejected">Der API-Schlüssel wurde abgelehnt.</string>
     <string name="problem_address_not_found">Adresse nicht gefunden - prüfe die Adresse.</string>
+    <string name="problem_model_not_on_server">„%1$s“ hat das Modell %2$s nicht (mehr) - wähle in den Einstellungen ein anderes Modell.</string>
     <string name="problem_recording_too_long">Die Aufnahme war für diesen Dienst zu lang.</string>
     <string name="problem_audio_format_refused">Der Dienst hat das Audioformat abgelehnt.</string>
     <string name="problem_rate_limited">Zu viele Anfragen - warte einen Moment.</string>

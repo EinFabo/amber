@@ -30,6 +30,7 @@
     <string name="fallback_no_connection">No connection - recognized on the phone with %1$s.</string>
     <string name="fallback_no_answer_on_phone">The server did not answer - recognized on the phone with %1$s. The recording may have reached the server.</string>
     <string name="fallback_other_server">%1$s did not answer - recognized by %2$s instead.</string>
+    <string name="fallback_server_refused">%1$s This dictation was recognized with %2$s instead.</string>
 
     <string name="capture_no_16khz">The microphone does not support 16 kHz.</string>
     <string name="capture_not_opened">The microphone could not be opened.</string>

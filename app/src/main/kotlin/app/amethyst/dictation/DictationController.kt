@@ -1123,17 +1123,24 @@ class DictationController(
         val primary = runRouting?.engine
         fellBack = config.displayName
         fellBackFrom = primary?.id
-        val why = if (local.serverTooSlow) "server too slow" else "server unreachable"
+        val refused = local.serverFailure?.takeIf { it.serverCannotServe }
+        val why = if (local.serverTooSlow) "server too slow" else refused?.let(::cannotServe) ?: "server unreachable"
         trace?.fallback = "$why, recognized by ${config.displayName} during the recording, label $trust"
         val name = Texts.engineName(context, config)
         val message = when {
             local.serverTooSlow -> context.getString(R.string.fallback_server_too_slow)
+            // What the server said, in full: the fallback must not hide that it needs the user.
+            refused != null -> context.getString(R.string.fallback_server_refused, Texts.problem(context, refused.problem), name)
             trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
             else -> context.getString(R.string.fallback_no_answer_on_phone, name)
         }
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         return transcript.copy(trustLevel = trust)
     }
+
+    /** For Diagnostics: a server that answered but cannot serve - what it said, in English, without its body. */
+    private fun cannotServe(failure: SttFailure): String =
+        "server cannot serve (HTTP ${failure.statusCode}: ${Texts.problem(english, failure.problem)})"
 
     /**
      * How long the cleanup chosen for this dictation's app should take for about [chars]
@@ -1246,10 +1253,13 @@ class DictationController(
                 val trust = Fallback.trustAfter(cause, serverTrust, transcript.trustLevel)
                 fellBack = config.displayName
                 fellBackFrom = primary.id
-                trace?.fallback = "server unreachable, recognized by ${config.displayName}, label $trust"
+                val why = if (cause.serverCannotServe) cannotServe(cause) else "server unreachable"
+                trace?.fallback = "$why, recognized by ${config.displayName}, label $trust"
                 val local = transcript.trustLevel == TrustLevel.ON_DEVICE
                 val name = Texts.engineName(context, config)
                 val message = when {
+                    // What the server said, in full: the fallback must not hide that it needs the user.
+                    cause.serverCannotServe -> context.getString(R.string.fallback_server_refused, Texts.problem(context, cause.problem), name)
                     trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
                     local -> context.getString(R.string.fallback_no_answer_on_phone, name)
                     else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)

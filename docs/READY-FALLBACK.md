@@ -34,7 +34,12 @@ recognizes" in `docs/OPEN.md`.
     cancelled; if the local text is not ready by then, whichever finishes first wins. The label
     says the recording may have reached the server (the upload was under way); a toast says
     "The server took too long - used the text recognized on the phone.";
-  - a refused key or a bad request stands, as today: that needs the user.
+  - a refused key or a bad request stands, as today: that needs the user;
+  - a server that answers but cannot serve - its model is gone (404 or 400 naming the model,
+    `model_not_found`, `model_decommissioned`) or the account has no credit left
+    (`insufficient_quota`, 402) - counts as failed in a recoverable way since 2026-11-14: the
+    local text is taken, and the toast says what the server said, so the fallback does not
+    hide that the model or the account needs the user (`SttFailure.serverCannotServe`).
 - **Diagnostics**: one line - prepared with which engine, how many chunks, when the local text
   was ready, who won.
 

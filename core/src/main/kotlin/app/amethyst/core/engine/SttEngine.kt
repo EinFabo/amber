@@ -112,6 +112,18 @@ class SttFailure(
             statusCode in 500..599
 
     /**
+     * The server is there and refused for something no second try will fix today, though the
+     * recording is fine: its model is gone ([Problem.ModelNotOnServer]) or the account has no
+     * credit left ([Problem.NoCredit]). Another engine can still take the recording - and the
+     * user is told what the server said, since only they can put it right. Not a refused key.
+     */
+    val serverCannotServe: Boolean
+        get() = problem is Problem.ModelNotOnServer || problem is Problem.NoCredit
+
+    /** Worth recognizing the same recording elsewhere ([Fallback]): an outage, or a server that cannot serve. */
+    val worthAnotherEngine: Boolean get() = serviceUnavailable || serverCannotServe
+
+    /**
      * Whether the recording may have reached the server before this failure. Only a failure to
      * connect at all proves it did not: a read timeout or a 5xx came after the upload, so a
      * text recognized on the phone afterwards must not claim the voice stayed there.

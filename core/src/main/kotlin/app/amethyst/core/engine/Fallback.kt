@@ -9,14 +9,17 @@ import app.amethyst.core.settings.FallbackSettings
  * When a server cannot take a recording, another engine may - the user's pick, or by default
  * the best model on the phone. Never a less private one: the voice does not go somewhere
  * further than the user chose for it (a Tinfoil dictation is never handed to Groq). And only
- * for failures another engine could fix: no connection, a timeout, a server down. A refused
- * key or a bad request needs the user, not a detour.
+ * for failures another engine could fix: no connection, a timeout, a server down - and a server
+ * that is there but cannot serve, because its model is gone or the account has no credit left
+ * ([SttFailure.serverCannotServe]); the user is then told what the server said, since the
+ * fallback would otherwise hide it for good. A refused key or a bad request needs the user,
+ * not a detour.
  */
 object Fallback {
 
     /** The failure another engine may recover from, or null when it should stand. */
     fun recoverable(error: Throwable?, engineTrust: TrustLevel, mode: FallbackMode): SttFailure? =
-        (error as? SttFailure)?.takeIf { mode != FallbackMode.OFF && engineTrust != TrustLevel.ON_DEVICE && it.serviceUnavailable }
+        (error as? SttFailure)?.takeIf { mode != FallbackMode.OFF && engineTrust != TrustLevel.ON_DEVICE && it.worthAnotherEngine }
 
     /**
      * The trust a text recognized elsewhere after [failure] really has: the first server's,

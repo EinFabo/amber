@@ -197,8 +197,11 @@ class OpenAiCompatibleEngine(
     suspend fun attestation(): AttestationResult? = channel.attestation()
 
     private fun failureFor(response: HttpResponse): SttFailure {
-        val snippet = response.bodyAsText().take(300)
-        val problem = when (response.code) {
+        val body = response.bodyAsText()
+        val snippet = body.take(300)
+        // What the body names comes first: a retired model answers 404 like a wrong address,
+        // an account without credit 429 like too many requests ([ServerRefusal]).
+        val problem = ServerRefusal.problem(response.code, body, modelId, displayName) ?: when (response.code) {
             401, 403 -> Problem.KeyRejected
             404 -> Problem.AddressNotFound
             413 -> Problem.RecordingTooLong

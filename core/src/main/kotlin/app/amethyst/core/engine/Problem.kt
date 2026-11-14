@@ -18,6 +18,12 @@ sealed interface Problem {
 
     /** HTTP 404: the address is wrong. */
     data object AddressNotFound : Problem
+
+    /**
+     * [service] said it does not have [model] for speech recognition: a name typed wrong, or a
+     * model the service retired. The address is right - another model is what helps.
+     */
+    data class ModelNotOnServer(val model: String, val service: String) : Problem
     data object RecordingTooLong : Problem
     data object AudioFormatRefused : Problem
     data object RateLimited : Problem

@@ -9,6 +9,7 @@
     <string name="problem_no_answer_in_time">“%1$s” did not answer in time.</string>
     <string name="problem_key_rejected">The API key was rejected.</string>
     <string name="problem_address_not_found">Address not found - check the address.</string>
+    <string name="problem_model_not_on_server">“%1$s” does not have the model %2$s (any more) - pick another model in the settings.</string>
     <string name="problem_recording_too_long">The recording was too long for this service.</string>
     <string name="problem_audio_format_refused">The service rejected the audio format.</string>
     <string name="problem_rate_limited">Too many requests - wait a moment.</string>

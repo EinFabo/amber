@@ -28,6 +28,7 @@
     <string name="fallback_no_connection">Keine Verbindung - auf dem Handy erkannt mit %1$s.</string>
     <string name="fallback_no_answer_on_phone">Der Server hat nicht geantwortet - auf dem Handy erkannt mit %1$s. Die Aufnahme hat den Server vielleicht erreicht.</string>
     <string name="fallback_other_server">%1$s hat nicht geantwortet - stattdessen erkannt von %2$s.</string>
+    <string name="fallback_server_refused">%1$s Dieses Diktat wurde stattdessen mit %2$s erkannt.</string>
 
     <string name="capture_no_16khz">Das Mikrofon unterstützt keine 16 kHz.</string>
     <string name="capture_not_opened">Das Mikrofon ließ sich nicht öffnen.</string>

@@ -49,6 +49,7 @@ object Texts {
             is Problem.NoAnswerInTime -> getString(R.string.problem_no_answer_in_time, catalog(this, problem.service))
             Problem.KeyRejected -> getString(R.string.problem_key_rejected)
             Problem.AddressNotFound -> getString(R.string.problem_address_not_found)
+            is Problem.ModelNotOnServer -> getString(R.string.problem_model_not_on_server, catalog(this, problem.service), problem.model)
             Problem.RecordingTooLong -> getString(R.string.problem_recording_too_long)
             Problem.AudioFormatRefused -> getString(R.string.problem_audio_format_refused)
             Problem.RateLimited -> getString(R.string.problem_rate_limited)
