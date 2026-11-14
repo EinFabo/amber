@@ -18,7 +18,7 @@ interface ModelFetch {
     /** Starts [option]'s download on Wi-Fi, or holds it until there is one. */
     suspend fun fetch(option: EngineOption)
 
-    /** Lets go of a download held for [option]. */
+    /** Lets go of [option]'s download, held or running. */
     suspend fun letGo(option: EngineOption)
 }
 
@@ -59,7 +59,7 @@ class FirstRunWatch(
                 // Again while it is still this model's turn: the waiting recognition made active by hand.
             } while (option != null && after?.let { FirstRun.wanted(it) } == option)
             log("first run: $name settled, active ${after?.activeEngineId}")
-            // A download held for Wi-Fi that nobody wants any more is let go.
+            // A download nobody wants any more is let go, held for Wi-Fi or running.
             if (option != null && after?.let { FirstRun.stillWanted(it, option) } == false) downloads.letGo(option)
         }
     }

@@ -172,6 +172,28 @@ class FirstRunWatchTest {
     }
 
     @Test
+    fun `android chosen by the user stays, and the download for the dropped model is let go`() = watched(waiting) { phone ->
+        phone.stored.update { FirstRun.chosen(it, android) }
+        advanceUntilIdle()
+        assertEquals(listOf("fetch PARAKEET", "let go PARAKEET"), phone.downloads.calls)
+
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertEquals(android, phone.stored.value.activeEngineId)
+        assertNull(FirstRun.wanted(phone.stored.value))
+    }
+
+    @Test
+    fun `another model chosen in the introduction lets the first one go`() = watched(fresh) { phone ->
+        phone.stored.update { FirstRun.use(it, EngineOption.PARAKEET, TEST_PHONE) }
+        advanceUntilIdle()
+        phone.stored.update { FirstRun.use(it, EngineOption.FUTO_244, TEST_PHONE) }
+        advanceUntilIdle()
+        assertEquals(listOf("fetch PARAKEET", "let go PARAKEET", "fetch FUTO_244"), phone.downloads.calls)
+        assertEquals(EngineOption.FUTO_244, FirstRun.wanted(phone.stored.value))
+    }
+
+    @Test
     fun `a waiting name this build does not know is dropped without a download`() =
         watched(fresh.copy(firstRun = fresh.firstRun.copy(pendingEngine = "GONE"))) { phone ->
             assertNull(phone.stored.value.firstRun.pendingEngine)

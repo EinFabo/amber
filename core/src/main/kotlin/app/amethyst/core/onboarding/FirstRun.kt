@@ -87,7 +87,7 @@ object FirstRun {
         if (!applies(settings)) return settings
         val untouched = settings.activeEngineId == STAND_IN
         val withEngine = if (untouched) {
-            use(settings, plan.now, phoneTags).let { chosen ->
+            activate(settings, plan.now, phoneTags).let { chosen ->
                 chosen.copy(
                     firstRun = chosen.firstRun.copy(
                         pendingEngine = plan.later?.name,
@@ -113,8 +113,30 @@ object FirstRun {
         )
     }
 
+    /**
+     * The user's own choice in the introduction: [option] added if missing, with its model, and
+     * made the active recognition. Whatever waited to take over waits no longer - also when the
+     * choice is Android's recognition, the stand-in itself. A model the choice still has to
+     * fetch is written down, so its download outlives the process like quick setup's.
+     */
+    fun use(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings =
+        activate(settings, option, phoneTags).let { chosen ->
+            chosen.copy(firstRun = chosen.firstRun.copy(pendingEngine = null, wantedModel = option.name.takeIf { option.downloadBytes > 0 }))
+        }
+
+    /**
+     * The user's own choice in Settings: the recognition [engineId] becomes the active one, and
+     * nothing takes over from it later - also when it is Android's recognition, which stood in
+     * until now. The model on its way stays wanted only if it is the chosen recognition's own.
+     */
+    fun chosen(settings: AmethystSettings, engineId: String): AmethystSettings {
+        val active = settings.copy(activeEngineId = engineId)
+        val own = wanted(settings)?.takeIf { stillWanted(active, it) }
+        return active.copy(firstRun = active.firstRun.copy(pendingEngine = null, wantedModel = own?.name))
+    }
+
     /** [option] added if missing, with its model, and made the active recognition. */
-    fun use(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings {
+    private fun activate(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings {
         val preset = EnginePresets.byId(option.presetId) ?: return settings
         val base = settings.engines.firstOrNull { it.id == preset.id }
             ?: EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, phoneTags))
@@ -138,7 +160,8 @@ object FirstRun {
     fun verdict(settings: AmethystSettings, ready: Boolean): PendingVerdict = when {
         settings.firstRun.pendingEngine != null -> when {
             pending(settings) == null -> PendingVerdict.DROP
-            // Anything but the stand-in was chosen by the user, in the introduction or in Settings.
+            // Anything but the stand-in was chosen by the user; their choices end the wait
+            // themselves ([use], [chosen]), this catches a change made any other way.
             settings.activeEngineId != STAND_IN -> PendingVerdict.DROP
             ready -> PendingVerdict.SWITCH
             else -> PendingVerdict.WAIT
@@ -167,7 +190,7 @@ object FirstRun {
                 val own = pending(settings)?.takeIf { !ready && stillWanted(settings, it) }
                 cleared.copy(firstRun = cleared.firstRun.copy(wantedModel = own?.name))
             }
-            PendingVerdict.SWITCH -> pending(settings)?.let { use(cleared, it, phoneTags) } ?: cleared
+            PendingVerdict.SWITCH -> pending(settings)?.let { activate(cleared, it, phoneTags) } ?: cleared
         }
     }
 

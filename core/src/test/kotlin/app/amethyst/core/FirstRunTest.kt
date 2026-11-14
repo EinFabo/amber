@@ -216,7 +216,8 @@ class FirstRunTest {
     @Test
     fun `the download goes on for someone who chose the waiting recognition themselves`() {
         val waiting = FirstRun.quick(fresh, viaAndroid, apps, TEST_PHONE)
-        val chosen = FirstRun.use(waiting, EngineOption.PARAKEET, TEST_PHONE)
+        // Made active without a word about what waits - not by one of the user's own choices.
+        val chosen = waiting.withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)).copy(activeEngineId = parakeet)
         assertEquals(PendingVerdict.DROP, FirstRun.verdict(chosen, ready = false))
         assertTrue(FirstRun.stillWanted(chosen, EngineOption.PARAKEET))
         assertFalse(FirstRun.stillWanted(chosen, EngineOption.FUTO_244))
@@ -225,6 +226,53 @@ class FirstRunTest {
         assertNull(FirstRun.pending(settled))
         assertEquals(EngineOption.PARAKEET, FirstRun.wanted(settled))
         assertNull(FirstRun.wanted(FirstRun.settle(chosen, ready = true, TEST_PHONE)))
+    }
+
+    @Test
+    fun `choosing android oneself ends the wait, in the introduction and in settings`() {
+        val waiting = FirstRun.quick(fresh, viaAndroid, apps, TEST_PHONE)
+        for (chosen in listOf(FirstRun.use(waiting, EngineOption.ANDROID, TEST_PHONE), FirstRun.chosen(waiting, android))) {
+            assertEquals(android, chosen.activeEngineId)
+            assertNull(FirstRun.pending(chosen))
+            assertNull(FirstRun.wanted(chosen))
+            assertEquals(PendingVerdict.NONE, FirstRun.verdict(chosen, ready = true))
+            assertSame(chosen, FirstRun.settle(chosen, ready = true, TEST_PHONE))
+            assertFalse(FirstRun.stillWanted(chosen, EngineOption.PARAKEET))
+        }
+    }
+
+    @Test
+    fun `any other choice of one's own ends the wait too`() {
+        val waiting = FirstRun.quick(fresh, viaAndroid, apps, TEST_PHONE).withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
+        val groq = FirstRun.chosen(waiting, EnginePresets.GROQ.id)
+        assertEquals(EnginePresets.GROQ.id, groq.activeEngineId)
+        assertNull(FirstRun.wanted(groq))
+
+        val small = FirstRun.use(waiting, EngineOption.FUTO_74, TEST_PHONE)
+        assertNull(FirstRun.pending(small))
+        assertEquals(EngineOption.FUTO_74, FirstRun.wanted(small))
+    }
+
+    @Test
+    fun `choosing the waiting recognition oneself keeps its model wanted`() {
+        val waiting = FirstRun.quick(fresh, viaAndroid, apps, TEST_PHONE).withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET))
+        for (chosen in listOf(FirstRun.use(waiting, EngineOption.PARAKEET, TEST_PHONE), FirstRun.chosen(waiting, parakeet))) {
+            assertEquals(parakeet, chosen.activeEngineId)
+            assertNull(FirstRun.pending(chosen))
+            assertEquals(EngineOption.PARAKEET, FirstRun.wanted(chosen))
+            assertEquals(PendingVerdict.WAIT, FirstRun.verdict(chosen, ready = false))
+        }
+    }
+
+    @Test
+    fun `a choice in settings does not write a model down by itself`() {
+        val withParakeet = fresh.withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET))
+        val chosen = FirstRun.chosen(withParakeet, parakeet)
+        assertEquals(parakeet, chosen.activeEngineId)
+        assertNull(FirstRun.wanted(chosen))
+        // And choosing another recognition drops a model wanted for the one before.
+        val wanted = FirstRun.quick(fresh, QuickPlan(EngineOption.PARAKEET, null, nowMissing = true), apps, TEST_PHONE)
+        assertNull(FirstRun.wanted(FirstRun.chosen(wanted, android)))
     }
 
     @Test

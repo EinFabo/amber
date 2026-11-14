@@ -833,7 +833,7 @@ private fun AmethystScreens(
                                         graph.amberCatalogs.refresh(updated)
                                     }
                                 },
-                                onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
+                                onActivate = { updateSettings { FirstRun.chosen(it, config.id) } },
                                 cleanupOnly = Servers.cleanupOnly(settings, config),
                                 onDelete = {
                                     // Its key goes with it, unless another server keeps it

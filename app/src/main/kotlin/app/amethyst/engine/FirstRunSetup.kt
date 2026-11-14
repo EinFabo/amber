@@ -94,7 +94,7 @@ class FirstRunSetup(
             if (!inHand) this@FirstRunSetup.fetch(option, mobileData = false)
         }
 
-        override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().cancelWait(option) }
+        override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().letGo(option) }
     }
 
     private val watch = FirstRunWatch(loaded.filterNotNull(), store::update, fetching, PhoneLocales::tags) { Log.i(TAG, it) }

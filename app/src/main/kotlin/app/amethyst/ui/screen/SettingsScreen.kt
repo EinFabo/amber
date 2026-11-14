@@ -278,7 +278,7 @@ fun RecognitionScreen(
                             active = engine.id == settings.activeEngineId,
                             problems = problemsByEngine[engine.id].orEmpty(),
                             note = RecognitionRows.note(engine, settings, medianWaitMs[engine.id]),
-                            onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ onUpdateSettings { it.copy(activeEngineId = engine.id) } }),
+                            onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ onUpdateSettings { app.amethyst.core.onboarding.FirstRun.chosen(it, engine.id) } }),
                             onOpen = { onOpenEngine(engine.id) },
                             cleanupOnly = cleanupOnly,
                         )

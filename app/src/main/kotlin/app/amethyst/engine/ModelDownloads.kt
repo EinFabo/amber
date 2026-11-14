@@ -111,6 +111,17 @@ class ModelDownloads(
         if (_waiting.value == option) stopWaiting()
     }
 
+    /**
+     * Lets go of [option]'s download altogether, held or running: the recognition it was for
+     * is no longer the one in use.
+     */
+    fun letGo(option: EngineOption) {
+        cancelWait(option)
+        if (!needsDownload(option)) return
+        Log.i(TAG, "${option.name} is not wanted any more - its download is let go")
+        if (option == EngineOption.PARAKEET) parakeet.cancel() else option.whisperModelId?.let(whisper::cancel)
+    }
+
     /** Whether [option]'s model is on the phone, as it changes - for the recognition that waits for it. */
     fun ready(option: EngineOption): Flow<Boolean> {
         val whisperId = option.whisperModelId
