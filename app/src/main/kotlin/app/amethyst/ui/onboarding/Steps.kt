@@ -164,13 +164,17 @@ private fun WayToTheSwitch(locked: Boolean, actions: SetupActions) {
     if (locked) RestrictedWay(actions.openAppInfo) else SwitchOnWay()
 }
 
-/** Before the settings open: where to tap there, what the service reads and does, and the same taps in words. */
+/**
+ * Before the settings open: what the service reads and does first - it is what "I agree" below
+ * agrees to, so it is on screen with that button and not under a picture - then where to tap
+ * in Android's settings, and the same taps in words.
+ */
 @Composable
 private fun BeforeTheSettings(setup: SetupState) {
     Column {
-        if (setup.restrictedSettings) RestrictedSettingsNote()
-        SwitchOnPicture(Modifier.padding(top = if (setup.restrictedSettings) 16.dp else 0.dp))
         AccessibilityDisclosure()
+        SwitchOnPicture(Modifier.padding(top = 16.dp))
+        if (setup.restrictedSettings) RestrictedSettingsNote()
         SwitchOnNote()
     }
 }
