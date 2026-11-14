@@ -177,13 +177,15 @@ private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (
 }
 
 /**
- * One step's page: a title, a line under it, the step's own content scrolling if it must, and
- * its buttons held at the bottom where the thumb is.
+ * One step's page: a title - with [top] above it, for the one step that has a picture there -
+ * a line under it, the step's own content scrolling if it must, and its buttons held at the
+ * bottom where the thumb is.
  */
 @Composable
 internal fun StepPage(
     title: String,
     lead: String?,
+    top: (@Composable ColumnScope.() -> Unit)? = null,
     buttons: @Composable ColumnScope.() -> Unit,
     body: @Composable ColumnScope.() -> Unit,
 ) {
@@ -195,6 +197,7 @@ internal fun StepPage(
                 .padding(top = 8.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            top?.invoke(this)
             Text(title, style = MaterialTheme.typography.headlineMedium, color = AmberPalette.Text)
             if (lead != null) Text(lead, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Muted)
             body()

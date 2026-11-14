@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
+import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.CleanupServices
 import app.amethyst.core.onboarding.EngineNames
@@ -180,15 +181,20 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
 }
 
 /**
- * What was chosen - or, on the quick way, decided for this phone - and where to change it;
+ * The bubble finishing over the title ([DoneOrb]), then, row after row, what was chosen - or,
+ * on the quick way, decided for this phone - and where to change it;
  * "Try it" leads to the flame on Home. A recognition that still waits for its model is named
  * with one line on what happens until then ([PendingModelNote]).
  */
 @Composable
 internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pending: PendingModel?, onFinish: () -> Unit) {
+    val rows = rememberRowsIn(6)
+    // A model still on its way - also in the moment before its first byte - shows on the bubble's rim.
+    val downloaded = if (pending == null) DownloadNotice.share(download) else DownloadNotice.share(pending.download) ?: 0f.takeIf { pending.download == null && !pending.failed }
     StepPage(
         title = stringResource(R.string.done_title),
         lead = stringResource(R.string.done_lead),
+        top = { DoneOrb(downloaded) },
         buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },
     ) {
         // By the name the engine step gave it, not the one Settings lists it under.
@@ -197,17 +203,25 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pend
             pending?.let { stringResource(R.string.pending_then, words(EngineNames.of(it.option))) }
                 ?: settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
             stringResource(R.string.done_where_recognition),
+            Modifier.rowIn(rows, 0),
         )
-        if (pending != null) PendingModelNote(pending)
-        Chosen(stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup))
+        if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1))
+        Chosen(
+            stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup),
+            Modifier.rowIn(rows, 2),
+        )
         Chosen(
             stringResource(R.string.settings_bubble),
             stringResource(if (settings.bubble.onlyWithTextField) R.string.bubble_step_typing else R.string.bubble_step_always),
             stringResource(R.string.done_where_bubble),
+            Modifier.rowIn(rows, 3),
         )
-        Chosen(stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_advanced))
+        Chosen(
+            stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_advanced),
+            Modifier.rowIn(rows, 4),
+        )
         if (download != null && pending == null) {
-            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.rowIn(rows, 5).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Hint(Texts.download(LocalContext.current, download), AmberPalette.Text)
                 ProgressLine((download as? ModelDownload.Running)?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f })
                 Hint(stringResource(R.string.done_download_note))
@@ -217,8 +231,8 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pend
 }
 
 @Composable
-private fun Chosen(what: String, value: String, where: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun Chosen(what: String, value: String, where: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(what, style = MaterialTheme.typography.labelLarge, color = AmberPalette.Muted)
         Text(value, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
         Hint(where)

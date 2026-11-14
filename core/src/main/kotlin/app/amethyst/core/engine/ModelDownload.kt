@@ -12,6 +12,11 @@ sealed interface ModelDownload {
 /** What a dictation started during the download is told, instead of failing (worded by the app). */
 object DownloadNotice {
 
+    /** How much of a running download is there, 0..1 - 0 while its size is unknown; null when none is running. */
+    fun share(download: ModelDownload?): Float? = (download as? ModelDownload.Running)?.let {
+        if (it.total <= 0) 0f else (it.received.toFloat() / it.total).coerceIn(0f, 1f)
+    }
+
     /** Floored and held below 100: "100 %" while the last bytes are still checked would lie. */
     fun percent(download: ModelDownload.Running): Int =
         if (download.total <= 0) 0 else (download.received * 100 / download.total).toInt().coerceIn(0, 99)
