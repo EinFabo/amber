@@ -112,6 +112,18 @@ data class Practice(
             return Practice(side, tasks(1), tasks(2) - tasks(1))
         }
 
+        /** How long nothing may happen before the step points at the bubble. */
+        const val QUIET_MS = 5_000L
+
+        /**
+         * Whether the step points at the bubble once it has been quiet: only while the bubble
+         * can show and the task up next can be done - else the step already says what is missing.
+         */
+        fun pointsAtBubble(readiness: PracticeReadiness, practice: Practice): Boolean {
+            val next = practice.current ?: return false
+            return blocked(next, readiness, practice) == null
+        }
+
         /** What keeps the flame off the screen, so no task can happen; null when it can show. */
         fun stepBlock(readiness: PracticeReadiness): PracticeBlock? = when {
             !readiness.serviceOn -> PracticeBlock.NO_SERVICE

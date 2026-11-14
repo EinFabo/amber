@@ -135,6 +135,20 @@ class PracticeTest {
     private val ready = PracticeReadiness(serviceOn = true, bubbleOn = true, microphone = true, recognition = Recognition.READY, hasLastDictation = true)
 
     @Test
+    fun `the step points at the bubble only while the next task can be done`() {
+        assertTrue(Practice.pointsAtBubble(ready, fresh))
+        assertFalse(Practice.pointsAtBubble(ready.copy(serviceOn = false), fresh))
+        assertFalse(Practice.pointsAtBubble(ready.copy(bubbleOn = false), fresh))
+        // The tap is next and cannot record: the step says why instead.
+        assertFalse(Practice.pointsAtBubble(ready.copy(microphone = false), fresh))
+        assertFalse(Practice.pointsAtBubble(ready.copy(recognition = Recognition.DOWNLOADING), fresh))
+        // With the tap skipped the drag needs nothing but the bubble.
+        val dragNext = fresh.skip(PracticeTask.TAP).skip(PracticeTask.HOLD)
+        assertTrue(Practice.pointsAtBubble(ready.copy(microphone = false), dragNext))
+        assertFalse(Practice.pointsAtBubble(ready, PracticeTask.entries.fold(fresh) { p, task -> p.skip(task) }))
+    }
+
+    @Test
     fun `nothing stands in the way when everything is ready`() {
         PracticeTask.entries.forEach { assertNull(Practice.blocked(it, ready, fresh)) }
         assertNull(Practice.stepBlock(ready))

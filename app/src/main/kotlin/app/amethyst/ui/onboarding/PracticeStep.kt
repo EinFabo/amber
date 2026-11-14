@@ -47,7 +47,6 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
-import app.amethyst.ui.StatusDot
 import app.amethyst.ui.screen.fieldColors
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -75,6 +74,10 @@ internal fun PracticeStep(
     }
     val readiness = readiness(settings, setup, content)
     val noFlame = Practice.stepBlock(readiness)
+    // The field glows for a dictation that lands while the step is up - not for one found done
+    // when it opens again.
+    val tapOpenAtFirst = remember { practice.state(PracticeTask.TAP) != TaskState.DONE }
+    val dictated = tapOpenAtFirst && practice.state(PracticeTask.TAP) == TaskState.DONE
 
     var text by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -115,7 +118,7 @@ internal fun PracticeStep(
                 shape = AmberShapes.Inner,
                 textStyle = MaterialTheme.typography.bodyLarge,
                 colors = fieldColors(),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).landingGlow(dictated),
             )
             when (noFlame) {
                 PracticeBlock.NO_SERVICE -> Hint(stringResource(R.string.practice_no_service), AmberPalette.Primary)
@@ -135,9 +138,9 @@ internal fun PracticeStep(
                     )
                 }
             }
-            if (practice.allDone) {
-                Text(stringResource(R.string.practice_all_done), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
-            }
+            if (practice.allDone) AllDoneLine()
+            // Nothing tried, nothing typed for a while: where the bubble is.
+            BubbleHint(settings.bubble.side, wanted = Practice.pointsAtBubble(readiness, practice), quiet = practice to text)
         }
     }
 }
@@ -157,7 +160,7 @@ private fun TaskRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        StatusDot(state == TaskState.DONE)
+        TaskDot(state == TaskState.DONE)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(task.title(), style = MaterialTheme.typography.bodyLarge, color = if (state == TaskState.SKIPPED) AmberPalette.Muted else AmberPalette.Text)
             when {

@@ -117,6 +117,8 @@
     <string name="practice_no_service">No bubble yet: Amber\'s accessibility service is off. Switch it on, or skip this for now.</string>
     <string name="practice_bubble_off">No bubble: it is switched off in Settings → Bubble.</string>
     <string name="practice_all_done">All three done - that is all the bubble needs.</string>
+    <string name="practice_bubble_left">The bubble is at the left edge, above the keyboard.</string>
+    <string name="practice_bubble_right">The bubble is at the right edge, above the keyboard.</string>
     <string name="practice_done_drag">Done. Put it back wherever you like.</string>
     <string name="practice_done">Done.</string>
     <string name="practice_skipped">Skipped.</string>
