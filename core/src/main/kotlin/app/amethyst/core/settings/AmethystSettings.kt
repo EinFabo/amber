@@ -581,6 +581,12 @@ data class FirstRunSettings(
      * [app.amethyst.core.engine.EngineOption] name; Android's recognition stands in until then.
      */
     val pendingEngine: String? = null,
+    /**
+     * The speech recognition made active before its model was on the phone - where Android's
+     * could not stand in - by its option name. Kept until the model is there, so its download
+     * is taken up again whenever the process starts.
+     */
+    val wantedModel: String? = null,
 )
 
 /** How the app itself looks. */

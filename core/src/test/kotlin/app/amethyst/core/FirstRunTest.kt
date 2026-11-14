@@ -53,7 +53,7 @@ class FirstRunTest {
     fun `a model already on the phone is used at once`() {
         val plan = FirstRun.plan(phone()) { it == EngineOption.PARAKEET }
         assertEquals(QuickPlan(EngineOption.PARAKEET, null), plan)
-        assertEquals(EngineOption.PARAKEET, plan.download)
+        assertNull(plan.download)
     }
 
     @Test
@@ -67,8 +67,50 @@ class FirstRunTest {
 
     @Test
     fun `android does not stand in where it would send the voice away or is missing`() {
-        assertEquals(QuickPlan(EngineOption.PARAKEET, null), FirstRun.plan(phone(onDevice = false), nothingReady))
-        assertEquals(QuickPlan(EngineOption.PARAKEET, null), FirstRun.plan(phone(recognizer = false), nothingReady))
+        val atOnce = QuickPlan(EngineOption.PARAKEET, null, nowMissing = true)
+        assertEquals(atOnce, FirstRun.plan(phone(onDevice = false), nothingReady))
+        assertEquals(atOnce, FirstRun.plan(phone(recognizer = false), nothingReady))
+        assertEquals(EngineOption.PARAKEET, atOnce.download)
+    }
+
+    @Test
+    fun `a recognition made active before its model is there has the model written down as wanted`() {
+        val after = FirstRun.quick(fresh, QuickPlan(EngineOption.PARAKEET, null, nowMissing = true), apps, TEST_PHONE, finish = true)
+        assertEquals(parakeet, after.activeEngineId)
+        assertNull(FirstRun.pending(after))
+        assertEquals(EngineOption.PARAKEET, FirstRun.wanted(after))
+        assertEquals(after, SettingsCodec.decode(SettingsCodec.encode(after), TEST_PHONE))
+
+        assertEquals(PendingVerdict.WAIT, FirstRun.verdict(after, ready = false))
+        assertSame(after, FirstRun.settle(after, ready = false, TEST_PHONE))
+        assertEquals(PendingVerdict.DONE, FirstRun.verdict(after, ready = true))
+        val there = FirstRun.settle(after, ready = true, TEST_PHONE)
+        assertEquals(parakeet, there.activeEngineId)
+        assertNull(FirstRun.wanted(there))
+        assertEquals(PendingVerdict.NONE, FirstRun.verdict(there, ready = true))
+    }
+
+    @Test
+    fun `a wanted model is dropped when another recognition is chosen`() {
+        val wanted = FirstRun.quick(fresh, QuickPlan(EngineOption.FUTO_244, null, nowMissing = true), apps, TEST_PHONE)
+        assertEquals(EngineOption.FUTO_244, FirstRun.wanted(wanted))
+        // Another recognition, and another Whisper model of the same one.
+        val groq = wanted.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(activeEngineId = EnginePresets.GROQ.id)
+        val otherModel = wanted.withEngine(wanted.activeEngine!!.copy(modelId = WhisperModels.FUTO_MULTILINGUAL_74.id))
+        for (chosen in listOf(groq, otherModel)) {
+            assertEquals(PendingVerdict.DROP, FirstRun.verdict(chosen, ready = false))
+            val settled = FirstRun.settle(chosen, ready = false, TEST_PHONE)
+            assertNull(FirstRun.wanted(settled))
+            assertEquals(chosen.activeEngine, settled.activeEngine)
+            assertFalse(FirstRun.stillWanted(settled, EngineOption.FUTO_244))
+        }
+    }
+
+    @Test
+    fun `a model that is on the phone already is not written down`() {
+        val after = FirstRun.quick(fresh, QuickPlan(EngineOption.PARAKEET, null), apps, TEST_PHONE)
+        assertEquals(parakeet, after.activeEngineId)
+        assertNull(FirstRun.wanted(after))
     }
 
     @Test
@@ -178,6 +220,11 @@ class FirstRunTest {
         assertEquals(PendingVerdict.DROP, FirstRun.verdict(chosen, ready = false))
         assertTrue(FirstRun.stillWanted(chosen, EngineOption.PARAKEET))
         assertFalse(FirstRun.stillWanted(chosen, EngineOption.FUTO_244))
+        // No longer waiting behind Android's, but written down still - a restart takes it up again.
+        val settled = FirstRun.settle(chosen, ready = false, TEST_PHONE)
+        assertNull(FirstRun.pending(settled))
+        assertEquals(EngineOption.PARAKEET, FirstRun.wanted(settled))
+        assertNull(FirstRun.wanted(FirstRun.settle(chosen, ready = true, TEST_PHONE)))
     }
 
     @Test
@@ -188,6 +235,9 @@ class FirstRunTest {
         assertNull(FirstRun.settle(odd, ready = false, TEST_PHONE).firstRun.pendingEngine)
         // Android needs no model, so it never waits.
         assertNull(FirstRun.pending(fresh.copy(firstRun = fresh.firstRun.copy(pendingEngine = "ANDROID"))))
+        val oddWanted = fresh.copy(firstRun = fresh.firstRun.copy(wantedModel = "GONE"))
+        assertNull(FirstRun.wanted(oddWanted))
+        assertNull(FirstRun.settle(oddWanted, ready = false, TEST_PHONE).firstRun.wantedModel)
     }
 
     @Test
@@ -197,6 +247,7 @@ class FirstRunTest {
         val old = """{"activeEngineId":"android-on-device","engines":[],"onboardingDone":true,"schemaVersion":${AmethystSettings.SCHEMA_VERSION}}"""
         val decoded = SettingsCodec.decode(old, TEST_PHONE)
         assertNull(decoded.firstRun.pendingEngine)
+        assertNull(decoded.firstRun.wantedModel)
         assertFalse(decoded.firstRun.appStylesGiven)
     }
 

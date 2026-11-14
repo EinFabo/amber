@@ -475,7 +475,7 @@ private fun AmethystScreens(
     // The stores read every model file when they are built, so only for a local engine or the
     // introduction - not on every start for everyone. And while the recognition chosen for this
     // phone waits for its model, Android's standing in.
-    val pendingOption = FirstRun.pending(settings)
+    val pendingOption = FirstRun.wanted(settings)
     val watchModels = screen == Screen.Onboarding || screen is Screen.EngineDetail || pendingOption != null ||
         settings.activeEngine?.let(ModelDownloads::downloadsModel) == true
     val parakeetState = if (watchModels) graph.parakeetModels.state.collectAsStateWithLifecycle().value else ParakeetState.Missing
@@ -492,7 +492,7 @@ private fun AmethystScreens(
         val (pendingDownload, failed) = remember(option, parakeetState, whisperStates, waitingFor) {
             graph.modelDownloads.forOption(option) to graph.modelDownloads.failed(option)
         }
-        PendingModel(option, pendingDownload, failed) { mobileData -> graph.firstRun.download(mobileData) }
+        PendingModel(option, pendingDownload, failed, standIn = FirstRun.pending(settings) != null) { mobileData -> graph.firstRun.download(mobileData) }
     }
     val apps = remember(context) { AndroidAppSource(context) }
     val appUsage = remember(statList) { AppChoice.usage(statList) }

@@ -31,6 +31,8 @@ class FirstRunWatchTest {
     private val parakeet = EnginePresets.LOCAL_PARAKEET.id
     private val waiting = FirstRun.quick(fresh, QuickPlan(EngineOption.ANDROID, EngineOption.PARAKEET), emptySet(), TEST_PHONE, finish = true)
 
+    private val activeAtOnce = FirstRun.quick(fresh, QuickPlan(EngineOption.PARAKEET, null, nowMissing = true), emptySet(), TEST_PHONE, finish = true)
+
     private class Downloads : ModelFetch {
         val onPhone = MutableStateFlow(emptySet<EngineOption>())
         val calls = mutableListOf<String>()
@@ -107,13 +109,79 @@ class FirstRunWatchTest {
         phone.stored.update { FirstRun.use(it, EngineOption.PARAKEET, TEST_PHONE) }
         advanceUntilIdle()
         assertNull(phone.stored.value.firstRun.pendingEngine)
+        assertEquals(EngineOption.PARAKEET, FirstRun.wanted(phone.stored.value))
         assertEquals(listOf("fetch PARAKEET"), phone.downloads.calls)
+
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertNull(FirstRun.wanted(phone.stored.value))
+        assertEquals(parakeet, phone.stored.value.activeEngineId)
+        assertEquals(listOf("fetch PARAKEET"), phone.downloads.calls)
+    }
+
+    /**
+     * A phone without Android's on-device recognition: quick setup or Skip make Parakeet active
+     * before its model is there. The process dies (after Skip no service holds it), and the
+     * next one has to take the download up again - nothing else would.
+     */
+    @Test
+    fun `a model wanted for the active recognition is fetched again after the process died`() = watched(activeAtOnce) { phone ->
+        assertEquals(listOf("fetch PARAKEET"), phone.downloads.calls)
+        assertEquals(parakeet, phone.stored.value.activeEngineId)
+        assertEquals(EngineOption.PARAKEET, FirstRun.wanted(phone.stored.value))
+
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertEquals(parakeet, phone.stored.value.activeEngineId)
+        assertNull(FirstRun.wanted(phone.stored.value))
+        assertEquals(listOf("fetch PARAKEET"), phone.downloads.calls)
+    }
+
+    @Test
+    fun `quick setup without a stand-in starts the download in the same process`() = watched(fresh) { phone ->
+        phone.stored.value = activeAtOnce
+        advanceUntilIdle()
+        assertEquals(listOf("fetch PARAKEET"), phone.downloads.calls)
+    }
+
+    @Test
+    fun `a wanted model is let go when another recognition becomes the active one`() = watched(activeAtOnce) { phone ->
+        phone.stored.update { it.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(activeEngineId = EnginePresets.GROQ.id) }
+        advanceUntilIdle()
+        assertNull(FirstRun.wanted(phone.stored.value))
+        assertEquals(EnginePresets.GROQ.id, phone.stored.value.activeEngineId)
+        assertEquals(listOf("fetch PARAKEET", "let go PARAKEET"), phone.downloads.calls)
+    }
+
+    @Test
+    fun `another model wanted in its place gets a round of its own`() = watched(activeAtOnce) { phone ->
+        val small = FirstRun.quick(fresh, QuickPlan(EngineOption.FUTO_244, null, nowMissing = true), emptySet(), TEST_PHONE, finish = true)
+        phone.stored.value = small
+        advanceUntilIdle()
+        assertEquals(listOf("fetch PARAKEET", "let go PARAKEET", "fetch FUTO_244"), phone.downloads.calls)
+        assertEquals(EngineOption.FUTO_244, FirstRun.wanted(phone.stored.value))
+
+        // Parakeet arriving after all does not settle the Whisper model's wait.
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertEquals(EngineOption.FUTO_244, FirstRun.wanted(phone.stored.value))
+        phone.downloads.arrives(EngineOption.FUTO_244)
+        advanceUntilIdle()
+        assertNull(FirstRun.wanted(phone.stored.value))
+        assertEquals(small.activeEngine, phone.stored.value.activeEngine)
     }
 
     @Test
     fun `a waiting name this build does not know is dropped without a download`() =
         watched(fresh.copy(firstRun = fresh.firstRun.copy(pendingEngine = "GONE"))) { phone ->
             assertNull(phone.stored.value.firstRun.pendingEngine)
+            assertEquals(emptyList(), phone.downloads.calls)
+        }
+
+    @Test
+    fun `a wanted name this build does not know is dropped without a download`() =
+        watched(fresh.copy(firstRun = fresh.firstRun.copy(wantedModel = "GONE"))) { phone ->
+            assertNull(phone.stored.value.firstRun.wantedModel)
             assertEquals(emptyList(), phone.downloads.calls)
         }
 

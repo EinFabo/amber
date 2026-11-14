@@ -109,6 +109,9 @@
     <string name="pending_wifi">The speech model (%1$s) downloads on Wi-Fi - until then Android\'s speech recognition is used.</string>
     <string name="pending_stopped">The speech model has not been downloaded yet - until then Android\'s speech recognition is used.</string>
     <string name="pending_then">%1$s, once its model is here</string>
+    <string name="wanted_downloading">Downloading the speech model - you can dictate as soon as it is here.</string>
+    <string name="wanted_wifi">The speech model (%1$s) downloads on Wi-Fi - you can dictate as soon as it is here.</string>
+    <string name="wanted_stopped">The speech model has not been downloaded yet - you can dictate as soon as it is here.</string>
     <string name="practice_title">Try it</string>
     <string name="practice_lead">The real bubble, above the keyboard. Each try ticks off when Amber sees it.</string>
     <string name="practice_switch_on">Switch it on</string>

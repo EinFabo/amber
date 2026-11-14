@@ -109,6 +109,9 @@
     <string name="pending_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
     <string name="pending_stopped">Das Sprachmodell ist noch nicht geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
     <string name="pending_then">%1$s, sobald das Modell da ist</string>
+    <string name="wanted_downloading">Das Sprachmodell wird geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="wanted_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="wanted_stopped">Das Sprachmodell ist noch nicht geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="practice_title">Ausprobieren</string>
     <string name="practice_lead">Die echte Bubble, über der Tastatur. Jeder Versuch wird abgehakt, sobald Amber ihn sieht.</string>
     <string name="practice_switch_on">Einschalten</string>

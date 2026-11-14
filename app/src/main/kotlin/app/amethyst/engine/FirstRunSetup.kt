@@ -27,9 +27,9 @@ import java.io.File
 /**
  * What a new install is given without being asked ([FirstRun]), done with what only the phone
  * knows: its memory and CPU, the apps on it, the models already there. And the one thing that
- * outlives the introduction - the recognition that waits for its model: its download is taken
- * up again with every start of the process (on Wi-Fi, or held for it), and when the model is
- * there it takes over from Android's recognition by itself.
+ * outlives the introduction - the model still to be fetched ([FirstRunWatch]): its download is
+ * taken up again with every start of the process (on Wi-Fi, or held for it), whether its
+ * recognition waits behind Android's or was made active at once.
  *
  * In the app's scope, not a screen's: Skip leaves the introduction the moment it is tapped.
  */
@@ -44,8 +44,9 @@ class FirstRunSetup(
 ) {
 
     /**
-     * The quick setup's choices for this phone - the recognition, the app styles - and its
-     * download started. With [finish] the introduction is over too (Skip). Nothing on a replay.
+     * The quick setup's choices for this phone - the recognition, the app styles; the watch
+     * below starts its download. With [finish] the introduction is over too (Skip). Nothing
+     * on a replay.
      */
     fun quick(finish: Boolean) {
         scope.launch {
@@ -55,10 +56,7 @@ class FirstRunSetup(
             }
             var after: AmethystSettings? = null
             store.update { current -> FirstRun.quick(current, plan, installed, PhoneLocales.tags(), finish).also { after = it } }
-            Log.i(TAG, "first run: ${plan.now.name} now, ${plan.later?.name ?: "nothing"} waiting, ${after?.profiles?.size ?: 0} app style(s)")
-            // A recognition that waits is fetched by the watch below; one made active at once, here.
-            val active = plan.now.takeIf { plan.later == null && it.downloadBytes > 0 }
-            if (active != null && after?.let { FirstRun.stillWanted(it, active) } == true) fetch(active, mobileData = false)
+            Log.i(TAG, "first run: ${plan.now.name} now, ${plan.download?.name ?: "nothing"} to fetch, ${after?.profiles?.size ?: 0} app style(s)")
         }
     }
 
@@ -72,10 +70,10 @@ class FirstRunSetup(
         }
     }
 
-    /** The waiting recognition's download once more - over mobile data too, if the user said so. */
+    /** The wanted model's download once more - over mobile data too, if the user said so. */
     fun download(mobileData: Boolean) {
         scope.launch {
-            FirstRun.pending(loaded.filterNotNull().first())?.let { fetch(it, mobileData) }
+            FirstRun.wanted(loaded.filterNotNull().first())?.let { fetch(it, mobileData) }
         }
     }
 
@@ -90,7 +88,11 @@ class FirstRunSetup(
     private val fetching = object : ModelFetch {
         override fun ready(option: EngineOption): Flow<Boolean> = downloads().ready(option)
 
-        override suspend fun fetch(option: EngineOption) = this@FirstRunSetup.fetch(option, mobileData = false)
+        override suspend fun fetch(option: EngineOption) {
+            // One that runs or is held already - started by hand, perhaps over mobile data - is left alone.
+            val inHand = withContext(Dispatchers.Main) { downloads().forOption(option) != null }
+            if (!inHand) this@FirstRunSetup.fetch(option, mobileData = false)
+        }
 
         override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().cancelWait(option) }
     }

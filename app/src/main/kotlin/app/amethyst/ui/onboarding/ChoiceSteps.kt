@@ -183,7 +183,7 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
 /**
  * The bubble finishing over the title ([DoneOrb]), then, row after row, what was chosen - or,
  * on the quick way, decided for this phone - and where to change it;
- * "Try it" leads to the flame on Home. A recognition that still waits for its model is named
+ * "Try it" leads to the flame on Home. A recognition whose model is still on its way is named
  * with one line on what happens until then ([PendingModelNote]).
  */
 @Composable
@@ -200,12 +200,12 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pend
         // By the name the engine step gave it, not the one Settings lists it under.
         Chosen(
             stringResource(R.string.settings_recognition),
-            pending?.let { stringResource(R.string.pending_then, words(EngineNames.of(it.option))) }
+            pending?.takeIf { it.standIn }?.let { stringResource(R.string.pending_then, words(EngineNames.of(it.option))) }
                 ?: settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
             stringResource(R.string.done_where_recognition),
             Modifier.rowIn(rows, 0),
         )
-        if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1))
+        if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1), progress = true)
         Chosen(
             stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup),
             Modifier.rowIn(rows, 2),
