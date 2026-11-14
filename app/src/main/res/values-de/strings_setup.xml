@@ -28,6 +28,9 @@
     <string name="switch_on_step2">Schalte „%1$s verwenden“ ein</string>
     <string name="switch_on_step3">Tippe auf „Zulassen“</string>
     <string name="switch_on_step3_note">Amber kommt von selbst hierher zurück.</string>
+    <string name="where_allow">Zulassen</string>
+    <string name="where_as_text">Die Schritte in Worten</string>
+    <string name="where_hide_text">Schritte ausblenden</string>
     <string name="restricted_group">Wenn Android „Eingeschränkte Einstellung“ gesagt hat</string>
     <string name="restricted_group_note">Android sperrt das für Apps, die aus einer Datei installiert wurden. So hebst du die Sperre einmal auf:</string>
     <string name="restricted_step1">Öffne die App-Info von Amber</string>
@@ -36,6 +39,7 @@
     <string name="restricted_step2_note">Der nächste Eintrag ist erst da, nachdem du den Schalter probiert hast.</string>
     <string name="restricted_step3">Tippe auf „Eingeschränkte Einstellungen zulassen“</string>
     <string name="restricted_step3_note">Und bestätige, falls Android fragt.</string>
+    <string name="where_restricted_item">Eingeschränkte Einstellungen zulassen</string>
     <string name="restricted_step4">Dann öffne die Einstellungen noch einmal</string>
     <string name="restricted_step4_note">Von hier aus - jetzt lässt sich der Schalter einschalten.</string>
     <string name="open_app_info">App-Info öffnen</string>

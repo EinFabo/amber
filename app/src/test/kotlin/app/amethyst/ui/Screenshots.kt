@@ -1001,6 +1001,8 @@ open class Screenshots {
     @Test fun cleanupLight() = light(::cleanup)
     @Test fun onboardingWelcomeLight() = light(::onboardingWelcome)
     @Test fun onboardingEngineLight() = light(::onboardingEngine)
+    @Test fun onboardingAccessibilityLight() = light(::onboardingAccessibility)
+    @Test fun onboardingAccessibilityWaitingLight() = light(::onboardingAccessibilityWaiting)
     @Test fun onboardingCleanupClaudeLight() = light(::onboardingCleanupClaude)
     @Test fun appearanceLight() = light(::appearance)
     @Test fun appPickerLight() = light(::appPicker)

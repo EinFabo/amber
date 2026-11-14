@@ -27,12 +27,10 @@ import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PrimaryButton
 import app.amethyst.ui.RestrictedSettingsNote
-import app.amethyst.ui.RestrictedSettingsSteps
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.StatusRow
 import app.amethyst.ui.SwitchOnNote
-import app.amethyst.ui.SwitchOnSteps
 import app.amethyst.ui.theme.AmberPalette
 import kotlinx.coroutines.delay
 
@@ -157,18 +155,20 @@ private fun ServiceOn() {
 
 /**
  * Back from Android's settings without the service on: the taps to make there - or, on an
- * install Android may lock ([SetupState.restrictedSettings]), the way past the lock.
+ * install Android may lock ([SetupState.restrictedSettings]), the way past the lock. Each as
+ * a picture, with the steps in words under it.
  */
 @Composable
 private fun WayToTheSwitch(locked: Boolean, actions: SetupActions) {
-    if (locked) RestrictedSettingsSteps(actions.openAppInfo) else SwitchOnSteps()
+    if (locked) RestrictedWay(actions.openAppInfo) else SwitchOnWay()
 }
 
-/** Before the settings open: what the service reads and does, and what to do once there. */
+/** Before the settings open: where to tap there, what the service reads and does, and the same taps in words. */
 @Composable
 private fun BeforeTheSettings(setup: SetupState) {
     Column {
         if (setup.restrictedSettings) RestrictedSettingsNote()
+        SwitchOnPicture(Modifier.padding(top = if (setup.restrictedSettings) 16.dp else 0.dp))
         AccessibilityDisclosure()
         SwitchOnNote()
     }

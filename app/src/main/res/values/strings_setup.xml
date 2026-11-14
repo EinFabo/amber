@@ -28,6 +28,9 @@
     <string name="switch_on_step2">Switch on \"Use %1$s\"</string>
     <string name="switch_on_step3">Tap \"Allow\"</string>
     <string name="switch_on_step3_note">Amber comes back here by itself.</string>
+    <string name="where_allow">Allow</string>
+    <string name="where_as_text">The steps in words</string>
+    <string name="where_hide_text">Hide the steps</string>
     <string name="restricted_group">If Android said \"Restricted setting\"</string>
     <string name="restricted_group_note">Android locks it for apps installed from a file. To lift the lock, once:</string>
     <string name="restricted_step1">Open Amber\'s app info</string>
@@ -36,6 +39,7 @@
     <string name="restricted_step2_note">It has the next item only after you tried the switch.</string>
     <string name="restricted_step3">Tap \"Allow restricted settings\"</string>
     <string name="restricted_step3_note">And confirm if Android asks.</string>
+    <string name="where_restricted_item">Allow restricted settings</string>
     <string name="restricted_step4">Then open the settings again</string>
     <string name="restricted_step4_note">From here - now the switch turns on.</string>
     <string name="open_app_info">Open app info</string>
