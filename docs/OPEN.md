@@ -160,6 +160,22 @@ series and one store release per phase, each after his OK.
       keyboard, its instruction heard in the next dictation; the app page left open in Amber
       while the card changes the instruction; a notification reply field and the launcher -
       Android may hide System UI's package from Amber, then the actions are grey there).
+- [ ] **Settings and introduction, tried as an experiment** (Fabi, 2026-11-13: research first,
+      then "build it so it can be taken out again"; 2026-11-14 after his test on the phone:
+      "gefällt mir wirklich gut" - merged, in 0.33.0). Settings: speech recognition rows by
+      their short name with the model's name or the wait measured here (`RecognitionRows`),
+      the folded Advanced row names what it holds, one row on top only when something needs
+      a look (`SettingsAttention`: reliability first, else a release that is out), no "In
+      use" card on the cleanup page. Not built: "Hide here" in the default quick menu - it
+      has no free place, one of the four would have to go (Fabi's call). Introduction: steps
+      slide in from their side; the accessibility step shows where to tap as a small moving
+      picture, also for "Allow restricted settings"; back with the service on, the tick
+      draws itself; the welcome step plays what Amber does; trying the bubble and "All set"
+      have a finish. All drawn in Compose (`Timeline`, the orb's parts), still frames with
+      animations off. Open: on the German sideload way only the disclosure's heading is
+      above the fold next to "I agree" - to be settled before any Play listing; from the
+      research and not built: an "About Amber" row, one "Apps" page, a "Text" page, Advanced
+      as an expander.
 - [ ] **P7 - Onboarding quick/deep/skip + first-run defaults**, built 2026-11-13: the welcome
       step offers three ways. Quick setup (the filled button): accessibility, microphone, "Try
       it", done - five steps; the try stays because it is where the bubble shows for the first

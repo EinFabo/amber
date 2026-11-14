@@ -1,0 +1,5 @@
+- Helles Design: Einstellungen → Darstellung - wie das Handy, hell oder dunkel
+- Die Einführung zeigt, was Amber tut und wo man in Androids Einstellungen tippt - schnell (zwei Berechtigungen, der Rest passend zum Handy), Schritt für Schritt oder übersprungen
+- Neue Installationen bekommen Schreibstile nur für installierte Apps
+- Einstellungen: kurze Namen der Spracherkennungen, oben eine Zeile, wenn etwas offen ist
+- Weniger Ereignisse im Hintergrund ab Android 13

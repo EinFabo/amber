@@ -1,0 +1,5 @@
+- Light theme: Settings → Appearance - like the phone, light or dark
+- The introduction shows what Amber does and where to tap in Android's settings, with a quick way (two permissions, the rest is picked for this phone), step by step, or skipped
+- A new install gets writing styles only for the apps that are on the phone
+- Settings: short names for the speech recognitions, a row on top when something needs a look
+- Fewer events handled in the background from Android 13
