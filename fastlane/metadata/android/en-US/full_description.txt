@@ -23,6 +23,6 @@ Amber never claims more privacy than it can prove, and never detours your voice 
 Amber needs the microphone and its accessibility service: the service finds the text field, shows the bubble and types the text. It does not need "display over other apps". Speech models are downloaded inside the app when you choose one.
 
 <b>Network services</b>
-Groq, OpenAI and Tinfoil are third-party services; they are used only when you set them up with your own key and choose them.
+Groq, OpenAI, Anthropic (Claude) and Tinfoil are third-party services; they are used only when you set them up with your own key and choose them. Speech models for the phone are downloaded when you choose one, from Hugging Face and keyboard.futo.org.
 
 Requires Android 9 or newer on a 64-bit ARM phone.

@@ -1,10 +1,11 @@
 AntiFeatures:
   NonFreeNet:
-    en-US: Groq, OpenAI, Claude and Tinfoil are optional network services, used only when
-      you set them up with your own key and choose them. Recognition on the phone and on
-      your own server works without them.
+    en-US: Groq, OpenAI, Anthropic and Tinfoil are optional network services, used only
+      when you set them up with your own key and choose them. Speech models are
+      downloaded on request from Hugging Face and keyboard.futo.org. Recognition on the
+      phone and on your own server works without any of them.
 Categories:
-  - System
+  - Speech Recognizer
   - Writing
 License: Apache-2.0
 AuthorName: EinFabo
@@ -19,12 +20,12 @@ Binaries: https://github.com/EinFabo/amber/releases/download/v%v/amber-%v.apk
 Builds:
   - versionName: 0.33.0
     versionCode: 61
-    commit: v0.33.0
+    commit: 068407f45b3e7e6e00165e4cd99f069d31038e37
     subdir: app
     submodules: true
     sudo:
       - apt-get update
-      - apt-get install -t bookworm-backports -y golang-go
+      - apt-get install -y -t trixie-backports golang-go
     gradle:
       - yes
     scandelete:
@@ -47,6 +48,6 @@ Builds:
 AllowedAPKSigningKeys: c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11
 
 AutoUpdateMode: Version
-UpdateCheckMode: Tags
+UpdateCheckMode: Tags ^v[0-9.]+$
 CurrentVersion: 0.33.0
 CurrentVersionCode: 61

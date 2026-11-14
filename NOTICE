@@ -32,14 +32,15 @@ Speech models are not part of the app; Amber downloads them when you choose one:
 
 - Parakeet TDT 0.6B v3 (NVIDIA), via sherpa-onnx - CC BY 4.0
   (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
-- FUTO voice input models, Whisper fine-tunes (https://github.com/futo-org/whisper-acft) - MIT License
+- FUTO voice input models, Whisper fine-tunes (https://huggingface.co/futo-org) - Apache License 2.0
+  on their model cards (the fine-tuning code, https://github.com/futo-org/whisper-acft, is MIT)
 - Whisper large-v3-turbo (OpenAI) in ggml form - MIT License
 - ACFT Whisper large-v3-turbo q8_0 (https://huggingface.co/DeadBranches/acft-whisper-large-v3-turbo_q8_0) -
   Apache License 2.0
 
 The MIT License, as it applies to whisper.cpp (Copyright (c) 2023-2026 The ggml authors),
 ONNX Runtime (Copyright (c) Microsoft Corporation), JSON for Modern C++ (Copyright (c) 2013-2025
-Niels Lohmann) and the FUTO models (Copyright (c) 2024 FUTO Organization):
+Niels Lohmann):
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

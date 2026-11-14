@@ -2,6 +2,28 @@
 
 `app.amber.yml` is the draft for fdroiddata (`metadata/app.amber.yml`). Do not submit it yet.
 
+## Before the merge request (checked against F-Droid's docs and fdroiddata, 2026-11-14)
+
+- **Not before 2027-01-27.** Inclusion Policy, quality control point 6 (added 2026-10-16): an
+  app "should have been actively developed for at least 3 months" unless it has proven users
+  or its author maintains other F-Droid apps. Merge requests for younger apps are closed the
+  same day. The first commit is from 2026-10-27; the end of January is the safe date.
+- **Prove the recipe in a fork of fdroiddata.** Its pipeline runs `fdroid build` in the build
+  server's container and compares the result with the `Binaries:` APK. Not done yet.
+- **Go.** fdroiddata's convention is a Go built from source (`srclibs: go@go1.x.y`,
+  `./make.bash`, `GOTOOLCHAIN=local`); this recipe lets Debian's Go fetch the toolchain
+  tinfoil-go pins. Allowed (recipes run `go install` in `build:`), but expect the review
+  comment - and a source-built Go must then give the same `libgojni.so`, to be tried in the
+  fork. tinfoil-go as a submodule instead of the tarball `tools/build-tinfoil-aar.sh` fetches
+  would match "submodules over downloads".
+- **`commit:` is the full hash**, not the tag (merge request template).
+- **Tracking.** F-Droid ships the GitHub-signed APK, which checks GitHub for updates. From the
+  release after 0.33.0 an install made by an app store never checks
+  (`ReleaseChannel.installedBy`); 0.33.0 itself still would, so name a later release here.
+- **Name and id.** F-Droid lists another "Amber" (`com.greenart7c3.nostrsigner`); `app.amber`
+  reads as the domain amber.app, which is not ours. After inclusion the id is fixed.
+- **IzzyOnDroid** is no route: its inclusion policy rejects apps made with generative AI tools.
+
 ## The Builds entry
 
 The `Builds` entry names the latest release from the from-source build (0.33.0 / versionCode
@@ -16,7 +38,8 @@ named here.
 - `submodules: true`: whisper.cpp and sherpa-onnx (with its eight dependencies) come from
   `third_party/`, compiled by Gradle's CMake with `FETCHCONTENT_FULLY_DISCONNECTED`. ONNX
   Runtime comes from Maven Central.
-- `sudo`: a Go of 1.21 or newer (Debian `golang-go` from bookworm-backports); older ones ignore
+- `sudo`: a Go of 1.21 or newer (Debian `golang-go` from trixie-backports - the build server
+  is Debian trixie with OpenJDK 21 since 2026); older ones ignore
   `GOTOOLCHAIN`. `tools/build-tinfoil-aar.sh` then fetches the Go version pinned by tinfoil-go
   and builds the Tinfoil verifier AAR with gomobile.
 - The AAR is built in `build:`, not `prebuild:`: `fdroid scanner` runs `prebuild` and then flags
