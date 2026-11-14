@@ -347,6 +347,48 @@ class ChatCleanupTest {
     }
 
     @Test
+    fun `a streamed reply that stops without saying it ended is rejected`() = runTest {
+        // The connection dropped half way: the pieces so far, no finish reason, no [DONE].
+        val half = events(listOf("Ich komme ", "morgen "), finish = null).substringBefore("data: {\"choices\":[]")
+        val result = cleanup(streaming(half), stream = true).clean("ich komme morgen um acht mit dem auto und bringe kuchen mit")
+        assertEquals(Problem.CleanupCutOff, assertIs<SttFailure>(result.exceptionOrNull()).problem)
+    }
+
+    @Test
+    fun `a streamed reply without a finish reason is rejected even when the stream says done`() = runTest {
+        val result = cleanup(streaming(events(listOf("Ich komme morgen."), finish = null)), stream = true).clean("ich komme morgen")
+        val failure = assertIs<SttFailure>(result.exceptionOrNull())
+        assertEquals(Problem.CleanupCutOff, failure.problem)
+        assertEquals("stream ended without a finish reason", failure.technical)
+    }
+
+    @Test
+    fun `a streamed reply with an error event is rejected, whatever came before it`() = runTest {
+        val body = buildString {
+            append("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Ich komme morgen.\"},\"finish_reason\":\"stop\"}]}\n\n")
+            append("data: {\"error\":{\"message\":\"upstream timed out\",\"type\":\"server_error\"}}\n\n")
+        }
+        val failure = assertIs<SttFailure>(cleanup(streaming(body), stream = true).clean("ich komme morgen").exceptionOrNull())
+        assertEquals(Problem.CleanupCutOff, failure.problem)
+        assertEquals("error event in the stream", failure.technical)
+    }
+
+    @Test
+    fun `an event that says error null is no error`() = runTest {
+        val body = buildString {
+            append("data: {\"error\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Ich komme morgen.\"},\"finish_reason\":\"stop\"}]}\n\n")
+            append("data: [DONE]\n\n")
+        }
+        assertEquals("Ich komme morgen.", cleanup(streaming(body), stream = true).clean("ich komme morgen").getOrThrow().text)
+    }
+
+    @Test
+    fun `a reply in one piece may still leave the finish reason out`() = runTest {
+        val transport = FakeHttpTransport.json("""{"choices":[{"message":{"content":"Ich komme morgen."}}]}""")
+        assertEquals("Ich komme morgen.", cleanup(transport, stream = true).clean("ich komme morgen").getOrThrow().text)
+    }
+
+    @Test
     fun `a server that ignores stream and answers in one piece still works`() = runTest {
         var calls = 0
         val result = cleanup(FakeHttpTransport.json(reply("Ich komme morgen.")), stream = true)

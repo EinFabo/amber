@@ -10,6 +10,8 @@ import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.TextCleanup.Cleaned
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -119,10 +121,9 @@ class ChatCleanup(
         // tokens spent on reasoning) would otherwise be typed as nothing - or as "null".
         // Servers name a normal end in several ways; anything else (length, content_filter,
         // abort, error...) may have lost text, and losing the dictation is worse than not
-        // cleaning it.
-        if (reply.finishReason !in NORMAL_ENDS) {
-            return Result.failure(SttFailure(Problem.CleanupCutOff, "finish_reason=${reply.finishReason}"))
-        }
+        // cleaning it. A streamed reply must say that it ended: one that just stops - the
+        // connection dropped, the server sent an error event - is half a text.
+        reply.cutOff?.let { why -> return Result.failure(SttFailure(Problem.CleanupCutOff, why)) }
         return accepted(text, reply.content ?: "", style, instruction, generalInstruction, language)
             .map { Cleaned(it, clock() - startedAt, sent.trust) }
     }
@@ -326,10 +327,36 @@ class ChatCleanup(
 
         private const val MOST_CHARS_PER_SECOND = 20
 
-        /** OpenAI, llama.cpp/vLLM/TGI and Anthropic-style proxies; null when a server omits it. */
+        /**
+         * OpenAI, llama.cpp/vLLM/TGI and Anthropic-style proxies; null when a server omits it -
+         * which only a reply in one piece may ([Reply.cutOff]).
+         */
         private val NORMAL_ENDS = setOf(null, "stop", "eos", "eos_token", "end_turn", "stop_sequence")
 
-        private class Reply(val content: String?, val finishReason: String?)
+        /**
+         * [streamed]: put together from server-sent events, where the end must be said - a
+         * connection that drops, or a server that gives up, leaves half a reply and no word
+         * about it. [error]: the stream held an error event.
+         */
+        private class Reply(
+            val content: String?,
+            val finishReason: String?,
+            val streamed: Boolean = false,
+            val error: Boolean = false,
+        ) {
+            /**
+             * Why this reply may have lost text, for the log; null when it ended as it should.
+             * In one piece a missing finish reason passes - some servers omit the field, and
+             * the body is whole or unreadable. A stream needs a normal end named.
+             */
+            val cutOff: String?
+                get() = when {
+                    error -> "error event in the stream"
+                    streamed && finishReason == null -> "stream ended without a finish reason"
+                    finishReason !in NORMAL_ENDS -> "finish_reason=$finishReason"
+                    else -> null
+                }
+        }
 
         /** A reply in one piece, or the events of a streamed one put together. */
         private fun replyOf(body: String): Reply {
@@ -343,30 +370,38 @@ class ChatCleanup(
 
         /**
          * A streamed reply's text and how it ended: every event's delta in order, the last
-         * finish reason named. An event without a choice (usage) adds nothing.
+         * finish reason named. An event without a choice (usage) adds nothing; one that holds
+         * an `error` - a server that gave up mid-reply - marks the reply as broken.
          */
         private fun streamedReply(body: String): Reply {
             val content = StringBuilder()
             var finishReason: String? = null
             var any = false
-            events(body).forEach { choice ->
+            var error = false
+            eventObjects(body).forEach { event ->
+                if (event["error"].let { it != null && it !is JsonNull }) error = true
+                val choice = firstChoice(event) ?: return@forEach
                 any = true
                 choice["delta"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull?.let(content::append)
                 choice["finish_reason"]?.jsonPrimitive?.contentOrNull?.let { finishReason = it }
             }
-            return Reply(if (any) content.toString() else null, finishReason)
+            return Reply(if (any) content.toString() else null, finishReason, streamed = true, error = error)
         }
 
-        /** The first choice of each `data:` event in [lines], up to `[DONE]`. */
-        private fun events(lines: String): Sequence<kotlinx.serialization.json.JsonObject> =
+        /** Each `data:` event in [lines] that is a JSON object, up to `[DONE]`. */
+        private fun eventObjects(lines: String): Sequence<JsonObject> =
             lines.lineSequence()
                 .map { it.trim() }
                 .filter { it.startsWith("data:") }
                 .map { it.removePrefix("data:").trim() }
                 .takeWhile { it != "[DONE]" }
-                .mapNotNull { event ->
-                    runCatching { json.parseToJsonElement(event).jsonObject["choices"]?.jsonArray?.firstOrNull()?.jsonObject }.getOrNull()
-                }
+                .mapNotNull { event -> runCatching { json.parseToJsonElement(event).jsonObject }.getOrNull() }
+
+        private fun firstChoice(event: JsonObject): JsonObject? =
+            runCatching { event["choices"]?.jsonArray?.firstOrNull()?.jsonObject }.getOrNull()
+
+        /** The first choice of each `data:` event in [lines], up to `[DONE]`. */
+        private fun events(lines: String): Sequence<JsonObject> = eventObjects(lines).mapNotNull(::firstChoice)
 
         /** About how long the cleaned text will be: as long as the dictation, a note shorter. */
         private fun expectedChars(text: String, style: WritingStyle): Int =
