@@ -47,6 +47,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.SettingsAttention
 import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
@@ -111,7 +112,9 @@ fun SettingsScreen(
 ) {
     val engine = settings.activeEngine
     val trust = engine?.trustLevelForDisplay()
-    val reliabilityOpen = listOf(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted).count { !it }
+    val reliability = SettingsAttention.reliabilityOpen(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted)
+    val reliabilityOpen = reliability.size
+    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version)
     val advanced = settings.ui.advanced
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
@@ -159,11 +162,15 @@ fun SettingsScreen(
     }
 
     SubPage(modifier) {
+        // What needs a look, before everything else and in both views; nothing open, no row.
+        attention?.let { AttentionRow(it, onOpen) }
         var switchShown = false
+        // The row on top says what is open, so the switch only says what it holds.
+        val advancedSwitch: @Composable () -> Unit = { AdvancedSwitch(advanced, reliabilityOpen = 0, onAdvancedChange) }
         SettingsLayout.groups(advanced).forEach { group ->
             // The switch sits right above what it shows, or where that would be.
             if (!switchShown && group.kind >= SettingsGroupKind.ADVANCED) {
-                AdvancedSwitch(advanced, reliabilityOpen, onAdvancedChange)
+                advancedSwitch()
                 switchShown = true
             }
             SettingsGroup(
@@ -180,7 +187,7 @@ fun SettingsScreen(
                 }
             }
         }
-        if (!switchShown) AdvancedSwitch(advanced, reliabilityOpen, onAdvancedChange)
+        if (!switchShown) advancedSwitch()
 
         Text(
             stringResource(R.string.settings_version, version),

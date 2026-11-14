@@ -198,6 +198,26 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: the simple settings while a release is out, said on top. */
+    @Test
+    fun settingsAttention() = shoot("x-settings-attention", "Settings") {
+        SettingsScreen(
+            settings = settings.copy(updates = app.amethyst.core.settings.UpdateSettings(latestVersion = "0.33.0")),
+            setup = ready, diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.GITHUB,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+        )
+    }
+
+    /** Not part of the listing set: the simple settings with two reliability things open, said on top. */
+    @Test
+    fun settingsAttentionReliability() = shoot("x-settings-attention-reliability", "Settings") {
+        SettingsScreen(
+            settings = settings, setup = ready.copy(notificationsGranted = false, batteryUnrestricted = false),
+            diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.OTHER,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+        )
+    }
+
     @Test
     fun appStyles() = shoot("6-app-styles", "App styles") {
         AppStylesScreen(
