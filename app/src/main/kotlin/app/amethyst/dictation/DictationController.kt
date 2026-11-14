@@ -45,6 +45,7 @@ import app.amethyst.core.commands.RunMode
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
+import app.amethyst.core.dictation.BubbleTap
 import app.amethyst.core.dictation.ScreenOff
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
@@ -266,23 +267,32 @@ class DictationController(
      */
     fun toggle(): Boolean {
         val now = SystemClock.uptimeMillis()
-        if (isRunning) {
-            val recording = _state.value.let { it is DictationState.Starting || it is DictationState.Listening }
-            when (CommandTrigger.tapInRun(_mode.value, recording)) {
-                CommandTrigger.TapInRun.STOP_RECORDING -> stop()
-                CommandTrigger.TapInRun.CANCEL -> {
-                    commandStoppedAt = now
-                    stoppedByTap = true
-                    cancel()
-                    Log.i(TAG, "command stopped by a tap")
-                    mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
-                }
+        val state = _state.value
+        // A run that is still starting - its microphone being opened, nothing working on it
+        // yet - is a run: a tap then is its stop, not another start ([BubbleTap]).
+        val action = BubbleTap.onTap(
+            working = isRunning,
+            starting = state is DictationState.Starting,
+            listening = state is DictationState.Listening,
+            mode = _mode.value,
+            secondTapOfStop = CommandTrigger.isSecondTapOfStop(commandStoppedAt, now),
+        )
+        when (action) {
+            BubbleTap.Action.STOP_RECORDING -> stop()
+            BubbleTap.Action.CANCEL_COMMAND -> {
+                commandStoppedAt = now
+                stoppedByTap = true
+                cancel()
+                Log.i(TAG, "command stopped by a tap")
+                mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
             }
-            return false
+            BubbleTap.Action.NOTHING -> Unit
+            BubbleTap.Action.START -> {
+                start()
+                return _state.value is DictationState.Starting
+            }
         }
-        if (CommandTrigger.isSecondTapOfStop(commandStoppedAt, now)) return false
-        start()
-        return _state.value is DictationState.Starting
+        return false
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
@@ -352,16 +362,7 @@ class DictationController(
                 // front, so hand over to the invisible activity and let it call back in.
                 Log.i(TAG, "no foreground anchor - routing through the proxy activity")
 
-                // Set synchronously, before the activity exists. The activity waits for the
-                // run to *leave* this state; seeing Idle it would finish during its own
-                // onCreate - before AudioRecord opened - and the anchor it exists to provide
-                // would be gone again.
-                _state.value = DictationState.Starting
-                // A start over during a handover takes the activity on its way: never two.
-                if (handover.begin(SystemClock.elapsedRealtime())) {
-                    MicProxyActivity.launch(context)
-                    watchProxyHandover()
-                }
+                handToProxy()
                 return
             }
 
@@ -381,6 +382,23 @@ class DictationController(
         // begin before the coroutine gets its first dispatch.
         _state.value = DictationState.Starting
         job = scope.launch { run(source) }
+    }
+
+    /**
+     * Hands the run to the invisible activity, which calls back in ([start] from
+     * [TriggerSource.PROXY_ACTIVITY]) once it is up. Until then the run is "starting" with
+     * nothing working on it: a tap is kept as its stop ([stop]), a cancel as its end.
+     */
+    private fun handToProxy() {
+        // Set synchronously, before the activity exists. The activity waits for the run to
+        // *leave* this state; seeing Idle it would finish during its own onCreate - before
+        // AudioRecord opened - and the anchor it exists to provide would be gone again.
+        _state.value = DictationState.Starting
+        // A start over during a handover takes the activity on its way: never two.
+        if (handover.begin(SystemClock.elapsedRealtime())) {
+            MicProxyActivity.launch(context)
+            watchProxyHandover()
+        }
     }
 
     /**
@@ -433,7 +451,9 @@ class DictationController(
     /** Finish the current recording and transcribe what was captured. */
     fun stop() {
         stopRequested.set(true)
-        if (!isRunning && _state.value is DictationState.Starting) handover.stop()
+        // Before the recording began: kept by whatever starts it - the activity on its way
+        // (nothing if none is), or the run itself when it gets to its recorder or recognizer.
+        if (_state.value is DictationState.Starting) handover.stop()
         selfCapturing?.let { engine ->
             engine.requestStop()
             // Its recording ends with this tap: the run's limit no longer covers the longest one.
@@ -733,6 +753,9 @@ class DictationController(
         limit: RunLimit,
     ): Transcript? {
         selfCapturing = engine
+        // A tap that came while the run was starting found no recognizer to stop: it is due
+        // now, and the engine keeps it until its recognizer listens ([ListenStop]).
+        if (stopRequested.get()) engine.requestStop()
         _state.value = DictationState.Listening()
         // Recognition overlaps with listening here; the whole call counts as both.
         trace?.recordingStarts()
@@ -869,7 +892,10 @@ class DictationController(
                 // service. Retry once through the activity path before giving up.
                 if (source.mayUseProxyFallback) {
                     Log.i(TAG, "retrying capture via proxy activity")
-                    if (handover.begin(SystemClock.elapsedRealtime())) MicProxyActivity.launch(context)
+                    // Starting again, as at the first handover: a tap meanwhile is this run's
+                    // stop, and an activity that never comes is said after a moment - the
+                    // bubble no longer stays on "listening" with nothing behind it.
+                    handToProxy()
                 } else {
                     fail(say(outcome.message), details = listOf("capture failed: ${outcome.technical}"))
                 }
