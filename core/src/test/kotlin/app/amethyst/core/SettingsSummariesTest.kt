@@ -16,6 +16,8 @@ import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
+import app.amethyst.core.settings.UpdateSettings
+import app.amethyst.core.update.ReleaseChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -122,9 +124,9 @@ class SettingsSummariesTest {
             SettingsSummaries.advanced(SettingsLayout.hiddenRows(voiceCommands = true), reliabilityOpen = 0),
         )
         // A few rows are all named, and nothing says there is more.
-        val few = listOf(SettingsItem.RECORDING, SettingsItem.DIAGNOSTICS)
+        val few = listOf(SettingsItem.RECORDING, SettingsItem.RELIABILITY)
         assertEquals(Summary.MoreSettings(few, more = false), SettingsSummaries.advanced(few, reliabilityOpen = 0))
-        val three = listOf(SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.DIAGNOSTICS)
+        val three = listOf(SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY)
         assertEquals(Summary.MoreSettings(three, more = false), SettingsSummaries.advanced(three, reliabilityOpen = 0))
     }
 
@@ -132,5 +134,45 @@ class SettingsSummariesTest {
     fun `on and off are just that`() {
         assertEquals(Summary.On, SettingsSummaries.onOff(true))
         assertEquals(Summary.Off, SettingsSummaries.onOff(false))
+    }
+
+    private val checked = UpdateSettings(lastCheckedAt = 1_000L, latestVersion = "0.33.0")
+
+    @Test
+    fun `about says the version, and a newer one that is out`() {
+        assertEquals(Summary.About("0.32.0", Summary.About.Newer.Out("0.33.0")), SettingsSummaries.about("0.32.0", ReleaseChannel.GITHUB, checked))
+        // Dismissed on Home, it is still out.
+        assertEquals(
+            Summary.About("0.32.0", Summary.About.Newer.Out("0.33.0")),
+            SettingsSummaries.about("0.32.0", ReleaseChannel.GITHUB, checked.copy(dismissedVersion = "0.33.0")),
+        )
+        // Found by an earlier check: the failed one after it knows nothing new.
+        assertEquals(
+            Summary.About("0.32.0", Summary.About.Newer.Out("0.33.0")),
+            SettingsSummaries.about("0.32.0", ReleaseChannel.GITHUB, checked.copy(lastCheckFailed = true)),
+        )
+    }
+
+    @Test
+    fun `about says there is nothing newer once a check got that answer`() {
+        assertEquals(Summary.About("0.33.0", Summary.About.Newer.None), SettingsSummaries.about("0.33.0", ReleaseChannel.GITHUB, checked))
+        assertEquals(Summary.About("0.34.0-debug", Summary.About.Newer.None), SettingsSummaries.about("0.34.0-debug", ReleaseChannel.GITHUB, checked))
+    }
+
+    @Test
+    fun `about says only the version where nothing is known`() {
+        fun about(installed: String, channel: ReleaseChannel?, updates: UpdateSettings) =
+            SettingsSummaries.about(installed, channel, updates)
+        // A build that gets its updates from where it was installed, and one not known yet.
+        assertEquals(Summary.About("0.32.0", Summary.About.Newer.Unknown), about("0.32.0", ReleaseChannel.OTHER, checked))
+        assertEquals(Summary.About("0.32.0", Summary.About.Newer.Unknown), about("0.32.0", null, checked))
+        // The check switched off.
+        assertEquals(Summary.About("0.32.0", Summary.About.Newer.Unknown), about("0.32.0", ReleaseChannel.GITHUB, checked.copy(enabled = false)))
+        // Never checked, or the last check failed with nothing newer stored.
+        assertEquals(Summary.About("0.33.0", Summary.About.Newer.Unknown), about("0.33.0", ReleaseChannel.GITHUB, UpdateSettings()))
+        assertEquals(Summary.About("0.33.0", Summary.About.Newer.Unknown), about("0.33.0", ReleaseChannel.GITHUB, checked.copy(lastCheckFailed = true)))
+        // A version that cannot be read is not called up to date.
+        assertEquals(Summary.About("", Summary.About.Newer.Unknown), about("", ReleaseChannel.GITHUB, checked))
+        assertEquals(Summary.About("0.33.0", Summary.About.Newer.Unknown), about("0.33.0", ReleaseChannel.GITHUB, checked.copy(latestVersion = "soon")))
     }
 }

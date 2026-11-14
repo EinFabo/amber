@@ -33,6 +33,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | | clipboard | Zwischenablage | |
 | Wireless network | Wi-Fi | WLAN | |
 | The settings pages | Diagnostics, Statistics, Reliability | Diagnose, Statistik, Zuverlässigkeit | |
+| The page with what is about the app rather than a setting (not yet approved) | About Amber | Über Amber | Info, Imprint |
 | Light or dark (added with P8, not yet approved) | Appearance: Like the phone, Light, Dark | Darstellung: Wie das Handy, Hell, Dunkel | theme, mode, system default |
 | Hidden for now (`Features.VOICE_COMMANDS`) | voice commands | Sprachbefehle | |
 

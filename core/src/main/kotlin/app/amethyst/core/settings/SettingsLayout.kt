@@ -20,13 +20,13 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     RELIABILITY(simple = false, SettingsGroupKind.ADVANCED),
     /** Light or dark: how Amber looks, for everyone. */
     APPEARANCE(simple = true, SettingsGroupKind.AMBER),
-    STATISTICS(simple = false, SettingsGroupKind.AMBER),
-    DIAGNOSTICS(simple = false, SettingsGroupKind.AMBER),
 
-    /** About Amber rather than a setting, so always there - as is the way back into the introduction. */
-    UPDATES(simple = true, SettingsGroupKind.AMBER),
-    LICENSES(simple = true, SettingsGroupKind.AMBER),
-    INTRODUCTION(simple = true, SettingsGroupKind.AMBER),
+    /**
+     * The page with what is about Amber rather than a setting, so always there: its version and
+     * updates, the statistics and diagnostics to look at, the licenses, the way back into the
+     * introduction. None of them is a row of the Settings page, or hidden by the switch.
+     */
+    ABOUT(simple = true, SettingsGroupKind.AMBER),
 
     /** On the Cleanup page: the own addition for every app and the system prompt to read. */
     CLEANUP_INSTRUCTION(simple = false, group = null),
@@ -43,8 +43,8 @@ data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<Settin
 
 /**
  * Which settings show: in the simple view (a new install's) only the few most people need -
- * how speech is recognized, whether it is cleaned up, the bubble and the app styles; with
- * [UiSettings.advanced] every one. Voice commands only ever with [Features.VOICE_COMMANDS].
+ * how speech is recognized, whether it is cleaned up, the bubble and the app styles, then how
+ * Amber looks and the page about it; with [UiSettings.advanced] every one. Voice commands only ever with [Features.VOICE_COMMANDS].
  */
 object SettingsLayout {
 

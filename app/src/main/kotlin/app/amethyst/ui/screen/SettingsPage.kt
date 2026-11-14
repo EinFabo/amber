@@ -19,6 +19,7 @@ enum class SettingsPage {
     DIAGNOSTICS,
     UPDATES,
     LICENSES,
+    ABOUT,
 }
 
 /** The title over a page: the label of the row that leads to it. */
@@ -38,4 +39,5 @@ fun SettingsPage.title(): Int = when (this) {
     SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics
     SettingsPage.UPDATES -> R.string.settings_updates
     SettingsPage.LICENSES -> R.string.settings_licenses
+    SettingsPage.ABOUT -> R.string.settings_about
 }

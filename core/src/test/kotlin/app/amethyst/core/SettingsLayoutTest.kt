@@ -69,13 +69,13 @@ class SettingsLayoutTest {
     }
 
     @Test
-    fun `the simple view is recognition, cleanup, bubble and app styles, plus Amber itself`() {
+    fun `the simple view is recognition, cleanup, bubble and app styles, plus how Amber looks and the page about it`() {
         val simple = SettingsLayout.groups(advanced = false, voiceCommands = false)
         assertEquals(
             listOf(
                 SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE),
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
-                SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION),
+                SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.ABOUT),
             ),
             simple.map { it.kind to it.items },
         )
@@ -89,9 +89,7 @@ class SettingsLayoutTest {
                 SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE),
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
                 SettingsGroupKind.ADVANCED to listOf(SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY),
-                SettingsGroupKind.AMBER to listOf(
-                    SettingsItem.APPEARANCE, SettingsItem.STATISTICS, SettingsItem.DIAGNOSTICS, SettingsItem.UPDATES, SettingsItem.LICENSES, SettingsItem.INTRODUCTION,
-                ),
+                SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.ABOUT),
             ),
             all.map { it.kind to it.items },
         )
@@ -150,12 +148,25 @@ class SettingsLayoutTest {
         assertEquals(
             listOf(
                 SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY,
-                SettingsItem.STATISTICS, SettingsItem.DIAGNOSTICS,
             ),
             SettingsLayout.hiddenRows(voiceCommands = false),
         )
         assertEquals(listOf(SettingsItem.VOICE_COMMANDS, SettingsItem.FALLBACK), SettingsLayout.hiddenRows(voiceCommands = true).take(2))
-        assertEquals(7, SettingsLayout.hiddenRows(voiceCommands = true).size)
+        assertEquals(5, SettingsLayout.hiddenRows(voiceCommands = true).size)
+    }
+
+    @Test
+    fun `what is about Amber is one row in both views, the last one`() {
+        for (advanced in listOf(false, true)) {
+            val rows = SettingsLayout.groups(advanced, voiceCommands = true).flatMap { it.items }
+            assertEquals(SettingsItem.ABOUT, rows.last())
+            assertTrue(SettingsLayout.shows(SettingsItem.ABOUT, advanced))
+        }
+        // The advanced view's Amber group is as short as the simple one's.
+        assertEquals(
+            SettingsLayout.groups(advanced = false).last().items,
+            SettingsLayout.groups(advanced = true).last().items,
+        )
     }
 
     @Test

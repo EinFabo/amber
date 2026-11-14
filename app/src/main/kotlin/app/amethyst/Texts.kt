@@ -177,6 +177,11 @@ object Texts {
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
             is Summary.Theme -> theme(this, summary.mode)
+            is Summary.About -> when (val newer = summary.newer) {
+                Summary.About.Newer.Unknown -> getString(R.string.summary_version, summary.version)
+                Summary.About.Newer.None -> getString(R.string.summary_version_up_to_date, summary.version)
+                is Summary.About.Newer.Out -> getString(R.string.summary_version_newer, summary.version, newer.version)
+            }
         }
     }
 

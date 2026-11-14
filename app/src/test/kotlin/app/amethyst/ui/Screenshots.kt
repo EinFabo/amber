@@ -186,8 +186,8 @@ open class Screenshots {
     @Test
     fun settingsList() = shoot("5-settings", R.string.title_settings) {
         SettingsScreen(
-            settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+            settings = settings, setup = ready, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -198,8 +198,8 @@ open class Screenshots {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id, ui = app.amethyst.core.settings.UiSettings(advanced = true)),
             setup = ready.copy(batteryUnrestricted = false),
-            diagnosticsCount = 12, version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+            version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -208,8 +208,8 @@ open class Screenshots {
     fun settingsAttention() = shoot("x-settings-attention", R.string.title_settings) {
         SettingsScreen(
             settings = settings.copy(updates = app.amethyst.core.settings.UpdateSettings(latestVersion = "0.33.0")),
-            setup = ready, diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+            setup = ready, version = "0.32.0", releaseChannel = ReleaseChannel.GITHUB,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -218,8 +218,8 @@ open class Screenshots {
     fun settingsAttentionReliability() = shoot("x-settings-attention-reliability", R.string.title_settings) {
         SettingsScreen(
             settings = settings, setup = ready.copy(notificationsGranted = false, batteryUnrestricted = false),
-            diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+            version = "0.32.0", releaseChannel = ReleaseChannel.OTHER,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -611,8 +611,8 @@ open class Screenshots {
     @Test
     fun settingsPipeline() = shoot("x-settings-pipeline", R.string.title_settings) {
         SettingsScreen(
-            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
-            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
+            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, version = "0.17.1",
+            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -969,6 +969,35 @@ open class Screenshots {
         UpdatesScreen(
             settings = settings, channel = ReleaseChannel.OTHER, installedVersion = "0.23.0",
             checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
+        )
+    }
+
+    /** Not part of the listing set: About Amber on the GitHub build, a newer release found. */
+    @Test
+    fun about() = shoot("x-about", SettingsPage.ABOUT.title()) {
+        app.amethyst.ui.screen.AboutScreen(
+            settings = settings.copy(updates = updateSeen), diagnosticsCount = 12, version = "0.23.0", releaseChannel = ReleaseChannel.GITHUB,
+            onOpen = {}, onReplayIntroduction = {},
+        )
+    }
+
+    @Test fun aboutLight() = light(::about)
+
+    /** Not part of the listing set: About Amber on a build that does not check, nothing dictated yet. */
+    @Test
+    fun aboutElsewhere() = shoot("x-about-elsewhere", SettingsPage.ABOUT.title()) {
+        app.amethyst.ui.screen.AboutScreen(
+            settings = settings, diagnosticsCount = 0, version = "0.23.0-debug", releaseChannel = ReleaseChannel.OTHER,
+            onOpen = {}, onReplayIntroduction = {},
+        )
+    }
+
+    /** Not part of the listing set: the settings list of the GitHub build after a check that found nothing newer. */
+    @Test
+    fun settingsUpToDate() = shoot("x-settings-up-to-date", R.string.title_settings) {
+        SettingsScreen(
+            settings = settings.copy(updates = updateSeen), setup = ready, version = "0.24.0-debug", releaseChannel = ReleaseChannel.GITHUB,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
         )
     }
 

@@ -86,6 +86,7 @@ import app.amethyst.engine.ParakeetState
 import app.amethyst.ui.AndroidAppSource
 import app.amethyst.ui.onboarding.OnboardingContent
 import app.amethyst.ui.onboarding.OnboardingScreen
+import app.amethyst.ui.screen.AboutScreen
 import app.amethyst.ui.screen.AppStyleScreen
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
@@ -668,25 +669,15 @@ private fun AmethystScreens(
                         },
                     )
 
-                    Screen.Settings -> {
-                        val records by graph.dictationLog.records.collectAsStateWithLifecycle()
-                        SettingsScreen(
-                            settings = settings,
-                            setup = setup,
-                            diagnosticsCount = records.size,
-                            version = build?.version.orEmpty(),
-                            releaseChannel = build?.channel,
-                            onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
-                            onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
-                            onOpen = { page -> open(Screen.Page(page)) },
-                            onReplayIntroduction = {
-                                // On top of Settings, the flag left alone: Back on the first step
-                                // returns here, and leaving halfway changes nothing.
-                                step = OnboardingStep.WELCOME
-                                open(Screen.Onboarding)
-                            },
-                        )
-                    }
+                    Screen.Settings -> SettingsScreen(
+                        settings = settings,
+                        setup = setup,
+                        version = build?.version.orEmpty(),
+                        releaseChannel = build?.channel,
+                        onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
+                        onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
+                        onOpen = { page -> open(Screen.Page(page)) },
+                    )
 
                     is Screen.Page -> {
                         // The pages that show model lists ask Amber PCs and Servers for theirs.
@@ -766,6 +757,22 @@ private fun AmethystScreens(
                                         graph.keyboardLog.value = emptyList()
                                     },
                                     appTitle = "Amber $version".trim(), // English: the report's heading
+                                )
+                            }
+                            SettingsPage.ABOUT -> {
+                                val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                                AboutScreen(
+                                    settings = settings,
+                                    diagnosticsCount = records.size,
+                                    version = build?.version.orEmpty(),
+                                    releaseChannel = build?.channel,
+                                    onOpen = { page -> open(Screen.Page(page)) },
+                                    onReplayIntroduction = {
+                                        // On top of this page, the flag left alone: Back on the first
+                                        // step returns here, and leaving halfway changes nothing.
+                                        step = OnboardingStep.WELCOME
+                                        open(Screen.Onboarding)
+                                    },
                                 )
                             }
                         }

@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.engine.ConfigIssue
@@ -89,7 +88,8 @@ import kotlin.math.roundToInt
 
 /**
  * Amber's settings in groups: the most used, the per-app styles, the advanced ones and Amber
- * itself. Which rows show is [SettingsLayout]'s table: a new install sees the simple ones, the
+ * itself - how it looks, and one row to what is about it rather than a setting ([AboutScreen]).
+ * Which rows show is [SettingsLayout]'s table: a new install sees the simple ones, the
  * "Advanced settings" switch shows the rest. Each row is an icon, its name and its state in a
  * few words; the page behind it explains.
  */
@@ -97,14 +97,12 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     settings: AmethystSettings,
     setup: SetupState,
-    diagnosticsCount: Int,
     version: String,
     /** Which build this is - only the GitHub build checks for updates itself; null until known. */
     releaseChannel: ReleaseChannel?,
     onAdvancedChange: (Boolean) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onOpen: (SettingsPage) -> Unit,
-    onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val engine = settings.activeEngine
@@ -144,16 +142,15 @@ fun SettingsScreen(
         SettingsItem.APPEARANCE -> NavRow(
             stringResource(R.string.settings_appearance), words(SettingsSummaries.appearance(settings.ui)), icon = AmberIcons.Contrast, trailing = null,
         ) { choosingTheme = true }
-        SettingsItem.STATISTICS -> NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
-        SettingsItem.DIAGNOSTICS -> NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
-        SettingsItem.UPDATES -> NavRow(
-            stringResource(R.string.settings_updates), releaseChannel?.let { words(UpdatePolicy.summary(it, settings.updates, version)) }, icon = AmberIcons.Update,
+        SettingsItem.ABOUT -> NavRow(
+            stringResource(R.string.settings_about),
+            // Nothing to say for the moment before the build is read.
+            version.takeIf { it.isNotBlank() }?.let { words(SettingsSummaries.about(it, releaseChannel, settings.updates)) },
+            icon = AmberIcons.Info,
             summaryColor = if (updateAvailable) AmberPalette.Primary else AmberPalette.Muted,
-        ) { onOpen(SettingsPage.UPDATES) }
-        SettingsItem.LICENSES -> NavRow(stringResource(R.string.settings_licenses), stringResource(R.string.settings_licenses_summary), icon = AmberIcons.Info) { onOpen(SettingsPage.LICENSES) }
-        SettingsItem.INTRODUCTION -> NavRow(
-            stringResource(R.string.settings_introduction), stringResource(R.string.settings_introduction_summary), icon = AmberIcons.Replay, onClick = onReplayIntroduction,
-        )
+            // A debug build's version and a newer one beside it are more than a line.
+            summaryMaxLines = 2,
+        ) { onOpen(SettingsPage.ABOUT) }
         // Parts of the Cleanup page, an app's page and the Bubble page, never rows here.
         SettingsItem.CLEANUP_INSTRUCTION, SettingsItem.APP_RECOGNITION, SettingsItem.QUICK_MENU -> Unit
     }
@@ -185,14 +182,6 @@ fun SettingsScreen(
             }
         }
         if (!switchShown) advancedSwitch()
-
-        Text(
-            stringResource(R.string.settings_version, version),
-            style = MaterialTheme.typography.labelSmall,
-            color = AmberPalette.Muted,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-        )
     }
 
     if (choosingTheme) ThemeDialog(settings.ui.theme, onThemeChange) { choosingTheme = false }

@@ -19,11 +19,7 @@ object SettingsTitles {
             SettingsItem.INSERTING -> R.string.settings_inserting
             SettingsItem.RELIABILITY -> R.string.settings_reliability
             SettingsItem.APPEARANCE -> R.string.settings_appearance
-            SettingsItem.STATISTICS -> R.string.settings_statistics
-            SettingsItem.DIAGNOSTICS -> R.string.settings_diagnostics
-            SettingsItem.UPDATES -> R.string.settings_updates
-            SettingsItem.LICENSES -> R.string.settings_licenses
-            SettingsItem.INTRODUCTION -> R.string.settings_introduction
+            SettingsItem.ABOUT -> R.string.settings_about
         },
     )
 }

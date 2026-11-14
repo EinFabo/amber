@@ -18,10 +18,11 @@
     <string name="settings_introduction_summary">The setup steps, with your choices</string>
     <string name="settings_group_per_app">Per app</string>
     <string name="settings_group_advanced">Advanced</string>
-    <string name="settings_version">Amber %1$s</string>
     <string name="settings_advanced">Advanced settings</string>
     <string name="settings_advanced_all">Every setting is shown</string>
     <string name="settings_appearance">Appearance</string>
+    <string name="settings_about">About Amber</string>
+    <string name="about_group_dictations">Your dictations</string>
     <string name="theme_system">Like the phone</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>

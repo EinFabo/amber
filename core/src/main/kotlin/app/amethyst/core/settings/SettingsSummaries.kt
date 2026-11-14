@@ -3,6 +3,9 @@ package app.amethyst.core.settings
 import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.update.AppVersion
+import app.amethyst.core.update.ReleaseChannel
+import app.amethyst.core.update.UpdatePolicy
 
 /**
  * A settings row's one-line state, as a value: the app words it in the phone's language
@@ -56,6 +59,23 @@ sealed interface Summary {
 
     /** A folded server on a model list: "3 models". */
     data class Models(val count: Int) : Summary
+
+    /** The "About Amber" row: the installed [version], and what is known of a [newer] one. */
+    data class About(val version: String, val newer: Newer) : Summary {
+
+        /** Whether a release newer than the installed Amber is out, as far as this build knows. */
+        sealed interface Newer {
+
+            /** Not known: a build that never asks, the check switched off, or no check that got an answer yet. */
+            data object Unknown : Newer
+
+            /** The last check found nothing newer. */
+            data object None : Newer
+
+            /** [version] is out. */
+            data class Out(val version: String) : Newer
+        }
+    }
 }
 
 enum class InsertPart { SPACES, CAPITALS, PUNCTUATION, CLIPBOARD }
@@ -135,6 +155,25 @@ object SettingsSummaries {
     const val ADVANCED_TITLES = 3
 
     fun models(count: Int): Summary = Summary.Models(count)
+
+    /**
+     * The installed version and, if known, whether a newer one is out. Known only where the
+     * Updates page would say so ([UpdatePolicy.available]): on a build that checks, while the
+     * check is on - a release found earlier stays out after a check that failed, but "nothing
+     * newer" needs the last check to have got its answer. [channel] is null until known.
+     */
+    fun about(installed: String, channel: ReleaseChannel?, updates: UpdateSettings): Summary {
+        val newer = when {
+            channel == null || !channel.checksForUpdates || !updates.enabled -> Summary.About.Newer.Unknown
+            else -> UpdatePolicy.available(channel, updates, installed)?.let { Summary.About.Newer.Out(it.version) }
+                ?: Summary.About.Newer.None.takeIf {
+                    updates.lastCheckedAt > 0L && !updates.lastCheckFailed &&
+                        AppVersion.parse(installed) != null && AppVersion.parse(updates.latestVersion) != null
+                }
+                ?: Summary.About.Newer.Unknown
+        }
+        return Summary.About(installed, newer)
+    }
 
     /** A display name without its bracketed note: "Tinfoil (Enclave)" becomes "Tinfoil". */
     fun shortName(displayName: String): String = displayName.substringBefore(" (").ifBlank { displayName }

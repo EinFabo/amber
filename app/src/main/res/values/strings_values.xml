@@ -38,6 +38,10 @@
         <item quantity="other">%d models</item>
     </plurals>
 
+    <string name="summary_version">Version %1$s</string>
+    <string name="summary_version_up_to_date">Version %1$s · up to date</string>
+    <string name="summary_version_newer">Version %1$s · %2$s available</string>
+
     <string name="place_on_device">On this phone</string>
     <string name="place_enclave">Enclave</string>
     <string name="place_cloud">Cloud</string>
