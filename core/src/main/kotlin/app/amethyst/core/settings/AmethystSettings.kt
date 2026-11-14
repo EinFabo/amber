@@ -134,7 +134,18 @@ data class CaptureSettings(
      */
     fun effectiveTotalTimeoutMs(): Long {
         val longest = maxDurationMs.toLong()
-        return maxOf(totalTimeoutMs.toLong(), longest + OpenAiCompatibleEngine.requestTimeoutMs(longest) + afterServerMs(longest))
+        return maxOf(totalTimeoutMs.toLong(), longest + afterRecordingMs(longest))
+    }
+
+    /**
+     * What a run may still take once its recording of [recordedMs] has ended: the server's own
+     * time limit for it, then the phone recognizing it instead, then the cleanup. The watchdog
+     * is cut down to this as soon as the recording's length is known ([RunLimit]) - sized for
+     * the longest recording it would leave a short dictation that hangs spinning for minutes.
+     */
+    fun afterRecordingMs(recordedMs: Long): Long {
+        val recorded = recordedMs.coerceIn(0, maxDurationMs.toLong().coerceAtLeast(0))
+        return OpenAiCompatibleEngine.requestTimeoutMs(recorded) + afterServerMs(recorded)
     }
 
     companion object {

@@ -92,17 +92,26 @@ suspend fun <T : Any> withPausableTimeout(
     pause: RecordingPause,
     now: () -> Long,
     block: suspend CoroutineScope.() -> T,
+): T? = withPausableTimeout(RunLimit(limitMs, pause, now), block)
+
+/**
+ * [block] under [limit], which does not count paused time and may get shorter while [block]
+ * runs ([RunLimit.recordingEnded]). Null when the limit ran out; [block] is cancelled then.
+ */
+suspend fun <T : Any> withPausableTimeout(
+    limit: RunLimit,
+    block: suspend CoroutineScope.() -> T,
 ): T? = coroutineScope {
-    val startedAt = now()
     val work = async { block() }
     while (true) {
-        val left = pause.remainingMs(limitMs, startedAt, now())
+        val left = limit.remainingMs()
         if (left <= 0) {
             work.cancel()
             return@coroutineScope null
         }
-        // Wakes when the limit would run out without a pause, then looks again.
-        withTimeoutOrNull(left) { work.await() }?.let { return@coroutineScope it }
+        // Wakes when the limit would run out without a pause - and at least every
+        // [RunLimit.LOOK_AGAIN_MS], since the limit may have become shorter - then looks again.
+        withTimeoutOrNull(minOf(left, RunLimit.LOOK_AGAIN_MS)) { work.await() }?.let { return@coroutineScope it }
     }
     @Suppress("UNREACHABLE_CODE")
     null

@@ -11,9 +11,11 @@ import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ListenCallbacks
+import app.amethyst.core.engine.ListenStop
 import app.amethyst.core.engine.SelfCapturingSttEngine
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
@@ -56,13 +58,33 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
      */
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /** This listening's stop: kept until the recognizer listens, and waited for no longer than it says. */
+    private val stop = ListenStop()
+
+    /** Settles the listening when the recognizer has not answered a stop in time; set while it listens. */
+    @Volatile
+    private var answerOverdue: (() -> Unit)? = null
+
+    private val giveUpWaiting = Runnable { answerOverdue?.invoke() }
+
     override fun requestStop() {
+        // Before the recognizer listens it would drop the stop: kept, and passed on when it does.
+        if (stop.stop()) mainHandler.post(::stopListening)
+    }
+
+    /**
+     * Main thread. stopListening() delivers what was heard so far; cancel() would throw it
+     * away. The recognizer has no time limit of its own for that answer, so it gets one here.
+     */
+    private fun stopListening() {
         val current = recognizer ?: return
-        // stopListening() delivers what was heard so far; cancel() would throw it away.
-        mainHandler.post { runCatching { current.stopListening() } }
+        runCatching { current.stopListening() }
+        mainHandler.postDelayed(giveUpWaiting, ListenStop.ANSWER_WITHIN_MS)
     }
 
     override fun close() {
+        mainHandler.removeCallbacks(giveUpWaiting)
+        answerOverdue = null
         val current = recognizer ?: return
         recognizer = null
         mainHandler.post { runCatching { current.destroy() } }
@@ -87,15 +109,40 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             val recognizer = createRecognizer()
             this@AndroidOnDeviceEngine.recognizer = recognizer
 
-            // Guards against the recognizer reporting both a result and an error.
-            var settled = false
+            // Guards against the recognizer reporting both a result and an error, and against
+            // either coming after the wait for them ran out.
             fun settle(result: Result<Transcript>) {
-                if (settled) return
-                settled = true
+                if (!stop.settle()) return
+                mainHandler.removeCallbacks(giveUpWaiting)
+                answerOverdue = null
                 // Listener callbacks arrive on the main thread, so this one is safe direct.
                 runCatching { recognizer.destroy() }
                 this@AndroidOnDeviceEngine.recognizer = null
                 continuation.resume(result)
+            }
+
+            fun heard(text: String) = Transcript(
+                text = text.trim(),
+                engineId = id,
+                trustLevel = usedTrust,
+                latencyMs = SystemClock.elapsedRealtime() - startedAt,
+            )
+
+            // Asked to stop, the recognizer answered with neither a result nor an error: the
+            // last interim text is what was heard. The log never gets the words.
+            answerOverdue = {
+                val text = stop.heard
+                val instead = if (text != null) "taking its last interim text" else "nothing heard"
+                Log.w(TAG, "the system recognizer did not answer the stop within ${ListenStop.ANSWER_WITHIN_MS} ms - $instead")
+                settle(
+                    if (text != null) {
+                        Result.success(heard(text))
+                    } else {
+                        Result.failure(
+                            SttFailure(Problem.NoSpeechHeard, "no answer within ${ListenStop.ANSWER_WITHIN_MS} ms of the stop, no interim text"),
+                        )
+                    },
+                )
             }
 
             recognizer.setRecognitionListener(object : RecognitionListener {
@@ -111,7 +158,9 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                 }
 
                 override fun onPartialResults(partialResults: Bundle?) {
-                    firstResult(partialResults)?.let(callbacks.onPartial)
+                    val partial = firstResult(partialResults) ?: return
+                    stop.partial(partial)
+                    callbacks.onPartial(partial)
                 }
 
                 override fun onResults(results: Bundle?) {
@@ -123,16 +172,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                             ),
                         )
                     } else {
-                        settle(
-                            Result.success(
-                                Transcript(
-                                    text = text.trim(),
-                                    engineId = id,
-                                    trustLevel = usedTrust,
-                                    latencyMs = SystemClock.elapsedRealtime() - startedAt,
-                                ),
-                            ),
-                        )
+                        settle(Result.success(heard(text)))
                     }
                 }
 
@@ -142,9 +182,14 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             })
 
             recognizer.startListening(buildIntent(options))
+            // A stop that came before this moment is due now.
+            if (stop.listening()) stopListening()
 
             continuation.invokeOnCancellation {
                 // Runs on the cancelling thread - the watchdog's, not the main one.
+                stop.settle()
+                mainHandler.removeCallbacks(giveUpWaiting)
+                answerOverdue = null
                 this@AndroidOnDeviceEngine.recognizer = null
                 mainHandler.post {
                     runCatching {
@@ -190,6 +235,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         }
 
     companion object {
+        private const val TAG = "Amber"
 
         /**
          * Whether this phone has a recognizer that keeps the voice on the device (Android 13+).

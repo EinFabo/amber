@@ -29,6 +29,7 @@ import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
 import app.amethyst.core.capture.RecordingLimit
 import app.amethyst.core.capture.RecordingPause
+import app.amethyst.core.capture.RunLimit
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.capture.withPausableTimeout
 import app.amethyst.core.commands.Command
@@ -127,6 +128,10 @@ class DictationController(
     /** This run's pause from the bubble's menu ([pause]); a new one for every run. */
     @Volatile
     private var recordingPause = RecordingPause()
+
+    /** This run's time limit, from its start to the text in the field; null before the first run. */
+    @Volatile
+    private var runLimit: RunLimit? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
@@ -426,7 +431,11 @@ class DictationController(
     fun stop() {
         stopRequested.set(true)
         if (!isRunning && _state.value is DictationState.Starting) handover.stop()
-        selfCapturing?.requestStop()
+        selfCapturing?.let { engine ->
+            engine.requestStop()
+            // Its recording ends with this tap: the run's limit no longer covers the longest one.
+            runLimit?.let { it.recordingEnded(graph.settings.value.capture.afterRecordingMs(it.elapsedMs())) }
+        }
     }
 
     /** Throw the current recording away - also one still being handed to the proxy activity. */
@@ -609,18 +618,24 @@ class DictationController(
             // A recognizer that never calls back, or a server that accepts the upload and
             // goes quiet, would otherwise leave the bubble spinning with no way out but
             // force-stopping the app. Time spent paused does not count.
-            val finished = withPausableTimeout(settings.capture.effectiveTotalTimeoutMs(), pause, SystemClock::elapsedRealtime) {
+            // While it records, the limit is that of the longest recording; once the recording
+            // has ended, what that recording can still need ([RunLimit]).
+            val limit = RunLimit(settings.capture.effectiveTotalTimeoutMs(), pause, SystemClock::elapsedRealtime).also { runLimit = it }
+            val finished = withPausableTimeout(limit) {
                 val transcript = when (engine) {
-                    is SelfCapturingSttEngine -> listenWithEngine(engine, options)
-                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels, pause)
+                    is SelfCapturingSttEngine -> listenWithEngine(engine, options, limit)
+                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels, pause, limit)
                 } ?: return@withPausableTimeout Unit // the failure was already reported
 
                 if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else deliver(cleanUp(transcript), settings, engineConfig.id)
             }
 
             if (finished == null) {
-                val limit = settings.capture.effectiveTotalTimeoutMs()
-                fail(say(R.string.dictation_timed_out), engineConfig.id, details = listOf("stopped: the run's time limit of $limit ms ran out"))
+                fail(
+                    say(R.string.dictation_timed_out),
+                    engineConfig.id,
+                    details = listOf("stopped: the run's time limit of ${limit.limitMs} ms ran out"),
+                )
             }
         } catch (e: CancellationException) {
             // A command a tap stopped that has no record yet - while it was still being
@@ -666,6 +681,7 @@ class DictationController(
     private suspend fun listenWithEngine(
         engine: SelfCapturingSttEngine,
         options: TranscribeOptions,
+        limit: RunLimit,
     ): Transcript? {
         selfCapturing = engine
         _state.value = DictationState.Listening()
@@ -684,6 +700,8 @@ class DictationController(
 
         trace?.recordingEnds()
         trace?.transcribingEnds()
+        // Also when the recognizer ended by itself, with no tap that told the limit.
+        limit.recordingEnded(graph.settings.value.capture.afterRecordingMs(limit.elapsedMs()))
         _state.value = DictationState.Transcribing()
         return result.getOrElse { error ->
             fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
@@ -719,6 +737,8 @@ class DictationController(
         appLabels: () -> List<String>,
         /** This run's pause from the bubble's menu. */
         pause: RecordingPause,
+        /** This run's time limit, cut down to the recording's length once it has ended. */
+        limit: RunLimit,
     ): Transcript? {
         _state.value = DictationState.Listening()
         loudness = LoudnessLog()
@@ -809,6 +829,8 @@ class DictationController(
 
             is AudioCapture.Outcome.Captured -> {
                 trace?.recordingEnds()
+                // From here the run needs what this recording takes, not what the longest would.
+                limit.recordingEnded(captureSettings.afterRecordingMs(outcome.audio.durationMs))
                 // Sent as a tap would, all of it; the diagnostics say why it ended there.
                 if (outcome.reason == StopReason.MAX_DURATION) {
                     trace?.ended = "ended at the longest recording, ${vadConfig.maxDurationMs / 1000} s"
