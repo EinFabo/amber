@@ -18,12 +18,14 @@ import app.amethyst.R
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
+import app.amethyst.core.insert.FieldWindow
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.insert.InputTarget
 import app.amethyst.core.insert.SeenField
 import app.amethyst.core.insert.TargetRefind
 import app.amethyst.core.insert.WindowInFront
+import app.amethyst.core.insert.WindowedTarget
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import android.view.inputmethod.EditorInfo
@@ -333,20 +335,36 @@ class TextInserter(
 
     /**
      * The field as only the input connection sees it: no node to read or write, but the
-     * channel a keyboard uses. Only typing works through it, which is the method that matters.
+     * channel a keyboard uses. Only typing works through it, which is the method that matters -
+     * and the text around the cursor can be read through it as a keyboard reads it, so the
+     * words get their space and capital and are looked for afterwards ([WindowedTarget]).
+     * What is read stays in memory for that comparison and goes nowhere.
      */
     private class InputConnectionTarget(
         private val service: AccessibilityService,
         override val packageName: String,
-    ) : EditableTarget {
-        override val isEditable: Boolean = true
-        override fun readField(): FieldState? = null
-        override fun setText(text: String): Boolean = false
-        override fun setSelection(cursor: Int) = Unit
-        override fun paste(): Boolean = false
-        override fun readBack(): String? = null
-        override fun commitText(text: String): Boolean =
+    ) : WindowedTarget() {
+
+        override fun read(before: Int, after: Int): FieldWindow? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+            val connection = boundInput(service, expectedPackage = packageName)?.connection ?: return null
+            // Null from a connection that is gone or an app that does not answer in time; some
+            // editors throw instead.
+            return runCatching {
+                connection.getSurroundingText(before, after, 0)?.let { around ->
+                    FieldWindow.of(around.text, around.selectionStart, around.selectionEnd, around.offset, askedBefore = before)
+                }
+            }.getOrNull()
+        }
+
+        override fun type(text: String): Boolean =
             commitThroughInputMethod(service, text, expectedPackage = packageName)
+
+        /** A field that wants key presses only (a terminal, a game) has no text to read. */
+        override val showsText: Boolean
+            get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                boundInput(service, expectedPackage = packageName)
+                    ?.let { TextFieldKind.of(it.editor.inputType) != TextFieldKind.NONE } == true
 
         override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) == true
 

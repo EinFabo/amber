@@ -19,7 +19,10 @@ interface EditableTarget {
     /** False when the focused node is not an editable field (a button, a WebView canvas). */
     val isEditable: Boolean
 
-    /** Current contents and selection, or null when they cannot be read. */
+    /**
+     * Current contents and selection, or null when they cannot be read. Of a field reached
+     * only through its input connection, the part around the cursor ([WindowedTarget]).
+     */
     fun readField(): FieldState?
 
     /** Replace the whole field. Returns what the platform claims, which may be a lie. */
@@ -192,7 +195,8 @@ class InsertionEngine(
         val fragment = field?.let { commitFragment(it, text, options) } ?: text.trim()
         if (fragment.isEmpty() || !target.commitText(fragment)) return Commit.NOT_POSSIBLE
         committed = fragment
-        // A field that cannot be read cannot be checked; the connection is all there is.
+        // A field that cannot be read cannot be checked, and got the words without a seam: a
+        // connection that hands out no text is all there is of it.
         if (field == null) return Commit.LANDED
         val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, text.length)
         repeat(attempts) { attempt ->
