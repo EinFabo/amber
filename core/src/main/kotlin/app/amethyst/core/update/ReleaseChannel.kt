@@ -6,7 +6,8 @@ import java.security.MessageDigest
  * Which build this is, told by the key it is signed with. Only builds signed with the GitHub
  * release key look for updates - on GitHub, where they came from. Every other build (signed
  * with another key, or a debug build) gets its updates from wherever it was installed and never
- * asks anyone.
+ * asks anyone. Nor does a GitHub-signed build that an app store put on the phone
+ * ([installedBy]): F-Droid ships that very APK, and its client brings the updates.
  */
 enum class ReleaseChannel {
     GITHUB,
@@ -30,6 +31,33 @@ enum class ReleaseChannel {
          */
         fun of(signers: List<String>): ReleaseChannel =
             if (signers.size == 1 && normalize(signers.single()) == GITHUB_SIGNER_SHA256) GITHUB else OTHER
+
+        /**
+         * App stores that install the GitHub-signed APK and update it themselves. Asking GitHub
+         * as well would be a second update check nobody asked for - what F-Droid calls tracking.
+         */
+        val UPDATING_STORES = setOf(
+            "org.fdroid.fdroid",
+            "org.fdroid.basic",
+            "com.machiav3lli.fdroid",
+            "com.looker.droidify",
+            "nya.kitsunyan.foxydroid",
+            "in.sunilpaulmathew.izzyondroid",
+            "dev.imranr.obtainium",
+            "dev.imranr.obtainium.fdroid",
+            "app.accrescent.client",
+            "com.aurora.store",
+            "com.android.vending",
+        )
+
+        /**
+         * [channel] for an install made by [installer] (the installing package, null for adb or
+         * unknown); [saysStore]: Android was told the install came from a store. A store's
+         * install is the store's to update; a file opened from the browser or a file manager
+         * stays on its channel.
+         */
+        fun installedBy(channel: ReleaseChannel, installer: String?, saysStore: Boolean): ReleaseChannel =
+            if (channel == GITHUB && (saysStore || installer in UPDATING_STORES)) OTHER else channel
 
         /** [of] from the DER-encoded certificates, as Android hands them out. */
         fun ofCertificates(certificates: List<ByteArray>): ReleaseChannel = of(certificates.map(::sha256Hex))

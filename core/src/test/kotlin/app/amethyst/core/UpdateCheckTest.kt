@@ -341,4 +341,14 @@ class UpdatePolicyTest {
         assertEquals(Ago(1, Ago.Scale.DAYS), UpdatePolicy.ago(now - day, now))
         assertEquals(Ago(12, Ago.Scale.DAYS), UpdatePolicy.ago(now - 12 * day, now))
     }
+
+    @Test
+    fun `a store's install leaves the updates to the store, a file from the browser keeps asking GitHub`() {
+        val github = ReleaseChannel.GITHUB
+        assertEquals(ReleaseChannel.OTHER, ReleaseChannel.installedBy(github, "org.fdroid.fdroid", saysStore = false))
+        assertEquals(ReleaseChannel.OTHER, ReleaseChannel.installedBy(github, "some.new.store", saysStore = true))
+        assertEquals(ReleaseChannel.GITHUB, ReleaseChannel.installedBy(github, "com.google.android.packageinstaller", saysStore = false))
+        assertEquals(ReleaseChannel.GITHUB, ReleaseChannel.installedBy(github, null, saysStore = false))
+        assertEquals(ReleaseChannel.OTHER, ReleaseChannel.installedBy(ReleaseChannel.OTHER, null, saysStore = false))
+    }
 }

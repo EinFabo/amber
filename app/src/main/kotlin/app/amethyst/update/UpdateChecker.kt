@@ -1,7 +1,9 @@
 package app.amethyst.update
 
 import android.content.Context
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.settings.AmethystSettings
@@ -120,13 +122,30 @@ class UpdateChecker(
         val version = runCatching { pm.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
         val channel = runCatching {
             val info = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-            ReleaseChannel.ofCertificates(info.signingInfo?.apkContentsSigners.orEmpty().map { it.toByteArray() })
+            val signed = ReleaseChannel.ofCertificates(info.signingInfo?.apkContentsSigners.orEmpty().map { it.toByteArray() })
+            ReleaseChannel.installedBy(signed, installer(pm), saysStore(pm))
         }.getOrElse {
             Log.w(TAG, "signature not readable: ${it.javaClass.simpleName}")
             ReleaseChannel.OTHER
         }
         return BuildInfo(channel, version)
     }
+
+    /** The package that installed Amber; null for adb, and when Android does not say. */
+    @Suppress("DEPRECATION")
+    private fun installer(pm: PackageManager): String? = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pm.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            pm.getInstallerPackageName(context.packageName)
+        }
+    }.getOrNull()
+
+    /** Whether the installer told Android this install comes from a store (Android 13+). */
+    private fun saysStore(pm: PackageManager): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && runCatching {
+            pm.getInstallSourceInfo(context.packageName).packageSource == PackageInstaller.PACKAGE_SOURCE_STORE
+        }.getOrDefault(false)
 
     private companion object {
         const val TAG = "Amber"
