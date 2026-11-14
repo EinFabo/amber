@@ -32,7 +32,6 @@ import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.CleanupServices
-import app.amethyst.core.onboarding.ServiceState
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -43,17 +42,12 @@ import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
-import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.Hint
-import app.amethyst.ui.NavRow
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
-import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.ToggleRow
-import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.Unfold
-import app.amethyst.ui.catalog
 import app.amethyst.ui.engineName
 import app.amethyst.ui.foldState
 import app.amethyst.ui.recognitionRowName
@@ -65,9 +59,9 @@ import kotlinx.coroutines.delay
 
 /**
  * Who rewrites the recognized text, chosen apart from who recognizes it: local Whisper can be
- * cleaned up by a model on Tinfoil, Claude, Groq, OpenAI or an own server. What is in use
- * stands on top; under it one row per service ([CleanupServiceList]), each opening a sheet
- * with its key and its models.
+ * cleaned up by a model on Tinfoil, Claude, Groq, OpenAI or an own server. One row per
+ * service ([CleanupServiceList]), each opening a sheet with its key and its models; the one in
+ * use is marked and says its model.
  */
 @Composable
 fun CleanupScreen(
@@ -84,30 +78,6 @@ fun CleanupScreen(
     val sheet = remember { mutableStateOf(initialSheet) }
 
     SubPage(modifier) {
-        SettingsGroup(stringResource(R.string.cleanup_in_use_title)) {
-            if (current == null || row == null) {
-                NavRow(
-                    // What off means stands on its row in the list right below.
-                    title = stringResource(R.string.off),
-                    summary = null,
-                    icon = AmberIcons.AutoFix,
-                    trailing = null,
-                    onClick = null,
-                )
-            } else {
-                val model = row.provider.cleanupModel(current.model)
-                NavRow(
-                    title = model?.label ?: current.model,
-                    summary = model?.note?.takeIf { it.isNotBlank() }?.let { catalog(it) },
-                    icon = AmberIcons.AutoFix,
-                    below = {
-                        TrustBadge(row.trust(), detail = row.name())
-                        if (row.state != ServiceState.READY) Hint(row.stateWords(), AmberPalette.Error)
-                    },
-                    onClick = { sheet.value = ServiceSheet.Of(row.id) },
-                )
-            }
-        }
         SectionCard(
             title = stringResource(R.string.cleanup_who),
             subtitle = stringResource(R.string.cleanup_who_subtitle),

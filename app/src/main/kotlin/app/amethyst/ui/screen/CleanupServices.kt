@@ -244,7 +244,10 @@ private fun ServiceLine(row: ServiceRow, inUse: CleanupChoice?, onClick: () -> U
             Text(row.name(), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
             // The one in use says its model; the others how far they are from being used.
             if (chosen != null) {
-                Hint(row.provider.cleanupModel(chosen.model)?.label ?: chosen.model, AmberPalette.Primary)
+                val model = row.provider.cleanupModel(chosen.model)
+                Hint(model?.label ?: chosen.model, AmberPalette.Primary)
+                // What the model is like and costs, so the choice reads without opening the sheet.
+                model?.note?.takeIf { it.isNotBlank() }?.let { Hint(catalog(it)) }
                 if (ready) TrustBadge(row.trust()) else Hint(row.stateWords(), AmberPalette.Error)
             } else {
                 TrustBadge(row.trust(), detail = row.stateWords())

@@ -17,7 +17,6 @@
     <string name="cleanup_leaves_phone">Der erkannte Text verlässt für die Bereinigung das Handy - deine Aufnahme nicht. Diktate werden damit gekennzeichnet, wohin der Text ging.</string>
     <string name="cleanup_chat_model">Chat-Modell</string>
     <string name="cleanup_claude_not_a_key">Claude-Schlüssel beginnen mit sk-ant-.</string>
-    <string name="cleanup_in_use_title">Aktuell</string>
     <string name="cleanup_ready">bereit</string>
     <string name="cleanup_needs_key">Schlüssel fehlt</string>
     <string name="cleanup_add_server">Eigenen Server hinzufügen</string>

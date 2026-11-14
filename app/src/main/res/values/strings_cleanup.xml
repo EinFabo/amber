@@ -17,7 +17,6 @@
     <string name="cleanup_leaves_phone">The recognized text leaves the phone for the cleanup - your recording does not. Dictations are labelled with where the text went.</string>
     <string name="cleanup_chat_model">Chat model</string>
     <string name="cleanup_claude_not_a_key">Claude keys start with sk-ant-.</string>
-    <string name="cleanup_in_use_title">In use</string>
     <string name="cleanup_ready">ready</string>
     <string name="cleanup_needs_key">needs a key</string>
     <string name="cleanup_add_server">Add own server</string>
