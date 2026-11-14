@@ -9,18 +9,17 @@ import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.GateDecision
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.FirstRun
-import app.amethyst.core.onboarding.PendingVerdict
+import app.amethyst.core.onboarding.FirstRunWatch
+import app.amethyst.core.onboarding.ModelFetch
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.PhoneLocales
 import app.amethyst.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -43,10 +42,6 @@ class FirstRunSetup(
     private val downloads: () -> ModelDownloads,
     private val launcher: LauncherList,
 ) {
-
-    init {
-        scope.launch { watchPending() }
-    }
 
     /**
      * The quick setup's choices for this phone - the recognition, the app styles - and its
@@ -91,28 +86,19 @@ class FirstRunSetup(
         if (downloads().start(option, mobileData) == GateDecision.ASK) downloads().waitForWifi(option)
     }
 
-    private suspend fun watchPending() {
-        val settings = loaded.filterNotNull()
-        settings.map { it.firstRun.pendingEngine }.distinctUntilChanged().collect { name ->
-            // One at a time, to the end: the settling below changes the very value collected here.
-            if (name == null) return@collect
-            val option = FirstRun.pending(settings.first())
-            val ready = if (option != null) {
-                fetch(option, mobileData = false)
-                // Until the model is there, or the user chose a recognition of their own.
-                combine(settings, downloads().ready(option)) { current, there -> there.takeIf { FirstRun.verdict(current, it) != PendingVerdict.WAIT } }
-                    .filterNotNull().first()
-            } else {
-                false
-            }
-            var after: AmethystSettings? = null
-            store.update { current -> FirstRun.settle(current, ready, PhoneLocales.tags()).also { after = it } }
-            Log.i(TAG, "first run: $name ${if (after?.let { FirstRun.pending(it) } == null) "settled" else "still waiting"}, active ${after?.activeEngineId}")
-            // A download held for Wi-Fi that nobody wants any more is let go.
-            if (option != null && after?.let { FirstRun.stillWanted(it, option) } == false) {
-                withContext(Dispatchers.Main) { downloads().cancelWait(option) }
-            }
-        }
+    /** The model downloads as the watch in `:core` sees them: started on Wi-Fi, or held for it. */
+    private val fetching = object : ModelFetch {
+        override fun ready(option: EngineOption): Flow<Boolean> = downloads().ready(option)
+
+        override suspend fun fetch(option: EngineOption) = this@FirstRunSetup.fetch(option, mobileData = false)
+
+        override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().cancelWait(option) }
+    }
+
+    private val watch = FirstRunWatch(loaded.filterNotNull(), store::update, fetching, PhoneLocales::tags) { Log.i(TAG, it) }
+
+    init {
+        scope.launch { watch.run() }
     }
 
     companion object {
