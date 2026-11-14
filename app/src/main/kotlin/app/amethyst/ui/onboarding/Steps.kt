@@ -134,9 +134,10 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         },
     ) {
         when {
-            on -> ServiceOn()
+            // "Just now" from the first frame it is on, before the beat below has begun.
+            on -> ServiceOn(justNow = watching || beat)
             waiting -> {
-                WayToTheSwitch(locked, actions)
+                AfreshOnReturn { WayToTheSwitch(locked, actions) }
                 FullDisclosure(stringResource(R.string.disclosure_title))
             }
             else -> BeforeTheSettings(setup)
@@ -147,9 +148,10 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
 /** How long the ticked row shows before the step moves on by itself. */
 private const val DONE_BEAT_MS = 900L
 
-/** The service is on: the ticked row. */
+/** The service is on: the bubble's tick - drawn and with a burst if it came on [justNow] - over the ticked row. */
 @Composable
-private fun ServiceOn() {
+private fun ServiceOn(justNow: Boolean) {
+    ServiceOnMark(justNow, DONE_BEAT_MS.toInt())
     Done(stringResource(R.string.setup_accessibility), stringResource(R.string.access_done))
 }
 
