@@ -50,6 +50,12 @@ class TargetCheckTest {
     }
 
     @Test
+    fun `at the write a password field is refused, any other field written`() {
+        assertEquals(Verdict.SECRET, TargetCheck.atWrite(secret = true))
+        assertEquals(Verdict.INSERT, TargetCheck.atWrite(secret = false))
+    }
+
+    @Test
     fun `started without a field, the field focused at the end is the user's choice`() {
         assertEquals(Verdict.INSERT, TargetCheck.verdict(null, aliceChat))
     }

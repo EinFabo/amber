@@ -5,6 +5,7 @@ import app.amethyst.core.insert.EditableTarget
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.StrategyMemory
+import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.text.FieldState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +39,7 @@ class InsertionEngineTest {
         private val commitLag: Int = 0,
         /** What the field makes of the words it is given: emoji, line breaks, a length limit. */
         private val reformat: (String) -> String = { it },
+        override val isSecret: Boolean = false,
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -290,6 +292,37 @@ class InsertionEngineTest {
 
         assertTrue(outcome.insertedIntoField)
         assertEquals("Hallo liebe Welt", target.text)
+    }
+
+    // --- the last look before writing ----------------------------------------------------
+
+    @Test
+    fun `a password field found at the write gets nothing, by no method, and nothing is copied`() {
+        // The check before saw a plain text field - a Compose password field with the default
+        // keyboard type - or focus moved into one after it.
+        val memory = StrategyMemory().apply { recordSuccess("com.bank", InsertionStrategy.SET_TEXT) }
+        val login = FakeTarget(packageName = "com.bank", hasInputConnection = true, isSecret = true)
+        val outcome = engine(login, memory).insert(login, "see you tomorrow")
+
+        assertFalse(outcome.insertedIntoField)
+        assertFalse(outcome.copiedToClipboard)
+        assertFalse(outcome.uncertain)
+        assertEquals(TargetCheck.Verdict.SECRET, outcome.refused)
+        assertEquals("", login.text)
+        assertEquals(null, login.committed)
+        assertEquals(0, login.setTextCalls)
+        assertEquals(0, login.pasteCalls)
+        assertEquals(null, login.clipboardContent)
+        assertEquals(InsertionStrategy.SET_TEXT, memory.order("com.bank").first(), "a refusal says nothing about what works there")
+    }
+
+    @Test
+    fun `a field that is no secret is written as ever`() {
+        val target = FakeTarget(hasInputConnection = true)
+        val outcome = engine(target).insert(target, "hallo")
+
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(null, outcome.refused)
     }
 
     // --- direct input, no clipboard ------------------------------------------------------

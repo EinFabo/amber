@@ -24,6 +24,7 @@ import app.amethyst.DebugLog
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldPresence
+import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
 import app.amethyst.core.insert.InputTarget
@@ -305,11 +306,15 @@ class AmethystAccessibilityService : AccessibilityService() {
                 kind = if (secret) TextFieldKind.SECRET else TextFieldKind.TEXT,
             )
         } else if (editor != null) {
+            // Android names no node: a Compose field (up to 1.7). Its password fields may ask
+            // for a plain text keyboard, so the field's node is searched for and asked.
+            val searched = if (SecretField.searchNeeded(editor.inputType, focusFound = false)) searchedField(editor) else null
+            val secret = SecretField.isSecret(editor.inputType, searched?.let { SecretField.Node(it.inputType, it.isPassword) })
             InputTarget(
                 packageName = editor.packageName ?: return@runCatching null,
                 windowId = NO_WINDOW,
                 fieldId = editor.fieldId,
-                kind = TextFieldKind.of(editor.inputType).takeIf { it == TextFieldKind.SECRET } ?: TextFieldKind.TEXT,
+                kind = if (secret) TextFieldKind.SECRET else TextFieldKind.TEXT,
             )
         } else {
             null
@@ -323,9 +328,29 @@ class AmethystAccessibilityService : AccessibilityService() {
         return if (method.currentInputStarted) method.currentInputEditorInfo else null
     }
 
-    /** Whether the focused node is a password field - Compose and View password fields can carry a plain text input type. */
-    private fun focusedIsPassword(): Boolean =
-        runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isPassword == true }.getOrDefault(false)
+    /**
+     * The focused editable node of [editor]'s app, found by searching its windows: for a field
+     * Android's focus lookup names no node for. A walk through the window - asked for only
+     * where [SecretField.searchNeeded] says so.
+     */
+    private fun searchedField(editor: EditorInfo): AccessibilityNodeInfo? {
+        if (!::textInserter.isInitialized) return null
+        return textInserter.searchFocusedEditable(owner = editor.packageName ?: return null)
+    }
+
+    /**
+     * Whether the focused node is a password field - Compose and View password fields can carry
+     * a plain text input type. Asked when an input starts, not when the same one restarts.
+     * Where Android names no focused node (Compose up to 1.7) the field is searched for, and
+     * only if the bubble would show for it: the search walks the app's window.
+     */
+    private fun focusedIsPassword(): Boolean = runCatching {
+        val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (focused != null) return@runCatching focused.isPassword
+        val editor = startedEditor() ?: return@runCatching false
+        SecretField.searchNeeded(editor.inputType, focusFound = false, forBubble = true) &&
+            searchedField(editor)?.isPassword == true
+    }.getOrDefault(false)
 
     private fun currentFocusKind(): TextFieldKind =
         runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)

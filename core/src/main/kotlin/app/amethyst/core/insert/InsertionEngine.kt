@@ -47,6 +47,13 @@ interface EditableTarget {
      */
     val takesLineBreaks: Boolean get() = false
 
+    /**
+     * A password or PIN field, by everything that says so about the very field that is about
+     * to be written ([app.amethyst.core.bubble.SecretField]). Asked once, right before the
+     * write; such a field gets nothing ([TargetCheck.atWrite]).
+     */
+    val isSecret: Boolean get() = false
+
     /** Contents after an attempt, for verification. Null when unreadable. */
     fun readBack(): String?
 }
@@ -74,6 +81,12 @@ data class InsertionOutcome(
      * also changed text before it.
      */
     val fragment: String? = null,
+    /**
+     * Why nothing was written, or even tried: the field found for writing is not one the
+     * words may go into ([TargetCheck.atWrite]). Nothing went to the clipboard either - the
+     * words are still the caller's to keep.
+     */
+    val refused: TargetCheck.Verdict? = null,
 )
 
 /**
@@ -113,6 +126,13 @@ class InsertionEngine(
             // dictation from being lost - if the user lets us use it.
             if (allowClipboard) copied = clipboard.copy(text)
             return InsertionOutcome(InsertionStrategy.CLIPBOARD_ONLY, false, copied, null)
+        }
+
+        // The last look, at the field itself: whoever let the words through looked a moment
+        // ago, and maybe at another field.
+        val verdict = TargetCheck.atWrite(secret = target.isSecret)
+        if (verdict != TargetCheck.Verdict.INSERT) {
+            return InsertionOutcome(InsertionStrategy.CLIPBOARD_ONLY, false, false, packageName, refused = verdict)
         }
 
         val usesClipboard = setOf(InsertionStrategy.PASTE, InsertionStrategy.CLIPBOARD_ONLY)

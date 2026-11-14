@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import app.amethyst.DebugLog
 import app.amethyst.R
+import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
@@ -23,6 +24,7 @@ import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.insert.InputTarget
 import app.amethyst.core.insert.SeenField
+import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.insert.TargetRefind
 import app.amethyst.core.insert.WindowInFront
 import app.amethyst.core.insert.WindowedTarget
@@ -75,7 +77,8 @@ class TextInserter(
         }
         val outcome = engine.insert(target, text, options, allowClipboard)
 
-        lastTrace = "$trace → ${outcome.strategy.name}" +
+        val refused = outcome.refused
+        lastTrace = if (refused != null) "$trace → refused: ${refused.describe()}" else "$trace → ${outcome.strategy.name}" +
             when {
                 outcome.uncertain -> " (typed, never showed up in the field)"
                 outcome.insertedIntoField -> ""
@@ -119,7 +122,7 @@ class TextInserter(
         // Before searching the tree: the connection needs no IPC per node, and it points at
         // the field the keyboard is typing into. The search walks up to 1500 nodes, each one
         // a cross-process call.
-        val connection = InputConnectionTarget.from(service)
+        val connection = InputConnectionTarget.from(service, ::searchFocusedEditable)
         if (connection != null) {
             return connection to "input connection (${connection.packageName})"
         }
@@ -146,8 +149,27 @@ class TextInserter(
      * connection belongs to - else, without a connection, only in the window in use. In split
      * screen the other half may hold a focused field of its own, which is not the user's.
      */
-    fun searchFocusedEditable(owner: String?): AccessibilityNodeInfo? =
-        findFocusedEditable(onlyInUse = owner == null, owner = owner)
+    fun searchFocusedEditable(owner: String?): AccessibilityNodeInfo? {
+        // The field found last time is asked again first - two calls instead of a walk through
+        // the window. A dictation asks at its start, at its end and at the write.
+        lastSearched?.takeIf { stillTheFocusedField(it, owner) }?.let { return it }
+        return findFocusedEditable(onlyInUse = owner == null, owner = owner).also { lastSearched = it }
+    }
+
+    /** What [searchFocusedEditable] found last; never trusted without asking it again. */
+    @Volatile
+    private var lastSearched: AccessibilityNodeInfo? = null
+
+    /**
+     * [node], read anew, is still an editable field with focus, [owner]'s if one is named, in
+     * a window that is in use - a field left focused in a window behind a dialog is not where
+     * the user types.
+     */
+    private fun stillTheFocusedField(node: AccessibilityNodeInfo, owner: String?): Boolean = runCatching {
+        node.refresh() && node.isEditable && node.isFocused &&
+            (owner == null || node.packageName?.toString() == owner) &&
+            service.windows.firstOrNull { it.id == node.windowId }?.let { it.isActive || it.isFocused } == true
+    }.getOrDefault(false)
 
     /** A field found again by [refind], or why there is none - [note] is for the diagnostics. */
     class Refound(val node: AccessibilityNodeInfo?, val note: String)
@@ -195,6 +217,14 @@ class TextInserter(
         WindowInFront(pkg, window.id)
     }.getOrNull()
 
+    /** Why the field found for writing got nothing, for the diagnostics. */
+    private fun TargetCheck.Verdict.describe(): String = when (this) {
+        TargetCheck.Verdict.SECRET -> "a password field"
+        TargetCheck.Verdict.MOVED -> "another app's field"
+        TargetCheck.Verdict.NO_FIELD -> "no field"
+        TargetCheck.Verdict.INSERT -> "nothing"
+    }
+
     private fun TargetRefind.Result.describe(): String = when (this) {
         is TargetRefind.Result.Found -> how.name.lowercase().replace('_', ' ')
         is TargetRefind.Result.NotFound -> why.name.lowercase().replace('_', ' ')
@@ -223,7 +253,9 @@ class TextInserter(
             while (queue.isNotEmpty() && visited < MAX_NODES_SEARCHED) {
                 val node = queue.removeFirst()
                 visited++
-                if (node.isEditable && node.isFocused) return node
+                // Read anew: what Android remembers of a node may be from before it got focus,
+                // or from before it lost it - and the answer decides what kind of field this is.
+                if (node.isEditable && runCatching { node.refresh() }.getOrDefault(false) && node.isEditable && node.isFocused) return node
                 for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
             }
         }
@@ -269,6 +301,16 @@ class TextInserter(
             node.packageName?.toString() ?: fallbackPackage() ?: InsertionEngine.UNKNOWN_PACKAGE
 
         override val isEditable: Boolean get() = node.isEditable
+
+        /** The node's own word, and the keyboard's side of the same field where input started. */
+        override val isSecret: Boolean by lazy {
+            val editorType = if (mayType && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                boundInput(service, expectedPackage = packageName)?.editor?.inputType
+            } else {
+                null
+            }
+            SecretField.isSecret(editorType, SecretField.Node(node.inputType, node.isPassword))
+        }
 
         override fun readField(): FieldState? {
             // refresh() failing means the node is stale - the window changed under us - which
@@ -343,7 +385,23 @@ class TextInserter(
     private class InputConnectionTarget(
         private val service: AccessibilityService,
         override val packageName: String,
+        /** The focused editable node in this app's windows, searched for ([searchFocusedEditable]). */
+        private val searchNode: (owner: String) -> AccessibilityNodeInfo?,
     ) : WindowedTarget() {
+
+        /**
+         * The keyboard's side may call a password field plain text (Compose up to 1.7, the
+         * default keyboard type); the field's node knows better, and is searched for.
+         */
+        override val isSecret: Boolean by lazy {
+            val editorType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                boundInput(service, expectedPackage = packageName)?.editor?.inputType
+            } else {
+                null
+            }
+            val node = if (SecretField.searchNeeded(editorType, focusFound = false)) searchNode(packageName) else null
+            SecretField.isSecret(editorType, node?.let { SecretField.Node(it.inputType, it.isPassword) })
+        }
 
         override fun read(before: Int, after: Int): FieldWindow? {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
@@ -369,10 +427,10 @@ class TextInserter(
         override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) == true
 
         companion object {
-            fun from(service: AccessibilityService): InputConnectionTarget? {
+            fun from(service: AccessibilityService, searchNode: (owner: String) -> AccessibilityNodeInfo?): InputConnectionTarget? {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
                 val bound = boundInput(service, expectedPackage = null)?.takeIf { it.connection != null } ?: return null
-                return InputConnectionTarget(service, bound.owner)
+                return InputConnectionTarget(service, bound.owner, searchNode)
             }
         }
     }

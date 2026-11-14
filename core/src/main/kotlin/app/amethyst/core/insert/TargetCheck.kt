@@ -50,6 +50,16 @@ object TargetCheck {
     }
 
     /**
+     * The last word, on the field that is about to be written. [verdict] is given for the
+     * field Android names; the write then looks its field up again, by more ways than the
+     * check has (the input connection, a search of the windows), and what it finds may be
+     * another one: focus moved in between, or the check could not see what the field is.
+     * [secret]: that field is a password field. It gets nothing, by no method, and nothing
+     * goes to the clipboard - the words stay with the dictation, for Insert again.
+     */
+    fun atWrite(secret: Boolean): Verdict = if (secret) Verdict.SECRET else Verdict.INSERT
+
+    /**
      * The same, but the field itself must be the one from the start: same window, same field id
      * where both are known. For a voice command that changes a field ("delete that", "paste"),
      * which must never act on another chat's draft - unlike a dictation, it has no Undo last.
