@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -151,10 +152,20 @@ class MainActivity : ComponentActivity() {
         // Recreated (a rotation): the page asked for was opened then.
         if (savedInstanceState == null) takeAppPage(intent)
 
+        // The settings are read a moment after the first frame. Until then the choice made
+        // last time stands in - without it a light Amber on a dark phone began dark. Before
+        // Android 12 this is all there is: Android's own picture of the starting app still
+        // follows the phone there.
+        val remembered = rememberedTheme()
+        if (remembered != null) {
+            val phoneDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+            window.setBackgroundDrawable(ColorDrawable(AmberColors.of(remembered.dark(phoneDark)).background.toArgb()))
+        }
+
         setContent {
-            // Null until the settings are read: as the phone is set, which on Android 12 and
-            // later already is the choice made last time (applyTheme).
-            val theme = graph.loadedSettings.collectAsStateWithLifecycle().value?.ui?.theme
+            // Null until the settings are read: the choice made last time, else as the phone
+            // is set.
+            val theme = graph.loadedSettings.collectAsStateWithLifecycle().value?.ui?.theme ?: remembered
             val dark = (theme ?: ThemeMode.SYSTEM).dark(isSystemInDarkTheme())
             LaunchedEffect(theme, dark) { applyTheme(theme, dark) }
             AmberTheme(dark) {
@@ -191,10 +202,13 @@ class MainActivity : ComponentActivity() {
      * What of the theme lies outside the screens: the status and navigation bar icons, dark on
      * a light page, and the window behind the page. From Android 12 the choice is also given to
      * Android ([theme], null while not read yet), which then starts Amber in it - no flash of
-     * the other theme at the next launch. Before Android 12 a launch shows the phone's theme
-     * for a moment when the choice differs.
+     * the other theme at the next launch. The choice is also kept where the next launch can
+     * read it at once ([rememberedTheme]).
      */
     private fun applyTheme(theme: ThemeMode?, dark: Boolean) {
+        if (theme != null && theme != rememberedTheme()) {
+            getSharedPreferences(THEME_PREFS, MODE_PRIVATE).edit().putString(KEY_THEME, theme.name).apply()
+        }
         if (theme != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             getSystemService(UiModeManager::class.java)?.setApplicationNightMode(
                 when (theme) {
@@ -210,6 +224,11 @@ class MainActivity : ComponentActivity() {
         )
         window.setBackgroundDrawable(ColorDrawable(AmberColors.of(dark).background.toArgb()))
     }
+
+    /** The theme chosen when Amber last ran, readable before the settings are; null on a first start. */
+    private fun rememberedTheme(): ThemeMode? =
+        getSharedPreferences(THEME_PREFS, MODE_PRIVATE).getString(KEY_THEME, null)
+            ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
 
     /** Brought to the front again by the quick menu, perhaps for an app's page. */
     override fun onNewIntent(intent: Intent) {
@@ -319,6 +338,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val SERVICE_START_GRACE_MS = 600L
         private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
+        private const val THEME_PREFS = "theme"
+        private const val KEY_THEME = "theme"
 
         /** Behind a three-button navigation bar, as androidx.activity's own defaults. */
         private val NAV_SCRIM_LIGHT = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)
