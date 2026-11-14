@@ -70,10 +70,12 @@ moves at rest. The sparks fly in a second overlay window that takes no touches.
 The app itself ("Hearth"): the engine and where it sends your voice, the flame, a row with
 today's numbers that opens the statistics, and a test field. Settings are a short grouped list, each row an icon and its
 state in a few words. A new install sees only the simple ones - recognition, cleanup, bubble
-and app styles, plus updates, licenses and the introduction; one "Advanced settings" switch
-shows the rest: when the server fails, recording, inserting, reliability, statistics and
-diagnostics, and on the Cleanup page the own addition and the system prompt. Which row is
-which is one table in `:core` (`SettingsLayout`). Each page starts with what matters; longer
+and apps (each app's style, and where the bubble is hidden), then appearance and "About Amber",
+the page for what is no setting: version and updates, statistics, diagnostics, licenses and the
+introduction. One "Advanced settings" switch shows the rest: when the server fails, recording,
+text (filler words, commas, how the text is inserted) and reliability, and on the Cleanup page
+the own addition and the system prompt. Which row is which is one table in `:core`
+(`SettingsLayout`). Each page starts with what matters; longer
 explanations wait behind "Learn more".
 
 **Statistics** are counted on the phone only - words, dictations per app, where the voice
@@ -309,7 +311,7 @@ GitHub sees the IP address, that Amber asks, and its version - nothing else is s
 that got no answer at all (offline, a timeout) is tried again after an hour. A newer
 release shows as one notification and as a card on the home screen, both leading to its
 release page; downloading and installing stay up to you. Switch the check off under
-Settings → Updates. A build signed with any other key never checks: its updates come from
+Settings → About Amber → Updates. A build signed with any other key never checks: its updates come from
 where it was installed.
 
 ## Contributing
@@ -355,4 +357,4 @@ Command mode on selected text · dictionary and snippets · encrypted history. O
 
 Amber is free software under the [Apache License 2.0](LICENSE). What it is built from, and the
 licenses of the speech models it can download, are listed in [`NOTICE`](NOTICE) and in the app
-under Settings → Licenses.
+under Settings → About Amber → Licenses.
