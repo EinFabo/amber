@@ -48,6 +48,7 @@
     <string name="continue_">Weiter</string>
     <string name="welcome_title">Sprechen statt tippen</string>
     <string name="welcome_lead">Amber macht aus deiner Stimme Text, in jeder App: Tippe auf die Bubble, sprich, und der Text erscheint dort, wo dein Cursor ist.</string>
+    <string name="welcome_demo_sentence">Bin unterwegs, bis um acht!</string>
     <string name="welcome_quick">Schnell einrichten</string>
     <string name="welcome_deep">Schritt für Schritt</string>
     <string name="welcome_skip">Einführung überspringen</string>

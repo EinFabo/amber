@@ -14,14 +14,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.ui.AccessibilityDisclosure
-import app.amethyst.ui.FlameMark
 import app.amethyst.ui.FullDisclosure
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
@@ -56,7 +54,8 @@ private fun Point(title: String, text: String) {
 }
 
 /**
- * What Amber is, and the three ways on: the quick setup as the filled button, every choice
+ * What Amber is - shown once on a small stage ([WelcomeDemo]), then said in three points - and
+ * the three ways on: the quick setup as the filled button, every choice
  * step by step, or none of it now - Home then shows what is still missing.
  */
 @Composable
@@ -71,7 +70,7 @@ internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit
             LaterButton(stringResource(R.string.welcome_skip), onSkipAll)
         },
     ) {
-        FlameMark(Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
+        WelcomeDemo()
         Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))
         Point(stringResource(R.string.welcome_private), stringResource(R.string.welcome_private_note))
         Point(stringResource(R.string.welcome_only_dictating), stringResource(R.string.welcome_only_dictating_note))

@@ -48,6 +48,7 @@
     <string name="continue_">Continue</string>
     <string name="welcome_title">Speak instead of typing</string>
     <string name="welcome_lead">Amber turns your voice into text in any app: tap the bubble, speak, and the text appears where your cursor is.</string>
+    <string name="welcome_demo_sentence">On my way, see you at eight!</string>
     <string name="welcome_quick">Quick setup</string>
     <string name="welcome_deep">Step by step</string>
     <string name="welcome_skip">Skip the introduction</string>
