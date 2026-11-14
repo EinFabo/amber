@@ -9,7 +9,7 @@ set -euo pipefail
 
 SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
 CMDLINE_TOOLS_VERSION="11076708"   # cmdline-tools 12.0, pinned on purpose
-PLATFORM="platforms;android-35"
+PLATFORM="platforms;android-36"
 BUILD_TOOLS="build-tools;35.0.0"
 
 echo "==> SDK root: $SDK_ROOT"

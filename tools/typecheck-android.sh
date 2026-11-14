@@ -20,7 +20,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # classpath), so nobody else may get to put files there first.
 WORK="${XDG_CACHE_HOME:-$HOME/.cache}/amber-typecheck"
 KOTLIN_VERSION="2.1.20"
-# Android 15 == API 35 == compileSdk of this project.
+# Android 15 == API 35: one below the project's compileSdk (36), the newest android-all the
+# test runner ships; nothing in the app calls an API 36 method.
 ANDROID_ALL="15-robolectric-13954326"
 CENTRAL="https://repo1.maven.org/maven2"
 

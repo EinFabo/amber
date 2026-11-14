@@ -34,7 +34,7 @@ jobs:
 
       - name: Install SDK packages
         # NDK and CMake for whisper.cpp and sherpa-onnx; versions match app/build.gradle.kts.
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4

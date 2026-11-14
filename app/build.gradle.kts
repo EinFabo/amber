@@ -28,7 +28,7 @@ tasks.matching { it.name.startsWith("configureCMake") || it.name.startsWith("bui
 
 android {
     namespace = "app.amethyst"
-    compileSdk = 35
+    compileSdk = 36
     // Pinned so CI and local builds use the same toolchain for whisper.cpp.
     ndkVersion = "27.1.12297006"
 
@@ -37,7 +37,7 @@ android {
         // Changed with the first release build, which is a fresh install anyway.
         applicationId = "app.amber"
         minSdk = 28
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 61
         versionName = "0.33.0"
 
