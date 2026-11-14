@@ -442,16 +442,21 @@ class AmethystAccessibilityService : AccessibilityService() {
     /**
      * Screen off counts as locked at once (the lock may follow a moment later); on again it is
      * whatever the keyguard says; unlocked when the user is present.
+     *
+     * A dictation being recorded ends with the screen, as if tapped: with the bubble gone
+     * nothing else could stop it, and it would record on in the pocket. Its text is kept, and
+     * the dictation says so once the phone is back.
      */
     private val lockWatch = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            bubble?.setLocked(
-                when (intent.action) {
-                    Intent.ACTION_SCREEN_OFF -> true
-                    Intent.ACTION_USER_PRESENT -> false
-                    else -> isLocked()
-                },
-            )
+            val locked = when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> true
+                Intent.ACTION_USER_PRESENT -> false
+                else -> isLocked()
+            }
+            bubble?.setLocked(locked)
+            if (!::graph.isInitialized) return
+            if (intent.action == Intent.ACTION_SCREEN_OFF) graph.dictation.screenOff() else if (!locked) graph.dictation.screenBack()
         }
     }
     private var lockWatchRegistered = false
@@ -472,6 +477,9 @@ class AmethystAccessibilityService : AccessibilityService() {
         screenAwake.hold(false)
         bubble = null
         if (::graph.isInitialized && graph.accessibilityService === this) {
+            // Switched off mid-dictation: with the service go the bubble that could stop the
+            // recording and the only way to insert its text - it must not record on unseen.
+            graph.dictation.cancel()
             graph.accessibilityService = null
         }
         scope.cancel()

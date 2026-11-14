@@ -1,10 +1,12 @@
 package app.amethyst.dictation
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
@@ -43,6 +45,7 @@ import app.amethyst.core.commands.RunMode
 import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
+import app.amethyst.core.dictation.ScreenOff
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
 import app.amethyst.core.engine.EngineKind
@@ -444,6 +447,52 @@ class DictationController(
         job?.cancel()
         _state.value = DictationState.Idle
     }
+
+    /**
+     * The screen went off - the power button: a dictation's recording ends here as a tap would
+     * end it, instead of running on in the pocket ([ScreenOff]). Its text is kept when it is
+     * ready ([deliver]). Main thread.
+     */
+    fun screenOff() {
+        val state = _state.value
+        val recording = state is DictationState.Starting || state is DictationState.Listening
+        when (ScreenOff.onScreenOff(recording, begun = isRunning, mode = _mode.value)) {
+            ScreenOff.Action.NOTHING -> Unit
+            ScreenOff.Action.STOP_RECORDING -> {
+                Log.i(TAG, "the screen went off - the recording ends here")
+                trace?.ended = "ended when the screen went off"
+                stop()
+            }
+            ScreenOff.Action.CANCEL -> {
+                Log.i(TAG, "the screen went off - the run is dropped")
+                cancel()
+            }
+        }
+    }
+
+    /** A dictation's text was kept because the screen was off or locked, and nobody was told yet. */
+    @Volatile
+    private var keptWhileScreenOff = false
+
+    /**
+     * The screen is on again and the phone unlocked: says, once, that a dictation was kept
+     * meanwhile and how to get it - the note at the time was shown to a dark screen.
+     */
+    fun screenBack() {
+        if (!keptWhileScreenOff) return
+        keptWhileScreenOff = false
+        val message = notInsertedWhileScreenOff(context)
+        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+    }
+
+    private fun notInsertedWhileScreenOff(context: Context): String =
+        context.getString(R.string.dictation_not_inserted_insert_again, context.getString(R.string.dictation_why_screen_off))
+
+    /** Whether a text may go into a field now: the screen is on and the phone unlocked. */
+    private fun mayInsertNow(): Boolean = ScreenOff.mayInsert(
+        screenOn = context.getSystemService(PowerManager::class.java)?.isInteractive != false,
+        locked = context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true,
+    )
 
     /**
      * Throws the recording away and starts a new one - once the old run has let go of the
@@ -1409,6 +1458,16 @@ class DictationController(
             return
         }
 
+        // The power button meanwhile: nothing is typed behind the lock screen or into one of
+        // its fields. The words stay in the record, for Insert again; the toast waits until
+        // someone can read it ([screenBack]).
+        if (!mayInsertNow()) {
+            Log.i(TAG, "not inserting: the screen is off or locked")
+            keptWhileScreenOff = true
+            fail(::notInsertedWhileScreenOff, engineId, text = cleaned, toast = false)
+            return
+        }
+
         awaitFocusReturn()
 
         var now = graph.accessibilityService?.focusedTarget()
@@ -1610,6 +1669,8 @@ class DictationController(
         details: List<String> = emptyList(),
         // A dictation's words that were recognized but did not go in: kept in the record.
         text: String = "",
+        // Off when nobody can read it now and it is said later instead.
+        toast: Boolean = true,
     ) {
         val message = words(context)
         val logged = words(english)
@@ -1632,8 +1693,10 @@ class DictationController(
 
         // While dictating into another app the bubble is the only visible surface, and a red
         // ring does not say why. A toast does, without making the user switch back.
-        mainHandler.post {
-            Toast.makeText(context, brief(context), Toast.LENGTH_LONG).show()
+        if (toast) {
+            mainHandler.post {
+                Toast.makeText(context, brief(context), Toast.LENGTH_LONG).show()
+            }
         }
 
         scope.launch {

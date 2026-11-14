@@ -16,6 +16,7 @@
     <string name="dictation_why_password">The field now is a password field</string>
     <string name="dictation_why_no_field">No text field has focus any more</string>
     <string name="dictation_why_switched">You switched to another app meanwhile</string>
+    <string name="dictation_why_screen_off">The screen was off or locked</string>
     <string name="dictation_on_clipboard_instead">%1$s - the text is on the clipboard instead.</string>
     <string name="dictation_not_inserted">%1$s - not inserted.</string>
     <string name="dictation_not_inserted_in_diagnostics">%1$s - not inserted. The text is in Amber\'s diagnostics.</string>
