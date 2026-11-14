@@ -17,10 +17,12 @@
     <string name="summary_stops_after">Stops after %1$s s silence</string>
     <string name="summary_runs_until_tap">Runs until you tap</string>
     <string name="summary_as_recognized">As recognized</string>
-    <string name="insert_part_spaces">spaces</string>
-    <string name="insert_part_capitals">capitals</string>
-    <string name="insert_part_punctuation">punctuation</string>
-    <string name="insert_part_clipboard">clipboard</string>
+    <string name="text_part_fillers">filler words</string>
+    <string name="text_part_commas">commas</string>
+    <string name="text_part_spaces">spaces</string>
+    <string name="text_part_capitals">capitals</string>
+    <string name="text_part_punctuation">punctuation</string>
+    <string name="text_part_clipboard">clipboard</string>
     <string name="summary_all_set">All set</string>
     <plurals name="summary_things_open">
         <item quantity="one">%d thing open</item>

@@ -33,7 +33,7 @@ fun SettingsPage.title(): Int = when (this) {
     SettingsPage.APP_STYLES -> R.string.settings_app_styles
     SettingsPage.FALLBACK -> R.string.settings_fallback
     SettingsPage.RECORDING -> R.string.settings_recording
-    SettingsPage.INSERTING -> R.string.settings_inserting
+    SettingsPage.INSERTING -> R.string.settings_text
     SettingsPage.RELIABILITY -> R.string.settings_reliability
     SettingsPage.STATS -> R.string.settings_statistics
     SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics

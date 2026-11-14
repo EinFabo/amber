@@ -16,7 +16,6 @@ import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
-import app.amethyst.core.settings.InsertPart
 import app.amethyst.core.settings.RecognitionRows
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
@@ -167,8 +166,9 @@ object Texts {
             }
             is Summary.StopsAfter -> getString(R.string.summary_stops_after, decimal(this, summary.seconds))
             Summary.RunsUntilTap -> getString(R.string.summary_runs_until_tap)
-            is Summary.Inserting -> summary.parts.joinToString(", ") { insertPart(this, it) }
+            is Summary.Text -> summary.first.joinToString(", ") { textPart(this, it) }
                 .replaceFirstChar { it.titlecase(locale(this)) }
+                .let { parts -> if (summary.more) getString(R.string.summary_titles_and_more, parts) else parts }
                 .ifEmpty { getString(R.string.summary_as_recognized) }
             is Summary.Reliability -> if (summary.open == 0) getString(R.string.summary_all_set) else count(R.plurals.summary_things_open, summary.open)
             is Summary.Diagnostics -> if (summary.count == 0) getString(R.string.summary_nothing_dictated) else count(R.plurals.summary_last_dictations, summary.count)
@@ -185,12 +185,14 @@ object Texts {
         }
     }
 
-    private fun insertPart(context: Context, part: InsertPart): String = context.getString(
+    private fun textPart(context: Context, part: Summary.Text.Part): String = context.getString(
         when (part) {
-            InsertPart.SPACES -> R.string.insert_part_spaces
-            InsertPart.CAPITALS -> R.string.insert_part_capitals
-            InsertPart.PUNCTUATION -> R.string.insert_part_punctuation
-            InsertPart.CLIPBOARD -> R.string.insert_part_clipboard
+            Summary.Text.Part.FILLERS -> R.string.text_part_fillers
+            Summary.Text.Part.COMMAS -> R.string.text_part_commas
+            Summary.Text.Part.SPACES -> R.string.text_part_spaces
+            Summary.Text.Part.CAPITALS -> R.string.text_part_capitals
+            Summary.Text.Part.PUNCTUATION -> R.string.text_part_punctuation
+            Summary.Text.Part.CLIPBOARD -> R.string.text_part_clipboard
         },
     )
 

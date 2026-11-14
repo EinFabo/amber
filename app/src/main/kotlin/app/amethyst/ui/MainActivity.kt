@@ -96,7 +96,6 @@ import app.amethyst.ui.screen.DiagnosticsScreen
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.HomeScreen
-import app.amethyst.ui.screen.InsertingScreen
 import app.amethyst.ui.screen.LicensesScreen
 import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
@@ -105,6 +104,7 @@ import app.amethyst.ui.screen.ReliabilityScreen
 import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
+import app.amethyst.ui.screen.TextScreen
 import app.amethyst.ui.screen.UpdatesScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
 import app.amethyst.ui.screen.title
@@ -695,7 +695,7 @@ private fun AmethystScreens(
                             SettingsPage.CLEANUP -> CleanupScreen(settings = settings, access = cleanupAccess)
                             SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
                             SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
-                            SettingsPage.INSERTING -> InsertingScreen(settings, ::updateSettings)
+                            SettingsPage.INSERTING -> TextScreen(settings, ::updateSettings)
                             SettingsPage.APP_STYLES -> AppStylesScreen(
                                 settings, ::updateSettings,
                                 apps = apps,

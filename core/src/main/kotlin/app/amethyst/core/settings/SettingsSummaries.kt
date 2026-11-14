@@ -36,8 +36,16 @@ sealed interface Summary {
     data class StopsAfter(val seconds: Double) : Summary
     data object RunsUntilTap : Summary
 
-    /** What is added to the text on its way in; nothing ("as recognized") when empty. */
-    data class Inserting(val parts: List<InsertPart>) : Summary
+    /**
+     * What is done to the text by rules, in the order it happens: the [first] few things and
+     * whether there are [more] ("Filler words, commas, spaces ..."); nothing ("as recognized")
+     * when empty.
+     */
+    data class Text(val first: List<Part>, val more: Boolean) : Summary {
+
+        /** The Text page's switches, top to bottom. */
+        enum class Part { FILLERS, COMMAS, SPACES, CAPITALS, PUNCTUATION, CLIPBOARD }
+    }
 
     /** [open] things that keep the microphone available in the background; all set at 0. */
     data class Reliability(val open: Int) : Summary
@@ -77,8 +85,6 @@ sealed interface Summary {
         }
     }
 }
-
-enum class InsertPart { SPACES, CAPITALS, PUNCTUATION, CLIPBOARD }
 
 /**
  * The settings list's one-line states. Each says what a page is set to in a few words - never
@@ -125,19 +131,31 @@ object SettingsSummaries {
         return Summary.Fallback(engine, prepared)
     }
 
-    /** After how long a silence it stops, or that only a tap ends it. */
+    /**
+     * After how long a silence it stops, or that only a tap ends it - how a recording ends is
+     * what its page is about; what becomes of the words is the Text page's ([text]).
+     */
     fun recording(capture: CaptureSettings): Summary =
         if (capture.autoStopOnSilence) Summary.StopsAfter(capture.silenceTimeoutMs / 1000.0) else Summary.RunsUntilTap
 
-    fun inserting(insertion: InsertionSettings): Summary =
-        Summary.Inserting(
-            listOfNotNull(
-                InsertPart.SPACES.takeIf { insertion.autoSpace },
-                InsertPart.CAPITALS.takeIf { insertion.autoCapitalize },
-                InsertPart.PUNCTUATION.takeIf { insertion.gluePunctuation },
-                InsertPart.CLIPBOARD.takeIf { insertion.allowClipboard },
-            ),
+    /**
+     * What the Text page has switched on, in its order: the rules for the words (in the capture
+     * settings since before the page) and those for inserting.
+     */
+    fun text(capture: CaptureSettings, insertion: InsertionSettings): Summary {
+        val on = listOfNotNull(
+            Summary.Text.Part.FILLERS.takeIf { capture.stripFillers },
+            Summary.Text.Part.COMMAS.takeIf { capture.germanCommas },
+            Summary.Text.Part.SPACES.takeIf { insertion.autoSpace },
+            Summary.Text.Part.CAPITALS.takeIf { insertion.autoCapitalize },
+            Summary.Text.Part.PUNCTUATION.takeIf { insertion.gluePunctuation },
+            Summary.Text.Part.CLIPBOARD.takeIf { insertion.allowClipboard },
         )
+        return Summary.Text(on.take(TEXT_PARTS), more = on.size > TEXT_PARTS)
+    }
+
+    /** How many things the Text row names: what fits a line on a phone, in German too. */
+    const val TEXT_PARTS = 3
 
     fun reliability(open: Int): Summary = Summary.Reliability(open)
 

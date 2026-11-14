@@ -15,10 +15,12 @@
     <string name="summary_stops_after">Stoppt nach %1$s s Stille</string>
     <string name="summary_runs_until_tap">Läuft, bis du tippst</string>
     <string name="summary_as_recognized">Wie erkannt</string>
-    <string name="insert_part_spaces">Leerzeichen</string>
-    <string name="insert_part_capitals">Großschreibung</string>
-    <string name="insert_part_punctuation">Satzzeichen</string>
-    <string name="insert_part_clipboard">Zwischenablage</string>
+    <string name="text_part_fillers">Füllwörter</string>
+    <string name="text_part_commas">Kommas</string>
+    <string name="text_part_spaces">Leerzeichen</string>
+    <string name="text_part_capitals">Großschreibung</string>
+    <string name="text_part_punctuation">Satzzeichen</string>
+    <string name="text_part_clipboard">Zwischenablage</string>
     <string name="summary_all_set">Alles bereit</string>
     <plurals name="summary_things_open">
         <item quantity="one">%d Punkt offen</item>

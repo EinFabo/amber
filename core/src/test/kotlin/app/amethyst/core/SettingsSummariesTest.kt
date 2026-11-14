@@ -11,7 +11,6 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.InsertionSettings
-import app.amethyst.core.settings.InsertPart
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
@@ -90,20 +89,48 @@ class SettingsSummariesTest {
         assertEquals(Summary.RunsUntilTap, SettingsSummaries.recording(CaptureSettings()))
     }
 
+    private val noWordRules = CaptureSettings(stripFillers = false, germanCommas = false)
+
     @Test
-    fun `inserting lists what is added, or nothing`() {
+    fun `text names the first things done to it, in the page's order, and says there are more`() {
+        // A new install: both word rules and the three for inserting.
         assertEquals(
-            Summary.Inserting(listOf(InsertPart.SPACES, InsertPart.CAPITALS, InsertPart.PUNCTUATION)),
-            SettingsSummaries.inserting(InsertionSettings()),
+            Summary.Text(listOf(Summary.Text.Part.FILLERS, Summary.Text.Part.COMMAS, Summary.Text.Part.SPACES), more = true),
+            SettingsSummaries.text(CaptureSettings(), InsertionSettings()),
         )
         assertEquals(
-            Summary.Inserting(listOf(InsertPart.CAPITALS, InsertPart.CLIPBOARD)),
-            SettingsSummaries.inserting(InsertionSettings(autoSpace = false, gluePunctuation = false, allowClipboard = true)),
+            Summary.Text(listOf(Summary.Text.Part.COMMAS, Summary.Text.Part.SPACES, Summary.Text.Part.CAPITALS), more = true),
+            SettingsSummaries.text(CaptureSettings(stripFillers = false), InsertionSettings(allowClipboard = true)),
+        )
+    }
+
+    @Test
+    fun `text with a few things on names them all`() {
+        assertEquals(
+            Summary.Text(listOf(Summary.Text.Part.SPACES, Summary.Text.Part.CAPITALS, Summary.Text.Part.PUNCTUATION), more = false),
+            SettingsSummaries.text(noWordRules, InsertionSettings()),
         )
         assertEquals(
-            Summary.Inserting(emptyList()),
-            SettingsSummaries.inserting(InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false)),
+            Summary.Text(listOf(Summary.Text.Part.FILLERS, Summary.Text.Part.CLIPBOARD), more = false),
+            SettingsSummaries.text(
+                CaptureSettings(germanCommas = false),
+                InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false, allowClipboard = true),
+            ),
         )
+    }
+
+    @Test
+    fun `text with every rule off goes in as recognized`() {
+        assertEquals(
+            Summary.Text(emptyList(), more = false),
+            SettingsSummaries.text(noWordRules, InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false)),
+        )
+    }
+
+    @Test
+    fun `the word rules are the text row's, not the recording row's`() {
+        val silent = CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)
+        assertEquals(SettingsSummaries.recording(silent), SettingsSummaries.recording(silent.copy(stripFillers = false, germanCommas = false)))
     }
 
     @Test

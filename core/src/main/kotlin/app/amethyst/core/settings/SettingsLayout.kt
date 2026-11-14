@@ -16,6 +16,8 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     APP_STYLES(simple = true, SettingsGroupKind.PER_APP),
     FALLBACK(simple = false, SettingsGroupKind.ADVANCED),
     RECORDING(simple = false, SettingsGroupKind.ADVANCED),
+
+    /** The Text page: what changes the text by rules - its words and commas, and how it is inserted. */
     INSERTING(simple = false, SettingsGroupKind.ADVANCED),
     RELIABILITY(simple = false, SettingsGroupKind.ADVANCED),
     /** Light or dark: how Amber looks, for everyone. */

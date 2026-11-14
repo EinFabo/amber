@@ -517,11 +517,15 @@ open class Screenshots {
         app.amethyst.ui.screen.RecordingScreen(settings = settings, onUpdateSettings = {})
     }
 
-    /** Not part of the listing set: the inserting page. */
+    /** Not part of the listing set: the Text page, the clipboard allowed. */
     @Test
-    fun inserting() = shoot("x-inserting", SettingsPage.INSERTING.title()) {
-        app.amethyst.ui.screen.InsertingScreen(settings = settings, onUpdateSettings = {})
+    fun text() = shoot("x-text", SettingsPage.INSERTING.title()) {
+        app.amethyst.ui.screen.TextScreen(
+            settings = settings.copy(insertion = settings.insertion.copy(allowClipboard = true)), onUpdateSettings = {},
+        )
     }
+
+    @Test fun textLight() = light(::text)
 
     /** Not part of the listing set: the reliability page with the battery still restricted. */
     @Test

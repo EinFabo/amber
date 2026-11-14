@@ -15,6 +15,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | What a long press on the bubble opens | quick menu | Schnellmenü | |
 | Speaking a text | dictation, dictate | Diktat, diktieren | |
 | Putting the text into the field | insert | einfügen | paste, type |
+| The page for what changes the text by rules: filler words, commas, spaces, capitals, punctuation, the clipboard (not yet approved) | Text | Text | Inserting (as the page's name) |
 | Quick menu actions | Insert again, Copy last | Nochmal einfügen, Letztes kopieren | |
 | How the text reads in one app | style per app | Stil pro App | app profile, preset |
 | The one switch for every setting | Advanced settings | Erweiterte Einstellungen | expert mode |

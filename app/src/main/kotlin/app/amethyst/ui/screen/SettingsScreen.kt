@@ -134,7 +134,9 @@ fun SettingsScreen(
             onOpen(SettingsPage.FALLBACK)
         }
         SettingsItem.RECORDING -> NavRow(stringResource(R.string.settings_recording), words(SettingsSummaries.recording(settings.capture)), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
-        SettingsItem.INSERTING -> NavRow(stringResource(R.string.settings_inserting), words(SettingsSummaries.inserting(settings.insertion)), icon = AmberIcons.Keyboard) { onOpen(SettingsPage.INSERTING) }
+        SettingsItem.INSERTING -> NavRow(stringResource(R.string.settings_text), words(SettingsSummaries.text(settings.capture, settings.insertion)), icon = AmberIcons.TextFields) {
+            onOpen(SettingsPage.INSERTING)
+        }
         SettingsItem.RELIABILITY -> NavRow(
             stringResource(R.string.settings_reliability), words(SettingsSummaries.reliability(reliabilityOpen)), icon = AmberIcons.Battery,
             summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
@@ -311,7 +313,7 @@ fun RecognitionScreen(
     }
 }
 
-/** When a recording ends, how raw the text stays, and recognizing while you speak. */
+/** When a recording ends, how long it may get, and recognizing while you speak. What becomes of the words is [TextScreen]'s. */
 @Composable
 fun RecordingScreen(
     settings: AmethystSettings,
@@ -334,82 +336,10 @@ fun RecordingScreen(
             RecordingLimits(settings, onUpdateSettings)
         }
         SectionCard(
-            title = stringResource(R.string.recording_text),
-            learnMore = stringResource(R.string.recording_text_more),
-        ) {
-            ToggleRow(
-                label = stringResource(R.string.recording_fillers),
-                description = stringResource(R.string.recording_fillers_note),
-                checked = settings.capture.stripFillers,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(capture = it.capture.copy(stripFillers = value)) }
-                },
-            )
-            ToggleRow(
-                label = stringResource(R.string.recording_commas),
-                description = stringResource(R.string.recording_commas_note),
-                checked = settings.capture.germanCommas,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(capture = it.capture.copy(germanCommas = value)) }
-                },
-            )
-        }
-        SectionCard(
             title = stringResource(R.string.recording_while_speaking),
             learnMore = stringResource(R.string.recording_while_speaking_more),
         ) {
             ChunkingSettings(settings, onUpdateSettings)
-        }
-    }
-}
-
-/** How the text arrives at the cursor. */
-@Composable
-fun InsertingScreen(
-    settings: AmethystSettings,
-    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SubPage(modifier) {
-        SectionCard(
-            title = null,
-            subtitle = stringResource(R.string.inserting_subtitle),
-            learnMore = stringResource(R.string.inserting_more),
-        ) {
-            ToggleRow(
-                label = stringResource(R.string.inserting_spaces),
-                description = stringResource(R.string.inserting_spaces_note),
-                checked = settings.insertion.autoSpace,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(insertion = it.insertion.copy(autoSpace = value)) }
-                },
-            )
-            ToggleRow(
-                label = stringResource(R.string.inserting_capitals),
-                description = stringResource(R.string.inserting_capitals_note),
-                checked = settings.insertion.autoCapitalize,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(insertion = it.insertion.copy(autoCapitalize = value)) }
-                },
-            )
-            ToggleRow(
-                label = stringResource(R.string.inserting_punctuation),
-                description = stringResource(R.string.inserting_punctuation_note),
-                checked = settings.insertion.gluePunctuation,
-                onChange = { value ->
-                    onUpdateSettings {
-                        it.copy(insertion = it.insertion.copy(gluePunctuation = value))
-                    }
-                },
-            )
-            ToggleRow(
-                label = stringResource(R.string.inserting_clipboard),
-                description = stringResource(R.string.inserting_clipboard_note),
-                checked = settings.insertion.allowClipboard,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
-                },
-            )
         }
     }
 }

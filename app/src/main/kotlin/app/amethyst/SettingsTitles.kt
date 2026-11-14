@@ -16,7 +16,7 @@ object SettingsTitles {
             SettingsItem.APP_STYLES -> R.string.settings_app_styles
             SettingsItem.FALLBACK -> R.string.settings_fallback
             SettingsItem.RECORDING -> R.string.settings_recording
-            SettingsItem.INSERTING -> R.string.settings_inserting
+            SettingsItem.INSERTING -> R.string.settings_text
             SettingsItem.RELIABILITY -> R.string.settings_reliability
             SettingsItem.APPEARANCE -> R.string.settings_appearance
             SettingsItem.ABOUT -> R.string.settings_about
