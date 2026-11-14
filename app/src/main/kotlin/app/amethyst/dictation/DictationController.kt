@@ -46,6 +46,7 @@ import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.dictation.BubbleTap
+import app.amethyst.core.dictation.RunStop
 import app.amethyst.core.dictation.ScreenOff
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.CleanupRouting
@@ -91,6 +92,7 @@ import app.amethyst.engine.AndroidOnDeviceEngine
 import app.amethyst.engine.ModelDownloads
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -127,7 +129,9 @@ class DictationController(
     val state: StateFlow<DictationState> = _state.asStateFlow()
 
     private val capture = AudioCapture()
-    private val stopRequested = AtomicBoolean(false)
+
+    /** The stop a tap asks of the run in progress; a run that ended late never clears a later one's. */
+    private val runStop = RunStop()
 
     /** This run's pause from the bubble's menu ([pause]); a new one for every run. */
     @Volatile
@@ -141,8 +145,11 @@ class DictationController(
     @Volatile
     private var job: Job? = null
 
-    @Volatile
-    private var selfCapturing: SelfCapturingSttEngine? = null
+    /**
+     * The recognizer of the run in progress, if it records by itself: a tap is passed on to
+     * it. Taken back only by the run that set it ([run]).
+     */
+    private val selfCapturing = AtomicReference<SelfCapturingSttEngine?>(null)
 
     /**
      * Completed when this run's text is to go in as recognized - "No cleanup" or "As
@@ -377,11 +384,13 @@ class DictationController(
 
         // Re-entry from the proxy keeps a stop that came while it was starting - otherwise a
         // tap that stopped the dictation meanwhile would leave it recording until the cap.
-        stopRequested.set(stoppedDuringHandover)
+        // From here this run is the current one: an earlier run still unwinding - cancelled
+        // during a recognition that cannot be aborted - no longer touches the stop.
+        val token = runStop.begin(stoppedBefore = stoppedDuringHandover)
         // Also set here, synchronously: anything watching the state must see the dictation
         // begin before the coroutine gets its first dispatch.
         _state.value = DictationState.Starting
-        job = scope.launch { run(source) }
+        job = scope.launch { run(source, token) }
     }
 
     /**
@@ -425,7 +434,7 @@ class DictationController(
      * no recording that is still listening.
      */
     fun commandInstead(): Boolean {
-        if (!graph.settings.value.commandsEnabled || stopRequested.get()) return false
+        if (!graph.settings.value.commandsEnabled || runStop.requested) return false
         val state = _state.value
         if (state !is DictationState.Starting && state !is DictationState.Listening) return false
         if (_mode.value != RunMode.COMMAND) {
@@ -450,11 +459,11 @@ class DictationController(
 
     /** Finish the current recording and transcribe what was captured. */
     fun stop() {
-        stopRequested.set(true)
+        runStop.request()
         // Before the recording began: kept by whatever starts it - the activity on its way
         // (nothing if none is), or the run itself when it gets to its recorder or recognizer.
         if (_state.value is DictationState.Starting) handover.stop()
-        selfCapturing?.let { engine ->
+        selfCapturing.get()?.let { engine ->
             engine.requestStop()
             // Its recording ends with this tap: the run's limit no longer covers the longest one.
             runLimit?.let { it.recordingEnded(graph.settings.value.capture.afterRecordingMs(it.elapsedMs())) }
@@ -537,7 +546,7 @@ class DictationController(
      * (Android's recognizer does not stop listening on request), and it is a dictation.
      */
     val canPause: Boolean
-        get() = _state.value is DictationState.Listening && selfCapturing == null && _mode.value == RunMode.DICTATION
+        get() = _state.value is DictationState.Listening && selfCapturing.get() == null && _mode.value == RunMode.DICTATION
 
     /**
      * Pauses the recording: the microphone stays open - going on needs no new start from the
@@ -646,7 +655,8 @@ class DictationController(
         return true
     }
 
-    private suspend fun run(source: TriggerSource) {
+    /** [token]: this run's, from [RunStop.begin] - what it may clear when it ends. */
+    private suspend fun run(source: TriggerSource, token: Int) {
         _state.value = DictationState.Starting
         val pause = RecordingPause().also { recordingPause = it }
         wait = null
@@ -732,8 +742,11 @@ class DictationController(
                 details = listOf("unexpected ${e::class.java.name}"),
             )
         } finally {
-            selfCapturing = null
-            stopRequested.set(false)
+            // Only what is still this run's. After a cancel during a recognition on the phone,
+            // which cannot be aborted, this runs seconds late - a new dictation may be
+            // recording by then, and its recognizer and the tap that stopped it are not ours.
+            (engine as? SelfCapturingSttEngine)?.let { selfCapturing.compareAndSet(it, null) }
+            runStop.end(token)
             runCatching { engine.close() }
             graph.scheduleModelRelease()
         }
@@ -752,10 +765,10 @@ class DictationController(
         options: TranscribeOptions,
         limit: RunLimit,
     ): Transcript? {
-        selfCapturing = engine
+        selfCapturing.set(engine)
         // A tap that came while the run was starting found no recognizer to stop: it is due
         // now, and the engine keeps it until its recognizer listens ([ListenStop]).
-        if (stopRequested.get()) engine.requestStop()
+        if (runStop.requested) engine.requestStop()
         _state.value = DictationState.Listening()
         // Recognition overlaps with listening here; the whole call counts as both.
         trace?.recordingStarts()
@@ -840,7 +853,7 @@ class DictationController(
         val outcome = try {
             capture.record(
                 config = vadConfig,
-                stopRequested = { stopRequested.get() },
+                stopRequested = { runStop.requested },
                 onAmplitude = { amplitude ->
                     noteLoudness(amplitude)
                     updateListening { it.copy(amplitude = amplitude, limitLeft = limitLeft) }
