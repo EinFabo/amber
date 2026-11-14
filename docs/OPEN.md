@@ -251,6 +251,13 @@ series and one store release per phase, each after his OK.
       `b998af161b291251d2ccf321af656c3643e06064c03bfc1b1039aca987872ba9`, the same in both
       signing runs and in CI's build of the same commit. Open: the recipe's `Builds`,
       `CurrentVersion` and `CurrentVersionCode`.
+- [x] GitHub release v0.33.0 (2026-11-14, Latest): P7 (the introduction's three ways, styles
+      for installed apps), P8 (light theme), the introduction with moving pictures, the
+      settings' quick wins, no focus events from Android 13. Signed with the GitHub key, APK
+      SHA-256 `fa15b997e169e724f17ecea538205c7e5f60dc09795710d1e35c6a8c77925701`; unsigned
+      `1e729fe3bd4f48b46503aa546e2900ee7e5606b4227793f8efff418305ff2f7c`, the same in both
+      signing runs. In Fabi's store too (store key). Tried by Fabi on the Pixel as test
+      build 71 before; the release builds themselves were not run on a phone.
 - [x] 0.32.0 in Fabi's store (2026-11-13, store key), installed over 0.31.0 on the Pixel by adb:
       it starts; the screen was locked, so nothing more was looked at.
 - [ ] Device tests of the review fixes: cancel during the microphone handover (Android 14+, another
