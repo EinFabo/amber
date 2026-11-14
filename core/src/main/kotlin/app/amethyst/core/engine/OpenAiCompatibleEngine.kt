@@ -168,7 +168,11 @@ class OpenAiCompatibleEngine(
                 trustLevel = sent.trust,
                 latencyMs = clock() - startedAt,
                 detectedLanguage = parsed.language,
-                servedBy = response.header(ENCLAVE_HEADER),
+                // Only an enclave Amber verified may say which enclave served the request:
+                // any server can send the header, and it is shown as "enclave ...".
+                servedBy = response.header(ENCLAVE_HEADER)
+                    ?.takeIf { sent.trust == TrustLevel.ENCLAVE_VERIFIED }
+                    ?.filter { it in ' '..'~' }?.take(SERVED_BY_CHARS),
                 upload = UploadReport(
                     oggOpus = compressed != null,
                     bytes = compressed?.bytes?.size ?: (PcmAudio.WAV_HEADER_SIZE + audio.samples.size * 2),
@@ -251,6 +255,9 @@ class OpenAiCompatibleEngine(
 
         /** Tinfoil's router names the model enclave that served a request in this header. */
         const val ENCLAVE_HEADER = "Tinfoil-Enclave"
+
+        /** A host name's worth; the header ends up in the diagnostics. */
+        private const val SERVED_BY_CHARS = 120
 
         /** What an Amber server answers a compressed upload it does not take with. */
         private const val COMPRESSION_REFUSED = 400

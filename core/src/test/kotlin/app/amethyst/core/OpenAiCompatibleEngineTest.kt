@@ -194,6 +194,17 @@ class OpenAiCompatibleEngineTest {
     private val keyB = "b".repeat(64)
 
     @Test
+    fun `a plain server cannot call itself an enclave`() = runTest {
+        val transport = FakeHttpTransport {
+            HttpResponse(200, """{"text":"hallo"}""".encodeToByteArray(), mapOf("tinfoil-enclave" to "whisper-inf3.tinfoil.sh"))
+        }
+        val transcript = engine(transport, baseUrl = "https://speech.example.com/v1").transcribe(audio).getOrThrow()
+
+        assertEquals(TrustLevel.CLOUD, transcript.trustLevel)
+        assertEquals(null, transcript.servedBy)
+    }
+
+    @Test
     fun `sends over a connection bound to the attested key and says so`() = runTest {
         val transport = FakePinnableTransport(serverKey = keyA) {
             HttpResponse(200, """{"text":"geheim"}""".encodeToByteArray(), mapOf("tinfoil-enclave" to "whisper-inf3.tinfoil.sh"))

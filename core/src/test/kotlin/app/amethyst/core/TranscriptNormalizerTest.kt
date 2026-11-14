@@ -88,6 +88,11 @@ class TranscriptNormalizerTest {
         // A right-to-left override would show "txt.exe" as "exe.txt"; zero-width spaces hide.
         assertEquals("Datei txt.exe senden", TranscriptNormalizer.normalize("Datei \u202Etxt.exe\u202C sen\u200Bden"))
         assertEquals("eins zwei", TranscriptNormalizer.normalize("eins\u2028zwei\u0007"))
+        // Soft hyphens, word joiners and tag characters carry nothing a reader sees.
+        assertEquals("Wort Pause", TranscriptNormalizer.normalize("Wo\u00ADrt Pau\u2060se\uDB40\uDC41\uDB40\uDC42"))
+        // After a black flag the tags spell a flag (Scotland) and stay.
+        val scotland = "\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74\uDB40\uDC7F"
+        assertEquals("Flagge $scotland", TranscriptNormalizer.normalize("Flagge $scotland"))
         // A joiner inside an emoji sequence is kept.
         assertEquals("Familie \uD83D\uDC68\u200D\uD83D\uDC69", TranscriptNormalizer.normalize("Familie \uD83D\uDC68\u200D\uD83D\uDC69"))
     }

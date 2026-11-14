@@ -35,8 +35,34 @@ object TranscriptNormalizer {
      * line breaks are whitespace and handled below), bidi overrides and isolates that can make
      * "txt.exe" read "exe.txt", zero-width spaces and the BOM. A server or a cleanup model could
      * send them; they have no business in a dictation. Zero-width joiners stay (emoji, scripts).
+     * So do soft hyphens, the word joiner and the invisible operators (U+2060-2064).
      */
-    private val INVISIBLE = Regex("[\\u0000-\\u0008\\u000B\\u000E-\\u001F\\u007F-\\u009F\\u061C\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]")
+    private val INVISIBLE = Regex("[\\u0000-\\u0008\\u000B\\u000E-\\u001F\\u007F-\\u009F\\u00AD\\u061C\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF]")
+
+    /**
+     * Unicode's tag characters (U+E0000-E007F) are invisible and can carry a hidden message
+     * for whatever reads the field next. Their one honest use stays: after a black flag they
+     * spell the flags of England, Scotland and Wales.
+     */
+    private fun withoutTags(text: String): String {
+        if (text.none { it == TAG_LEAD }) return text
+        val out = StringBuilder(text.length)
+        var inFlag = false
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val tag = cp in 0xE0000..0xE007F
+            if (!tag || inFlag) out.appendCodePoint(cp)
+            // The flag's letters are tags from U+E0020; U+E007F ends it.
+            inFlag = cp == BLACK_FLAG || (tag && inFlag && cp >= 0xE0020 && cp != 0xE007F)
+            i += Character.charCount(cp)
+        }
+        return out.toString()
+    }
+
+    /** The high surrogate every tag character starts with. */
+    private const val TAG_LEAD = '\uDB40'
+    private const val BLACK_FLAG = 0x1F3F4
 
     /** Unicode's own line and paragraph separators, which some fields render as breaks. */
     private val UNICODE_BREAKS = Regex("[\\u2028\\u2029]")
@@ -56,7 +82,7 @@ object TranscriptNormalizer {
         language: String? = null,
         keepLineBreaks: Boolean = false,
     ): String {
-        var text = raw.replace(INVISIBLE, "").replace(UNICODE_BREAKS, if (keepLineBreaks) "\n" else " ").trim()
+        var text = withoutTags(raw.replace(INVISIBLE, "")).replace(UNICODE_BREAKS, if (keepLineBreaks) "\n" else " ").trim()
         if (text.isEmpty()) return ""
         val spaced = text.replace(WHITESPACE, " ")
         val german = GermanCommas.isGerman(language, spaced)
