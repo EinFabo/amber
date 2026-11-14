@@ -13,7 +13,7 @@ object SettingsTitles {
             SettingsItem.CLEANUP, SettingsItem.CLEANUP_INSTRUCTION -> R.string.settings_cleanup
             SettingsItem.BUBBLE, SettingsItem.QUICK_MENU -> R.string.settings_bubble
             SettingsItem.VOICE_COMMANDS -> R.string.settings_voice_commands
-            SettingsItem.APP_STYLES -> R.string.settings_app_styles
+            SettingsItem.APP_STYLES -> R.string.settings_apps
             SettingsItem.FALLBACK -> R.string.settings_fallback
             SettingsItem.RECORDING -> R.string.settings_recording
             SettingsItem.INSERTING -> R.string.settings_text

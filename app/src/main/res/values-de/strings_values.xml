@@ -9,6 +9,17 @@
         <item quantity="one">%d App</item>
         <item quantity="other">%d Apps</item>
     </plurals>
+    <plurals name="summary_styles">
+        <item quantity="one">%d Stil</item>
+        <item quantity="other">%d Stile</item>
+    </plurals>
+    <plurals name="summary_hidden">
+        <item quantity="one">%d ausgeblendet</item>
+        <item quantity="other">%d ausgeblendet</item>
+    </plurals>
+    <string name="summary_default_model">Standard: %1$s</string>
+    <string name="summary_default_off">Standard: aus</string>
+    <string name="summary_own_model">Eigenes Modell: %1$s</string>
     <string name="summary_not_needed">Nicht nötig</string>
     <string name="summary_fallback_automatic">Parakeet, dann Whisper</string>
     <string name="summary_prepared">%1$s · vorbereitet</string>

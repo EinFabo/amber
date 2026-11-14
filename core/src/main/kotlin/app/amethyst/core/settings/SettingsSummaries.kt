@@ -25,8 +25,15 @@ sealed interface Summary {
     /** Voice commands are given through the bubble, so "on" without it says so. */
     data object OnButBubbleOff : Summary
 
-    /** Apps with their own style; none yet at 0. */
-    data class Apps(val count: Int) : Summary
+    /** Apps with a style of their own and apps the bubble is hidden in ("6 styles · 2 hidden"); none yet at 0 and 0. */
+    data class Apps(val styles: Int, val hidden: Int) : Summary
+
+    /**
+     * One app's cleanup on its page, folded to a line: the cleanup for every app ([own] false)
+     * or a model of its own, with the [model]'s name - null where there is none to name: the
+     * cleanup for every app is off, or the own model's service is gone.
+     */
+    data class AppCleanupModel(val own: Boolean, val model: String?) : Summary
 
     /** A fallback for a recognition on the phone, which no server can fail. */
     data object NotNeeded : Summary
@@ -113,7 +120,19 @@ object SettingsSummaries {
         else -> Summary.On
     }
 
-    fun appStyles(count: Int): Summary = Summary.Apps(count)
+    /** The Apps row: how many apps have a style, in how many the bubble is hidden ([AppRows.counts]). */
+    fun apps(profiles: List<AppProfile>, hiddenIn: List<String>): Summary =
+        AppRows.counts(profiles, hiddenIn).let { (styles, hidden) -> Summary.Apps(styles, hidden) }
+
+    /** [own], one app's choice of cleanup, in a line: the default and what that is, off, or its own model. */
+    fun appCleanup(settings: AmethystSettings, own: AppCleanup): Summary {
+        fun model(choice: CleanupChoice?) = (cleanup(settings, choice) as? Summary.Name)?.name
+        return when (own.mode) {
+            AppCleanupMode.DEFAULT -> Summary.AppCleanupModel(own = false, model(settings.cleanup))
+            AppCleanupMode.OFF -> Summary.Off
+            AppCleanupMode.MODEL -> Summary.AppCleanupModel(own = true, model(own.choice))
+        }
+    }
 
     fun appearance(ui: UiSettings): Summary = theme(ui.theme)
 

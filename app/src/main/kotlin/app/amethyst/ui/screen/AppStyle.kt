@@ -35,35 +35,47 @@ import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppEngine
 import app.amethyst.core.settings.AppEngineMode
 import app.amethyst.core.settings.AppProfile
-import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.AppRows
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.InstructionDraft
 import app.amethyst.core.settings.SettingsLayout
+import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
+import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
 import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.DangerAction
+import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.Hint
+import app.amethyst.ui.NavRow
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
+import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.Unfold
 import app.amethyst.ui.engineName
+import app.amethyst.ui.foldState
 import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeLabel
+import app.amethyst.ui.words
 import kotlinx.coroutines.delay
 
 /** Typing pauses this long before the instruction is saved. */
 private const val INSTRUCTION_SAVE_MS = 600L
 
 /**
- * One app's page: how the text reads there (style, own instruction), who tidies it - the
- * cleanup for every app, none, or a model of its own (a chat app may keep small slips, a notes
- * app gets the best model) - and, with the advanced settings, who hears it: the speech
- * recognition for every app or one of its own ([EngineRouting]).
+ * One app's page: whether the bubble shows there, how the text reads (style, own instruction),
+ * with the advanced settings who hears it - the speech recognition for every app or one of its
+ * own ([EngineRouting]) - and who tidies it: the cleanup for every app, none, or a model of its
+ * own (a chat app may keep small slips, a notes app gets the best model). The cleanup is one
+ * row that says which; tapped, it unfolds the choice.
+ *
+ * [profile] is the app's stored one, or what a profile starts as for an app that has none - one
+ * listed only because the bubble is hidden in it; the first change makes it ([AppRows.edited]).
  */
 @Composable
 fun AppStyleScreen(
@@ -77,7 +89,14 @@ fun AppStyleScreen(
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onRemoved: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The cleanup's choice unfolded from the start; for the screenshots. */
+    initialCleanupOpen: Boolean = false,
 ) {
+    // Removed here, and on the way out: nothing more is shown or saved - a save of what was
+    // typed a moment ago must not bring the profile back.
+    var removed by remember { mutableStateOf(false) }
+    if (removed) return
+    var cleanupOpen by rememberSaveable { mutableStateOf(initialCleanupOpen) }
     val hasKeyFor = access.hasKeyFor
     val services = rememberServiceRows(settings, access)
     // "Own model" tapped, none chosen yet: the list is open, the choice still as it was.
@@ -89,9 +108,10 @@ fun AppStyleScreen(
     val routing = EngineRouting.decide(settings, profile.packageName, hasKeyFor, modelReady)
     val own = profile.appCleanup
 
-    // Edits only a profile that is still there, so a late save cannot bring back a removed one.
-    fun edit(change: (AppProfile) -> AppProfile) =
-        onUpdateSettings { it.copy(profiles = AppProfiles.edit(it.profiles, profile.packageName, change)) }
+    // Never after the app was removed here, so a late save cannot bring its profile back.
+    fun edit(change: (AppProfile) -> AppProfile) {
+        if (!removed) onUpdateSettings { it.copy(profiles = AppRows.edited(it.profiles, profile.packageName, profile.label, change)) }
+    }
 
     SubPage(modifier) {
         Row(
@@ -103,6 +123,16 @@ fun AppStyleScreen(
             Text(profile.label, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         }
 
+        // Written to the bubble's own list of apps it stays out of, not to the profile.
+        SectionCard(title = null) {
+            ToggleRow(
+                label = stringResource(R.string.app_bubble_show),
+                description = stringResource(R.string.app_bubble_show_note),
+                checked = profile.packageName !in settings.bubble.hiddenIn,
+                onChange = { shown -> onUpdateSettings { it.copy(bubble = AppRows.withBubble(it.bubble, profile.packageName, shown)) } },
+            )
+        }
+
         SectionCard(title = stringResource(R.string.style_title), subtitle = stringResource(R.string.style_subtitle, profile.label)) {
             StyleAndInstruction(profile, ::edit, chips = false)
         }
@@ -111,62 +141,84 @@ fun AppStyleScreen(
             RecognitionChoices(profile, settings, routing, hasKeyFor, modelReady) { own -> edit { it.copy(appEngine = own) } }
         }
 
-        SectionCard(title = stringResource(R.string.settings_cleanup), subtitle = stringResource(R.string.style_cleanup_subtitle, profile.label)) {
-            RadioRow(
-                stringResource(R.string.style_default),
-                settings.cleanupSummary() ?: stringResource(R.string.style_default_off),
-                selected = own.mode == AppCleanupMode.DEFAULT,
-                onSelect = {
-                    pickOwn = false
-                    edit { it.copy(appCleanup = AppCleanup()) }
-                },
-            )
-            RadioRow(
-                stringResource(R.string.off),
-                stringResource(R.string.cleanup_off_note),
-                selected = own.mode == AppCleanupMode.OFF,
-                onSelect = {
-                    pickOwn = false
-                    edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.OFF)) }
-                },
-            )
-            // A model of its own: the same service list as Settings → Cleanup, unfolded here; a
-            // service's sheet writes this app's choice.
-            val ownChoice = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }
-            RadioRow(
-                stringResource(R.string.style_own_model),
-                settings.cleanupSummary(ownChoice) ?: stringResource(R.string.style_own_model_note),
-                selected = own.mode == AppCleanupMode.MODEL,
-                onSelect = { pickOwn = true },
-            )
-            Unfold(own.mode == AppCleanupMode.MODEL || pickOwn) {
-                Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CleanupServiceList(
-                        settings, access, services,
-                        inUse = ownChoice,
-                        sheet = sheet,
-                        write = { all, setup -> CleanupServices.forApp(all, setup, profile.packageName) },
+        val ownChoice = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }
+        // Its own model chosen but not set up: what is used instead.
+        val ownNotReady = ownChoice != null && !CleanupRouting.ready(settings, ownChoice, hasKeyFor)
+        val styleNeedsCleanup = decision.choice == null && profile.style != WritingStyle.AS_SPOKEN
+        SettingsGroup(label = null) {
+            // Folded to one line, so the page stays a page: the whole choice - with a model of
+            // its own, the service list - is one tap away.
+            NavRow(
+                stringResource(R.string.settings_cleanup),
+                words(SettingsSummaries.appCleanup(settings, own)),
+                Modifier.foldState(cleanupOpen),
+                icon = AmberIcons.AutoFix,
+                trailing = { ExpandChevron(cleanupOpen) },
+            ) { cleanupOpen = !cleanupOpen }
+            // What is in the way stays in sight while the choice is folded.
+            if (ownNotReady || styleNeedsCleanup) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (ownNotReady) {
+                        Hint(
+                            stringResource(if (decision.choice != null) R.string.style_own_not_ready_default else R.string.style_own_not_ready_none),
+                            AmberPalette.Error,
+                        )
+                    }
+                    if (styleNeedsCleanup) Hint(stringResource(R.string.style_needs_cleanup), AmberPalette.Primary)
+                }
+            }
+            Unfold(cleanupOpen) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Hint(stringResource(R.string.style_cleanup_subtitle, profile.label))
+                    RadioRow(
+                        stringResource(R.string.style_default),
+                        settings.cleanupSummary() ?: stringResource(R.string.style_default_off),
+                        selected = own.mode == AppCleanupMode.DEFAULT,
+                        onSelect = {
+                            pickOwn = false
+                            edit { it.copy(appCleanup = AppCleanup()) }
+                        },
+                    )
+                    RadioRow(
+                        stringResource(R.string.off),
+                        stringResource(R.string.cleanup_off_note),
+                        selected = own.mode == AppCleanupMode.OFF,
+                        onSelect = {
+                            pickOwn = false
+                            edit { it.copy(appCleanup = AppCleanup(AppCleanupMode.OFF)) }
+                        },
+                    )
+                    // A model of its own: the same service list as Settings → Cleanup, unfolded here; a
+                    // service's sheet writes this app's choice.
+                    RadioRow(
+                        stringResource(R.string.style_own_model),
+                        settings.cleanupSummary(ownChoice) ?: stringResource(R.string.style_own_model_note),
+                        selected = own.mode == AppCleanupMode.MODEL,
+                        onSelect = { pickOwn = true },
+                    )
+                    Unfold(own.mode == AppCleanupMode.MODEL || pickOwn) {
+                        Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            CleanupServiceList(
+                                settings, access, services,
+                                inUse = ownChoice,
+                                sheet = sheet,
+                                // An app without a profile gets one with this choice - unless it was just removed.
+                                write = { all, setup -> CleanupServices.forApp(all, setup, profile.packageName, newUnder = profile.label.takeUnless { removed }) },
+                            )
+                        }
+                    }
+                    CleanupLeavesPhoneHint(
+                        routing.engine?.trustLevelForDisplay(),
+                        settings.cleanupEngine(decision.choice)?.trustLevelForDisplay(),
                     )
                 }
             }
-            // Its own model chosen but not set up: what is used instead.
-            if (ownChoice != null && !CleanupRouting.ready(settings, ownChoice, hasKeyFor)) {
-                Hint(
-                    stringResource(if (decision.choice != null) R.string.style_own_not_ready_default else R.string.style_own_not_ready_none),
-                    AmberPalette.Error,
-                )
-            }
-            if (decision.choice == null && profile.style != WritingStyle.AS_SPOKEN) {
-                Hint(stringResource(R.string.style_needs_cleanup), AmberPalette.Primary)
-            }
-            CleanupLeavesPhoneHint(
-                routing.engine?.trustLevelForDisplay(),
-                settings.cleanupEngine(decision.choice)?.trustLevelForDisplay(),
-            )
         }
 
+        // Off the Apps page altogether: the profile goes, and the bubble shows there again.
         DangerAction(stringResource(R.string.style_remove, profile.label)) {
-            onUpdateSettings { it.copy(profiles = it.profiles.filterNot { p -> p.packageName == profile.packageName }) }
+            removed = true
+            onUpdateSettings { AppRows.removed(it, profile.packageName) }
             onRemoved()
         }
     }

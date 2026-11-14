@@ -5,6 +5,7 @@
     <string name="settings_bubble">Bubble</string>
     <string name="settings_voice_commands">Voice commands</string>
     <string name="settings_app_styles">Style per app</string>
+    <string name="settings_apps">Apps</string>
     <string name="settings_fallback">When the server fails</string>
     <string name="settings_recording">Recording</string>
     <string name="settings_text">Text</string>
@@ -73,15 +74,8 @@
     <string name="reset">Reset</string>
     <string name="bubble_hidden_group">Hidden in</string>
     <string name="bubble_hidden_note">Games, or apps with their own voice input.</string>
-    <string name="bubble_show_again">Show again</string>
-    <string name="add_apps">Add apps</string>
     <string name="bubble_none_hidden">None hidden yet</string>
-    <string name="bubble_hide_in_title">Hide the bubble in</string>
-    <string name="hide">Hide</string>
-    <plurals name="bubble_hide_in_n">
-        <item quantity="one">Hide in %d app</item>
-        <item quantity="other">Hide in %d apps</item>
-    </plurals>
+    <string name="bubble_hidden_where">Set on each app\'s page</string>
     <string name="bubble_preview_text">Hi, I\'ll be there in ten minutes - bring the key, I left mine at home again.</string>
     <string name="reliability_subtitle">Optional. Keeps Android from cutting off the microphone.</string>
     <string name="reliability_more">Android may cut off the microphone of an app in the background. The microphone service keeps it ready while you are in other apps, its silent notification says so, and unrestricted battery stops some manufacturers from killing the service.</string>

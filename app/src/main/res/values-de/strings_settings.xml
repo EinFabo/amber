@@ -5,6 +5,7 @@
     <string name="settings_bubble">Bubble</string>
     <string name="settings_voice_commands">Sprachbefehle</string>
     <string name="settings_app_styles">Stil pro App</string>
+    <string name="settings_apps">Apps</string>
     <string name="settings_fallback">Wenn der Server ausfällt</string>
     <string name="settings_recording">Aufnahme</string>
     <string name="settings_text">Text</string>
@@ -73,15 +74,8 @@
     <string name="reset">Zurücksetzen</string>
     <string name="bubble_hidden_group">Ausgeblendet in</string>
     <string name="bubble_hidden_note">Spiele oder Apps mit eigener Spracheingabe.</string>
-    <string name="bubble_show_again">Wieder zeigen</string>
-    <string name="add_apps">Apps hinzufügen</string>
     <string name="bubble_none_hidden">Noch keine ausgeblendet</string>
-    <string name="bubble_hide_in_title">Bubble ausblenden in</string>
-    <string name="hide">Ausblenden</string>
-    <plurals name="bubble_hide_in_n">
-        <item quantity="one">In %d App ausblenden</item>
-        <item quantity="other">In %d Apps ausblenden</item>
-    </plurals>
+    <string name="bubble_hidden_where">Auf der Seite jeder App einstellbar</string>
     <string name="bubble_preview_text">Hi, ich bin in zehn Minuten da - bring den Schlüssel mit, meiner liegt schon wieder zu Hause.</string>
     <string name="reliability_subtitle">Optional. Hält Android davon ab, das Mikrofon abzuschalten.</string>
     <string name="reliability_more">Android kann einer App im Hintergrund das Mikrofon abschalten. Der Mikrofon-Dienst hält es bereit, während du in anderen Apps bist, seine stille Benachrichtigung zeigt das an, und uneingeschränkter Akku hält manche Hersteller davon ab, den Dienst zu beenden.</string>

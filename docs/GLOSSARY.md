@@ -18,6 +18,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | The page for what changes the text by rules: filler words, commas, spaces, capitals, punctuation, the clipboard (not yet approved) | Text | Text | Inserting (as the page's name) |
 | Quick menu actions | Insert again, Copy last | Nochmal einfügen, Letztes kopieren | |
 | How the text reads in one app | style per app | Stil pro App | app profile, preset |
+| The page listing the apps with a style or a hidden bubble (not yet approved) | Apps | Apps | Style per app (as the page's name) |
 | The one switch for every setting | Advanced settings | Erweiterte Einstellungen | expert mode |
 | Android's permission to show the bubble and insert | accessibility | Bedienungshilfe | |
 | Where the voice stays | on this phone | auf dem Handy | on device, local |

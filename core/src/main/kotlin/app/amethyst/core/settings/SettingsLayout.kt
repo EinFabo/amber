@@ -13,6 +13,8 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     CLEANUP(simple = true, SettingsGroupKind.MAIN),
     BUBBLE(simple = true, SettingsGroupKind.MAIN),
     VOICE_COMMANDS(simple = false, SettingsGroupKind.MAIN),
+
+    /** The Apps page: each app's style, and whether the bubble is hidden in it ([AppRows]). */
     APP_STYLES(simple = true, SettingsGroupKind.PER_APP),
     FALLBACK(simple = false, SettingsGroupKind.ADVANCED),
     RECORDING(simple = false, SettingsGroupKind.ADVANCED),

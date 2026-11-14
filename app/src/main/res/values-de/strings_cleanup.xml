@@ -89,7 +89,10 @@
     <string name="styles_more_own">Für die anderen Apps wähle eine Bereinigung unter Einstellungen → Bereinigung.</string>
     <string name="styles_more_none">Wähle eine unter Einstellungen → Bereinigung - ein Modell bei Tinfoil, Groq, OpenAI oder auf deinem eigenen Server - oder eine für eine einzelne App auf ihrer Seite. Bis dahin geht der Text so hinein, wie er erkannt wurde.</string>
     <string name="styles_add_app">App hinzufügen</string>
-    <string name="styles_which_app">Stil für welche App?</string>
+    <string name="apps_which_app">Welche App?</string>
+    <string name="apps_bubble_hidden">Bubble ausgeblendet</string>
+    <string name="app_bubble_show">Bubble in dieser App zeigen</string>
+    <string name="app_bubble_show_note">Aus für ein Spiel oder eine App mit eigener Spracheingabe</string>
     <string name="writing_as_spoken">Wie gesprochen</string>
     <string name="writing_casual">Locker</string>
     <string name="writing_formal">Förmlich</string>

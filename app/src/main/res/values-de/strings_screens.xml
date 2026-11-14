@@ -29,7 +29,7 @@
     <string name="language_download_started">Download gestartet. Android meldet sich gleich.</string>
     <string name="language_download_by_hand">Lade die Sprache unter Spracherkennung → Offline-Spracherkennung herunter.</string>
     <string name="title_settings">Einstellungen</string>
-    <string name="title_app_style">App-Stil</string>
+    <string name="title_app">App</string>
     <string name="no_browser">Kein Browser gefunden, um %1$s zu öffnen</string>
     <string name="style_here_done">Fertig</string>
     <string name="style_here_no_cleanup">In %1$s läuft keine Bereinigung, darum gilt der Stil noch nicht - der Text geht so hinein, wie er erkannt wurde.</string>

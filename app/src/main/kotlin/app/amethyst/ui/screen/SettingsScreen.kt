@@ -34,7 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -62,8 +62,6 @@ import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AmberSwitch
-import app.amethyst.ui.AppIcon
-import app.amethyst.ui.AppSource
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.LearnMore
@@ -127,7 +125,7 @@ fun SettingsScreen(
             stringResource(R.string.settings_voice_commands), words(SettingsSummaries.commands(settings)), icon = AmberIcons.VoiceCommand,
             summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.COMMANDS) }
-        SettingsItem.APP_STYLES -> NavRow(stringResource(R.string.settings_app_styles), words(SettingsSummaries.appStyles(settings.profiles.size)), icon = AmberIcons.Palette) {
+        SettingsItem.APP_STYLES -> NavRow(stringResource(R.string.settings_apps), words(SettingsSummaries.apps(settings.profiles, settings.bubble.hiddenIn)), icon = AmberIcons.Apps) {
             onOpen(SettingsPage.APP_STYLES)
         }
         SettingsItem.FALLBACK -> NavRow(stringResource(R.string.settings_fallback), words(SettingsSummaries.fallback(settings, trust)), icon = AmberIcons.CloudOff) {
@@ -348,16 +346,12 @@ fun RecordingScreen(
 fun BubbleScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
-    apps: AppSource,
-    usage: Map<String, Int>,
     onOpenQuickMenu: () -> Unit,
+    /** To the Apps page, where the bubble is hidden app by app. */
+    onOpenApps: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var picking by remember { mutableStateOf(false) }
     val bubble = settings.bubble
-    val hideLabel = stringResource(R.string.hide)
-    val resources = LocalContext.current.resources
-    val hideInApps = { n: Int -> resources.getQuantityString(R.plurals.bubble_hide_in_n, n, n) }
     SubPage(modifier) {
         MainSwitch(
             label = stringResource(R.string.bubble_use),
@@ -440,40 +434,16 @@ fun BubbleScreen(
             }
         }
 
+        // Where the bubble stays away is said app by app, on the Apps page.
         SettingsGroup(stringResource(R.string.bubble_hidden_group), note = stringResource(R.string.bubble_hidden_note)) {
-            bubble.hiddenIn.forEach { pkg ->
-                NavRow(
-                    apps.label(pkg), summary = null,
-                    leading = { AppIcon(pkg, apps) },
-                    trailing = {
-                        GhostButton(stringResource(R.string.bubble_show_again), {
-                            onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = it.bubble.hiddenIn - pkg)) }
-                        })
-                    },
-                    onClick = null,
-                )
-                RowDivider()
-            }
-            NavRow(stringResource(R.string.add_apps), summary = if (bubble.hiddenIn.isEmpty()) stringResource(R.string.bubble_none_hidden) else null, icon = AmberIcons.Add, trailing = null) {
-                picking = true
-            }
+            val hidden = bubble.hiddenIn.distinct().size
+            NavRow(
+                if (hidden == 0) stringResource(R.string.bubble_none_hidden) else pluralStringResource(R.plurals.summary_apps, hidden, hidden),
+                stringResource(R.string.bubble_hidden_where),
+                icon = AmberIcons.Apps,
+                onClick = onOpenApps,
+            )
         }
-    }
-
-    if (picking) {
-        AppPickerDialog(
-            title = stringResource(R.string.bubble_hide_in_title),
-            existing = bubble.hiddenIn.toSet(),
-            apps = apps,
-            usage = usage,
-            multiple = true,
-            confirmLabel = { n -> if (n <= 1) hideLabel else hideInApps(n) },
-            onDismiss = { picking = false },
-            onPick = { chosen ->
-                picking = false
-                onUpdateSettings { it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + chosen.map { app -> app.packageName }).distinct())) }
-            },
-        )
     }
 }
 

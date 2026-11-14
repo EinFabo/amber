@@ -30,7 +30,7 @@ fun SettingsPage.title(): Int = when (this) {
     SettingsPage.BUBBLE -> R.string.settings_bubble
     SettingsPage.QUICK_MENU -> R.string.settings_quick_menu
     SettingsPage.COMMANDS -> R.string.settings_voice_commands
-    SettingsPage.APP_STYLES -> R.string.settings_app_styles
+    SettingsPage.APP_STYLES -> R.string.settings_apps
     SettingsPage.FALLBACK -> R.string.settings_fallback
     SettingsPage.RECORDING -> R.string.settings_recording
     SettingsPage.INSERTING -> R.string.settings_text

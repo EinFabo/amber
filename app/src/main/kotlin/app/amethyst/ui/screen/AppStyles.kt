@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -27,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,6 +36,8 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
+import app.amethyst.core.settings.AppRow
+import app.amethyst.core.settings.AppRows
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.ui.AmberIcons
@@ -104,7 +105,11 @@ fun ChunkingSettings(
     )
 }
 
-/** A writing style per app: casual in messengers, formal in mail, short in notes. */
+/**
+ * The Apps page: every app Amber treats in a way of its own ([AppRows]) - a writing style
+ * (casual in messengers, formal in mail, short in notes), a cleanup or speech recognition of its
+ * own, or a bubble that stays out of it. A row says which; the app's page changes it.
+ */
 @Composable
 fun AppStylesScreen(
     settings: AmethystSettings,
@@ -116,6 +121,7 @@ fun AppStylesScreen(
 ) {
     var picking by remember { mutableStateOf(false) }
     val ownModels = settings.profiles.any { it.appCleanup.mode == AppCleanupMode.MODEL }
+    val rows = remember(settings.profiles, settings.bubble.hiddenIn) { AppRows.of(settings.profiles, settings.bubble.hiddenIn) }
 
     SubPage(modifier) {
         val styled = settings.cleanup != null || ownModels
@@ -133,12 +139,14 @@ fun AppStylesScreen(
                 else -> stringResource(R.string.styles_more_none)
             },
         ) {
-            settings.profiles.forEach { profile ->
+            rows.forEach { row ->
                 NavRow(
-                    profile.label,
-                    profile.summary(settings),
-                    leading = { AppIcon(profile.packageName, apps) },
-                ) { onOpenApp(profile.packageName) }
+                    row.profile?.label ?: apps.label(row.packageName),
+                    row.summary(settings),
+                    leading = { AppIcon(row.packageName, apps) },
+                    // A style, an own instruction, an own model and a hidden bubble: three lines in German.
+                    summaryMaxLines = 3,
+                ) { onOpenApp(row.packageName) }
                 RowDivider()
             }
             NavRow(stringResource(R.string.styles_add_app), summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
@@ -147,17 +155,15 @@ fun AppStylesScreen(
 
     if (picking) {
         AppPickerDialog(
-            title = stringResource(R.string.styles_which_app),
-            existing = settings.profiles.map { it.packageName }.toSet(),
+            title = stringResource(R.string.apps_which_app),
+            existing = rows.map { it.packageName }.toSet(),
             apps = apps,
             usage = usage,
             onDismiss = { picking = false },
-            onPick = { chosen ->
+            onPick = { app ->
                 picking = false
-                chosen.firstOrNull()?.let { app ->
-                    onUpdateSettings { it.copy(profiles = AppProfiles.upsert(it.profiles, AppProfile(app.packageName, app.label))) }
-                    onOpenApp(app.packageName)
-                }
+                onUpdateSettings { it.copy(profiles = AppProfiles.upsert(it.profiles, AppProfile(app.packageName, app.label))) }
+                onOpenApp(app.packageName)
             },
         )
     }
@@ -219,22 +225,30 @@ internal fun WritingStyle.note(): String = stringResource(
     },
 )
 
-/** An app's style and what it has of its own: "Concise · own instruction · Gemma 4 31B". */
+/**
+ * An app's style and what it has of its own, then whether the bubble is hidden there: "Concise ·
+ * own instruction · Gemma 4 31B · bubble hidden" - or only "Bubble hidden" for an app without a
+ * profile.
+ */
 @Composable
-private fun AppProfile.summary(settings: AmethystSettings): String =
-    listOfNotNull(
-        style.label(),
-        instruction?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.styles_own_instruction) },
-        when (appCleanup.mode) {
+private fun AppRow.summary(settings: AmethystSettings): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val cleanup = profile?.appCleanup
+    return listOfNotNull(
+        profile?.style?.label(),
+        profile?.instruction?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.styles_own_instruction) },
+        when (cleanup?.mode) {
             AppCleanupMode.OFF -> stringResource(R.string.styles_cleanup_off)
-            AppCleanupMode.MODEL -> appCleanup.choice?.let { words(SettingsSummaries.cleanup(settings, it)) }
-            AppCleanupMode.DEFAULT -> null
+            AppCleanupMode.MODEL -> cleanup.choice?.let { words(SettingsSummaries.cleanup(settings, it)) }
+            AppCleanupMode.DEFAULT, null -> null
         },
-    ).joinToString(" · ")
+        if (bubbleHidden) stringResource(R.string.apps_bubble_hidden) else null,
+    ).joinToString(" · ").replaceFirstChar { it.titlecase(locale) }
+}
 
 /**
- * Picks apps from those with a launcher icon. The ones the user dictates in come first; the
- * search matches names and packages. With [multiple], rows tick and one button takes them all.
+ * Picks one app from those with a launcher icon. The ones the user dictates in come first; the
+ * search matches names and packages.
  */
 @Composable
 internal fun AppPickerDialog(
@@ -243,23 +257,11 @@ internal fun AppPickerDialog(
     apps: AppSource,
     usage: Map<String, Int>,
     onDismiss: () -> Unit,
-    onPick: (List<InstalledApp>) -> Unit,
-    multiple: Boolean = false,
-    confirmLabel: ((Int) -> String)? = null,
+    onPick: (InstalledApp) -> Unit,
 ) {
-    val addLabel = stringResource(R.string.add)
     var all by remember { mutableStateOf<List<InstalledApp>?>(null) }
     var query by remember { mutableStateOf("") }
-    var picked by remember { mutableStateOf(emptyList<InstalledApp>()) }
     LaunchedEffect(apps) { all = apps.all().filterNot { it.packageName in existing } }
-
-    fun choose(app: InstalledApp) {
-        if (!multiple) {
-            onPick(listOf(app))
-        } else {
-            picked = if (app in picked) picked - app else picked + app
-        }
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -296,24 +298,18 @@ internal fun AppPickerDialog(
                     if (frequent.isNotEmpty()) {
                         if (!searching) item(key = "h-frequent") { GroupLabel(stringResource(R.string.apps_where_you_dictate)) }
                         items(frequent, key = { "f-" + it.packageName }) { app ->
-                            AppPickRow(app, apps, usage[app.packageName], multiple, app in picked) { choose(app) }
+                            AppPickRow(app, apps, usage[app.packageName]) { onPick(app) }
                         }
                         if (!searching && rest.isNotEmpty()) item(key = "h-all") { GroupLabel(stringResource(R.string.apps_all)) }
                     }
                     items(rest, key = { it.packageName }) { app ->
-                        AppPickRow(app, apps, null, multiple, app in picked) { choose(app) }
+                        AppPickRow(app, apps, null) { onPick(app) }
                     }
                 }
             }
         },
+        // Tapping an app picks it: the one button only leaves.
         confirmButton = {
-            if (multiple) {
-                TextButton(onClick = { onPick(picked) }, enabled = picked.isNotEmpty()) {
-                    Text(confirmLabel?.invoke(picked.size) ?: addLabel, color = if (picked.isNotEmpty()) AmberPalette.Primary else AmberPalette.Muted)
-                }
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
         },
     )
@@ -334,8 +330,6 @@ private fun AppPickRow(
     app: InstalledApp,
     apps: AppSource,
     dictations: Int?,
-    multiple: Boolean,
-    checked: Boolean,
     onClick: () -> Unit,
 ) {
     Row(
@@ -350,17 +344,6 @@ private fun AppPickRow(
         Column(Modifier.weight(1f)) {
             Text(app.label, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
             dictations?.let { Hint(pluralStringResource(R.plurals.apps_dictations, it, it)) }
-        }
-        if (multiple) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = { onClick() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = AmberPalette.Primary,
-                    uncheckedColor = AmberPalette.Muted,
-                    checkmarkColor = AmberPalette.Background,
-                ),
-            )
         }
     }
 }

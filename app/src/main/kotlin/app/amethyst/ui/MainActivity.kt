@@ -73,6 +73,7 @@ import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
@@ -394,7 +395,7 @@ private fun Screen.title(): String = when (this) {
     Screen.Home -> "Amber" // English: the app's name
     Screen.Settings -> stringResource(R.string.title_settings)
     is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
-    is Screen.AppStyle -> stringResource(R.string.title_app_style)
+    is Screen.AppStyle -> stringResource(R.string.title_app)
     is Screen.Page -> stringResource(page.title())
 }
 
@@ -704,9 +705,8 @@ private fun AmethystScreens(
                             )
                             SettingsPage.BUBBLE -> BubbleScreen(
                                 settings, ::updateSettings,
-                                apps = apps,
-                                usage = appUsage,
                                 onOpenQuickMenu = { open(Screen.Page(SettingsPage.QUICK_MENU)) },
+                                onOpenApps = { open(Screen.Page(SettingsPage.APP_STYLES)) },
                             )
                             SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
                             SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
@@ -779,26 +779,23 @@ private fun AmethystScreens(
                     }
 
                     is Screen.AppStyle -> {
+                        // No profile: an app listed for its hidden bubble only (or one just added
+                        // and not stored yet). Its page shows what a profile would start with;
+                        // the first change there makes one.
+                        val label = remember(current.packageName) { apps.label(current.packageName) }
                         val profile = settings.profiles.firstOrNull { it.packageName == current.packageName }
-                        if (profile == null) {
-                            // Just added from the picker and not stored yet, or removed: as for engines.
-                            LaunchedEffect(current.packageName) {
-                                delay(ENGINE_APPEAR_GRACE_MS)
-                                if (graph.settings.value.profiles.none { it.packageName == current.packageName }) back()
-                            }
-                        } else {
-                            // Its cleanup picker lists what Amber PCs and Servers offer.
-                            LaunchedEffect(current.packageName) { graph.amberCatalogs.refreshAll() }
-                            AppStyleScreen(
-                                profile = profile,
-                                settings = settings,
-                                apps = apps,
-                                access = cleanupAccess,
-                                modelReady = graph::modelReady,
-                                onUpdateSettings = ::updateSettings,
-                                onRemoved = ::back,
-                            )
-                        }
+                            ?: AppProfile(current.packageName, label)
+                        // Its cleanup picker lists what Amber PCs and Servers offer.
+                        LaunchedEffect(current.packageName) { graph.amberCatalogs.refreshAll() }
+                        AppStyleScreen(
+                            profile = profile,
+                            settings = settings,
+                            apps = apps,
+                            access = cleanupAccess,
+                            modelReady = graph::modelReady,
+                            onUpdateSettings = ::updateSettings,
+                            onRemoved = ::back,
+                        )
                     }
 
                     is Screen.EngineDetail -> {

@@ -79,7 +79,7 @@
     <string name="cleanup_step_search_models">%1$d models. Search for the one for the cleanup.</string>
     <string name="styles_step_lead">The cleanup writes casually in messengers, formally in mail and briefly in notes.</string>
     <string name="styles_step_none">None of the usual apps are on this phone.</string>
-    <string name="styles_step_more">Add more apps any time in Settings → Style per app.</string>
+    <string name="styles_step_more">Add more apps any time in Settings → Apps.</string>
     <string name="bubble_step_title">The bubble</string>
     <string name="bubble_step_lead">It floats over other apps, at the edge of the screen.</string>
     <string name="bubble_step_typing">Only when you type</string>

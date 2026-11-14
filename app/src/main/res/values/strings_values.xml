@@ -11,6 +11,17 @@
         <item quantity="one">%d app</item>
         <item quantity="other">%d apps</item>
     </plurals>
+    <plurals name="summary_styles">
+        <item quantity="one">%d style</item>
+        <item quantity="other">%d styles</item>
+    </plurals>
+    <plurals name="summary_hidden">
+        <item quantity="one">%d hidden</item>
+        <item quantity="other">%d hidden</item>
+    </plurals>
+    <string name="summary_default_model">Default: %1$s</string>
+    <string name="summary_default_off">Default: off</string>
+    <string name="summary_own_model">Own model: %1$s</string>
     <string name="summary_not_needed">Not needed</string>
     <string name="summary_fallback_automatic">Parakeet, then Whisper</string>
     <string name="summary_prepared">%1$s · prepared</string>

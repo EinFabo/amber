@@ -234,11 +234,30 @@ open class Screenshots {
         )
     }
 
+    /** Styles, Keep with its own model and instruction, and the bubble hidden in Keep and in a game without a style. */
+    private val appsMixed get() = settings.copy(
+        activeEngineId = EnginePresets.TINFOIL.id,
+        cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+        profiles = settings.profiles.map { if (it.packageName == keep.packageName) keep.copy(instruction = "Stichpunkte") else it },
+        bubble = settings.bubble.copy(hiddenIn = listOf(GAME, keep.packageName)),
+    )
+
+    /** Not part of the listing set: the Apps page with styles and hidden bubbles side by side. */
+    @Test
+    @Config(qualifiers = "+h900dp")
+    fun apps() = shoot("x-apps", SettingsPage.APP_STYLES.title()) {
+        AppStylesScreen(settings = appsMixed, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {})
+    }
+
+    @Test
+    @Config(qualifiers = "+h900dp")
+    fun appsLight() = light(::apps)
+
     @Test
     fun bubbleSettings() = shoot("7-bubble", SettingsPage.BUBBLE.title()) {
         BubbleScreen(
             settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
-            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {},
+            onUpdateSettings = {}, onOpenQuickMenu = {}, onOpenApps = {},
         )
     }
 
@@ -252,7 +271,7 @@ open class Screenshots {
     @Test
     @Config(qualifiers = "+h1100dp")
     fun bubbleSettingsAdvanced() = shoot("x-bubble-advanced", SettingsPage.BUBBLE.title()) {
-        BubbleScreen(settings = ownMenu, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {})
+        BubbleScreen(settings = ownMenu, onUpdateSettings = {}, onOpenQuickMenu = {}, onOpenApps = {})
     }
 
     /** Not part of the listing set: the quick menu editor. */
@@ -346,10 +365,11 @@ open class Screenshots {
         assertTrue(File(dir, "listing-ic_launcher.png").length() > 0)
     }
 
-    /** Recognition, cleanup and fallback chosen apart: Whisper on the phone, cleaned up on Tinfoil. */
+    /** Recognition, cleanup and fallback chosen apart: Whisper on the phone, cleaned up on Tinfoil - and the bubble hidden in two apps. */
     private val pipeline = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(
         activeEngineId = EnginePresets.LOCAL_WHISPER.id,
         cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
+        bubble = settings.bubble.copy(hiddenIn = listOf(GAME, "com.whatsapp")),
     )
 
     private val cleanupAccess = app.amethyst.ui.screen.CleanupAccess(hasKeyFor = { true }, onSaveKey = { _, _ -> }, onUpdateSettings = {})
@@ -472,19 +492,42 @@ open class Screenshots {
     )
 
     @Composable
-    private fun KeepStyle() = app.amethyst.ui.screen.AppStyleScreen(
+    private fun KeepStyle(cleanupOpen: Boolean = false) = app.amethyst.ui.screen.AppStyleScreen(
         profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, access = cleanupAccess,
-        modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
+        modelReady = { true }, onUpdateSettings = {}, onRemoved = {}, initialCleanupOpen = cleanupOpen,
     )
 
     /** Not part of the listing set: one app's page with a cleanup model of its own. */
     @Test
-    fun appStyle() = shoot("x-app-style", R.string.title_app_style) { KeepStyle() }
+    fun appStyle() = shoot("x-app-style", R.string.title_app) { KeepStyle() }
 
-    /** Not part of the listing set: the same page in one picture, down to removing the app. */
+    /** Not part of the listing set: the same page in one picture, down to removing the app - the cleanup folded to its row. */
     @Test
-    @Config(qualifiers = "+h1480dp")
-    fun appStyleTall() = shoot("x-app-style-tall", R.string.title_app_style) { KeepStyle() }
+    @Config(qualifiers = "+h1100dp")
+    fun appStyleTall() = shoot("x-app-style-tall", R.string.title_app) { KeepStyle() }
+
+    @Test
+    @Config(qualifiers = "+h1100dp")
+    fun appStyleTallLight() = light(::appStyleTall)
+
+    /** Not part of the listing set: the same page with the cleanup's choice unfolded, its own model's services under it. */
+    @Test
+    @Config(qualifiers = "+h1700dp")
+    fun appStyleCleanupOpen() = shoot("x-app-style-cleanup-open", R.string.title_app) { KeepStyle(cleanupOpen = true) }
+
+    /**
+     * Not part of the listing set: the page of an app listed for its hidden bubble only - no
+     * profile, a style chosen nowhere, and no cleanup for every app either.
+     */
+    @Test
+    @Config(qualifiers = "+h1100dp")
+    fun appHiddenOnly() = shoot("x-app-hidden-only", R.string.title_app) {
+        app.amethyst.ui.screen.AppStyleScreen(
+            profile = app.amethyst.core.settings.AppProfile(GAME, FakeApps.label(GAME)),
+            settings = settings.copy(profiles = emptyList(), bubble = settings.bubble.copy(hiddenIn = listOf(GAME))),
+            apps = FakeApps, access = cleanupAccess, modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
+        )
+    }
 
     /** Not part of the listing set: the voice commands page, switched on. */
     @Test
@@ -1049,12 +1092,10 @@ open class Screenshots {
     @Test
     fun appPicker() = shootDialog("x-app-picker") {
         AppPickerDialog(
-            title = "Hide the bubble in",
+            title = stringResource(R.string.apps_which_app),
             existing = emptySet(),
             apps = FakeApps,
             usage = mapOf("com.whatsapp" to 31, "com.google.android.gm" to 4),
-            multiple = true,
-            confirmLabel = { n -> if (n <= 1) "Hide" else "Hide in $n apps" },
             onDismiss = {},
             onPick = {},
         )
@@ -1136,12 +1177,15 @@ open class Screenshots {
             "com.google.android.keep" to "Keep",
         )
 
+        /** An app that has no style: only the bubble is hidden in it. Not among the apps the picker offers. */
+        const val GAME = "com.example.chess"
+
         /** Plain coloured discs in place of the real launcher icons, which are not ours to show. */
         private val ICON_COLORS = listOf(0xFF3DBE5A, 0xFFE0533F, 0xFF3A9AD9, 0xFFF2BE2C)
 
         object FakeApps : AppSource {
             override suspend fun all() = APP_NAMES.map { (pkg, label) -> InstalledApp(pkg, label) }
-            override fun label(packageName: String) = APP_NAMES[packageName] ?: packageName
+            override fun label(packageName: String) = APP_NAMES[packageName] ?: "Chess".takeIf { packageName == GAME } ?: packageName
             override fun cachedIcon(packageName: String): ImageBitmap {
                 val color = ICON_COLORS[APP_NAMES.keys.indexOf(packageName).coerceAtLeast(0) % ICON_COLORS.size]
                 val bitmap = Bitmap.createBitmap(ICON_PX, ICON_PX, Bitmap.Config.ARGB_8888)

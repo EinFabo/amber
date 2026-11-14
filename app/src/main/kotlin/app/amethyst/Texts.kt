@@ -158,7 +158,14 @@ object Texts {
             is Summary.Recognition -> listOfNotNull(engineShortName(this, summary.engine), summary.place?.let { place(this, it) })
                 .joinToString(" · ")
             Summary.OnButBubbleOff -> getString(R.string.summary_on_bubble_off)
-            is Summary.Apps -> if (summary.count == 0) getString(R.string.summary_apps_none) else count(R.plurals.summary_apps, summary.count)
+            is Summary.Apps -> listOfNotNull(
+                summary.styles.takeIf { it > 0 }?.let { count(R.plurals.summary_styles, it) },
+                summary.hidden.takeIf { it > 0 }?.let { count(R.plurals.summary_hidden, it) },
+            ).joinToString(" · ").ifEmpty { getString(R.string.summary_apps_none) }
+            is Summary.AppCleanupModel -> when {
+                summary.own -> summary.model?.let { getString(R.string.summary_own_model, it) } ?: getString(R.string.style_own_model)
+                else -> summary.model?.let { getString(R.string.summary_default_model, it) } ?: getString(R.string.summary_default_off)
+            }
             Summary.NotNeeded -> getString(R.string.summary_not_needed)
             is Summary.Fallback -> {
                 val who = summary.engine?.let { engineShortName(this, it) } ?: getString(R.string.summary_fallback_automatic)

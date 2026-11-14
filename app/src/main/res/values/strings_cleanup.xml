@@ -89,7 +89,10 @@
     <string name="styles_more_own">For the other apps, pick a cleanup under Settings → Cleanup.</string>
     <string name="styles_more_none">Pick one under Settings → Cleanup - a model on Tinfoil, Groq, OpenAI or your own server - or one for a single app on its page. Until then the text goes in as recognized.</string>
     <string name="styles_add_app">Add app</string>
-    <string name="styles_which_app">Style for which app?</string>
+    <string name="apps_which_app">Which app?</string>
+    <string name="apps_bubble_hidden">bubble hidden</string>
+    <string name="app_bubble_show">Show the bubble in this app</string>
+    <string name="app_bubble_show_note">Off for a game, or an app with its own voice input</string>
     <string name="writing_as_spoken">As spoken</string>
     <string name="writing_casual">Casual</string>
     <string name="writing_formal">Formal</string>

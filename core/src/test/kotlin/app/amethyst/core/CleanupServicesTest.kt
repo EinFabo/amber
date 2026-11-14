@@ -444,6 +444,19 @@ class CleanupServicesTest {
         assertEquals(local, CleanupServices.forApp(local, setup, "com.example.removed"))
     }
 
+    @Test
+    fun `an app without a profile gets one with its own model, under the name its page gives`() {
+        val mail = AppProfile("com.google.android.gm", "Gmail", WritingStyle.FORMAL)
+        val settings = local.copy(profiles = listOf(mail))
+        val setup = assertNotNull(CleanupServices.setup(settings, rows(settings).of(ServiceSlot.CLAUDE), "claude-haiku-5-5", keyGiven = true, TEST_PHONE, random = { 5 }))
+        val after = CleanupServices.forApp(settings, setup, "com.game", newUnder = "Game")
+        val own = AppCleanup(AppCleanupMode.MODEL, CleanupChoice("server-000005", "claude-haiku-5-5"))
+        assertEquals(listOf(mail, AppProfile("com.game", "Game", appCleanup = own)), after.profiles)
+        // An app that has one keeps its name and everything else.
+        val again = CleanupServices.forApp(settings, setup, "com.google.android.gm", newUnder = "Mail")
+        assertEquals(listOf(mail.copy(appCleanup = own)), again.profiles)
+    }
+
     // CleanupService.setup, as an own server's sheet calls it.
 
     @Test

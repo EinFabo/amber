@@ -280,13 +280,16 @@ object CleanupServices {
 
     /**
      * [setup] as [packageName]'s own model. An app whose profile is gone meanwhile gets none
-     * back, and no server is added for it.
+     * back, and no server is added for it. An app that never had one - on the Apps page for its
+     * hidden bubble only - gets it under [newUnder], its name, with this choice; null for any
+     * other app, and once the app was removed.
      */
-    fun forApp(settings: AmethystSettings, setup: ServiceSetup, packageName: String): AmethystSettings {
-        if (settings.profiles.none { it.packageName == packageName }) return settings
+    fun forApp(settings: AmethystSettings, setup: ServiceSetup, packageName: String, newUnder: String? = null): AmethystSettings {
+        val profiles = newUnder?.let { AppProfiles.ensure(settings.profiles, packageName, it) } ?: settings.profiles
+        if (profiles.none { it.packageName == packageName }) return settings
         val with = added(settings, setup) ?: return settings
         val own = AppCleanup(AppCleanupMode.MODEL, choice(setup))
-        return with.copy(profiles = AppProfiles.edit(with.profiles, packageName) { it.copy(appCleanup = own) })
+        return with.copy(profiles = AppProfiles.edit(profiles, packageName) { it.copy(appCleanup = own) })
     }
 
     /** Both at one address - the same but for the case of scheme and host; none is no address. */

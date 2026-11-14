@@ -3,6 +3,9 @@ package app.amethyst.core
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppCleanup
+import app.amethyst.core.settings.AppCleanupMode
+import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
 import app.amethyst.core.settings.CleanupChoice
@@ -56,6 +59,32 @@ class SettingsSummariesTest {
     @Test
     fun `an app's own cleanup choice reads the same way`() {
         assertEquals(Summary.Name("Gemma 4 31B"), SettingsSummaries.cleanup(settings, CleanupChoice(tinfoil.id, "gemma4-31b")))
+    }
+
+    @Test
+    fun `apps counts the styles and the apps the bubble is hidden in`() {
+        val styled = listOf(AppProfile("com.whatsapp", "WhatsApp"), AppProfile("com.google.android.keep", "Keep"))
+        assertEquals(Summary.Apps(styles = 2, hidden = 1), SettingsSummaries.apps(styled, listOf("com.game")))
+        // An app with both counts in both: the two lists are counted apart.
+        assertEquals(Summary.Apps(styles = 2, hidden = 2), SettingsSummaries.apps(styled, listOf("com.game", "com.whatsapp")))
+        assertEquals(Summary.Apps(styles = 0, hidden = 1), SettingsSummaries.apps(emptyList(), listOf("com.game")))
+        assertEquals(Summary.Apps(styles = 0, hidden = 0), SettingsSummaries.apps(emptyList(), emptyList()))
+    }
+
+    @Test
+    fun `an app's folded cleanup row says the default and what it is, off, or its own model`() {
+        val on = settings.copy(cleanup = CleanupChoice(tinfoil.id, "deepseek-v4-1-flash"))
+        assertEquals(Summary.AppCleanupModel(own = false, "DeepSeek V4.1 Flash"), SettingsSummaries.appCleanup(on, AppCleanup()))
+        // The cleanup for every app is off: the default has no model to name.
+        assertEquals(Summary.AppCleanupModel(own = false, null), SettingsSummaries.appCleanup(settings, AppCleanup()))
+        assertEquals(Summary.Off, SettingsSummaries.appCleanup(on, AppCleanup(AppCleanupMode.OFF, CleanupChoice(tinfoil.id, "gemma4-31b"))))
+        assertEquals(
+            Summary.AppCleanupModel(own = true, "Gemma 4 31B"),
+            SettingsSummaries.appCleanup(settings, AppCleanup(AppCleanupMode.MODEL, CleanupChoice(tinfoil.id, "gemma4-31b"))),
+        )
+        // Its service removed, or none picked yet: an own model without a name.
+        assertEquals(Summary.AppCleanupModel(own = true, null), SettingsSummaries.appCleanup(on, AppCleanup(AppCleanupMode.MODEL, CleanupChoice("gone", "x"))))
+        assertEquals(Summary.AppCleanupModel(own = true, null), SettingsSummaries.appCleanup(on, AppCleanup(AppCleanupMode.MODEL)))
     }
 
     @Test
