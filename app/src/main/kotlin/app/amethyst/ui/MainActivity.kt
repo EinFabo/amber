@@ -848,6 +848,12 @@ private fun AmethystScreens(
                                 onActivate = { updateSettings { it.copy(activeEngineId = config.id) } },
                                 cleanupOnly = Servers.cleanupOnly(settings, config),
                                 onDelete = {
+                                    // Its key goes with it, unless another server keeps it
+                                    // under the same name: a server added again later starts
+                                    // without one.
+                                    config.apiKeyAlias?.let { alias ->
+                                        if (settings.engines.none { it.id != config.id && it.apiKeyAlias == alias }) graph.secretStore.clear(alias)
+                                    }
                                     updateSettings { current ->
                                         val remaining = current.engines.filterNot { it.id == config.id }
                                         current.copy(

@@ -175,4 +175,17 @@ class ServersTest {
         assertEquals("api.groq.com", decoded.engines.first { it.id == "groq" }.keyHost)
         assertNotEquals(true, KeyBinding.allows(decoded.engines.first { it.id == "groq" }))
     }
+
+    @Test
+    fun `a host java's URI does not know still has a name a key is bound to`() {
+        assertEquals("my_box.lan", EnginePresets.hostOf("http://my_box.lan:8000/v1"))
+        assertEquals("müller-box.de", EnginePresets.hostOf("https://Müller-Box.de/v1"))
+        assertEquals("api.groq.com", EnginePresets.hostOf("https://api.groq.com/openai/v1"))
+        // Nothing that could name one host and reach another.
+        assertEquals(null, EnginePresets.hostOf("https://evil.example\\@my_box.lan/v1"))
+        assertEquals(null, EnginePresets.hostOf("https://user@my_box.lan/v1"))
+        val bound = KeyBinding.bind(EngineConfig(id = "x", kind = app.amethyst.core.engine.EngineKind.OPENAI_COMPATIBLE, displayName = "x", baseUrl = "http://my_box.lan:8000/v1", apiKeyAlias = "k"))
+        assertEquals("my_box.lan", bound.keyHost)
+        assertFalse(KeyBinding.allows(bound.copy(baseUrl = "https://elsewhere.example/v1")))
+    }
 }

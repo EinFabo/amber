@@ -96,7 +96,8 @@ object EngineConfigValidator {
                 return@buildList
             }
             val afterScheme = url.substringAfter("//")
-            if (afterScheme.isBlank() || afterScheme.startsWith("/")) {
+            // No host Amber can name: a key could not be bound to it (KeyBinding).
+            if (afterScheme.isBlank() || afterScheme.startsWith("/") || EnginePresets.hostOf(url) == null) {
                 add(ConfigIssue.AddressNoHost)
             }
             if (url.any { it.isWhitespace() }) {

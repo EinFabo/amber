@@ -58,9 +58,23 @@ object EnginePresets {
 
     val ENCLAVE_HOSTS: Set<String> get() = ENCLAVE_REPOS.keys
 
-    /** The lowercase host of an address as typed, or null when it has none. */
-    fun hostOf(baseUrl: String?): String? =
-        runCatching { java.net.URI(baseUrl.orEmpty().trim()).host?.lowercase() }.getOrNull()
+    /**
+     * The lowercase host of an address as typed, or null when it has none. java.net.URI knows
+     * no host with an underscore or a letter outside ASCII ("my_box.lan", "müller-box.de"),
+     * though the HTTP client connects to both - and a key given for such an address was then
+     * bound to no host at all and followed the address wherever it was changed to. Those are
+     * read from the address itself: letters, digits, dots, hyphens and underscores, with an
+     * optional port, and nothing else.
+     */
+    fun hostOf(baseUrl: String?): String? {
+        val url = baseUrl.orEmpty().trim()
+        runCatching { java.net.URI(url).host }.getOrNull()?.let { return it.lowercase() }
+        if ("://" !in url) return null
+        val authority = url.substringAfter("://").takeWhile { it != '/' && it != '?' && it != '#' }
+        return PLAIN_HOST.matchEntire(authority)?.groupValues?.get(1)?.lowercase()
+    }
+
+    private val PLAIN_HOST = Regex("([\\p{L}\\p{N}](?:[\\p{L}\\p{N}._-]*[\\p{L}\\p{N}])?)(?::\\d{1,5})?")
 
     /**
      * The repository an address's enclave must have been built from, or null when Amber cannot
