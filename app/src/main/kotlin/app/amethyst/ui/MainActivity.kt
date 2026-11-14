@@ -106,6 +106,7 @@ import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.UpdatesScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
+import app.amethyst.ui.screen.title
 import app.amethyst.ui.theme.AmberColors
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
@@ -393,24 +394,7 @@ private fun Screen.title(): String = when (this) {
     Screen.Settings -> stringResource(R.string.title_settings)
     is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
     is Screen.AppStyle -> stringResource(R.string.title_app_style)
-    is Screen.Page -> stringResource(
-        when (page) {
-            SettingsPage.RECOGNITION -> R.string.settings_recognition
-            SettingsPage.CLEANUP -> R.string.settings_cleanup
-            SettingsPage.FALLBACK -> R.string.settings_fallback
-            SettingsPage.RECORDING -> R.string.settings_recording
-            SettingsPage.INSERTING -> R.string.settings_inserting
-            SettingsPage.APP_STYLES -> R.string.settings_app_styles
-            SettingsPage.BUBBLE -> R.string.settings_bubble
-            SettingsPage.QUICK_MENU -> R.string.settings_quick_menu
-            SettingsPage.COMMANDS -> R.string.settings_voice_commands
-            SettingsPage.STATS -> R.string.settings_statistics
-            SettingsPage.RELIABILITY -> R.string.settings_reliability
-            SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics
-            SettingsPage.UPDATES -> R.string.settings_updates
-            SettingsPage.LICENSES -> R.string.settings_licenses
-        },
-    )
+    is Screen.Page -> stringResource(page.title())
 }
 
 @Composable

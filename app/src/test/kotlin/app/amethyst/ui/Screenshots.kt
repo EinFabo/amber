@@ -1,11 +1,13 @@
 package app.amethyst.ui
 
+import app.amethyst.R
 import app.amethyst.apps.InstalledApp
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.insert.InsertionStrategy
@@ -41,9 +44,11 @@ import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.HomeScreen
+import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.UpdatesScreen
+import app.amethyst.ui.screen.title
 import app.amethyst.core.settings.UpdateSettings
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdateNotice
@@ -134,7 +139,7 @@ open class Screenshots {
     private val stats = StatsSummary.of(sample, today)
 
     @Test
-    fun home() = shoot("1-home", "Amber") {
+    fun home() = shoot("1-home", AMBER) {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
             dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
@@ -144,7 +149,7 @@ open class Screenshots {
     }
 
     @Test
-    fun done() = shoot("2-dictated", "Amber") {
+    fun done() = shoot("2-dictated", AMBER) {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
             dictationState = MutableStateFlow(
@@ -161,7 +166,7 @@ open class Screenshots {
     }
 
     @Test
-    fun statistics() = shoot("3-statistics", "Statistics") {
+    fun statistics() = shoot("3-statistics", SettingsPage.STATS.title()) {
         StatsScreen(
             settings = settings, stats = stats, today = today,
             engineName = { id -> settings.engines.firstOrNull { it.id == id }?.displayName ?: id },
@@ -171,7 +176,7 @@ open class Screenshots {
     }
 
     @Test
-    fun engines() = shoot("4-engines", "Recognition") {
+    fun engines() = shoot("4-engines", SettingsPage.RECOGNITION.title()) {
         RecognitionScreen(
             settings = settings, hasKeyFor = { true }, medianWaitMs = stats.medianWaitMs,
             onUpdateSettings = {}, onOpenEngine = {},
@@ -179,7 +184,7 @@ open class Screenshots {
     }
 
     @Test
-    fun settingsList() = shoot("5-settings", "Settings") {
+    fun settingsList() = shoot("5-settings", R.string.title_settings) {
         SettingsScreen(
             settings = settings, setup = ready, diagnosticsCount = 12, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
             onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
@@ -188,8 +193,8 @@ open class Screenshots {
 
     /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
     @Test
-    @Config(qualifiers = "w360dp-h1160dp-xxhdpi")
-    fun settingsTall() = shoot("x-settings-tall", "Settings") {
+    @Config(qualifiers = "+h1160dp")
+    fun settingsTall() = shoot("x-settings-tall", R.string.title_settings) {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id, ui = app.amethyst.core.settings.UiSettings(advanced = true)),
             setup = ready.copy(batteryUnrestricted = false),
@@ -200,7 +205,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the simple settings while a release is out, said on top. */
     @Test
-    fun settingsAttention() = shoot("x-settings-attention", "Settings") {
+    fun settingsAttention() = shoot("x-settings-attention", R.string.title_settings) {
         SettingsScreen(
             settings = settings.copy(updates = app.amethyst.core.settings.UpdateSettings(latestVersion = "0.33.0")),
             setup = ready, diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.GITHUB,
@@ -210,7 +215,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the simple settings with two reliability things open, said on top. */
     @Test
-    fun settingsAttentionReliability() = shoot("x-settings-attention-reliability", "Settings") {
+    fun settingsAttentionReliability() = shoot("x-settings-attention-reliability", R.string.title_settings) {
         SettingsScreen(
             settings = settings, setup = ready.copy(notificationsGranted = false, batteryUnrestricted = false),
             diagnosticsCount = 12, version = "0.32.0", releaseChannel = ReleaseChannel.OTHER,
@@ -219,7 +224,7 @@ open class Screenshots {
     }
 
     @Test
-    fun appStyles() = shoot("6-app-styles", "App styles") {
+    fun appStyles() = shoot("6-app-styles", SettingsPage.APP_STYLES.title()) {
         AppStylesScreen(
             settings = settings.copy(
                 activeEngineId = EnginePresets.TINFOIL.id,
@@ -230,7 +235,7 @@ open class Screenshots {
     }
 
     @Test
-    fun bubbleSettings() = shoot("7-bubble", "Bubble") {
+    fun bubbleSettings() = shoot("7-bubble", SettingsPage.BUBBLE.title()) {
         BubbleScreen(
             settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
             onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {},
@@ -245,14 +250,14 @@ open class Screenshots {
 
     /** Not part of the listing set: the Bubble page with the advanced settings, leading to the quick menu. */
     @Test
-    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
-    fun bubbleSettingsAdvanced() = shoot("x-bubble-advanced", "Bubble") {
+    @Config(qualifiers = "+h1100dp")
+    fun bubbleSettingsAdvanced() = shoot("x-bubble-advanced", SettingsPage.BUBBLE.title()) {
         BubbleScreen(settings = ownMenu, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenQuickMenu = {})
     }
 
     /** Not part of the listing set: the quick menu editor. */
     @Test
-    fun quickMenu() = shoot("x-quick-menu", "Quick menu") {
+    fun quickMenu() = shoot("x-quick-menu", SettingsPage.QUICK_MENU.title()) {
         app.amethyst.ui.screen.QuickMenuScreen(settings = ownMenu, onUpdateSettings = {})
     }
 
@@ -283,7 +288,7 @@ open class Screenshots {
     }
 
     @Test
-    fun groqEngine() = shoot("8-groq", "Engine") {
+    fun groqEngine() = shoot("8-groq", R.string.settings_recognition) {
         EngineDetailScreen(
             config = EngineConfig.fromPreset(EnginePresets.GROQ), catalog = null,
             active = true, storedKey = "gsk_example", whisperModels = emptyMap(),
@@ -297,8 +302,8 @@ open class Screenshots {
     }
 
     @Test
-    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
-    fun newServer() = shoot("x-new-server", "Engine") {
+    @Config(qualifiers = "+h1100dp")
+    fun newServer() = shoot("x-new-server", R.string.settings_recognition) {
         EngineDetailScreen(
             config = app.amethyst.core.engine.Servers.newServer("server-1a2b3c", "de"), catalog = null,
             active = false, storedKey = null, whisperModels = emptyMap(),
@@ -354,19 +359,19 @@ open class Screenshots {
 
     /** Not part of the listing set: the cleanup page. */
     @Test
-    fun cleanup() = shoot("x-cleanup", "Cleanup") {
+    fun cleanup() = shoot("x-cleanup", SettingsPage.CLEANUP.title()) {
         CleanupScreen(settings = pipeline, access = cleanupAccess)
     }
 
     @Test
     @Config(qualifiers = "+w411dp-h891dp")
-    fun cleanupW411() = shoot("x-cleanup-w411", "Cleanup") {
+    fun cleanupW411() = shoot("x-cleanup-w411", SettingsPage.CLEANUP.title()) {
         CleanupScreen(settings = pipeline, access = cleanupAccess)
     }
 
     /** Not part of the listing set: the cleanup page on a new phone - off, nothing set up. */
     @Test
-    fun cleanupOff() = shoot("x-cleanup-off", "Cleanup") {
+    fun cleanupOff() = shoot("x-cleanup-off", SettingsPage.CLEANUP.title()) {
         CleanupScreen(settings = settings.copy(engines = settings.engines.filterNot { it.id == EnginePresets.TINFOIL.id }), access = noKeys)
     }
 
@@ -384,7 +389,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the cleanup page with Claude in use. */
     @Test
-    fun cleanupClaude() = shoot("x-cleanup-claude", "Cleanup") {
+    fun cleanupClaude() = shoot("x-cleanup-claude", SettingsPage.CLEANUP.title()) {
         CleanupScreen(settings = onClaude, access = cleanupAccess)
     }
 
@@ -424,8 +429,8 @@ open class Screenshots {
 
     /** Not part of the listing set: the engine page of an Amber PC, its models listed. */
     @Test
-    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
-    fun amberPcEngine() = shoot("x-amber-pc-engine", "Engine") {
+    @Config(qualifiers = "+h1100dp")
+    fun amberPcEngine() = shoot("x-amber-pc-engine", R.string.settings_recognition) {
         EngineDetailScreen(
             config = amberPc, catalog = amberPcCatalog,
             active = true, storedKey = null, whisperModels = emptyMap(),
@@ -443,7 +448,7 @@ open class Screenshots {
      * earlier is no longer on it, and says so.
      */
     @Test
-    fun amberPcCleanup() = shoot("x-amber-pc-cleanup", "Cleanup") {
+    fun amberPcCleanup() = shoot("x-amber-pc-cleanup", SettingsPage.CLEANUP.title()) {
         CleanupScreen(settings = onAmberPc, access = cleanupAccess)
     }
 
@@ -474,16 +479,16 @@ open class Screenshots {
 
     /** Not part of the listing set: one app's page with a cleanup model of its own. */
     @Test
-    fun appStyle() = shoot("x-app-style", "App style") { KeepStyle() }
+    fun appStyle() = shoot("x-app-style", R.string.title_app_style) { KeepStyle() }
 
     /** Not part of the listing set: the same page in one picture, down to removing the app. */
     @Test
-    @Config(qualifiers = "w360dp-h1480dp-xxhdpi")
-    fun appStyleTall() = shoot("x-app-style-tall", "App style") { KeepStyle() }
+    @Config(qualifiers = "+h1480dp")
+    fun appStyleTall() = shoot("x-app-style-tall", R.string.title_app_style) { KeepStyle() }
 
     /** Not part of the listing set: the voice commands page, switched on. */
     @Test
-    fun voiceCommands() = shoot("x-voice-commands", "Voice commands") {
+    fun voiceCommands() = shoot("x-voice-commands", SettingsPage.COMMANDS.title()) {
         app.amethyst.ui.screen.VoiceCommandsScreen(
             settings = settings.copy(commands = app.amethyst.core.settings.CommandSettings(enabled = true)),
             onUpdateSettings = {},
@@ -492,8 +497,8 @@ open class Screenshots {
 
     /** Not part of the listing set: the whole voice commands page in one picture, every kind of command. */
     @Test
-    @Config(qualifiers = "w360dp-h1500dp-xxhdpi")
-    fun voiceCommandsTall() = shoot("x-voice-commands-tall", "Voice commands") {
+    @Config(qualifiers = "+h1500dp")
+    fun voiceCommandsTall() = shoot("x-voice-commands-tall", SettingsPage.COMMANDS.title()) {
         app.amethyst.ui.screen.VoiceCommandsScreen(
             settings = settings.copy(commands = app.amethyst.core.settings.CommandSettings(enabled = true)),
             onUpdateSettings = {},
@@ -508,25 +513,25 @@ open class Screenshots {
 
     /** Not part of the listing set: the recording page. */
     @Test
-    fun recording() = shoot("x-recording", "Recording") {
+    fun recording() = shoot("x-recording", SettingsPage.RECORDING.title()) {
         app.amethyst.ui.screen.RecordingScreen(settings = settings, onUpdateSettings = {})
     }
 
     /** Not part of the listing set: the inserting page. */
     @Test
-    fun inserting() = shoot("x-inserting", "Inserting") {
+    fun inserting() = shoot("x-inserting", SettingsPage.INSERTING.title()) {
         app.amethyst.ui.screen.InsertingScreen(settings = settings, onUpdateSettings = {})
     }
 
     /** Not part of the listing set: the reliability page with the battery still restricted. */
     @Test
-    fun reliability() = shoot("x-reliability", "Reliability") {
+    fun reliability() = shoot("x-reliability", SettingsPage.RELIABILITY.title()) {
         app.amethyst.ui.screen.ReliabilityScreen(setup = ready.copy(batteryUnrestricted = false), actions = actions)
     }
 
     /** Not part of the listing set: the diagnostics page before the first dictation. */
     @Test
-    fun diagnostics() = shoot("x-diagnostics", "Diagnostics") {
+    fun diagnostics() = shoot("x-diagnostics", SettingsPage.DIAGNOSTICS.title()) {
         app.amethyst.ui.screen.DiagnosticsScreen(records = emptyList(), keyboardLog = emptyList(), onClear = {})
     }
 
@@ -584,8 +589,8 @@ open class Screenshots {
 
     /** Not part of the listing set: what a voice command leaves in Diagnostics, one opened to its steps. */
     @Test
-    @Config(qualifiers = "w360dp-h1400dp-xxhdpi")
-    fun diagnosticsCommands() = shoot("x-diagnostics-commands", "Diagnostics") {
+    @Config(qualifiers = "+h1400dp")
+    fun diagnosticsCommands() = shoot("x-diagnostics-commands", SettingsPage.DIAGNOSTICS.title()) {
         val newest = 1_793_455_351_000L
         app.amethyst.ui.screen.DiagnosticsScreen(
             records = commandLog.mapIndexed { i, record -> record.copy(atMillis = newest - i * 47_000L) },
@@ -598,13 +603,13 @@ open class Screenshots {
 
     /** Not part of the listing set: the fallback page, for a Tinfoil recognition. */
     @Test
-    fun fallback() = shoot("x-fallback", "When the server fails") {
+    fun fallback() = shoot("x-fallback", SettingsPage.FALLBACK.title()) {
         FallbackScreen(settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), onUpdateSettings = {})
     }
 
     /** Not part of the listing set: the settings list with the whole pipeline in use. */
     @Test
-    fun settingsPipeline() = shoot("x-settings-pipeline", "Settings") {
+    fun settingsPipeline() = shoot("x-settings-pipeline", R.string.title_settings) {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, diagnosticsCount = 12, version = "0.17.1",
             releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onThemeChange = {}, onOpen = {}, onReplayIntroduction = {},
@@ -613,7 +618,7 @@ open class Screenshots {
 
     /** Not part of the listing set: home with a cleanup in use. */
     @Test
-    fun homePipeline() = shoot("x-home-pipeline", "Amber") {
+    fun homePipeline() = shoot("x-home-pipeline", AMBER) {
         HomeScreen(
             setup = ready, actions = actions, settings = pipeline,
             dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
@@ -624,7 +629,7 @@ open class Screenshots {
 
     /** Not part of the listing set: Parakeet still downloading after the introduction. */
     @Test
-    fun homeDownloading() = shoot("x-home-downloading", "Amber") {
+    fun homeDownloading() = shoot("x-home-downloading", AMBER) {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
             dictationState = MutableStateFlow(DictationState.Idle), stats = stats,
@@ -636,8 +641,8 @@ open class Screenshots {
 
     /** Not part of the listing set: a sideloaded first run, back from Android's settings without the service. */
     @Test
-    @Config(qualifiers = "w360dp-h1300dp-xxhdpi")
-    fun homeSetup() = shoot("x-home-setup", "Amber") {
+    @Config(qualifiers = "+h1300dp")
+    fun homeSetup() = shoot("x-home-setup", AMBER) {
         HomeScreen(
             setup = SetupState(microphoneGranted = true, restrictedSettings = true, accessibilityTried = true),
             actions = actions, settings = settings,
@@ -699,7 +704,7 @@ open class Screenshots {
 
     /** The whole page before the button, rows and notes - taller than a phone. */
     @Test
-    @Config(qualifiers = "w360dp-h1560dp-xxhdpi")
+    @Config(qualifiers = "+h1560dp")
     fun onboardingAccessibilityTall() = onboarding("2-accessibility-tall", OnboardingStep.ACCESSIBILITY, fresh.copy(restrictedSettings = true))
 
     /** Installed from a file on Android 13+: the step says before the button that Android may block it. */
@@ -712,7 +717,7 @@ open class Screenshots {
 
     /** The same on an install Android may lock: the way past "Restricted setting". */
     @Test
-    @Config(qualifiers = "w360dp-h900dp-xxhdpi")
+    @Config(qualifiers = "+h900dp")
     fun onboardingAccessibilityRestricted() = onboarding(
         "2-accessibility-restricted", OnboardingStep.ACCESSIBILITY,
         fresh.copy(accessibilityTried = true, restrictedSettings = true),
@@ -920,8 +925,8 @@ open class Screenshots {
 
     /** Not part of the listing set: Home after "Skip the introduction" - what is missing, and the download held for Wi-Fi. */
     @Test
-    @Config(qualifiers = "w360dp-h1100dp-xxhdpi")
-    fun homeSkipped() = shoot("x-home-skipped", "Amber") {
+    @Config(qualifiers = "+h1100dp")
+    fun homeSkipped() = shoot("x-home-skipped", AMBER) {
         HomeScreen(
             setup = fresh, actions = actions, settings = quick.copy(onboardingDone = true),
             dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
@@ -941,7 +946,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the Updates page of the GitHub build, a newer release found. */
     @Test
-    fun updates() = shoot("x-updates", "Updates") {
+    fun updates() = shoot("x-updates", SettingsPage.UPDATES.title()) {
         UpdatesScreen(
             settings = settings.copy(updates = updateSeen), channel = ReleaseChannel.GITHUB, installedVersion = "0.23.0",
             checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
@@ -950,7 +955,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the Updates page after a failed check, switched off. */
     @Test
-    fun updatesOff() = shoot("x-updates-off", "Updates") {
+    fun updatesOff() = shoot("x-updates-off", SettingsPage.UPDATES.title()) {
         UpdatesScreen(
             settings = settings.copy(updates = updateSeen.copy(enabled = false, lastCheckFailed = true, lastCheckedAt = NOW - 26 * 3_600_000L)),
             channel = ReleaseChannel.GITHUB, installedVersion = "0.24.0",
@@ -960,7 +965,7 @@ open class Screenshots {
 
     /** Not part of the listing set: the Updates page of a build that does not check. */
     @Test
-    fun updatesElsewhere() = shoot("x-updates-elsewhere", "Updates") {
+    fun updatesElsewhere() = shoot("x-updates-elsewhere", SettingsPage.UPDATES.title()) {
         UpdatesScreen(
             settings = settings, channel = ReleaseChannel.OTHER, installedVersion = "0.23.0",
             checking = false, now = NOW, onUpdateSettings = {}, onCheckNow = {}, onOpenUrl = {},
@@ -969,7 +974,7 @@ open class Screenshots {
 
     /** Not part of the listing set: home with a newer release on GitHub. */
     @Test
-    fun homeUpdate() = shoot("x-home-update", "Amber") {
+    fun homeUpdate() = shoot("x-home-update", AMBER) {
         HomeScreen(
             setup = ready, actions = actions, settings = settings,
             dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
@@ -993,7 +998,7 @@ open class Screenshots {
     @Test fun enginesLight() = light(::engines)
 
     @Test
-    @Config(qualifiers = "w360dp-h1160dp-xxhdpi")
+    @Config(qualifiers = "+h1160dp")
     fun settingsTallLight() = light(::settingsTall)
 
     @Test fun bubbleSettingsLight() = light(::bubbleSettings)
@@ -1053,13 +1058,18 @@ open class Screenshots {
         assertTrue(file.length() > 0)
     }
 
-    private fun shoot(name: String, title: String?, content: @Composable () -> Unit) {
+    /** A page under its top bar: [title] as MainActivity gives it - a page's own ([SettingsPage.title]), a string, or [AMBER] for Home. */
+    private fun shoot(name: String, @StringRes title: Int?, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
             AmberTheme(dark) {
                 AmberBackground {
                     Column(Modifier.fillMaxSize().padding(top = 28.dp)) {
-                        if (title != null) TopBar(title = title, showBack = title != "Amber", showSettings = title == "Amber", onBack = {}, onSettings = {})
+                        if (title != null) {
+                            // Home goes by the app's name, every other page by its title in the phone's language.
+                            val home = title == AMBER
+                            TopBar(title = if (home) "Amber" else stringResource(title), showBack = !home, showSettings = home, onBack = {}, onSettings = {})
+                        }
                         // Every drawn scene at rest, as with animations off: a looping one would never let the clock below run out.
                         androidx.compose.runtime.CompositionLocalProvider(LocalTimelineAt provides 1f) { content() }
                     }
@@ -1076,6 +1086,9 @@ open class Screenshots {
     }
 
     private companion object {
+        /** Home's title: the app's name, which is no string resource. */
+        const val AMBER = 0
+
         /** An own server in the home network, for the cleanup step. */
         const val OLLAMA = "http://192.168.1.20:11434/v1"
         const val OPENROUTER = "https://openrouter.ai/api/v1"
@@ -1109,9 +1122,6 @@ open class Screenshots {
     }
 }
 
-/**
- * The same screens with the phone set to German (values-de), into build/screenshots-de. The tall
- * variants set their own size and stay English.
- */
+/** The same screens with the phone set to German (values-de), into build/screenshots-de. */
 @Config(qualifiers = "+de")
 class ScreenshotsGerman : Screenshots()

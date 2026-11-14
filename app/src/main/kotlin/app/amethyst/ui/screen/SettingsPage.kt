@@ -1,0 +1,41 @@
+package app.amethyst.ui.screen
+
+import androidx.annotation.StringRes
+import app.amethyst.R
+
+/** Where a settings row leads. */
+enum class SettingsPage {
+    RECOGNITION,
+    CLEANUP,
+    BUBBLE,
+    QUICK_MENU,
+    COMMANDS,
+    APP_STYLES,
+    FALLBACK,
+    RECORDING,
+    INSERTING,
+    RELIABILITY,
+    STATS,
+    DIAGNOSTICS,
+    UPDATES,
+    LICENSES,
+}
+
+/** The title over a page: the label of the row that leads to it. */
+@StringRes
+fun SettingsPage.title(): Int = when (this) {
+    SettingsPage.RECOGNITION -> R.string.settings_recognition
+    SettingsPage.CLEANUP -> R.string.settings_cleanup
+    SettingsPage.BUBBLE -> R.string.settings_bubble
+    SettingsPage.QUICK_MENU -> R.string.settings_quick_menu
+    SettingsPage.COMMANDS -> R.string.settings_voice_commands
+    SettingsPage.APP_STYLES -> R.string.settings_app_styles
+    SettingsPage.FALLBACK -> R.string.settings_fallback
+    SettingsPage.RECORDING -> R.string.settings_recording
+    SettingsPage.INSERTING -> R.string.settings_inserting
+    SettingsPage.RELIABILITY -> R.string.settings_reliability
+    SettingsPage.STATS -> R.string.settings_statistics
+    SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics
+    SettingsPage.UPDATES -> R.string.settings_updates
+    SettingsPage.LICENSES -> R.string.settings_licenses
+}

@@ -87,9 +87,6 @@ import app.amethyst.ui.theme.placeExplanation
 import app.amethyst.ui.words
 import kotlin.math.roundToInt
 
-/** Where a settings row leads. */
-enum class SettingsPage { RECOGNITION, CLEANUP, FALLBACK, RECORDING, INSERTING, APP_STYLES, BUBBLE, QUICK_MENU, COMMANDS, STATS, RELIABILITY, DIAGNOSTICS, UPDATES, LICENSES }
-
 /**
  * Amber's settings in groups: the most used, the per-app styles, the advanced ones and Amber
  * itself. Which rows show is [SettingsLayout]'s table: a new install sees the simple ones, the
