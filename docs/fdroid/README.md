@@ -2,14 +2,14 @@
 
 `app.amber.yml` is the draft for fdroiddata (`metadata/app.amber.yml`). Do not submit it yet.
 
-## Placeholder to bump
+## The Builds entry
 
-The `Builds` entry says versionName 0.31.0 / versionCode 59 / `commit: v0.31.0`. That is a
-placeholder: v0.31.0 predates the from-source build (it fetched prebuilt binaries) and F-Droid
-would fail on it. Before the merge request, bump `versionName`, `versionCode`, `commit`,
-`CurrentVersion` and `CurrentVersionCode` to the first release tagged from the `fdroid-build`
-branch, and publish that release's APK as `amber-<versionName>.apk` on GitHub (the `Binaries:`
-line points there; F-Droid compares it with its own build and ships our signature).
+The `Builds` entry names the latest release from the from-source build (0.33.0 / versionCode
+61 / `commit: v0.33.0`), whose APK is on GitHub as `amber-0.33.0.apk` (the `Binaries:` line
+points there; F-Droid compares it with its own build and ships our signature). With every
+release, move `versionName`, `versionCode`, `commit`, `CurrentVersion` and
+`CurrentVersionCode` along. Releases up to v0.31.0 fetched prebuilt binaries and can never be
+named here.
 
 ## What the recipe does
 
