@@ -19,6 +19,8 @@ class MutablePreferences internal constructor() : Preferences() {
     fun clear() = Unit
 }
 
+fun emptyPreferences(): Preferences = throw UnsupportedOperationException()
+
 fun stringPreferencesKey(name: String): Preferences.Key<String> = throw UnsupportedOperationException()
 
 suspend fun DataStore<Preferences>.edit(
