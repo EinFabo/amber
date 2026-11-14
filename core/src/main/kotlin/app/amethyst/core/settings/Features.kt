@@ -12,5 +12,8 @@ object Features {
      * out, [AmethystSettings.commandsEnabled] is false whatever [CommandSettings.enabled] says,
      * so a user who had them on gets plain dictation - their switch is kept for later.
      */
+    // Coming back, they need android:canPerformGestures="true" in
+    // res/xml/accessibility_service_config.xml again ("scroll down" is a gesture) - taken out
+    // with them, so the service asks Android for no more than it uses.
     const val VOICE_COMMANDS: Boolean = false
 }

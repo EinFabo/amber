@@ -20,6 +20,7 @@ import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.bubble.BubbleController
+import app.amethyst.DebugLog
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldPresence
@@ -390,7 +391,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             if (!again) inputIsPassword = TextFieldKind.of(attribute.inputType) != TextFieldKind.SECRET && focusedIsPassword()
             inputKind = TextFieldKind.of(attribute.inputType, isPassword = inputIsPassword)
             if (!again || inputKind != before) {
-                Log.i(TAG, "field: input started in ${attribute.packageName}, $inputKind${if (restarting) ", restarting" else ""}")
+                Log.i(TAG, "field: input started in ${DebugLog.redact(attribute.packageName?.toString())}, $inputKind${if (restarting) ", restarting" else ""}")
             }
             // The field's own app: the surest answer to "where is the user typing".
             if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
