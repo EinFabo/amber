@@ -2,6 +2,80 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Before a store launch: reviews and research (Fabi, 2026-11-14: "polished for the Play Store and F-Droid")
+
+Four read-only passes on 0.33.0 - Google Play's rules, F-Droid's rules, security and privacy,
+the dictation run - and what came of them. Built 2026-11-14/15 and in test build 72; none of
+it has run on a phone.
+
+Built:
+- [x] Security: a key is bound to its host also for hosts with an underscore or an umlaut
+      (`EnginePresets.hostOf`), and an address without a nameable host is refused; a removed
+      server's key goes with it; only a verified enclave's `Tinfoil-Enclave` header is shown;
+      soft hyphens, word joiners and tag characters are stripped; the accessibility
+      disclosure says what is kept on the phone (app, counts, timings) instead of "nothing
+      is stored"; no `canPerformGestures` while voice commands are out; no app name in a
+      release build's log; a Compose password field with a text keyboard is seen as one;
+      at the write the target is checked once more (another app or a password field refuses,
+      the text is kept for "Insert again").
+- [x] Dictation: Android's recognizer gets 5 s to answer a stop; the power button ends a
+      recording; a second tap while the microphone opens is a stop; a cancelled run no longer
+      clears the next one's stop; a streamed cleanup without a normal end is not taken; a
+      retired model's 404 and an empty account's 429 say what they are and fall back; a
+      microphone another app holds is said as that.
+- [x] First run and downloads: a model wanted for the active recognition is written down and
+      fetched again at every start (Android 9-12 got stuck without it); the user's own choice
+      ends a pending switch; Parakeet's download resumes; `FirstRunSetup`'s decisions are in
+      `:core` with tests.
+- [x] Typing: space and capital at the seam in fields reached only through the input
+      connection (the Claude app, Amber's test field).
+- [x] A settings file that cannot be read or written no longer crashes Amber.
+- [x] Settings: "About Amber", a "Text" page in place of "Inserting", one "Apps" page.
+- [x] Amber starts in the theme chosen last time; the disclosure sits next to "I agree".
+- [x] Play: targetSdk and compileSdk 36; a privacy policy (`docs/PRIVACY.md`).
+- [x] F-Droid: a store's install never checks GitHub for updates
+      (`ReleaseChannel.installedBy`); the recipe for the trixie build server, a commit hash,
+      the notes in `docs/fdroid/README.md`; NOTICE: the FUTO models are Apache-2.0; the
+      listing names Anthropic and the model hosts.
+
+Open - Fabi's decisions:
+- [ ] **Name and id before F-Droid.** F-Droid lists another "Amber"
+      (`com.greenart7c3.nostrsigner`); `app.amber` reads as the domain amber.app. After
+      inclusion the id is fixed.
+- [ ] **The microphone service runs all day** (started at every resume, sticky, never
+      stopped) so the bubble may record from the background on Android 14+. Play's
+      foreground-service declaration wants "only for as long as necessary" - a review risk.
+- [ ] **Privacy policy:** a contact (a name and an address or e-mail) and a public URL; then
+      a link to it in "About Amber".
+- [ ] **Play Console:** a developer account (identity, trader status), an app bundle
+      (`bundleRelease`) with Play App Signing - Play and GitHub installs then cannot update
+      each other -, the accessibility and foreground-service declarations with a video each,
+      the data safety form, a feature graphic 1024x500, screenshots without alpha at most
+      2:1, a closed test with 12 testers for 14 days.
+- [ ] **F-Droid:** not before the end of January 2027 (three months of development); prove
+      the recipe in a fork of fdroiddata; Go built from source and tinfoil-go as a submodule
+      if the review asks; the rest of NOTICE (ONNX Runtime's third-party notices, the Go
+      modules in the verifier, Tink, Gson, libc++). IzzyOnDroid is no route (its policy
+      rejects apps made with generative AI tools).
+
+Open - found, not built:
+- [ ] A settings page is thrown back to Home by a rotation, split screen or a font-size
+      change (`MainActivity`'s page stack is not saved), and text typed on a server's page
+      may be dropped with it.
+- [ ] `refreshAll()` sends a server's key to http servers in the own network on merely
+      opening the Recognition or Cleanup page (M4b of the October review).
+- [ ] A stored key is shown prefilled; after an address change a touch of the field binds
+      the old key to the new host. A legacy `sk-` key shape fills in OpenAI's address.
+- [ ] No cap on a server transcript's length beyond 8 MiB; no tapjacking guard on Amber's
+      own screens; the Recents thumbnail is only off from Android 13.
+- [ ] sherpa-onnx 1.13.8 has CVE-2026-108954 (model metadata; the Parakeet files are
+      hash-pinned) - bump when a fix ships.
+- [ ] Device checks of everything above, first: a fresh install with Quick setup on Wi-Fi
+      and on mobile data, a dictation with Android's recognition, the power button while
+      recording, two dictations in a row in the Claude app, a login form in a Compose app,
+      and Amber on Android 16/17 at target 36.
+- [ ] The UI review of every screen (English and German, light and dark).
+
 ## Bugs (Fabi, 2026-11-11)
 
 - [x] **Setup step 5 of 9 (cleanup) offers only Off or Tinfoil**: no way to enter a key for
