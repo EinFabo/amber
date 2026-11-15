@@ -1,5 +1,5 @@
-- Einstellungen: eine Seite Apps (Stil und ausgeblendete Bubble pro App), eine Seite Text, Über Amber
-- Diktat: Androids Spracherkennung hängt nicht mehr; die Ein/Aus-Taste beendet eine Aufnahme; klarere Meldungen, wenn das Modell eines Servers fehlt oder das Mikrofon belegt ist
-- Erster Start: ein noch fehlendes Sprachmodell wird nach einem Neustart weitergeladen; Downloads setzen fort
+- Einstellungen: Seiten Apps (Stil und ausgeblendete Bubble pro App), Text und Über Amber
+- Diktat: Androids Spracherkennung hängt nicht mehr; die Ein/Aus-Taste beendet eine Aufnahme; klarere Meldungen bei fehlendem Modell oder belegtem Mikrofon
+- Erster Start: ein fehlendes Sprachmodell wird nach einem Neustart weitergeladen; Downloads setzen fort
 - Tippen: Leerzeichen und Großschreibung auch zwischen zwei Diktaten in Apps wie Claude
-- Ziel Android 16; Datenschutz- und Sicherheitskorrekturen aus einem Review
+- Ziel Android 16; Korrekturen aus einem Sicherheits-Review
