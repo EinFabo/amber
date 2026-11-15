@@ -79,7 +79,7 @@ class FirstRunSetup(
 
     private fun installed(): Set<String> = launcher.appsBlocking().mapTo(HashSet()) { it.packageName }
 
-    /** Starts [option]'s download, or holds it for Wi-Fi where the gate would ask. */
+    /** The user's start of [option]'s download; held for Wi-Fi where the gate would ask. */
     private suspend fun fetch(option: EngineOption, mobileData: Boolean) = withContext(Dispatchers.Main) {
         if (downloads().start(option, mobileData) == GateDecision.ASK) downloads().waitForWifi(option)
     }
@@ -88,11 +88,8 @@ class FirstRunSetup(
     private val fetching = object : ModelFetch {
         override fun ready(option: EngineOption): Flow<Boolean> = downloads().ready(option)
 
-        override suspend fun fetch(option: EngineOption) {
-            // One that runs or is held already - started by hand, perhaps over mobile data - is left alone.
-            val inHand = withContext(Dispatchers.Main) { downloads().forOption(option) != null }
-            if (!inHand) this@FirstRunSetup.fetch(option, mobileData = false)
-        }
+        // One that runs or is held already - started by hand, perhaps over mobile data - is left alone.
+        override suspend fun fetch(option: EngineOption) = withContext(Dispatchers.Main) { downloads().resume(option) }
 
         override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().letGo(option) }
     }

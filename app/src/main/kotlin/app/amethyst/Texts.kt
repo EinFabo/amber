@@ -325,6 +325,7 @@ object Texts {
     fun download(context: Context, download: ModelDownload): String = when (download) {
         is ModelDownload.Running -> context.getString(R.string.download_running, DownloadNotice.percent(download))
         ModelDownload.WaitingForWifi -> context.getString(R.string.download_waiting_for_wifi)
+        ModelDownload.Retrying -> context.getString(R.string.download_retrying)
     }
 
     /** What a dictation started during the download is told. */

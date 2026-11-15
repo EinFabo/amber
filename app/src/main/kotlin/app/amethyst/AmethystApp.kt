@@ -131,7 +131,7 @@ class Graph(app: Application) {
     val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) }
 
     /** The introduction's downloads, and whether the active engine is still waiting for one. */
-    val modelDownloads: ModelDownloads by lazy { ModelDownloads(app, parakeetModels, whisperModels) }
+    val modelDownloads: ModelDownloads by lazy { ModelDownloads(app, appScope, parakeetModels, whisperModels) }
 
     /** What the Tinfoil verifier did lately, newest first, for the engine screen's debug section. */
     val tinfoilLog = MutableStateFlow<List<String>>(emptyList())

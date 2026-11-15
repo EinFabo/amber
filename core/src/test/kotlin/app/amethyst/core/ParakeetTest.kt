@@ -4,6 +4,8 @@ import app.amethyst.core.engine.Problem
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
+import app.amethyst.core.engine.download.DownloadAnswer
+import app.amethyst.core.engine.download.DownloadTransport
 import app.amethyst.core.engine.sherpa.ParakeetEngine
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.sherpa.TransducerRuntime
@@ -26,15 +28,31 @@ class ParakeetTest {
     fun `a file lands only when size and hash match`() {
         val dir = createTempDirectory().toFile()
         val bytes = "tokens".encodeToByteArray()
+        val server = DownloadTransport { _, _ -> DownloadAnswer(200, null, null, null, bytes.inputStream()) }
         val good = ParakeetModel.FileSpec("tokens.txt", bytes.size.toLong(), sha(bytes))
 
-        assertTrue(ParakeetModel.install(bytes.inputStream(), dir, good).isSuccess)
+        assertTrue(ParakeetModel.download(good, dir, server).run().isSuccess)
         assertTrue(File(dir, "tokens.txt").isFile)
 
         val tampered = good.copy(name = "joiner.int8.onnx", sha256 = "0".repeat(64))
-        assertTrue(ParakeetModel.install(bytes.inputStream(), dir, tampered).isFailure)
+        assertTrue(ParakeetModel.download(tampered, dir, server).run().isFailure)
         assertFalse(File(dir, "joiner.int8.onnx").exists(), "a bad file never takes the target's place")
         assertFalse(File(dir, "joiner.int8.onnx.part").exists())
+    }
+
+    @Test
+    fun `what still has to come leaves out complete files and kept bytes`() {
+        val dir = createTempDirectory().toFile()
+        assertEquals(ParakeetModel.TOTAL_BYTES, ParakeetModel.missingBytes(dir))
+        assertEquals(ParakeetModel.FILES, ParakeetModel.missing(dir))
+        val tokens = ParakeetModel.FILES.last()
+        File(dir, tokens.name + ".part").writeBytes(ByteArray(1_000))
+        assertEquals(ParakeetModel.TOTAL_BYTES - 1_000, ParakeetModel.missingBytes(dir))
+        ParakeetModel.discardKept(dir)
+        assertEquals(ParakeetModel.TOTAL_BYTES, ParakeetModel.missingBytes(dir))
+        File(dir, tokens.name).writeBytes(ByteArray(tokens.sizeBytes.toInt()))
+        assertEquals(ParakeetModel.TOTAL_BYTES - tokens.sizeBytes, ParakeetModel.missingBytes(dir))
+        assertEquals(ParakeetModel.FILES.dropLast(1), ParakeetModel.missing(dir))
     }
 
     @Test

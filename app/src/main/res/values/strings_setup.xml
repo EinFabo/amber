@@ -109,6 +109,8 @@
     <string name="pending_wifi">The speech model (%1$s) downloads on Wi-Fi - until then Android\'s speech recognition is used.</string>
     <string name="pending_stopped">The speech model has not been downloaded yet - until then Android\'s speech recognition is used.</string>
     <string name="pending_then">%1$s, once its model is here</string>
+    <string name="pending_retrying">The speech model\'s download was interrupted and continues by itself - until then Android\'s speech recognition is used.</string>
+    <string name="wanted_retrying">The speech model\'s download was interrupted and continues by itself - you can dictate as soon as it is here.</string>
     <string name="wanted_downloading">Downloading the speech model - you can dictate as soon as it is here.</string>
     <string name="wanted_wifi">The speech model (%1$s) downloads on Wi-Fi - you can dictate as soon as it is here.</string>
     <string name="wanted_stopped">The speech model has not been downloaded yet - you can dictate as soon as it is here.</string>

@@ -1,10 +1,12 @@
 package app.amethyst.engine
 
-import app.amethyst.core.engine.FileProblem
-import app.amethyst.core.engine.ModelFileException
 import android.content.Context
 import android.util.Log
+import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.download.DownloadAnswer
+import app.amethyst.core.engine.download.DownloadTransport
 import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.core.net.guardCleartext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,12 +16,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Call
-import app.amethyst.core.net.guardCleartext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Where the Parakeet model stands on this phone. */
 sealed interface ParakeetState {
@@ -31,8 +32,10 @@ sealed interface ParakeetState {
 
 /**
  * Downloads Parakeet's four files, each checked against its pinned size and hash before it
- * takes its place. Files already complete are skipped, so an interrupted download resumes
- * file by file instead of starting the 670 MB over.
+ * takes its place. Nothing that arrived is fetched twice: complete files are skipped, and a
+ * file cut off halfway is continued where it stopped ([ParakeetModel.download]) - after a lost
+ * connection, a failure, or the end of the process. Only a cancel lets go of the unfinished
+ * part.
  */
 class ParakeetModelStore(
     context: Context,
@@ -48,6 +51,9 @@ class ParakeetModelStore(
 
     private var job: Job? = null
 
+    /** Counts downloads and cancels, so one that was cancelled reports nothing any more. */
+    private val turn = AtomicInteger()
+
     /** Downloads and deletions take turns, so a delete never wipes a download started after it. */
     private val files = Mutex()
 
@@ -62,42 +68,76 @@ class ParakeetModelStore(
             .build()
     }
 
-    fun isReady(): Boolean = ParakeetModel.isComplete(dir)
-
-    fun download() {
-        if (job?.isActive == true) return
-        job = scope.launch(Dispatchers.IO) { files.withLock { install() } }
+    /** The server as a download sees it; "identity" so a byte position means the same on both sides. */
+    private val server = DownloadTransport { url, from ->
+        val request = Request.Builder().url(url).header("Accept-Encoding", "identity")
+            .apply { if (from > 0) header("Range", "bytes=$from-") }
+            .build()
+        val current = http.newCall(request).also { call = it }
+        val response = current.execute()
+        DownloadAnswer(
+            code = response.code,
+            etag = response.header("ETag"),
+            lastModified = response.header("Last-Modified"),
+            contentRange = response.header("Content-Range"),
+            body = response.body?.byteStream(),
+            onClose = { response.close() },
+        )
     }
 
-    private fun install() {
+    fun isReady(): Boolean = ParakeetModel.isComplete(dir)
+
+    /** The model's bytes on the phone, unfinished files included - for whether a failed try got anywhere. */
+    fun bytesOnPhone(): Long = ParakeetModel.TOTAL_BYTES - ParakeetModel.missingBytes(dir)
+
+    /** Busy from this call on, so whoever started it can wait for the state after it. */
+    fun download() {
+        if (job?.isActive == true) return
+        val mine = turn.incrementAndGet()
+        _state.value = ParakeetState.Busy(bytesOnPhone(), ParakeetModel.TOTAL_BYTES)
+        job = scope.launch(Dispatchers.IO) { files.withLock { install(mine) } }
+    }
+
+    private fun install(mine: Int) {
+        fun report(state: ParakeetState) {
+            if (turn.get() == mine) _state.value = state
+        }
         val free = dir.apply { mkdirs() }.usableSpace
-        val missing = ParakeetModel.FILES.filter { File(dir, it.name).length() != it.sizeBytes }
-        val needed = missing.sumOf { it.sizeBytes }
+        val needed = ParakeetModel.missingBytes(dir)
         if (free < needed + SPACE_MARGIN_BYTES) {
-            _state.value = ParakeetState.Failed(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000))
+            report(ParakeetState.Failed(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000)))
             return
         }
-        var done = ParakeetModel.TOTAL_BYTES - needed
+        val missing = ParakeetModel.missing(dir)
+        var done = ParakeetModel.TOTAL_BYTES - missing.sumOf { it.sizeBytes }
         for (file in missing) {
-            _state.value = ParakeetState.Busy(done, ParakeetModel.TOTAL_BYTES)
-            val result = fetch(file) { received ->
-                _state.value = ParakeetState.Busy(done + received, ParakeetModel.TOTAL_BYTES)
-            }
+            val result = ParakeetModel.download(file, dir, server).run(
+                onProgress = { received -> report(ParakeetState.Busy(done + received, ParakeetModel.TOTAL_BYTES)) },
+                isCancelled = { turn.get() != mine },
+            )
+            call = null
             if (result.isFailure) {
                 val error = result.exceptionOrNull()
-                _state.value = if (error is InterruptedException) currentState() else ParakeetState.Failed(FileProblem.of(error)).also { Log.w(TAG, "parakeet download failed: ${error?.message}") }
+                if (error !is InterruptedException) {
+                    Log.w(TAG, "parakeet download failed: ${error?.message}")
+                    report(ParakeetState.Failed(FileProblem.of(error)))
+                }
                 return
             }
             done += file.sizeBytes
         }
         Log.i(TAG, "parakeet model installed")
-        _state.value = currentState()
+        report(currentState())
     }
 
+    /** Stops a download and lets go of its unfinished files; complete ones stay for another start. */
     fun cancel() {
+        turn.incrementAndGet()
         call?.cancel()
         job?.cancel()
         _state.value = currentState()
+        // After the download that was cut has ended, before one started afterwards begins.
+        scope.launch(Dispatchers.IO) { files.withLock { ParakeetModel.discardKept(dir) } }
     }
 
     /**
@@ -111,25 +151,8 @@ class ParakeetModelStore(
             files.withLock {
                 runtime.whileUnloaded { dir.deleteRecursively() }
                 // A cancelled download that only just ended may have shown its files again.
-                _state.value = ParakeetState.Missing
+                if (job?.isActive != true) _state.value = ParakeetState.Missing
             }
-        }
-    }
-
-    private fun fetch(file: ParakeetModel.FileSpec, onProgress: (Long) -> Unit): Result<Unit> {
-        val request = Request.Builder().url(ParakeetModel.url(file)).build()
-        val current = http.newCall(request).also { call = it }
-        return try {
-            current.execute().use { response ->
-                if (!response.isSuccessful) return Result.failure(ModelFileException(FileProblem.ServerAnswered(response.code)))
-                val body = response.body ?: return Result.failure(ModelFileException(FileProblem.EmptyAnswer))
-                ParakeetModel.install(body.byteStream(), dir, file, onProgress, isCancelled = { current.isCanceled() })
-            }
-        } catch (e: IOException) {
-            if (current.isCanceled()) Result.failure(InterruptedException("cancelled"))
-            else Result.failure(ModelFileException(FileProblem.NoConnection, "No connection: ${e.message}", e))
-        } finally {
-            call = null
         }
     }
 

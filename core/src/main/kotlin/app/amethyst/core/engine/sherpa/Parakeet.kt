@@ -1,16 +1,15 @@
 package app.amethyst.core.engine.sherpa
 
-import app.amethyst.core.engine.FileProblem
-import app.amethyst.core.engine.ModelFileException
 import app.amethyst.core.audio.LongAudio
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.SttEngine
+import app.amethyst.core.engine.download.DownloadTransport
+import app.amethyst.core.engine.download.FileDownload
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
-import app.amethyst.core.engine.whisper.ModelInstall
 import app.amethyst.core.engine.whisper.WhisperInput
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
@@ -19,8 +18,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.IOException
-import java.io.InputStream
 
 /**
  * NVIDIA's Parakeet TDT 0.6B v3, int8, as exported for sherpa-onnx: a transducer that reads
@@ -55,41 +52,21 @@ object ParakeetModel {
     fun isComplete(dir: File): Boolean = FILES.all { File(dir, it.name).length() == it.sizeBytes }
 
     /**
-     * Writes one file next to its target, checks size and hash, then renames it into place -
+     * One file's download: what arrived stays next to its target and is continued by the next
+     * run, and the file takes its place only with its pinned size and hash ([FileDownload]) -
      * the directory never holds a half-written model.
      */
-    fun install(
-        input: InputStream,
-        dir: File,
-        file: FileSpec,
-        onProgress: (Long) -> Unit = {},
-        isCancelled: () -> Boolean = { false },
-    ): Result<Unit> {
-        dir.mkdirs()
-        val target = File(dir, file.name)
-        val partial = File(dir, file.name + ".part")
-        return try {
-            val copied = partial.outputStream().use {
-                ModelInstall.copyWithDigest(input, it, onProgress, isCancelled, maxBytes = file.sizeBytes)
-            }
-            when {
-                copied.bytes != file.sizeBytes -> Result.failure(
-                    ModelFileException(FileProblem.Incomplete(copied.bytes, file.sizeBytes), "Download incomplete: ${copied.bytes} of ${file.sizeBytes} bytes."),
-                )
-                !copied.sha256.equals(file.sha256, ignoreCase = true) -> Result.failure(
-                    ModelFileException(FileProblem.ChecksumMismatch),
-                )
-                partial.renameTo(target) || (target.delete() && partial.renameTo(target)) -> Result.success(Unit)
-                else -> Result.failure(ModelFileException(FileProblem.CouldNotSave))
-            }
-        } catch (e: InterruptedException) {
-            Result.failure(e)
-        } catch (e: IOException) {
-            Result.failure(ModelFileException(FileProblem.Interrupted, "Transfer interrupted: ${e.message}", e))
-        } finally {
-            partial.delete()
-        }
-    }
+    fun download(file: FileSpec, dir: File, transport: DownloadTransport): FileDownload =
+        FileDownload(url(file), File(dir, file.name), file.sizeBytes, file.sha256, transport)
+
+    /** The files that are not in place yet. */
+    fun missing(dir: File): List<FileSpec> = FILES.filter { File(dir, it.name).length() != it.sizeBytes }
+
+    /** What still has to come over the network: the model without its complete files and without what was kept of the others. */
+    fun missingBytes(dir: File): Long = FILES.sumOf { FileDownload.missingBytes(File(dir, it.name), it.sizeBytes) }
+
+    /** Lets go of what was kept of unfinished files - a download nobody wants any more. */
+    fun discardKept(dir: File) = FILES.forEach { FileDownload.discardKept(File(dir, it.name)) }
 }
 
 /** The native side, behind an interface so the engine is tested on the JVM. */

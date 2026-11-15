@@ -7,6 +7,9 @@ package app.amethyst.core.engine
 sealed interface ModelDownload {
     data class Running(val received: Long, val total: Long) : ModelDownload
     data object WaitingForWifi : ModelDownload
+
+    /** A try failed, or there is no connection: the next one follows by itself. */
+    data object Retrying : ModelDownload
 }
 
 /** What a dictation started during the download is told, instead of failing (worded by the app). */

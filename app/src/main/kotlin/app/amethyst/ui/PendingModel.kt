@@ -17,7 +17,7 @@ import app.amethyst.ui.theme.AmberPalette
  */
 class PendingModel(
     val option: EngineOption,
-    /** Running, held for Wi-Fi, or null: about to start, or [failed]. */
+    /** Running, held for Wi-Fi, between two tries, or null: about to start, or [failed]. */
     val download: ModelDownload?,
     /** The download gave up; only another try helps. */
     val failed: Boolean,
@@ -46,6 +46,11 @@ fun PendingModelNote(pending: PendingModel, modifier: Modifier = Modifier, progr
             download == ModelDownload.WaitingForWifi -> {
                 Hint(stringResource(if (standIn) R.string.pending_wifi else R.string.wanted_wifi, megabytes), AmberPalette.Text)
                 GhostButton(stringResource(R.string.engine_step_download_mobile, megabytes), { pending.onDownload(true) })
+            }
+            // Nothing to do but wait; "Try again" for someone who would rather not.
+            download == ModelDownload.Retrying -> {
+                Hint(stringResource(if (standIn) R.string.pending_retrying else R.string.wanted_retrying), AmberPalette.Text)
+                GhostButton(stringResource(R.string.try_again), { pending.onDownload(false) })
             }
             pending.failed -> {
                 Hint(stringResource(if (standIn) R.string.pending_stopped else R.string.wanted_stopped), AmberPalette.Text)

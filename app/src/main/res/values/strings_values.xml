@@ -100,6 +100,7 @@
 
     <string name="download_running">Model downloading - %1$d %%</string>
     <string name="download_waiting_for_wifi">Waiting for Wi-Fi</string>
+    <string name="download_retrying">Model download interrupted - it continues by itself</string>
     <string name="download_at_start">%1$s. Amber is ready when it is done.</string>
 
     <string name="other_ambers_one">%1$s is also on - switch one off.</string>

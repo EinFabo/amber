@@ -98,6 +98,7 @@
 
     <string name="download_running">Modell wird geladen - %1$d %%</string>
     <string name="download_waiting_for_wifi">Wartet auf WLAN</string>
+    <string name="download_retrying">Modell-Download unterbrochen - er geht von selbst weiter</string>
     <string name="download_at_start">%1$s. Amber ist bereit, sobald es fertig ist.</string>
 
     <string name="other_ambers_one">%1$s ist auch an - schalte eins aus.</string>
