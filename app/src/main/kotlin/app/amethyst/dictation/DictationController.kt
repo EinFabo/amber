@@ -19,6 +19,7 @@ import app.amethyst.Texts
 import app.amethyst.accessibility.FieldEditor
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
+import app.amethyst.capture.MediaPause
 import app.amethyst.capture.MicProxyActivity
 import app.amethyst.capture.RecordingSounds
 import app.amethyst.core.audio.DiscardReason
@@ -824,6 +825,14 @@ class DictationController(
     /** Plays the start and stop tones when the setting is on ([RecordingSounds]). */
     private val sounds = RecordingSounds()
 
+    /** Holds the audio focus while the microphone is open, when music is to pause ([MediaPause]). */
+    private val mediaPause by lazy { MediaPause(context) }
+
+    /** The microphone is about to open: music pauses now, before the first word, if wanted. */
+    private fun microphoneOpening() {
+        if (graph.settings.value.feedback.pauseMedia) mediaPause.hold()
+    }
+
     /**
      * The microphone is really open - the recorder records, the recognizer listens: the bubble
      * buzzes (it watches [DictationState.Listening.open]), and the start tone plays if wanted.
@@ -835,6 +844,8 @@ class DictationController(
 
     /** The recording ended, however: the stop tone, once, if the microphone had opened. */
     private fun microphoneClosed() {
+        // The focus goes back first: the music is on again as the stop tone plays.
+        mediaPause.release()
         if (cue.ended() != null && graph.settings.value.feedback.sounds) sounds.play(RecordingSounds.Tone.STOP)
     }
 
@@ -861,6 +872,7 @@ class DictationController(
         trace?.transcribingStarts()
         loudness = LoudnessLog()
 
+        microphoneOpening()
         val result = try {
             engine.listen(
                 options,
@@ -941,6 +953,7 @@ class DictationController(
         val chunkSink = chunked ?: prepared?.chunks
         // The sign that the longest recording is near, for a dictation; a command is short.
         var limitLeft: Float? = null
+        microphoneOpening()
         val outcome = try {
             capture.record(
                 config = vadConfig,

@@ -174,4 +174,6 @@
     <string name="recording_microphone">Microphone</string>
     <string name="recording_sounds">Sound at start and stop</string>
     <string name="recording_sounds_note">A short, quiet tone when the microphone is open and when the recording ends. The bubble also buzzes when the microphone is open, with its vibration on.</string>
+    <string name="recording_pause_media">Pause music while dictating</string>
+    <string name="recording_pause_media_note">Music and videos pause while the microphone is open and go on right after.</string>
 </resources>

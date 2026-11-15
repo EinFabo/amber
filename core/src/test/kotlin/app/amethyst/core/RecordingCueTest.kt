@@ -34,6 +34,7 @@ class RecordingCueTest {
         val old = SettingsCodec.encode(AmethystSettings()).replace(Regex(""""feedback":\s*\{[^}]*\},?"""), "")
         assertEquals(FeedbackSettings(), SettingsCodec.decode(old, TEST_PHONE).feedback)
         assertFalse(FeedbackSettings().sounds)
+        assertFalse(FeedbackSettings().pauseMedia, "music pauses only for who asks for it")
         val on = AmethystSettings().copy(feedback = FeedbackSettings(sounds = true))
         assertEquals(true, SettingsCodec.decode(SettingsCodec.encode(on), TEST_PHONE).feedback.sounds)
     }

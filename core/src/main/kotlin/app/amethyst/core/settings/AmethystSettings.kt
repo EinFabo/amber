@@ -642,6 +642,8 @@ data class WordsSettings(
 data class FeedbackSettings(
     /** A short, quiet tone when the microphone is open and when the recording ends. */
     val sounds: Boolean = false,
+    /** Music and videos pause while the microphone is open (transient audio focus for the recording only). */
+    val pauseMedia: Boolean = false,
 )
 
 /** How the app itself looks. */
