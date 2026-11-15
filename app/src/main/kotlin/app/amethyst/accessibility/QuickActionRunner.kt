@@ -89,7 +89,7 @@ class QuickActionRunner(
         val hasKey = { alias: String? -> graph.secretStore.has(alias) }
         return QuickMenuContext(
             phase = phase(),
-            hasLastDictation = graph.dictationLog.lastDictation != null,
+            hasLastDictation = graph.keptDictation.sessionDictation(graph.dictationLog.records.value) != null,
             fieldFocused = service.editableFieldFocused,
             otherAppInFront = app != null,
             cleanupHere = QuickActions.cleanupHere(settings, app, hasKey),

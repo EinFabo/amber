@@ -223,10 +223,11 @@ class Graph(app: Application) {
     val dictationLog = DictationLog()
 
     /**
-     * What is kept of a failed dictation for a while, in memory only: its recording, for "Try
-     * again". The one place to forget it ([KeptDictation.keeping], [KeptDictation.clear]).
+     * What is kept of a dictation for a while, in memory only: a failed one's recording for "Try
+     * again", the last one's words for Home and the quick menu. The one place to forget it
+     * ([KeptDictation.keeping], [KeptDictation.clear]). On the clock of [dictationLog]'s records.
      */
-    val keptDictation = KeptDictation(SystemClock::elapsedRealtime)
+    val keptDictation = KeptDictation({ System.currentTimeMillis() })
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)

@@ -520,6 +520,16 @@ private fun AmethystScreens(
         value = runCatching { apps.all() }.getOrDefault(emptyList()).associate { it.packageName to it.label }
     }
     val nudge = RealAppNudges.of(statList, settings.stats.keep, setup.ready && settings.bubble.enabled, installedApps)
+    // Home's "Last dictation" while it is kept: looked at again with every dictation, every
+    // change of what is kept, and every half minute - so it goes when its ten minutes are up.
+    val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+    val keptChanges by graph.keptDictation.changes.collectAsStateWithLifecycle()
+    val lastDictation by produceState<String?>(null, records, keptChanges) {
+        while (true) {
+            value = graph.keptDictation.lastDictation(records)?.text
+            delay(LAST_DICTATION_RECHECK_MS)
+        }
+    }
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
@@ -673,6 +683,7 @@ private fun AmethystScreens(
                         download = download,
                         pending = pending,
                         nudge = nudge,
+                        lastDictation = lastDictation,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
@@ -940,3 +951,6 @@ private const val APP_PAGE_WAIT_MS = 2_000L
 
 private const val UPDATES_CLOCK_MS = 30_000L
 
+
+/** How often Home looks again whether the last dictation is still kept. */
+private const val LAST_DICTATION_RECHECK_MS = 30_000L

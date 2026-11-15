@@ -1,6 +1,7 @@
 package app.amethyst.core
 
 import app.amethyst.core.audio.PcmAudio
+import app.amethyst.core.dictation.DictationRecord
 import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.engine.Problem
 import kotlin.test.Test
@@ -95,6 +96,44 @@ class KeptDictationTest {
         assertNull(kept.recording())
         kept.keeping = true
         assertTrue(kept.keepRecording(audio(1.0), Problem.KeyRejected))
+    }
+
+    private fun dictation(text: String, at: Long, failed: Boolean = false) = DictationRecord(
+        text = text, engineId = "parakeet", trustLevel = null, latencyMs = null, strategy = null,
+        inserted = !failed, targetPackage = null, error = if (failed) "not inserted" else null, atMillis = at,
+    )
+
+    @Test
+    fun `Home offers the last dictation for the same ten minutes, also one that did not go in`() {
+        val records = listOf(dictation("Bin gleich da", at = now, failed = true), dictation("older", at = now - 5_000))
+        assertEquals("Bin gleich da", kept.lastDictation(records)?.text)
+        now += KeptDictation.KEEP_MS - 1
+        assertEquals("Bin gleich da", kept.lastDictation(records)?.text)
+        now += 1
+        assertNull(kept.lastDictation(records))
+        // The quick menu still has it for the session.
+        assertEquals("Bin gleich da", kept.sessionDictation(records)?.text)
+    }
+
+    @Test
+    fun `a failure without words or a command is no last dictation`() {
+        val command = dictation("open WhatsApp", at = now).copy(command = true)
+        val noWords = dictation("", at = now, failed = true)
+        assertNull(kept.lastDictation(listOf(command, noWords)))
+    }
+
+    @Test
+    fun `clearing forgets the last dictation, and keeping off hides it, a newer one is offered again`() {
+        val records = listOf(dictation("secret", at = now))
+        kept.clear()
+        assertNull(kept.lastDictation(records))
+        assertNull(kept.sessionDictation(records))
+        now += 1_000
+        val newer = listOf(dictation("new", at = now)) + records
+        assertEquals("new", kept.lastDictation(newer)?.text)
+        kept.keeping = false
+        assertNull(kept.lastDictation(newer))
+        assertNull(kept.sessionDictation(newer))
     }
 
     @Test

@@ -354,10 +354,10 @@ private fun filterLabel(filter: DiagnosticsReport.Filter): String = stringResour
  * [text] on the clipboard, marked sensitive as a dictation is ([app.amethyst.accessibility.TextInserter]):
  * kept out of clipboard previews, history and keyboard sync. False when Android refused.
  */
-private fun copySensitive(context: Context, text: String): Boolean {
+internal fun copySensitive(context: Context, text: String, label: String = "Amber diagnostics"): Boolean { // English: a label for the system
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
     return runCatching {
-        val clip = ClipData.newPlainText("Amber diagnostics", text) // English: a label for the system
+        val clip = ClipData.newPlainText(label, text)
         clip.description.extras = PersistableBundle().apply { putBoolean(SENSITIVE_EXTRA, true) }
         clipboard.setPrimaryClip(clip)
     }.isSuccess

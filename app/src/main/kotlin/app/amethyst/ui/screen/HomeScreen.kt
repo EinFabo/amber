@@ -1,5 +1,7 @@
 package app.amethyst.ui.screen
 
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -103,6 +105,11 @@ fun HomeScreen(
     pending: PendingModel? = null,
     /** Until the first dictation into another app: where to try the bubble for real. */
     nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
+    /**
+     * The last dictation's words while they are kept ([app.amethyst.core.dictation.KeptDictation.lastDictation]):
+     * ten minutes, also when they did not go in. Null: no card.
+     */
+    lastDictation: String? = null,
 ) {
     val testField = remember { FocusRequester() }
 
@@ -138,6 +145,9 @@ fun HomeScreen(
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
         OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine, nudge)
+
+        // What did not go in can be taken from here; what did, once more.
+        if (lastDictation != null) LastDictationCard(lastDictation)
 
         if (settings.stats.keep) TodayRow(stats, onOpenStats)
 
@@ -322,6 +332,33 @@ fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
         ) {
             PrimaryButton(stringResource(R.string.open_accessibility_settings), onOpenSettings)
         }
+    }
+}
+
+/**
+ * The last dictation's words, with Copy: for text a field refused, which is pasted by hand. On
+ * the clipboard marked sensitive, as the bubble's Copy last does; Android confirms a copy itself
+ * from version 13.
+ */
+@Composable
+private fun LastDictationCard(text: String) {
+    val context = LocalContext.current
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.home_last_dictation),
+            summary = text,
+            icon = AmberIcons.Subject,
+            summaryColor = AmberPalette.Text,
+            summaryMaxLines = 3,
+            trailing = {
+                GhostButton(stringResource(R.string.copy), {
+                    if (copySensitive(context, text, label = "Amber") && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) { // English: a label for the system
+                        Toast.makeText(context, R.string.dictation_copied, Toast.LENGTH_SHORT).show()
+                    }
+                })
+            },
+            onClick = null,
+        )
     }
 }
 

@@ -63,7 +63,7 @@
     <string name="toast_not_inserted_password">Not inserted - the field is a password field</string>
     <string name="toast_insert_again">Not inserted - tap the field, hold the bubble, Insert again</string>
     <string name="toast_screen_off_insert_again">Screen was off - tap the field, hold the bubble, Insert again</string>
-    <string name="toast_in_diagnostics">Not shown in the field - the text is in Amber\'s Diagnostics</string>
     <string name="fallback_no_credit">No credit left at %1$s - recognized with %2$s instead</string>
     <string name="fallback_model_gone">%1$s lacks the model - recognized with %2$s instead</string>
+    <string name="toast_copy_last">Not inserted - hold the bubble, Copy last, then paste it</string>
 </resources>

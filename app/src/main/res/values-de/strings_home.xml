@@ -98,4 +98,5 @@
     </plurals>
     <string name="usd_under_cent">unter 0,01 $</string>
     <string name="usd">%1$s $</string>
+    <string name="home_last_dictation">Letztes Diktat</string>
 </resources>

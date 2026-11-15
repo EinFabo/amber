@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * What Amber keeps of a dictation for a little while, in memory only - never on disk: the
- * recording of a dictation whose recognition failed, for "Try again" in the bubble's quick menu.
+ * recording of a dictation whose recognition failed, for "Try again" in the bubble's quick menu,
+ * and the last dictation's words as Home ([lastDictation]) and the quick menu
+ * ([sessionDictation]) offer them - the words themselves stay in [DictationLog]'s records.
  *
  * Kept for [keepMs] (10 minutes), one at a time - the last failed one; a recording longer than
  * [MAX_RECORDING_MS] is not kept (five minutes of 16 kHz mono are about 10 MB). Gone after the
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * holds the lock.
  */
 class KeptDictation(
+    /** The clock of [DictationLog]'s records: their [DictationRecord.atMillis] is compared with it. */
     private val clock: () -> Long,
     val keepMs: Long = KEEP_MS,
 ) {
@@ -29,6 +32,9 @@ class KeptDictation(
     class Recording(val audio: PcmAudio, val keptAt: Long)
 
     private var recording: Recording? = null
+
+    /** When everything was last forgotten ([clear]): a dictation from before is not offered again. */
+    private var clearedAt = Long.MIN_VALUE
 
     private val _changes = MutableStateFlow(0L)
 
@@ -70,6 +76,25 @@ class KeptDictation(
     @Synchronized
     fun expiresAt(): Long? = recording?.let { it.keptAt + keepMs }
 
+    /**
+     * The last dictation with words in [records] (newest first, [DictationLog.lastDictation]),
+     * for Home's "Last dictation": for [keepMs] after it was recorded - the time a failed
+     * recording is kept, too. Null after that, once cleared, or while keeping is off.
+     */
+    @Synchronized
+    fun lastDictation(records: List<DictationRecord>): DictationRecord? =
+        sessionDictation(records)?.takeIf { clock() - it.atMillis < keepMs }
+
+    /**
+     * The last dictation with words in [records] for "Insert again" and "Copy last" in the quick
+     * menu: this session's, however old - until cleared, and not while keeping is off.
+     */
+    @Synchronized
+    fun sessionDictation(records: List<DictationRecord>): DictationRecord? {
+        if (!keeping) return null
+        return DictationLog.lastDictation(records)?.takeIf { it.atMillis > clearedAt }
+    }
+
     /** A dictation's words came - this one's or the next: the failed recording is not needed any more. */
     @Synchronized
     fun textRecognized() {
@@ -82,10 +107,11 @@ class KeptDictation(
     @Synchronized
     fun expire() = expireLocked()
 
-    /** Forgets everything kept. */
+    /** Forgets everything kept: the recording, and the last dictation's words for Home and the quick menu. */
     @Synchronized
     fun clear() {
         recording = null
+        clearedAt = clock()
         changed()
     }
 

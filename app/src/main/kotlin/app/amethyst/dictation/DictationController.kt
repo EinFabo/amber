@@ -47,6 +47,7 @@ import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.dictation.BubbleTap
 import app.amethyst.core.dictation.KeptDictation
+import app.amethyst.core.dictation.NotInserted
 import app.amethyst.core.dictation.RunStop
 import app.amethyst.core.dictation.ScreenOff
 import app.amethyst.core.engine.ChunkedTranscription
@@ -529,6 +530,35 @@ class DictationController(
     private fun notInsertedWhileScreenOff(context: Context): String =
         context.getString(R.string.dictation_not_inserted, context.getString(R.string.dictation_why_screen_off))
 
+    /**
+     * A dictation's words that did not go in for [why]: the reason goes to the record and
+     * Amber's screen - with how the field was looked for, [insertionTrace], when a write was
+     * tried - and the toast says the way out ([NotInserted.hint]): Insert again where the field
+     * was gone or left, Copy last where the field itself refused the text.
+     */
+    private fun notInserted(why: NotInserted.Why, engineId: String, text: String, onClipboard: Boolean = false, insertionTrace: String? = null) {
+        val reason = when (why) {
+            NotInserted.Why.PASSWORD -> R.string.dictation_why_password
+            NotInserted.Why.NO_FIELD -> R.string.dictation_why_no_field
+            NotInserted.Why.SWITCHED -> R.string.dictation_why_switched
+            NotInserted.Why.SCREEN_OFF -> R.string.dictation_why_screen_off
+            NotInserted.Why.REFUSED -> R.string.dictation_no_field_accepted
+            NotInserted.Why.UNCERTAIN -> R.string.dictation_typed_never_showed
+        }
+        val words: Words = { context ->
+            context.getString(if (onClipboard) R.string.dictation_on_clipboard_instead else R.string.dictation_not_inserted, context.getString(reason)) +
+                insertionTrace?.let { " [$it]" }.orEmpty()
+        }
+        val toast = when (NotInserted.hint(why, onClipboard)) {
+            NotInserted.Hint.INSERT_AGAIN -> R.string.toast_insert_again
+            NotInserted.Hint.COPY -> R.string.toast_copy_last
+            NotInserted.Hint.ON_CLIPBOARD -> R.string.toast_on_clipboard
+            NotInserted.Hint.NONE -> R.string.toast_not_inserted_password
+        }
+        // Logcat gets the reason, never the field's trace, which names the app.
+        fail(words, engineId, brief = say(toast), logAs = english.getString(R.string.dictation_not_inserted, english.getString(reason)), text = text)
+    }
+
     /** Whether a text may go into a field now: the screen is on and the phone unlocked. */
     private fun mayInsertNow(): Boolean = ScreenOff.mayInsert(
         screenOn = context.getSystemService(PowerManager::class.java)?.isInteractive != false,
@@ -633,7 +663,7 @@ class DictationController(
 
     fun insertAgain(): Boolean {
         if (isRunning) return false
-        val text = graph.dictationLog.lastDictation?.text ?: return false
+        val text = kept.sessionDictation(graph.dictationLog.records.value)?.text ?: return false
         val service = graph.accessibilityService ?: return false
         val target = service.focusedTarget()
         if (target == null || target.kind == TextFieldKind.SECRET) {
@@ -657,7 +687,7 @@ class DictationController(
      * fallback setting says.
      */
     fun copyLast(): Boolean {
-        val text = graph.dictationLog.lastDictation?.text ?: return false
+        val text = kept.sessionDictation(graph.dictationLog.records.value)?.text ?: return false
         val inserter = graph.accessibilityService?.textInserter ?: return false
         if (!inserter.copyToClipboard(text)) return false
         // From Android 13 the system confirms a copy itself.
@@ -1730,42 +1760,12 @@ class DictationController(
         }
         if (verdict != TargetCheck.Verdict.INSERT) {
             Log.i(TAG, "not inserting: $verdict (start ${DebugLog.redact(startTarget?.packageName)}, now ${DebugLog.redact(now?.packageName)})")
-            val why = when (verdict) {
-                TargetCheck.Verdict.SECRET -> R.string.dictation_why_password
-                TargetCheck.Verdict.NO_FIELD -> R.string.dictation_why_no_field
-                else -> R.string.dictation_why_switched
-            }
+            val why = NotInserted.beforeWrite(verdict)
             // Never into a password field, not even via the clipboard. Otherwise only when the
             // user allows the clipboard at all; else the text stays in the diagnostics.
-            val copied = verdict != TargetCheck.Verdict.SECRET &&
+            val copied = why != NotInserted.Why.PASSWORD &&
                 settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
-            // The words stay in the record: Insert again and Copy last take them. The reason
-            // goes to the record and Amber's screen; the toast says the way out, in two lines.
-            val reason = english.getString(R.string.dictation_not_inserted, english.getString(why))
-            when {
-                copied -> fail(
-                    { it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) },
-                    engineId,
-                    brief = say(R.string.toast_on_clipboard),
-                    logAs = reason,
-                    text = cleaned,
-                )
-                // The way back, said on the bubble's toast: in the field, Insert again.
-                verdict != TargetCheck.Verdict.SECRET -> fail(
-                    { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
-                    engineId,
-                    brief = say(R.string.toast_insert_again),
-                    logAs = reason,
-                    text = cleaned,
-                )
-                else -> fail(
-                    { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
-                    engineId,
-                    brief = say(R.string.toast_not_inserted_password),
-                    logAs = reason,
-                    text = cleaned,
-                )
-            }
+            notInserted(why, engineId, cleaned, onClipboard = copied)
             return
         }
 
@@ -1788,18 +1788,8 @@ class DictationController(
 
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
             // Neither the field nor the clipboard took it. The words stay in the record, so
-            // they survive in the diagnostics card and Insert again can still take them.
-            val what = if (insertion.uncertain) R.string.dictation_typed_never_showed else R.string.dictation_no_field_accepted
-            // Typed and maybe still on its way: Insert again could give the words twice.
-            val brief = if (insertion.uncertain) R.string.toast_in_diagnostics else R.string.toast_insert_again
-            val lastTrace = inserter.lastTrace
-            fail(
-                { "${it.getString(what)} [$lastTrace]" },
-                engineId,
-                brief = say(brief),
-                logAs = english.getString(what),
-                text = cleaned,
-            )
+            // they survive in the diagnostics card and Insert again and Copy last can take them.
+            notInserted(NotInserted.afterWrite(insertion.refused, insertion.uncertain), engineId, cleaned, insertionTrace = inserter.lastTrace)
             return
         }
 
