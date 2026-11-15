@@ -325,6 +325,39 @@ class InsertionEngineTest {
         assertEquals(null, outcome.refused)
     }
 
+    @Test
+    fun `another app's field found at the write gets nothing, and nothing is copied`() {
+        // Focus went to another app's field after the check - an overlay that takes it.
+        val overlay = FakeTarget(packageName = "com.overlay", hasInputConnection = true)
+        val outcome = engine(overlay).insert(overlay, "see you tomorrow", expectedPackage = "com.whatsapp")
+
+        assertFalse(outcome.insertedIntoField)
+        assertFalse(outcome.copiedToClipboard)
+        assertEquals(TargetCheck.Verdict.MOVED, outcome.refused)
+        assertEquals("", overlay.text)
+        assertEquals(null, overlay.committed)
+        assertEquals(0, overlay.setTextCalls)
+        assertEquals(0, overlay.pasteCalls)
+        assertEquals(null, overlay.clipboardContent, "a field that took focus could read the clipboard")
+    }
+
+    @Test
+    fun `the expected app's field is written, whichever field of it`() {
+        val target = FakeTarget(packageName = "com.whatsapp", hasInputConnection = true)
+        val outcome = engine(target).insert(target, "see you tomorrow", expectedPackage = "com.whatsapp")
+
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(null, outcome.refused)
+    }
+
+    @Test
+    fun `with nothing focused the expected app changes nothing`() {
+        val outcome = engine(null).insert(null, "hallo", expectedPackage = "com.whatsapp")
+
+        assertFalse(outcome.insertedIntoField)
+        assertEquals(null, outcome.refused)
+    }
+
     // --- direct input, no clipboard ------------------------------------------------------
 
     @Test

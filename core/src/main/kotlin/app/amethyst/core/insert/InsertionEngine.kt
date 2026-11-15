@@ -109,12 +109,15 @@ class InsertionEngine(
     /**
      * [allowClipboard] false keeps every attempt off the clipboard: no paste, no copy as a
      * fallback. Users with a clipboard history would otherwise collect every dictation there.
+     * [expectedPackage]: the app the words are for ([TargetCheck.expectedPackage]); a [target]
+     * of another app is refused, as a password field always is ([TargetCheck.atWrite]).
      */
     fun insert(
         target: EditableTarget?,
         text: String,
         options: SpliceOptions = SpliceOptions(),
         allowClipboard: Boolean = true,
+        expectedPackage: String? = null,
     ): InsertionOutcome {
         val packageName = target?.packageName ?: UNKNOWN_PACKAGE
         var copied = false
@@ -130,7 +133,7 @@ class InsertionEngine(
 
         // The last look, at the field itself: whoever let the words through looked a moment
         // ago, and maybe at another field.
-        val verdict = TargetCheck.atWrite(secret = target.isSecret)
+        val verdict = TargetCheck.atWrite(expectedPackage, packageName, secret = target.isSecret)
         if (verdict != TargetCheck.Verdict.INSERT) {
             return InsertionOutcome(InsertionStrategy.CLIPBOARD_ONLY, false, false, packageName, refused = verdict)
         }

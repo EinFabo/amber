@@ -50,13 +50,63 @@ class TargetCheckTest {
     }
 
     @Test
-    fun `at the write a password field is refused, any other field written`() {
-        assertEquals(Verdict.SECRET, TargetCheck.atWrite(secret = true))
-        assertEquals(Verdict.INSERT, TargetCheck.atWrite(secret = false))
+    fun `started without a field, the field focused at the end is the user's choice - in the app that was in front`() {
+        assertEquals(Verdict.INSERT, TargetCheck.verdict(null, aliceChat, appAtStart = "com.whatsapp"))
     }
 
     @Test
-    fun `started without a field, the field focused at the end is the user's choice`() {
+    fun `started without a field, a field of another app gets nothing`() {
+        // Bubble shown everywhere: a field that took focus by itself meanwhile - an overlay's -
+        // is not the user's choice.
+        assertEquals(Verdict.MOVED, TargetCheck.verdict(null, aliceChat, appAtStart = "com.android.launcher"))
+    }
+
+    @Test
+    fun `started without a field and without knowing the app in front, there is nothing to hold a field against`() {
         assertEquals(Verdict.INSERT, TargetCheck.verdict(null, aliceChat))
+        assertEquals(Verdict.SECRET, TargetCheck.verdict(null, aliceChat.copy(kind = TextFieldKind.SECRET), appAtStart = "com.whatsapp"))
+    }
+
+    @Test
+    fun `the start field's app counts, not the app in front then`() {
+        // A field of the keyboard or of a dialog over the app: the field says whose it is.
+        assertEquals(Verdict.INSERT, TargetCheck.verdict(aliceChat, aliceChat.copy(windowId = 52), appAtStart = "com.other"))
+        assertEquals("com.whatsapp", TargetCheck.expectedPackage(aliceChat, appAtStart = "com.other"))
+        assertEquals("com.other", TargetCheck.expectedPackage(null, appAtStart = "com.other"))
+        assertEquals(null, TargetCheck.expectedPackage(null, appAtStart = null))
+    }
+
+    // --- the last look, at the field found for writing -----------------------------------
+
+    @Test
+    fun `at the write, another field of the same app is written`() {
+        // The relaxation of 2026-11-10 holds here too: only the app must be the same.
+        assertEquals(Verdict.INSERT, TargetCheck.atWrite("com.whatsapp", "com.whatsapp", secret = false))
+    }
+
+    @Test
+    fun `at the write, another app's field is refused`() {
+        assertEquals(Verdict.MOVED, TargetCheck.atWrite("com.whatsapp", "com.overlay", secret = false))
+        assertEquals(Verdict.MOVED, TargetCheck.atWrite("com.whatsapp", "unknown", secret = false))
+    }
+
+    @Test
+    fun `at the write, a password field is refused in any app`() {
+        assertEquals(Verdict.SECRET, TargetCheck.atWrite("com.bank", "com.bank", secret = true))
+        assertEquals(Verdict.SECRET, TargetCheck.atWrite(null, "com.bank", secret = true))
+        assertEquals(Verdict.SECRET, TargetCheck.atWrite("com.whatsapp", "com.bank", secret = true))
+    }
+
+    @Test
+    fun `at the write, a dictation started without a field goes into the app that was in front`() {
+        val expected = TargetCheck.expectedPackage(null, appAtStart = "com.whatsapp")
+
+        assertEquals(Verdict.INSERT, TargetCheck.atWrite(expected, "com.whatsapp", secret = false))
+        assertEquals(Verdict.MOVED, TargetCheck.atWrite(expected, "com.overlay", secret = false))
+    }
+
+    @Test
+    fun `at the write, with no app known any field that is no password field is written`() {
+        assertEquals(Verdict.INSERT, TargetCheck.atWrite(null, "com.whatsapp", secret = false))
     }
 }

@@ -62,12 +62,19 @@ class TextInserter(
     /**
      * Into the field that has focus - or, with [into], into that node: a field found again
      * after Android lost track of the focus ([refind]).
+     *
+     * The field is looked up here, after whoever calls has checked where the words may go -
+     * and it may be another one by now. So [expectedPackage] says whose field it must be
+     * ([TargetCheck.expectedPackage]); another app's, or a password field, gets nothing and
+     * the outcome says [InsertionOutcome.refused] - not inserted, not copied, the text kept
+     * by the caller for Insert again.
      */
     fun insert(
         text: String,
         options: SpliceOptions,
         allowClipboard: Boolean,
         into: AccessibilityNodeInfo? = null,
+        expectedPackage: String? = null,
     ): InsertionOutcome {
         val (target, trace) = if (into != null) {
             // No typing: without focus the input connection, if any, is not this field's.
@@ -75,7 +82,7 @@ class TextInserter(
         } else {
             resolveTarget()
         }
-        val outcome = engine.insert(target, text, options, allowClipboard)
+        val outcome = engine.insert(target, text, options, allowClipboard, expectedPackage)
 
         val refused = outcome.refused
         lastTrace = if (refused != null) "$trace → refused: ${refused.describe()}" else "$trace → ${outcome.strategy.name}" +

@@ -175,6 +175,9 @@ class DictationController(
      */
     private var startNode: AccessibilityNodeInfo? = null
 
+    /** The app in front at the start: where a dictation started without a field may end. */
+    private var startApp: String? = null
+
     /** The local engine that took over this dictation from an unreachable server, if any. */
     private var fellBack: String? = null
 
@@ -629,7 +632,7 @@ class DictationController(
             return false
         }
         val settings = graph.settings.value
-        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard)
+        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard, expectedPackage = target.packageName)
         Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
         remember(insertion)
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
@@ -1494,6 +1497,7 @@ class DictationController(
         val service = graph.accessibilityService
         startTarget = service?.focusedTarget()
         startNode = startTarget?.let { service?.textInserter?.inputFocus() }
+        startApp = service?.appInFront
     }
 
     private suspend fun deliver(
@@ -1532,7 +1536,7 @@ class DictationController(
         awaitFocusReturn()
 
         var now = graph.accessibilityService?.focusedTarget()
-        var verdict = TargetCheck.verdict(startTarget, now)
+        var verdict = TargetCheck.verdict(startTarget, now, startApp)
         // Android may say no field has focus while the field is still there: the screen went
         // off during a long recording, the app ended input with the keyboard. The start field's
         // own node is looked for again - never another field, which could be another chat's.
@@ -1547,7 +1551,7 @@ class DictationController(
                 inserter.focus(node)
                 delay(FOCUS_SETTLE_MS)
                 now = graph.accessibilityService?.focusedTarget()
-                verdict = TargetCheck.verdict(startTarget, now)
+                verdict = TargetCheck.verdict(startTarget, now, startApp)
                 if (verdict == TargetCheck.Verdict.NO_FIELD) {
                     refound = node
                     verdict = TargetCheck.Verdict.INSERT
@@ -1590,6 +1594,7 @@ class DictationController(
             settings.insertion.toSpliceOptions(),
             allowClipboard = settings.insertion.allowClipboard,
             into = refound,
+            expectedPackage = TargetCheck.expectedPackage(startTarget, startApp),
         )
         trace?.insertingEnds()
         Log.i(

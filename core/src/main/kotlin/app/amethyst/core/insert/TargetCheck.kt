@@ -39,25 +39,43 @@ object TargetCheck {
         SECRET,
     }
 
-    fun verdict(start: InputTarget?, now: InputTarget?): Verdict {
+    /**
+     * [appAtStart]: the app in front when the dictation started, for one started without a
+     * field (bubble shown everywhere). The field focused at the end is then the one the user
+     * chose - in that app. In another one it may be a field that took focus by itself, an
+     * overlay's, and the words stay out.
+     */
+    fun verdict(start: InputTarget?, now: InputTarget?, appAtStart: String? = null): Verdict {
         if (now == null) return Verdict.NO_FIELD
         if (now.kind == TextFieldKind.SECRET) return Verdict.SECRET
-        // Started without a field (bubble shown everywhere): the field focused at the end is
-        // the one the user chose.
-        if (start == null) return Verdict.INSERT
-        if (now.packageName != start.packageName) return Verdict.MOVED
+        val expected = expectedPackage(start, appAtStart) ?: return Verdict.INSERT
+        if (now.packageName != expected) return Verdict.MOVED
         return Verdict.INSERT
     }
+
+    /**
+     * The one app a dictation's words may go into: the start field's, else - started without
+     * a field - the app that was in front then. Null when neither is known: any app's field,
+     * there is nothing to hold it against.
+     */
+    fun expectedPackage(start: InputTarget?, appAtStart: String?): String? = start?.packageName ?: appAtStart
 
     /**
      * The last word, on the field that is about to be written. [verdict] is given for the
      * field Android names; the write then looks its field up again, by more ways than the
      * check has (the input connection, a search of the windows), and what it finds may be
      * another one: focus moved in between, or the check could not see what the field is.
-     * [secret]: that field is a password field. It gets nothing, by no method, and nothing
-     * goes to the clipboard - the words stay with the dictation, for Insert again.
+     * So what [verdict] asked of the one is asked again of the other: not a password field
+     * ([secret]), and [expectedPackage]'s ([expectedPackage] null: any app's). Which field of
+     * that app, and in which window, is as free here as there. A field that fails gets
+     * nothing, by no method, and nothing goes to the clipboard - a field that took focus by
+     * itself could read it there; the words stay with the dictation, for Insert again.
      */
-    fun atWrite(secret: Boolean): Verdict = if (secret) Verdict.SECRET else Verdict.INSERT
+    fun atWrite(expectedPackage: String?, targetPackage: String, secret: Boolean): Verdict = when {
+        secret -> Verdict.SECRET
+        expectedPackage != null && targetPackage != expectedPackage -> Verdict.MOVED
+        else -> Verdict.INSERT
+    }
 
     /**
      * The same, but the field itself must be the one from the start: same window, same field id
