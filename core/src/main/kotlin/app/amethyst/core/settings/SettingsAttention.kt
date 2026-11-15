@@ -1,5 +1,6 @@
 package app.amethyst.core.settings
 
+import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 
@@ -14,6 +15,9 @@ sealed interface Attention {
 
     /** Amber [version] is out and this build can get it under Updates. */
     data class Update(val version: String) : Attention
+
+    /** The cleanup did not run and will not until the user puts [trouble] right ([CleanupTrouble]). */
+    data class Cleanup(val trouble: CleanupTrouble.Open) : Attention
 }
 
 /**
@@ -33,12 +37,20 @@ object SettingsAttention {
 
     /**
      * The one thing to point at, or null. Reliability comes first: it decides whether a
-     * dictation works, and the release is still there afterwards. A release counts as Home's
+     * dictation works, and the release is still there afterwards. Then a cleanup that does not
+     * run ([cleanup], until one succeeds again): the text goes in as heard meanwhile. A release counts as Home's
      * card does ([UpdatePolicy.forHome]): not on a build that gets its updates elsewhere, not
      * while the check is off, not a version the user dismissed. [channel] is null until known.
      */
-    fun of(reliabilityOpen: List<ReliabilityItem>, channel: ReleaseChannel?, updates: UpdateSettings, installed: String): Attention? = when {
+    fun of(
+        reliabilityOpen: List<ReliabilityItem>,
+        channel: ReleaseChannel?,
+        updates: UpdateSettings,
+        installed: String,
+        cleanup: CleanupTrouble.Open? = null,
+    ): Attention? = when {
         reliabilityOpen.isNotEmpty() -> Attention.Reliability(reliabilityOpen)
+        cleanup != null -> Attention.Cleanup(cleanup)
         else -> channel?.let { UpdatePolicy.forHome(it, updates, installed) }?.let { Attention.Update(it.version) }
     }
 }

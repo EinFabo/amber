@@ -1541,6 +1541,7 @@ class DictationController(
                 graph.saveEstimates()
                 trace?.cleanupModel = cleanup.model
                 trace?.cleanupEngineId = choice.engineId
+                graph.cleanupTrouble.succeeded()
                 transcript.copy(
                     text = cleaned.text,
                     formatted = true,
@@ -1552,6 +1553,16 @@ class DictationController(
                 trace?.cleanup = "cleanup skipped: ${Texts.failure(english, error)}"
                 // The error's own text may quote the model's reply, i.e. the dictation.
                 Log.w(TAG, "cleanup failed: ${(error as? SttFailure)?.technical?.let { Anonymize.line(it, listOf(transcript.text)).take(80) } ?: error.javaClass.simpleName}")
+                // A refused key, no credit, an unknown model: said once a session, and on top
+                // of Settings until a cleanup runs again. Anything else stays silent.
+                (error as? SttFailure)?.problem?.let { problem ->
+                    val service = settings.engines.firstOrNull { it.id == choice.engineId }?.displayName ?: choice.engineId
+                    graph.cleanupTrouble.failed(problem, service, cleanup.model)?.let { open ->
+                        mainHandler.post {
+                            Toast.makeText(context, context.getString(R.string.toast_cleanup_did_not_run, Texts.cleanupTrouble(context, open)), Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
                 transcript
             },
         )

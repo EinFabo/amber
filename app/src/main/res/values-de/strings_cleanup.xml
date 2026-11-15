@@ -114,4 +114,9 @@
         <item quantity="one">%d Diktat</item>
         <item quantity="other">%d Diktate</item>
     </plurals>
+    <string name="toast_cleanup_did_not_run">Bereinigung lief nicht - %1$s</string>
+    <string name="cleanup_trouble_key">API-Schlüssel von %1$s abgelehnt</string>
+    <string name="cleanup_trouble_credit">Kein Guthaben mehr bei %1$s</string>
+    <string name="cleanup_trouble_model">Modell %1$s unbekannt</string>
+    <string name="attention_cleanup">Bereinigung lief nicht</string>
 </resources>

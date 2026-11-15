@@ -47,6 +47,7 @@ import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.SettingsAttention
+import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
@@ -102,12 +103,14 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     onOpen: (SettingsPage) -> Unit,
     modifier: Modifier = Modifier,
+    /** A cleanup that does not run until something is put right ([app.amethyst.core.text.CleanupTrouble]). */
+    cleanupTrouble: CleanupTrouble.Open? = null,
 ) {
     val engine = settings.activeEngine
     val trust = engine?.trustLevelForDisplay()
     val reliability = SettingsAttention.reliabilityOpen(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted)
     val reliabilityOpen = reliability.size
-    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version)
+    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, cleanupTrouble)
     val advanced = settings.ui.advanced
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null

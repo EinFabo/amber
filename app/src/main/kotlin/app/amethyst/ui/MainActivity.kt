@@ -522,6 +522,7 @@ private fun AmethystScreens(
     val nudge = RealAppNudges.of(statList, settings.stats.keep, setup.ready && settings.bubble.enabled, installedApps)
     // Home's "Last dictation" while it is kept: looked at again with every dictation, every
     // change of what is kept, and every half minute - so it goes when its ten minutes are up.
+    val cleanupTrouble by graph.cleanupTrouble.open.collectAsStateWithLifecycle()
     val records by graph.dictationLog.records.collectAsStateWithLifecycle()
     val keptChanges by graph.keptDictation.changes.collectAsStateWithLifecycle()
     val lastDictation by produceState<String?>(null, records, keptChanges) {
@@ -715,6 +716,7 @@ private fun AmethystScreens(
                         onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
                         onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
                         onOpen = { page -> open(Screen.Page(page)) },
+                        cleanupTrouble = cleanupTrouble,
                     )
 
                     is Screen.Page -> {

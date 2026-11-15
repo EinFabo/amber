@@ -92,7 +92,11 @@ RETRY_REASONS = [
     "problem_server_error", "problem_service_down", "problem_rate_limited", "problem_address_not_found",
     "problem_answer_unreadable", "problem_model_not_on_server", "problem_no_api_key",
 ]
-COMPOSED = {"toast_try_again": RETRY_REASONS}
+COMPOSED = {
+    "toast_try_again": RETRY_REASONS,
+    # The cleanup that did not run, with what stands in its way (Texts.cleanupTrouble).
+    "toast_cleanup_did_not_run": ["cleanup_trouble_key", "cleanup_trouble_credit", "cleanup_trouble_model"],
+}
 
 
 def shown(text):

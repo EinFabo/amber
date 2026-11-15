@@ -114,4 +114,9 @@
         <item quantity="one">%d dictation</item>
         <item quantity="other">%d dictations</item>
     </plurals>
+    <string name="toast_cleanup_did_not_run">Cleanup did not run - %1$s</string>
+    <string name="cleanup_trouble_key">%1$s key refused</string>
+    <string name="cleanup_trouble_credit">No credit left at %1$s</string>
+    <string name="cleanup_trouble_model">Model %1$s unknown</string>
+    <string name="attention_cleanup">Cleanup did not run</string>
 </resources>

@@ -22,6 +22,7 @@ import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
 import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.settings.WritingStyle
+import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.update.Ago
 import app.amethyst.core.update.LastCheck
 import app.amethyst.core.update.UpdateSummary
@@ -101,6 +102,16 @@ object Texts {
             Problem.RecognitionFailed -> getString(R.string.problem_recognition_failed)
         }
     }
+
+    /** What keeps the cleanup from running, in a few words: "Groq key refused". */
+    fun cleanupTrouble(context: Context, open: CleanupTrouble.Open): String = context.getString(
+        when (open.cause) {
+            CleanupTrouble.Cause.KEY_REFUSED -> R.string.cleanup_trouble_key
+            CleanupTrouble.Cause.NO_CREDIT -> R.string.cleanup_trouble_credit
+            CleanupTrouble.Cause.UNKNOWN_MODEL -> R.string.cleanup_trouble_model
+        },
+        catalog(context, open.name),
+    )
 
     /** What went wrong with [error]: its [Problem] when it is a dictation failure, else a plain "failed". */
     fun failure(context: Context, error: Throwable): String =

@@ -9,6 +9,7 @@ import app.amethyst.apps.LauncherList
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.dictation.KeptDictation
+import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineRouting
@@ -228,6 +229,9 @@ class Graph(app: Application) {
      * ([KeptDictation.keeping], [KeptDictation.clear]). On the clock of [dictationLog]'s records.
      */
     val keptDictation = KeptDictation({ System.currentTimeMillis() })
+
+    /** A cleanup that will not run until the user puts something right, for a toast and the row on top of Settings. */
+    val cleanupTrouble = CleanupTrouble()
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)
