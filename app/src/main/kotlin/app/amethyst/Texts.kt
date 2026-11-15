@@ -14,6 +14,7 @@ import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.EngineName
+import app.amethyst.core.onboarding.RealAppNudge
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.RecognitionRows
@@ -329,6 +330,10 @@ object Texts {
         ModelDownload.WaitingForWifi -> context.getString(R.string.download_waiting_for_wifi)
         ModelDownload.Retrying -> context.getString(R.string.download_retrying)
     }
+
+    /** "Open WhatsApp and tap a text field - the bubble appears there", or any app. */
+    fun realAppNudge(context: Context, nudge: RealAppNudge): String =
+        nudge.appName?.let { context.getString(R.string.nudge_app, it) } ?: context.getString(R.string.nudge_any_app)
 
     /** What a dictation started during the download is told. */
     fun downloadAtStart(context: Context, download: ModelDownload): String =

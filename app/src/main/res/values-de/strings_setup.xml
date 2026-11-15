@@ -114,6 +114,8 @@
     <string name="wanted_downloading">Das Sprachmodell wird geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="wanted_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="wanted_stopped">Das Sprachmodell ist noch nicht geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="nudge_app">Öffne %1$s und tippe in ein Textfeld - dort erscheint die Bubble.</string>
+    <string name="nudge_any_app">Öffne irgendeine App und tippe in ein Textfeld - dort erscheint die Bubble.</string>
     <string name="small_first_downloading">Zuerst kommt ein kleines Sprachmodell (%1$s) - sobald es da ist, kannst du diktieren. Das bessere folgt im WLAN und übernimmt von selbst.</string>
     <string name="small_first_wifi">Das kleine Sprachmodell (%1$s) wird im WLAN geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="small_first_retrying">Der Download des kleinen Sprachmodells wurde unterbrochen und geht von selbst weiter - sobald es da ist, kannst du diktieren.</string>

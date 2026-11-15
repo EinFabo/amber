@@ -187,7 +187,13 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
  * with one line on what happens until then ([PendingModelNote]).
  */
 @Composable
-internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pending: PendingModel?, onFinish: () -> Unit) {
+internal fun DoneStep(
+    settings: AmethystSettings,
+    download: ModelDownload?,
+    pending: PendingModel?,
+    nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
+    onFinish: () -> Unit,
+) {
     val rows = rememberRowsIn(6)
     // A model still on its way - also in the moment before its first byte - shows on the bubble's rim.
     val downloaded = if (pending == null) DownloadNotice.share(download) else DownloadNotice.share(pending.download) ?: 0f.takeIf { pending.download == null && !pending.failed }
@@ -197,6 +203,15 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pend
         top = { DoneOrb(downloaded) },
         buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },
     ) {
+        // What to do next, first: a real app, the bubble in its field - above the summary, not under the fold.
+        if (nudge != null) {
+            Text(
+                Texts.realAppNudge(LocalContext.current, nudge),
+                style = MaterialTheme.typography.bodyLarge,
+                color = AmberPalette.Primary,
+                modifier = Modifier.rowIn(rows, 0),
+            )
+        }
         // By the name the engine step gave it, not the one Settings lists it under.
         Chosen(
             stringResource(R.string.settings_recognition),

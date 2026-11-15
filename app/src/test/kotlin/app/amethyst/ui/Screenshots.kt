@@ -723,6 +723,7 @@ open class Screenshots {
         download: app.amethyst.core.engine.ModelDownload? = null,
         bubbleEvents: List<app.amethyst.core.bubble.BubbleEvent> = emptyList(),
         pending: PendingModel? = null,
+        nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
     ) = OnboardingContent(
         phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
         metered = metered,
@@ -738,6 +739,7 @@ open class Screenshots {
         cleanup = noKeys,
         bubbleEvents = kotlinx.coroutines.flow.flowOf(*bubbleEvents.toTypedArray()),
         pending = pending,
+        nudge = nudge,
     )
 
     private fun onboarding(
@@ -986,7 +988,7 @@ open class Screenshots {
     /** The quick way's last step: what was decided, and one line on the small model coming first. */
     @Test
     fun onboardingQuickDone() = onboarding(
-        "q5-done", OnboardingStep.DONE, ready, quick, content(download = smallRunning, pending = smallPending(smallRunning)), OnboardingPath.QUICK,
+        "q5-done", OnboardingStep.DONE, ready, quick, content(download = smallRunning, pending = smallPending(smallRunning), nudge = app.amethyst.core.onboarding.RealAppNudge("WhatsApp")), OnboardingPath.QUICK,
     )
 
     /** On mobile data, once the small model came: Parakeet waits for Wi-Fi, with the way to start it anyway. */
@@ -1024,6 +1026,30 @@ open class Screenshots {
             onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
             pending = smallPending(smallRunning),
+        )
+    }
+
+    /** Not part of the listing set: Home after the introduction, nothing dictated into another app yet. */
+    @Test
+    fun homeNudge() = shoot("x-home-nudge", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = quickSmallReady.copy(onboardingDone = true),
+            dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            nudge = app.amethyst.core.onboarding.RealAppNudge("WhatsApp"),
+        )
+    }
+
+    /** The same on a phone without a known app. */
+    @Test
+    fun homeNudgeAnyApp() = shoot("x-home-nudge-any-app", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = quickSmallReady.copy(onboardingDone = true),
+            dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            nudge = app.amethyst.core.onboarding.RealAppNudge(null),
         )
     }
 

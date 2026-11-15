@@ -101,6 +101,8 @@ fun HomeScreen(
     onDismissUpdate: (UpdateNotice) -> Unit = {},
     /** A model the first run still fetches for this phone: the small one that stands in, or the better one after it. */
     pending: PendingModel? = null,
+    /** Until the first dictation into another app: where to try the bubble for real. */
+    nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
 ) {
     val testField = remember { FocusRequester() }
 
@@ -135,7 +137,7 @@ fun HomeScreen(
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
-        OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine)
+        OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine, nudge)
 
         if (settings.stats.keep) TodayRow(stats, onOpenStats)
 
@@ -157,6 +159,7 @@ private fun OrbArea(
     onInstallLanguage: () -> Unit,
     onUseLocalWhisper: () -> Unit,
     onOpenActiveEngine: () -> Unit,
+    nudge: app.amethyst.core.onboarding.RealAppNudge?,
 ) {
     val dictation by dictationState.collectAsStateWithLifecycle()
     val running = dictation !is DictationState.Idle &&
@@ -193,6 +196,16 @@ private fun OrbArea(
             onUseLocalWhisper = onUseLocalWhisper,
             onOpenActiveEngine = onOpenActiveEngine,
         )
+        // Hidden while a dictation runs: the line above says what happens then.
+        if (nudge != null && !running) {
+            Text(
+                Texts.realAppNudge(LocalContext.current, nudge),
+                style = MaterialTheme.typography.bodyMedium,
+                color = AmberPalette.Primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
     }
 }
 

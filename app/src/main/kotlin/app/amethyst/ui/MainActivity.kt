@@ -68,6 +68,7 @@ import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.FirstRun
+import app.amethyst.core.onboarding.RealAppNudges
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
@@ -497,6 +498,11 @@ private fun AmethystScreens(
     }
     val apps = remember(context) { AndroidAppSource(context) }
     val appUsage = remember(statList) { AppChoice.usage(statList) }
+    // The apps on the phone, read once off the main thread, for the line that names one of them.
+    val installedApps by produceState<Map<String, String>?>(null, apps) {
+        value = runCatching { apps.all() }.getOrDefault(emptyList()).associate { it.packageName to it.label }
+    }
+    val nudge = RealAppNudges.of(statList, settings.stats.keep, setup.ready && settings.bubble.enabled, installedApps)
 
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
@@ -617,6 +623,7 @@ private fun AmethystScreens(
                                 // No way from the introduction to a server's own page.
                                 cleanup = introductionCleanup,
                                 pending = pending,
+                                nudge = nudge,
                             ),
                             onStep = { step = it },
                             onFinish = {
@@ -648,6 +655,7 @@ private fun AmethystScreens(
                         stats = stats,
                         download = download,
                         pending = pending,
+                        nudge = nudge,
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

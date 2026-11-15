@@ -114,7 +114,7 @@ fun OnboardingScreen(
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
                 OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
-                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, onFinish)
+                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, content.nudge, onFinish)
             }
         }
     }
@@ -151,6 +151,8 @@ class OnboardingContent(
     val cleanup: CleanupAccess,
     /** The recognition chosen for this phone that still waits for its model, for the last step. */
     val pending: PendingModel? = null,
+    /** Where to try the bubble for real, for the last step; null once a dictation went into another app. */
+    val nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
 )
 
 /** "Step 4 of 10" between Back and Skip - no number on the welcome step, where the way is chosen. */
