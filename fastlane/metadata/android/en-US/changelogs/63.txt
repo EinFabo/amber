@@ -1,0 +1,5 @@
+- Settings: one Apps page (style and hidden bubble per app), a Text page, About Amber
+- Dictation: Android's speech recognition no longer hangs; the power button ends a recording; clearer messages when a server's model is gone or the microphone is taken
+- First start: a speech model that is still wanted is fetched again after a restart; downloads resume
+- Typing: space and capital also between two dictations in apps like Claude
+- Targets Android 16; privacy and security fixes from a review

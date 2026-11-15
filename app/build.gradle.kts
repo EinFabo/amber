@@ -38,8 +38,8 @@ android {
         applicationId = "app.amber"
         minSdk = 28
         targetSdk = 36
-        versionCode = 62
-        versionName = "0.34.0-rc1"
+        versionCode = 63
+        versionName = "0.34.0-rc2"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the

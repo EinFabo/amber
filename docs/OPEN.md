@@ -651,6 +651,13 @@ with the release key, the enclave path solid. Each finding was checked against t
       between list items and main clauses and keeps them where they may close a clause, an
       apposition or an insertion (`GermanCommas.dropBeforeJoiners`). Open: watch real dictations
       for commas it should have kept.
+- [ ] **Later: a subscription with Amber's own endpoint** (Fabi, 2026-11-15): Amber forwards
+      to Tinfoil or OpenAI under its own key, so nobody needs a key of their own; with a
+      free allowance, a new install could dictate at once while its model downloads. Needs:
+      a small server (accounts or device tokens, quotas, abuse limits), payments (Play
+      billing on Play, something else on GitHub/F-Droid - and F-Droid then lists NonFreeNet
+      for the default path), a privacy policy that names Amber's server as a recipient, and
+      the "can't see your data" claim only if the forwarding runs in an enclave too.
 - [ ] **Later** (Fabi, 2026-11-06): Tinfoil outreach mail and a Tinfoil referral/kickback;
       a subscription where Fabi hosts the servers with a "can't see your data" guarantee; a phone
       remote-control mode (AI fills forms, presses buttons) built on today's voice commands.

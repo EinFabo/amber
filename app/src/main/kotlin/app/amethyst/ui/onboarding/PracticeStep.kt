@@ -48,6 +48,7 @@ import app.amethyst.ui.Hint
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.screen.fieldColors
+import app.amethyst.ui.PendingModelNote
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
@@ -125,6 +126,9 @@ internal fun PracticeStep(
                 PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
                 else -> Unit
             }
+            // The model for this phone is still on its way: said here with its progress, so a
+            // tap on the bubble that cannot recognize yet is no surprise (Fabi, 2026-11-15).
+            content.pending?.let { PendingModelNote(it, progress = true) }
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 PracticeTask.entries.forEach { task ->
                     TaskRow(
