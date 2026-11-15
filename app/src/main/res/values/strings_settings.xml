@@ -47,11 +47,13 @@
     <string name="own_words_full">%1$d of %2$d - the list is full. Tap a word to remove it.</string>
     <string name="own_words_remove">Remove %1$s</string>
     <string name="text_words">Words and commas</string>
-    <string name="text_words_more">Both work by rules, without a language model, so nothing is made up. The commas go before \"dass\", \"weil\", \"wenn\" or \"um ... zu\", where recognition often leaves them out - they never change a word.</string>
+    <string name="text_words_more">All of it works by rules, without a language model, so nothing is made up. The commas go before \"dass\", \"weil\", \"wenn\" or \"um ... zu\", where recognition often leaves them out - they never change a word. Spoken punctuation knows comma, period or full stop, question mark, exclamation mark, colon, new line and new paragraph - in German Komma, Punkt, Fragezeichen, Ausrufezeichen, Doppelpunkt, neue Zeile and neuer Absatz -, each in a dictation of its language. Where the word belongs to the sentence (\"a comma is missing\", \"Punkt zwölf\") it stays a word.</string>
     <string name="text_fillers">Remove filler words</string>
     <string name="text_fillers_note">\"ähm\", \"äh\", \"um\" and the like</string>
     <string name="text_commas">Add missing commas</string>
     <string name="text_commas_note">German only</string>
+    <string name="text_spoken">Spoken punctuation</string>
+    <string name="text_spoken_note">Say \"comma\", \"period\", \"new line\" - in German \"Komma\", \"Punkt\", \"neue Zeile\"</string>
     <string name="text_inserting">Inserting</string>
     <string name="recording_while_speaking">Recognize while speaking</string>
     <string name="recording_while_speaking_more">Longer dictations are cut at pauses and recognized while you keep talking, so stopping only waits for the last part.</string>

@@ -47,11 +47,13 @@
     <string name="own_words_full">%1$d von %2$d - die Liste ist voll. Tippe auf ein Wort, um es zu entfernen.</string>
     <string name="own_words_remove">%1$s entfernen</string>
     <string name="text_words">Wörter und Kommas</string>
-    <string name="text_words_more">Beides arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort.</string>
+    <string name="text_words_more">Alles hier arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort. Gesprochene Satzzeichen kennen Komma, Punkt, Fragezeichen, Ausrufezeichen, Doppelpunkt, neue Zeile und neuer Absatz - auf Englisch comma, period oder full stop, question mark, exclamation mark, colon, new line und new paragraph -, jeweils in einem Diktat dieser Sprache. Wo das Wort zum Satz gehört („da fehlt ein Komma“, „Punkt zwölf“), bleibt es ein Wort.</string>
     <string name="text_fillers">Füllwörter entfernen</string>
     <string name="text_fillers_note">„ähm“, „äh“ und Ähnliches</string>
     <string name="text_commas">Fehlende Kommas setzen</string>
     <string name="text_commas_note">Nur Deutsch</string>
+    <string name="text_spoken">Gesprochene Satzzeichen</string>
+    <string name="text_spoken_note">Sag „Komma“, „Punkt“, „neue Zeile“ - auf Englisch „comma“, „period“, „new line“</string>
     <string name="text_inserting">Einfügen</string>
     <string name="recording_while_speaking">Beim Sprechen erkennen</string>
     <string name="recording_while_speaking_more">Längere Diktate werden an Pausen geteilt und erkannt, während du weitersprichst - beim Stoppen wartest du nur noch auf den letzten Teil.</string>

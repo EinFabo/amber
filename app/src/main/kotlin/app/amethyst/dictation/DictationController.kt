@@ -1507,7 +1507,7 @@ class DictationController(
     ) {
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
-            settings.capture.toNormalizeOptions(),
+            settings.normalizeOptions(),
             language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
             // Whether the field takes them is decided at insertion (InsertionEngine).
             keepLineBreaks = transcript.formatted,

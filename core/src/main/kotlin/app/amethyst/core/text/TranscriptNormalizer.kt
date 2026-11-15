@@ -88,15 +88,31 @@ object TranscriptNormalizer {
         val german = GermanCommas.isGerman(language, spaced)
         // "um" and "eh" are words in German: dropped only where the text is plainly English.
         val english = !german && GermanCommas.isEnglish(language, spaced)
-        val lines = if (keepLineBreaks) text.split('\n') else listOf(text)
+        // Marks said as words, in the dictation's language. A raw transcript's own line breaks
+        // never count ([spaced]); the spoken ones do, as a cleanup's do.
+        var breaks = keepLineBreaks
+        var spokenEnd: Char? = null
+        if (options.spokenPunctuation && (german || english)) {
+            val base = if (keepLineBreaks) text else spaced
+            val spoken = SpokenPunctuation.apply(base, german)
+            if (spoken.text != base) {
+                text = spoken.text
+                breaks = keepLineBreaks || spoken.lineBreaks
+                spokenEnd = spoken.trailing
+            }
+        }
+        val lines = if (breaks) text.split('\n') else listOf(text)
 
         text = lines.joinToString("\n") { line -> tidyLine(line, options, german, english) }
-        text = if (keepLineBreaks) {
+        text = if (breaks) {
             text.replace(SPACES_AROUND_BREAK, "\n").replace(BLANK_LINES, "\n\n").trim('\n', ' ')
         } else {
             text
         }
-        return text.trim(*TRIM_CHARS)
+        val out = text.trim(*TRIM_CHARS)
+        // A comma or colon said at the very end was meant ("Liebe Anna Komma"): the next
+        // dictation goes on after it. One the recognizer left there still goes.
+        return if (spokenEnd != null && out.isNotEmpty() && !out.endsWith(spokenEnd)) out + spokenEnd else out
     }
 
     /** One line: fillers, spacing, punctuation, German commas. */
@@ -151,4 +167,9 @@ data class NormalizeOptions(
      * "und"; see [GermanCommas].
      */
     val germanCommas: Boolean = true,
+    /**
+     * "Komma", "neue Zeile", "comma", "new line" become the marks ([SpokenPunctuation]). Off by
+     * default here; the setting ([app.amethyst.core.settings.WordsSettings]) is on by default.
+     */
+    val spokenPunctuation: Boolean = false,
 )

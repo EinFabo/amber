@@ -299,6 +299,10 @@ data class AmethystSettings(
     val activeEngine: EngineConfig?
         get() = engines.firstOrNull { it.id == activeEngineId }
 
+    /** How a dictation's text is tidied: the capture's rules and the spoken punctuation. */
+    fun normalizeOptions(): NormalizeOptions =
+        capture.toNormalizeOptions().copy(spokenPunctuation = words.spokenPunctuation)
+
     /**
      * Whether voice commands work - the one place to ask, never [commands] directly: off while
      * the feature is out of the build ([Features.VOICE_COMMANDS]), whatever was stored.
@@ -614,6 +618,11 @@ data class WordsSettings(
      * Whisper's and a server's prompt and the cleanup get them; see [OwnWords].
      */
     val own: List<String> = emptyList(),
+    /**
+     * Punctuation said as a word becomes the mark ([app.amethyst.core.text.SpokenPunctuation]);
+     * on by default, also for settings from before it.
+     */
+    val spokenPunctuation: Boolean = true,
 ) {
     /** The prompt for a speech recognition, or null without words. */
     fun hint(): String? = OwnWords.hint(own)

@@ -74,6 +74,14 @@ fun TextScreen(
                     onUpdateSettings { it.copy(capture = it.capture.copy(germanCommas = value)) }
                 },
             )
+            ToggleRow(
+                label = stringResource(R.string.text_spoken),
+                description = stringResource(R.string.text_spoken_note),
+                checked = settings.words.spokenPunctuation,
+                onChange = { value ->
+                    onUpdateSettings { it.copy(words = it.words.copy(spokenPunctuation = value)) }
+                },
+            )
         }
         SectionCard(
             title = stringResource(R.string.text_inserting),
