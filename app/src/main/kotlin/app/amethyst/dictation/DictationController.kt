@@ -46,6 +46,7 @@ import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.dictation.BubbleTap
+import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.dictation.RunStop
 import app.amethyst.core.dictation.ScreenOff
 import app.amethyst.core.engine.ChunkedTranscription
@@ -185,6 +186,13 @@ class DictationController(
     /** How far the wait after this run's recording has come, for the progress ring. */
     @Volatile
     private var wait: WaitProgress? = null
+
+    /** This dictation's recording once it is complete - what "Try again" gets, should recognition fail. */
+    @Volatile
+    private var runAudio: PcmAudio? = null
+
+    /** What is kept of a failed dictation for "Try again"; see [KeptDictation]. */
+    private val kept: KeptDictation get() = graph.keptDictation
 
     /** The engine that failed when [fellBack] took over. */
     private var fellBackFrom: String? = null
@@ -659,11 +667,15 @@ class DictationController(
         return true
     }
 
-    /** [token]: this run's, from [RunStop.begin] - what it may clear when it ends. */
-    private suspend fun run(source: TriggerSource, token: Int) {
-        _state.value = DictationState.Starting
+    /**
+     * [token]: this run's, from [RunStop.begin] - what it may clear when it ends. [retry]: the
+     * kept recording to recognize again ([tryAgain]) instead of recording.
+     */
+    private suspend fun run(source: TriggerSource, token: Int, retry: PcmAudio? = null) {
+        _state.value = if (retry == null) DictationState.Starting else DictationState.Transcribing()
         val pause = RecordingPause().also { recordingPause = it }
         wait = null
+        runAudio = null
         stoppedByTap = false
         commandSteps = null
         commandRecorded = false
@@ -705,18 +717,32 @@ class DictationController(
             // has ended, what that recording can still need ([RunLimit]).
             val limit = RunLimit(settings.capture.effectiveTotalTimeoutMs(), pause, SystemClock::elapsedRealtime).also { runLimit = it }
             val finished = withPausableTimeout(limit) {
-                val transcript = when (engine) {
-                    is SelfCapturingSttEngine -> listenWithEngine(engine, options, limit)
-                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels, pause, limit)
+                val estimateKey = "${engineConfig.id}/${engineConfig.modelId}"
+                val transcript = when {
+                    // Android's recognizer listens by itself: it cannot take the kept recording,
+                    // which stays kept for another speech recognition.
+                    retry != null && engine is SelfCapturingSttEngine -> {
+                        runAudio = retry
+                        failRecognition(
+                            SttFailure(Problem.RecordsByItself(engineConfig.displayName), "the kept recording cannot go to a recognizer that records by itself"),
+                            details = emptyList(),
+                        )
+                        null
+                    }
+                    retry != null -> recognizeKept(engine, options, retry, estimateKey, appLabels, limit)
+                    engine is SelfCapturingSttEngine -> listenWithEngine(engine, options, limit)
+                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit)
                 } ?: return@withPausableTimeout Unit // the failure was already reported
 
                 if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else scratched(transcript, settings)?.let { deliver(cleanUp(it), settings, engineConfig.id) } ?: Unit
             }
 
             if (finished == null) {
+                val keptNow = keepForRetry(null)
                 fail(
                     say(R.string.dictation_timed_out),
                     engineConfig.id,
+                    brief = say(if (keptNow) R.string.toast_timed_out_try_again else R.string.dictation_timed_out),
                     details = listOf("stopped: the run's time limit of ${limit.limitMs} ms ran out"),
                 )
             }
@@ -951,98 +977,210 @@ class DictationController(
                 if (command) chunked?.cancelAndJoin()
                 // A command is heard by its engine alone; nothing prepared stands in for it.
                 if (command) prepared?.chunks?.cancelAndJoin()
-                val ready = prepared.takeUnless { command }
-                val chunking = !command && chunked != null && outcome.chunks > 0
-                // What is left to recognize after the stop: with chunks, only the unfinished
-                // ones and the tail.
-                val pendingMs = if (chunking) {
-                    chunked!!.pendingAudioMs + (outcome.tail?.durationMs ?: 0L)
-                } else {
-                    outcome.audio.durationMs
-                }
-                val caps = engine.capabilities
-                val coldModel = trace?.modelWarm == false
-                val overheadMs = caps.overheadMs + if (coldModel) MODEL_LOAD_MS else 0L
-                val estimate = graph.recognitionEstimate
-                val server = engine is OpenAiCompatibleEngine
-                val uploadKey = "upload/$estimateKey"
-                val recognizeMs = estimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
-                val uploadMs = if (server) estimate.expectedMs(uploadKey, outcome.audio.durationMs, UPLOAD_RATE, 0) else 0L
-                val cleanupMs = if (command) null else expectedCleanupMs(graph.settings.value, (outcome.audio.durationMs * CHARS_PER_AUDIO_MS).toLong(), fellBackFrom = null)
-                // One ring from the release to the text in the field: upload, recognition, cleanup.
-                val wait = WaitProgress(SystemClock::elapsedRealtime).also { this.wait = it }
-                wait.plan(
-                    *listOfNotNull(
-                        (WaitProgress.Step.UPLOAD to uploadMs).takeIf { server },
-                        WaitProgress.Step.RECOGNIZE to recognizeMs,
-                        cleanupMs?.let { WaitProgress.Step.CLEANUP to it },
-                    ).toTypedArray(),
-                )
-                // The bytes sent fill the upload's share; once they are out, the server recognizes.
-                val uploadFrom = AtomicLong(0)
-                val uploadTo = AtomicLong(0)
-                val serverOptions = if (!server) options else options.copy(
-                    onUpload = { sent, total ->
-                        uploadFrom.compareAndSet(0, SystemClock.elapsedRealtime())
-                        if (total > 0) wait.report(WaitProgress.Step.UPLOAD, sent.toFloat() / total)
-                        if (total in 1..sent) {
-                            uploadTo.compareAndSet(0, SystemClock.elapsedRealtime())
-                            wait.begin(WaitProgress.Step.RECOGNIZE)
-                        }
-                    },
-                )
-                // Each chunk done is a real step of the recognition.
-                if (chunking && pendingMs > 0) {
-                    chunked!!.onChunkDone = { left -> wait.report(WaitProgress.Step.RECOGNIZE, 1f - left.toFloat() / pendingMs, upTo = 1f) }
-                }
-                _state.value = DictationState.Transcribing(wait)
-                trace?.transcribingStarts()
-                trace?.connection = connectionWarmUp?.describe()
-                val startedAt = SystemClock.elapsedRealtime()
-                var passes = 1
-                var tookOver: ReadyFallback.Outcome.Local? = null
-                val result = when {
-                    chunking -> chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
-                    command -> recognizeCommand(engine, outcome.audio, options, appLabels).also { passes = it.passes }.result
-                    ready != null -> when (val race = raceWithPrepared(engine, serverOptions, outcome, ready, uploadMs + recognizeMs)) {
-                        is ReadyFallback.Outcome.Server -> race.result
-                        is ReadyFallback.Outcome.Local -> Result.success(race.transcript).also { tookOver = race }
-                    }
-                    else -> engine.transcribe(outcome.audio, serverOptions)
-                }
-                trace?.transcribingEnds()
-                trace?.upload = result.getOrNull()?.upload?.summary()
-                // A cold model's load time would teach the wrong rate, and so would a command
-                // heard in several languages, or a text the phone recognized instead. The
-                // upload is learned on its own: on the road it can take longer than the server.
-                if (result.isSuccess && !coldModel && passes == 1 && tookOver == null) {
-                    val upload = if (uploadTo.get() > 0) uploadTo.get() - uploadFrom.get() else 0L
-                    estimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt - upload, caps.overheadMs)
-                    if (upload > 0) estimate.learn(uploadKey, outcome.audio.durationMs, upload, 0)
-                    graph.saveEstimates()
-                }
-                if (engine is WhisperCppEngine) {
-                    trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
-                    trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
-                }
-                tookOver?.let { local -> return tookOverFromServer(local, ready!!.config, engine.capabilities.trustLevel) }
-                // No signal, a timeout, a server down: the recording is still here, so another
-                // engine can take it instead of the dictation being lost - not the one prepared
-                // alongside, whose text did not come.
-                val recoverable = Fallback.recoverable(
-                    result.exceptionOrNull(),
-                    engine.capabilities.trustLevel,
-                    graph.settings.value.fallback.mode,
-                )
-                val recovered = recoverable
-                    ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, skip = ready?.config?.id) }
-                    ?.let { Result.success(it) } ?: result
-                return recovered.getOrElse { error ->
-                    fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
-                    null
-                }
+                // Kept for "Try again" should its recognition fail; a command is said again instead.
+                if (!command) runAudio = outcome.audio
+                return recognize(engine, options, outcome, chunked, prepared, command, estimateKey, appLabels)
             }
         }
+    }
+
+    /**
+     * The recording of a dictation that failed, kept for "Try again" ([KeptDictation]),
+     * recognized once more with the speech recognition set now - no microphone, the rest as a
+     * dictation goes: the progress ring, the fallback, the cleanup, the field in focus now.
+     */
+    private suspend fun recognizeKept(
+        engine: SttEngine,
+        options: TranscribeOptions,
+        audio: PcmAudio,
+        estimateKey: String,
+        appLabels: () -> List<String>,
+        limit: RunLimit,
+    ): Transcript? {
+        runAudio = audio
+        trace?.kept = "recognized again from the kept recording, ${ms(audio.durationMs)}"
+        limit.recordingEnded(graph.settings.value.capture.afterRecordingMs(audio.durationMs))
+        val captured = AudioCapture.Outcome.Captured(audio, StopReason.MANUAL, tail = null, chunks = 0)
+        return recognize(engine, options, captured, chunked = null, prepared = null, command = false, estimateKey, appLabels)
+    }
+
+    /**
+     * A finished recording to text: with chunks, only what is left after the stop; with a
+     * fallback prepared on the phone, raced against it; on a server's failure, by the fallback.
+     * Null when it failed - the failure was said.
+     */
+    private suspend fun recognize(
+        engine: SttEngine,
+        options: TranscribeOptions,
+        outcome: AudioCapture.Outcome.Captured,
+        chunked: ChunkedTranscription?,
+        prepared: Prepared?,
+        command: Boolean,
+        estimateKey: String,
+        appLabels: () -> List<String>,
+    ): Transcript? {
+        val ready = prepared.takeUnless { command }
+        val chunking = !command && chunked != null && outcome.chunks > 0
+        // What is left to recognize after the stop: with chunks, only the unfinished
+        // ones and the tail.
+        val pendingMs = if (chunking) {
+            chunked!!.pendingAudioMs + (outcome.tail?.durationMs ?: 0L)
+        } else {
+            outcome.audio.durationMs
+        }
+        val caps = engine.capabilities
+        val coldModel = trace?.modelWarm == false
+        val overheadMs = caps.overheadMs + if (coldModel) MODEL_LOAD_MS else 0L
+        val estimate = graph.recognitionEstimate
+        val server = engine is OpenAiCompatibleEngine
+        val uploadKey = "upload/$estimateKey"
+        val recognizeMs = estimate.expectedMs(estimateKey, pendingMs, caps.typicalRate, overheadMs)
+        val uploadMs = if (server) estimate.expectedMs(uploadKey, outcome.audio.durationMs, UPLOAD_RATE, 0) else 0L
+        val cleanupMs = if (command) null else expectedCleanupMs(graph.settings.value, (outcome.audio.durationMs * CHARS_PER_AUDIO_MS).toLong(), fellBackFrom = null)
+        // One ring from the release to the text in the field: upload, recognition, cleanup.
+        val wait = WaitProgress(SystemClock::elapsedRealtime).also { this.wait = it }
+        wait.plan(
+            *listOfNotNull(
+                (WaitProgress.Step.UPLOAD to uploadMs).takeIf { server },
+                WaitProgress.Step.RECOGNIZE to recognizeMs,
+                cleanupMs?.let { WaitProgress.Step.CLEANUP to it },
+            ).toTypedArray(),
+        )
+        // The bytes sent fill the upload's share; once they are out, the server recognizes.
+        val uploadFrom = AtomicLong(0)
+        val uploadTo = AtomicLong(0)
+        val serverOptions = if (!server) options else options.copy(
+            onUpload = { sent, total ->
+                uploadFrom.compareAndSet(0, SystemClock.elapsedRealtime())
+                if (total > 0) wait.report(WaitProgress.Step.UPLOAD, sent.toFloat() / total)
+                if (total in 1..sent) {
+                    uploadTo.compareAndSet(0, SystemClock.elapsedRealtime())
+                    wait.begin(WaitProgress.Step.RECOGNIZE)
+                }
+            },
+        )
+        // Each chunk done is a real step of the recognition.
+        if (chunking && pendingMs > 0) {
+            chunked!!.onChunkDone = { left -> wait.report(WaitProgress.Step.RECOGNIZE, 1f - left.toFloat() / pendingMs, upTo = 1f) }
+        }
+        _state.value = DictationState.Transcribing(wait)
+        trace?.transcribingStarts()
+        trace?.connection = connectionWarmUp?.describe()
+        val startedAt = SystemClock.elapsedRealtime()
+        var passes = 1
+        var tookOver: ReadyFallback.Outcome.Local? = null
+        val result = when {
+            chunking -> chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
+            command -> recognizeCommand(engine, outcome.audio, options, appLabels).also { passes = it.passes }.result
+            ready != null -> when (val race = raceWithPrepared(engine, serverOptions, outcome, ready, uploadMs + recognizeMs)) {
+                is ReadyFallback.Outcome.Server -> race.result
+                is ReadyFallback.Outcome.Local -> Result.success(race.transcript).also { tookOver = race }
+            }
+            else -> engine.transcribe(outcome.audio, serverOptions)
+        }
+        trace?.transcribingEnds()
+        trace?.upload = result.getOrNull()?.upload?.summary()
+        // A cold model's load time would teach the wrong rate, and so would a command
+        // heard in several languages, or a text the phone recognized instead. The
+        // upload is learned on its own: on the road it can take longer than the server.
+        if (result.isSuccess && !coldModel && passes == 1 && tookOver == null) {
+            val upload = if (uploadTo.get() > 0) uploadTo.get() - uploadFrom.get() else 0L
+            estimate.learn(estimateKey, pendingMs, SystemClock.elapsedRealtime() - startedAt - upload, caps.overheadMs)
+            if (upload > 0) estimate.learn(uploadKey, outcome.audio.durationMs, upload, 0)
+            graph.saveEstimates()
+        }
+        if (engine is WhisperCppEngine) {
+            trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
+            trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
+        }
+        tookOver?.let { local -> return tookOverFromServer(local, ready!!.config, engine.capabilities.trustLevel) }
+        // No signal, a timeout, a server down: the recording is still here, so another
+        // engine can take it instead of the dictation being lost - not the one prepared
+        // alongside, whose text did not come.
+        val recoverable = Fallback.recoverable(
+            result.exceptionOrNull(),
+            engine.capabilities.trustLevel,
+            graph.settings.value.fallback.mode,
+        )
+        val recovered = recoverable
+            ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, skip = ready?.config?.id) }
+            ?.let { Result.success(it) } ?: result
+        return recovered.getOrElse { error ->
+            failRecognition(error, details = listOf("recognition failed: ${technicalOf(error)}"))
+            null
+        }
+    }
+
+    /**
+     * Recognition failed for [error]: said, and - for a dictation whose recording is here and
+     * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
+     * which the toast then names as the way out.
+     */
+    private fun failRecognition(error: Throwable, details: List<String>) {
+        val problem = (error as? SttFailure)?.problem
+        if (keepForRetry(problem)) {
+            fail(
+                failureOf(error),
+                remedy = remedyOf(error),
+                brief = { it.getString(R.string.toast_try_again, Texts.failure(it, error).trimEnd('.')) },
+                details = details,
+            )
+        } else {
+            fail(failureOf(error), remedy = remedyOf(error), details = details)
+        }
+    }
+
+    /**
+     * Keeps this run's recording for "Try again" when [why] leaves it worth another go (null:
+     * the run's time limit) - only a dictation's, only while keeping is on.
+     * True when it is kept now; its time is watched, so the memory goes back when it is up.
+     */
+    private fun keepForRetry(why: Problem?): Boolean {
+        if (_mode.value != RunMode.DICTATION) return false
+        val audio = runAudio ?: return false
+        if (!kept.keepRecording(audio, why)) return false
+        trace?.kept = "recording kept for Try again, ${ms(audio.durationMs)}"
+        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms, in memory only)")
+        scope.launch {
+            delay(kept.keepMs)
+            kept.expire()
+        }
+        return true
+    }
+
+    /**
+     * "Try again" from the quick menu: the kept recording of a dictation that failed is
+     * recognized again with the speech recognition set now, and goes into the field in focus
+     * now as a dictation would. False with nothing kept, or while a dictation runs.
+     */
+    fun tryAgain(): Boolean {
+        if (isRunning) return false
+        val audio = kept.recording() ?: return false
+        takeStartTarget()
+        runInAmber = false
+        runPackage = targetApp()
+        val routed = graph.engineFor(runPackage).engine
+        // A model still downloading: said, and the recording stays kept.
+        routed?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
+            notice(Texts.downloadAtStart(context, download))
+            return false
+        }
+        runSerial++
+        stoppedByTap = false
+        commandSteps = null
+        commandRecorded = false
+        runEngineId = routed?.id
+        skipCleanup = CompletableDeferred()
+        fellBack = null
+        fellBackFrom = null
+        _mode.value = RunMode.DICTATION
+        handover.cancel()
+        trace = RunTrace("TRY_AGAIN")
+        graph.dictationStarting(routed)
+        val token = runStop.begin()
+        _state.value = DictationState.Transcribing()
+        job = scope.launch { run(TriggerSource.BUBBLE, token, retry = audio) }
+        return true
     }
 
     /** A fallback on the phone recognizing this recording alongside the server ([ReadyFallback]). */
@@ -1533,6 +1671,9 @@ class DictationController(
             fail(said(Problem.NothingRecognized), engineId)
             return
         }
+        // Words came: a recording kept from a failed dictation is not needed now - whatever
+        // becomes of these, they are kept for Insert again and Copy last.
+        if (_mode.value == RunMode.DICTATION) kept.textRecognized()
 
         val inserter = graph.accessibilityService?.textInserter
         if (inserter == null) {

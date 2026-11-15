@@ -53,6 +53,8 @@ class QuickActionRunner(
         // Each says what happened; copy, the cleanup switch and hiding say it themselves.
         val ran = when (action) {
             QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast(service.getString(R.string.quick_done_inserted)) }
+            // The bubble shows the work; the text goes in as a dictation's would.
+            QuickAction.TRY_AGAIN -> dictation.tryAgain()
             QuickAction.UNDO_LAST -> dictation.undoLast()
             QuickAction.COPY_LAST -> dictation.copyLast()
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
@@ -96,6 +98,7 @@ class QuickActionRunner(
             command = graph.dictation.mode.value == RunMode.COMMAND,
             canPause = graph.dictation.canPause,
             paused = (graph.dictation.state.value as? DictationState.Listening)?.paused == true,
+            keptRecording = graph.keptDictation.hasRecording,
         )
     }
 

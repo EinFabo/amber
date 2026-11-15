@@ -73,6 +73,12 @@ internal class RunTrace(val route: String) {
     /** Why the recording ended, when it was not a tap or a pause ("ended at the longest recording, 300 s"). */
     var ended: String? = null
 
+    /**
+     * What became of the recording for "Try again": "recording kept for Try again" after a
+     * failure, "recognized again from the kept recording" for a retry.
+     */
+    var kept: String? = null
+
     /** How long the recording was paused, and the line saying so ("paused 4.2 s"). */
     var pausedMs = 0L
     var paused: String? = null
@@ -124,6 +130,7 @@ internal class RunTrace(val route: String) {
         if (waitedForFocus > 0) add("focus wait ${ms(waitedForFocus)}")
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
         refind?.let(::add)
+        kept?.let(::add)
         fallback?.let(::add)
         prepared?.let(::add)
         cleanupNote?.let { add(if (namesApps) it else "cleanup routed by the app's style") }

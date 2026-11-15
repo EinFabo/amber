@@ -43,6 +43,9 @@
 
     <string name="slot_downloading">Downloading</string>
     <string name="slot_copying">Copying</string>
+    <string name="quick_try_again">Try again</string>
+    <string name="toast_try_again">%1$s - hold the bubble, Try again</string>
+    <string name="toast_timed_out_try_again">Timed out - hold the bubble, Try again</string>
     <string name="quick_too_late">Too late - the dictation has moved on.</string>
     <string name="quick_done_inserted">Last dictation inserted.</string>
     <string name="quick_done_cancelled">Dictation cancelled.</string>

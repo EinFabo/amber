@@ -249,6 +249,39 @@ class QuickActionsTest {
     }
 
     @Test
+    fun `a kept recording puts Try again in the top place, the others stay where they are`() {
+        val kept = idle.copy(keptRecording = true, hasLastDictation = false)
+        assertEquals(
+            listOf(QuickAction.TRY_AGAIN, QuickAction.UNDO_LAST, QuickAction.CLEANUP_OFF_HERE, QuickAction.COPY_LAST),
+            actions(kept),
+        )
+        assertTrue(enabled(kept, QuickAction.TRY_AGAIN))
+        // Even without a field: what is recognized is kept for Insert again and Copy if it cannot go in.
+        assertTrue(enabled(kept.copy(fieldFocused = false), QuickAction.TRY_AGAIN))
+    }
+
+    @Test
+    fun `in the user's own menu Try again takes the top place too, an empty one as well, and gives it back`() {
+        val own = QuickMenuLayout.idle(listOf(null, "open_amber", "copy_last", "hide_here"))
+        assertEquals(
+            listOf(QuickAction.TRY_AGAIN, QuickAction.OPEN_AMBER, QuickAction.COPY_LAST, QuickAction.HIDE_HERE),
+            QuickActions.slots(idle.copy(keptRecording = true), own).map { it?.action },
+        )
+        assertEquals(
+            listOf(null, QuickAction.OPEN_AMBER, QuickAction.COPY_LAST, QuickAction.HIDE_HERE),
+            QuickActions.slots(idle, own).map { it?.action },
+        )
+    }
+
+    @Test
+    fun `Try again is offered only while idle`() {
+        for (phase in listOf(QuickPhase.RECORDING, QuickPhase.WORKING)) {
+            assertFalse(QuickAction.TRY_AGAIN in actions(idle.copy(phase = phase, keptRecording = true)), phase.name)
+            assertFalse(QuickActions.stillValid(QuickAction.TRY_AGAIN, phase))
+        }
+    }
+
+    @Test
     fun `only a cleanup that runs gives the style its effect`() {
         assertTrue(CleanupHere.ON.runs)
         assertFalse(CleanupHere.OFF.runs)

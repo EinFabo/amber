@@ -8,6 +8,7 @@ import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineRouting
@@ -220,6 +221,12 @@ class Graph(app: Application) {
 
     /** Outcomes of the last dictations, for the diagnostics card. */
     val dictationLog = DictationLog()
+
+    /**
+     * What is kept of a failed dictation for a while, in memory only: its recording, for "Try
+     * again". The one place to forget it ([KeptDictation.keeping], [KeptDictation.clear]).
+     */
+    val keptDictation = KeptDictation(SystemClock::elapsedRealtime)
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)

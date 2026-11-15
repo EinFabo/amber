@@ -42,6 +42,12 @@ enum class CleanupHere {
 enum class QuickAction(private val phases: Set<QuickPhase>) {
     INSERT_AGAIN(setOf(QuickPhase.IDLE)),
 
+    /**
+     * Recognizes the recording of a dictation that failed once more, with the speech recognition
+     * set now ([app.amethyst.core.dictation.KeptDictation]); never one of the places to choose.
+     */
+    TRY_AGAIN(setOf(QuickPhase.IDLE)),
+
     /** Takes the last dictation out of the field again, while it still stands before the cursor. */
     UNDO_LAST(setOf(QuickPhase.IDLE)),
     COPY_LAST(setOf(QuickPhase.IDLE)),
@@ -107,6 +113,8 @@ data class QuickMenuContext(
     val canPause: Boolean = false,
     /** The recording in progress is paused. */
     val paused: Boolean = false,
+    /** A failed dictation's recording is kept for "Try again" ([app.amethyst.core.dictation.KeptDictation]). */
+    val keptRecording: Boolean = false,
 )
 
 /**
@@ -119,10 +127,17 @@ object QuickActions {
 
     /**
      * The four slots for [context]. While idle they follow [idleLayout] ([QuickMenuLayout.idle]:
-     * the user's own order, or today's four); listening and working are fixed.
+     * the user's own order, or today's four); listening and working are fixed. While a failed
+     * dictation's recording is kept, "Try again" takes the top place - whatever the layout puts
+     * there, the user's own as today's - and gives it back once the recording is gone; the other
+     * places stay where they are. Today's top place is "Insert again", which has nothing new to
+     * insert after a recognition that failed.
      */
     fun slots(context: QuickMenuContext, idleLayout: List<QuickMenuItem?> = QuickMenuLayout.DEFAULT_IDLE): List<QuickSlot?> = when (context.phase) {
-        QuickPhase.IDLE -> List(QuickMenuGeometry.SLOTS) { i -> idleLayout.getOrNull(i)?.let { idleSlot(it, context) } }
+        QuickPhase.IDLE -> List(QuickMenuGeometry.SLOTS) { i ->
+            if (i == TRY_AGAIN_PLACE && context.keptRecording) QuickSlot(QuickAction.TRY_AGAIN, true)
+            else idleLayout.getOrNull(i)?.let { idleSlot(it, context) }
+        }
         QuickPhase.RECORDING -> listOf(
             QuickSlot(QuickAction.CANCEL, true),
             QuickSlot(QuickAction.SEND_WITHOUT_CLEANUP, context.cleanupPlanned && !context.command),
@@ -163,6 +178,9 @@ object QuickActions {
      * into the next one.
      */
     fun stillValid(action: QuickAction, now: QuickPhase): Boolean = action.validIn(now)
+
+    /** The idle place "Try again" takes while a recording is kept: the top one, first under the thumb. */
+    const val TRY_AGAIN_PLACE = 0
 
     /**
      * The cleanup in [packageName] for the menu's switch: off where the app switched it off,

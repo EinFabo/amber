@@ -12,7 +12,7 @@ import kotlin.math.sin
 
 /** The picture on a quick menu button. */
 enum class MenuGlyph {
-    INSERT, UNDO, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME,
+    INSERT, TRY_AGAIN, UNDO, COPY, CLEANUP_ON, CLEANUP_OFF, HIDE, CANCEL, NO_CLEANUP, START_OVER, AS_RECOGNIZED, PAUSE, RESUME,
     AMBER, STYLE, NEXT_STYLE, APP_PAGE,
 }
 
@@ -20,6 +20,7 @@ enum class MenuGlyph {
 val QuickAction.glyph: MenuGlyph
     get() = when (this) {
         QuickAction.INSERT_AGAIN -> MenuGlyph.INSERT
+        QuickAction.TRY_AGAIN -> MenuGlyph.TRY_AGAIN
         QuickAction.UNDO_LAST -> MenuGlyph.UNDO
         QuickAction.COPY_LAST -> MenuGlyph.COPY
         QuickAction.CLEANUP_OFF_HERE -> MenuGlyph.CLEANUP_OFF
@@ -130,6 +131,15 @@ object MenuGlyphs {
                     moveTo(4f, 17f); lineTo(13f, 17f)
                     moveTo(15.5f, 9f); lineTo(20f, 12f); lineTo(15.5f, 15f)
                 }
+            }
+            // The level bars of a recording inside the arrow going round: heard once more.
+            MenuGlyph.TRY_AGAIN -> strokePath {
+                oval.set(3.5f, 3.5f, 20.5f, 20.5f)
+                arcTo(oval, 180f, -315f, true)
+                moveTo(3.5f, 3.5f); lineTo(3.5f, 8.5f); lineTo(8.5f, 8.5f)
+                moveTo(9f, 10.5f); lineTo(9f, 14f)
+                moveTo(12f, 9f); lineTo(12f, 15.5f)
+                moveTo(15f, 10.5f); lineTo(15f, 14f)
             }
             // An arrow turning back: what went in comes out again.
             MenuGlyph.UNDO -> strokePath {
