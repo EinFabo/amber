@@ -40,6 +40,7 @@
     <string name="problem_no_system_recognizer">Dieses Handy hat keine System-Spracherkennung. Wähle in den Einstellungen eine andere Spracherkennung.</string>
     <string name="problem_language_not_installed">Diese Sprache ist nicht für die Nutzung ohne Internet installiert.</string>
     <string name="problem_microphone_unreadable">Das Mikrofon konnte nicht gelesen werden.</string>
+    <string name="problem_microphone_taken">Eine andere App benutzt das Mikrofon - ein Anruf oder eine andere Aufnahme. Versuch es noch einmal, wenn es frei ist.</string>
     <string name="problem_microphone_permission_missing">Die Mikrofon-Berechtigung fehlt.</string>
     <string name="problem_recognizer_offline">Die System-Spracherkennung wollte ins Internet und ist nicht durchgekommen.</string>
     <string name="problem_no_speech_heard">Keine Sprache gehört.</string>

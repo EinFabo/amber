@@ -67,6 +67,9 @@ sealed interface Problem {
     data object NoSystemRecognizer : Problem
     data object LanguageNotInstalled : Problem
     data object MicrophoneUnreadable : Problem
+
+    /** Another app holds the microphone - a call, another recording - and Android delivers silence. */
+    data object MicrophoneTaken : Problem
     data object MicrophonePermissionMissing : Problem
     data object RecognizerOffline : Problem
     data object NoSpeechHeard : Problem

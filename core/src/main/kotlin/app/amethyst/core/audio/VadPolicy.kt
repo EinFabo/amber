@@ -159,6 +159,12 @@ enum class StopReason {
 
     /** Paused longer than [app.amethyst.core.capture.RecordingPause.MAX_PAUSE_MS]: ended as if tapped. */
     PAUSE_LIMIT,
+
+    /** Another app took the microphone ([app.amethyst.core.capture.MicrophoneWatch]): sent as it stands. */
+    MIC_SILENCED,
+
+    /** The microphone could no longer be read: what was captured is sent. */
+    MIC_LOST,
 }
 
 enum class DiscardReason {
@@ -166,4 +172,10 @@ enum class DiscardReason {
 
     /** The pause ran out with nothing worth sending recorded: ends quietly, no error. */
     PAUSED_TOO_LONG,
+
+    /** Another app held the microphone and nothing worth sending was recorded: said as that, not as "nothing heard". */
+    MIC_SILENCED,
+
+    /** The microphone could not be read and nothing worth sending was recorded. */
+    MIC_LOST,
 }

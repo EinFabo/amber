@@ -12,6 +12,8 @@
     <string name="dictation_unexpected">Unexpected error: %1$s</string>
     <string name="dictation_too_short">Too short - please speak a little longer.</string>
     <string name="dictation_nothing_heard">Nothing heard - try again a little closer to the phone.</string>
+    <string name="dictation_mic_taken_sent">Another app took the microphone - the recording ended there. What you said before is used.</string>
+    <string name="dictation_mic_lost_sent">The microphone was interrupted - the recording ended there. What you said before is used.</string>
     <string name="dictation_service_off">The accessibility service is off - the text could not be inserted.</string>
     <string name="dictation_why_password">The field now is a password field</string>
     <string name="dictation_why_no_field">No text field has focus any more</string>

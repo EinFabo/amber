@@ -10,6 +10,8 @@
     <string name="dictation_unexpected">Unerwarteter Fehler: %1$s</string>
     <string name="dictation_too_short">Zu kurz - bitte sprich etwas länger.</string>
     <string name="dictation_nothing_heard">Nichts gehört - versuch es etwas näher am Handy.</string>
+    <string name="dictation_mic_taken_sent">Eine andere App hat das Mikrofon übernommen - die Aufnahme endete dort. Was du davor gesagt hast, wird verwendet.</string>
+    <string name="dictation_mic_lost_sent">Das Mikrofon wurde unterbrochen - die Aufnahme endete dort. Was du davor gesagt hast, wird verwendet.</string>
     <string name="dictation_service_off">Die Bedienungshilfe ist aus - der Text konnte nicht eingefügt werden.</string>
     <string name="dictation_why_password">Das Feld ist jetzt ein Passwortfeld</string>
     <string name="dictation_why_no_field">Kein Textfeld hat mehr den Fokus</string>

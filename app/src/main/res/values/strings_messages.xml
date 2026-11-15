@@ -42,6 +42,7 @@
     <string name="problem_no_system_recognizer">This phone has no system recognizer. Pick another speech recognition in the settings.</string>
     <string name="problem_language_not_installed">This language is not installed for offline use.</string>
     <string name="problem_microphone_unreadable">The microphone could not be read.</string>
+    <string name="problem_microphone_taken">Another app is using the microphone - a call or another recording. Try again when it is free.</string>
     <string name="problem_microphone_permission_missing">Microphone permission is missing.</string>
     <string name="problem_recognizer_offline">The system recognizer tried to go online and could not get through.</string>
     <string name="problem_no_speech_heard">No speech heard.</string>

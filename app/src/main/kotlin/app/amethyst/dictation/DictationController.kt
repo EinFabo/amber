@@ -884,15 +884,20 @@ class DictationController(
                 trace?.paused = pause.summary(SystemClock.elapsedRealtime())
                 // Never silent: a dictation that ends with no tick and no text and no word why
                 // looks exactly like a bug. Both cases get a message and a diagnostics line.
+                // A microphone another app holds delivers silence: said as that, or the user
+                // would move closer to the phone and try again in vain.
                 fail(
                     when (outcome.reason) {
                         DiscardReason.TOO_SHORT -> say(R.string.dictation_too_short)
                         DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> say(R.string.dictation_nothing_heard)
+                        DiscardReason.MIC_SILENCED -> said(Problem.MicrophoneTaken)
+                        DiscardReason.MIC_LOST -> said(Problem.MicrophoneUnreadable)
                     },
                     details = listOf(
                         when (outcome.reason) {
                             DiscardReason.TOO_SHORT -> "recording discarded: too short"
                             DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> "recording discarded: no speech detected"
+                            DiscardReason.MIC_SILENCED, DiscardReason.MIC_LOST -> "recording discarded: ${outcome.technical ?: "the microphone was lost"}"
                         },
                     ),
                 )
@@ -922,6 +927,13 @@ class DictationController(
                 // Sent as a tap would, all of it; the diagnostics say why it ended there.
                 if (outcome.reason == StopReason.MAX_DURATION) {
                     trace?.ended = "ended at the longest recording, ${vadConfig.maxDurationMs / 1000} s"
+                }
+                // The microphone went away mid-dictation - another app took it, or it could
+                // no longer be read: what was said before is recognized, and the user is told
+                // why the recording ended without their tap.
+                if (outcome.reason == StopReason.MIC_SILENCED || outcome.reason == StopReason.MIC_LOST) {
+                    trace?.ended = "ended: ${outcome.technical ?: "the microphone was lost"}"
+                    toast(if (outcome.reason == StopReason.MIC_SILENCED) R.string.dictation_mic_taken_sent else R.string.dictation_mic_lost_sent, long = true)
                 }
                 // Ended while paused: the pause ends with the recording.
                 pause.resume(SystemClock.elapsedRealtime())
@@ -1690,8 +1702,8 @@ class DictationController(
     }
 
     /** A short note over whatever app is open, from the quick menu's actions. */
-    private fun toast(message: Int) {
-        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+    private fun toast(message: Int, long: Boolean = false) {
+        mainHandler.post { Toast.makeText(context, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show() }
     }
 
     /** A toast without a failure: the state stays Idle, the bubble stays calm, nothing is logged. */

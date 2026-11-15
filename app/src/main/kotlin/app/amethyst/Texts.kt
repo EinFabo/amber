@@ -91,6 +91,7 @@ object Texts {
             Problem.NoSystemRecognizer -> getString(R.string.problem_no_system_recognizer)
             Problem.LanguageNotInstalled -> getString(R.string.problem_language_not_installed)
             Problem.MicrophoneUnreadable -> getString(R.string.problem_microphone_unreadable)
+            Problem.MicrophoneTaken -> getString(R.string.problem_microphone_taken)
             Problem.MicrophonePermissionMissing -> getString(R.string.problem_microphone_permission_missing)
             Problem.RecognizerOffline -> getString(R.string.problem_recognizer_offline)
             Problem.NoSpeechHeard -> getString(R.string.problem_no_speech_heard)

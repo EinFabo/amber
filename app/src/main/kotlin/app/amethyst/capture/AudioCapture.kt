@@ -3,8 +3,11 @@ package app.amethyst.capture
 import app.amethyst.R
 import android.annotation.SuppressLint
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import app.amethyst.core.audio.DiscardReason
@@ -14,6 +17,7 @@ import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
 import app.amethyst.core.capture.ChunkPlanner
+import app.amethyst.core.capture.MicrophoneWatch
 import app.amethyst.core.capture.PausableRecording
 import app.amethyst.core.capture.PcmAccumulator
 import app.amethyst.core.capture.RecordingPause
@@ -40,8 +44,10 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             val reason: StopReason,
             val tail: PcmAudio?,
             val chunks: Int,
+            /** Why it ended, for the log, when the microphone was lost ([MicrophoneWatch]). */
+            val technical: String? = null,
         ) : Outcome
-        data class Discarded(val reason: DiscardReason) : Outcome
+        data class Discarded(val reason: DiscardReason, val technical: String? = null) : Outcome
         /** [message]: a string resource for the user; [technical] for the log. */
         data class Failed(val message: Int, val technical: String) : Outcome
     }
@@ -108,6 +114,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         val planner = onChunk?.let { ChunkPlanner(sampleRate, config.frameMs, minChunkMs = minChunkMs) }
         var chunks = 0
         val frame = ShortArray(frameSamples)
+        val silence = SilencedWatch()
+        val watch = MicrophoneWatch(config.frameMs, silenceKnown = silence.known)
 
         try {
             recorder.startRecording()
@@ -118,20 +126,46 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 )
             }
 
+            silence.watch(recorder)
+            // How the recording ends when the microphone is gone or a tap comes while it
+            // delivers nothing: as a tap would end it, with what was recorded so far.
+            fun ended(decision: VadDecision, technical: String? = null): Outcome = when (decision) {
+                is VadDecision.Stop -> Outcome.Captured(
+                    audio = recorded.build(),
+                    reason = decision.reason,
+                    tail = when {
+                        planner == null || chunks == 0 -> null
+                        planner.speechSinceCut -> recorded.slice(planner.chunkStart)
+                        else -> null
+                    },
+                    chunks = chunks,
+                    technical = technical,
+                )
+                // Nothing worth sending and no microphone: the caller may try another way to it.
+                is VadDecision.Discard -> if (decision.reason == DiscardReason.MIC_LOST) {
+                    Outcome.Failed(R.string.capture_interrupted, technical.orEmpty())
+                } else {
+                    Outcome.Discarded(decision.reason, technical)
+                }
+                VadDecision.Continue -> error("a recording that goes on has not ended")
+            }
+
             while (currentCoroutineContext().isActive) {
                 val read = recorder.read(frame, 0, frameSamples)
-                if (read <= 0) {
-                    if (read == AudioRecord.ERROR_INVALID_OPERATION || read == AudioRecord.ERROR_DEAD_OBJECT) {
-                        return@withContext Outcome.Failed(
-                            R.string.capture_interrupted,
-                            "AudioRecord.read returned $read",
-                        )
+                val stop = stopRequested()
+                val allZero = read > 0 && (0 until read).all { frame[it] == 0.toShort() }
+                when (val step = watch.onRead(read, allZero, silenced = silence.silenced, stopRequested = stop)) {
+                    MicrophoneWatch.Step.Frame -> Unit
+                    MicrophoneWatch.Step.Again -> continue
+                    MicrophoneWatch.Step.Stopped -> return@withContext ended(vad.onManualStop())
+                    is MicrophoneWatch.Step.Lost -> {
+                        Log.w(TAG, "recording ended: ${step.technical}")
+                        return@withContext ended(MicrophoneWatch.ending(step.why, vad.onManualStop()), step.technical)
                     }
-                    continue
                 }
 
                 val rms = PcmAudio.rms(frame, 0, read)
-                val decision = when (val step = gate.onFrame(rms, stopRequested())) {
+                val decision = when (val step = gate.onFrame(rms, stop)) {
                     // Paused: never stored, never chunked, the level shown as silence.
                     PausableRecording.Step.Drop -> {
                         onAmplitude(0f)
@@ -149,26 +183,52 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                         step.decision
                     }
                 }
-                when (decision) {
-                    is VadDecision.Continue -> Unit
-                    is VadDecision.Discard -> return@withContext Outcome.Discarded(decision.reason)
-                    is VadDecision.Stop -> return@withContext Outcome.Captured(
-                        audio = recorded.build(),
-                        reason = decision.reason,
-                        tail = when {
-                            planner == null || chunks == 0 -> null
-                            planner.speechSinceCut -> recorded.slice(planner.chunkStart)
-                            else -> null
-                        },
-                        chunks = chunks,
-                    )
-                }
+                if (decision != VadDecision.Continue) return@withContext ended(decision)
             }
             // Cancelled from outside: treat it as nothing was said.
             Outcome.Discarded(DiscardReason.NO_SPEECH)
         } finally {
+            silence.release(recorder)
             runCatching { recorder.stop() }.onFailure { Log.w(TAG, "stop failed", it) }
             recorder.release()
+        }
+    }
+
+    /**
+     * Whether another app has silenced this recording - a call, another recorder: from Android
+     * 10 the microphone then delivers zeros without any error. Android reports every change of
+     * the recording's configuration; the state at the start is asked for once.
+     */
+    private class SilencedWatch {
+        /** False below Android 10: nobody to ask, the zeros themselves have to tell. */
+        val known: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+        @Volatile
+        var silenced: Boolean = false
+            private set
+
+        private var callback: Any? = null
+
+        fun watch(recorder: AudioRecord) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+            val changes = object : AudioManager.AudioRecordingCallback() {
+                override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
+                    // Only this recorder's configuration is reported; none while it is not recording.
+                    silenced = configs.any { it.isClientSilenced }
+                }
+            }
+            runCatching {
+                // The callback only sets a flag: it may run on whatever thread delivers it.
+                recorder.registerAudioRecordingCallback({ it.run() }, changes)
+                callback = changes
+                silenced = recorder.activeRecordingConfiguration?.isClientSilenced == true
+            }.onFailure { Log.w(TAG, "could not watch for a silenced microphone", it) }
+        }
+
+        fun release(recorder: AudioRecord) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+            (callback as? AudioManager.AudioRecordingCallback)?.let { runCatching { recorder.unregisterAudioRecordingCallback(it) } }
+            callback = null
         }
     }
 
