@@ -99,7 +99,7 @@ fun HomeScreen(
     update: UpdateNotice? = null,
     onDownloadUpdate: (UpdateNotice) -> Unit = {},
     onDismissUpdate: (UpdateNotice) -> Unit = {},
-    /** The recognition chosen for this phone that still waits for its model; Android's stands in. */
+    /** A model the first run still fetches for this phone: the small one that stands in, or the better one after it. */
     pending: PendingModel? = null,
 ) {
     val testField = remember { FocusRequester() }

@@ -120,11 +120,24 @@ class ModelDownloads(
 
     /**
      * Takes [option]'s download up without the user: started on Wi-Fi that reaches the
-     * internet, held until there is one. One in hand already is left as it is.
+     * internet - on any network that does with [mobileData] - and held until there is one. One
+     * in hand already is left as it is.
      */
-    fun resume(option: EngineOption) {
+    fun resume(option: EngineOption, mobileData: Boolean = false) {
         if (held == option || isBusy(option)) return
-        waitForWifi(option)
+        if (!mobileData) return waitForWifi(option)
+        if (!needsDownload(option)) {
+            release()
+            return
+        }
+        take(option, mobileData = true)
+        next()
+    }
+
+    /** Deletes [option]'s model, letting go of its download first; only Whisper models are ever deleted here. */
+    fun delete(option: EngineOption) {
+        cancelWait(option)
+        option.whisperModelId?.let(whisper::delete)
     }
 
     private fun take(option: EngineOption, mobileData: Boolean) {

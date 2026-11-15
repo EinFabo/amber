@@ -718,6 +718,7 @@ open class Screenshots {
     /** A Pixel-like phone: room for every engine. */
     private fun content(
         parakeet: ParakeetState = ParakeetState.Missing,
+        whisper: Map<String, app.amethyst.core.engine.whisper.ModelSlots.SlotState> = emptyMap(),
         metered: Boolean = false,
         download: app.amethyst.core.engine.ModelDownload? = null,
         bubbleEvents: List<app.amethyst.core.bubble.BubbleEvent> = emptyList(),
@@ -726,7 +727,7 @@ open class Screenshots {
         phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
         metered = metered,
         parakeet = parakeet,
-        whisper = emptyMap(),
+        whisper = whisper,
         waitingFor = null,
         onChooseEngine = { _, _ -> },
         onWaitForWifi = {},
@@ -936,15 +937,32 @@ open class Screenshots {
         content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)),
     )
 
-    /** The quick setup on a phone with room: Android's recognition until Parakeet is there. */
+    /** The quick setup on a phone with room: the small Whisper model first, Parakeet after it. */
     private val quick = FirstRun.quick(
         AmethystSettings.defaults(PHONE),
-        QuickPlan(app.amethyst.core.engine.EngineOption.ANDROID, app.amethyst.core.engine.EngineOption.PARAKEET),
+        QuickPlan(app.amethyst.core.engine.EngineOption.FUTO_74, app.amethyst.core.engine.EngineOption.PARAKEET, nowMissing = true),
         installed = APP_NAMES.keys, phoneTags = PHONE,
     )
 
-    private fun parakeetPending(download: app.amethyst.core.engine.ModelDownload?, failed: Boolean = false) =
-        PendingModel(app.amethyst.core.engine.EngineOption.PARAKEET, download, failed) {}
+    /** The same once the small model is there: it hears the dictations, Parakeet is on its way. */
+    private val quickSmallReady = FirstRun.settle(quick, ready = true, phoneTags = PHONE)
+
+    private val small = app.amethyst.core.engine.EngineOption.FUTO_74
+    private val smallRunning = app.amethyst.core.engine.ModelDownload.Running(30_000_000, small.downloadBytes)
+    private val smallOnPhone = mapOf(
+        small.whisperModelId!! to app.amethyst.core.engine.whisper.ModelSlots.SlotState.Ready(
+            app.amethyst.core.engine.whisper.WhisperModelInfo(51_865, 6, 6, 512), small.downloadBytes,
+        ),
+    )
+
+    private fun smallPending(download: app.amethyst.core.engine.ModelDownload?, failed: Boolean = false) = PendingModel(
+        small, download, failed, app.amethyst.core.onboarding.PendingStage.SMALL_FIRST, takesOver = app.amethyst.core.engine.EngineOption.PARAKEET,
+    ) {}
+
+    private fun parakeetPending(download: app.amethyst.core.engine.ModelDownload?, failed: Boolean = false) = PendingModel(
+        app.amethyst.core.engine.EngineOption.PARAKEET, download, failed, app.amethyst.core.onboarding.PendingStage.SMALL_STANDS_IN,
+        takesOver = app.amethyst.core.engine.EngineOption.PARAKEET,
+    ) {}
 
     private val parakeetLoading = parakeetPending(app.amethyst.core.engine.ModelDownload.Running(300_000_000, 670_000_000))
 
@@ -952,41 +970,60 @@ open class Screenshots {
     @Test
     fun onboardingQuickAccessibility() = onboarding("q2-accessibility", OnboardingStep.ACCESSIBILITY, settings = quick, path = OnboardingPath.QUICK)
 
-    /** The try right after the permissions, Android's recognition hearing it. */
+    /** The try right after the permissions, the small model still on its way: the tap waits for it. */
     @Test
     fun onboardingQuickPractice() = onboarding(
-        "q4-practice", OnboardingStep.PRACTICE, ready, quick, content(pending = parakeetLoading), OnboardingPath.QUICK,
+        "q4-practice", OnboardingStep.PRACTICE, ready, quick, content(download = smallRunning, pending = smallPending(smallRunning)), OnboardingPath.QUICK,
     )
 
-    /** The quick way's last step: what was decided, and one line on the download. */
+    /** The small model there: the tap works, Parakeet downloads behind it. */
+    @Test
+    fun onboardingQuickPracticeSmallReady() = onboarding(
+        "q4-practice-small-ready", OnboardingStep.PRACTICE, ready, quickSmallReady,
+        content(whisper = smallOnPhone, pending = parakeetLoading), OnboardingPath.QUICK,
+    )
+
+    /** The quick way's last step: what was decided, and one line on the small model coming first. */
     @Test
     fun onboardingQuickDone() = onboarding(
-        "q5-done", OnboardingStep.DONE, ready, quick, content(pending = parakeetLoading), OnboardingPath.QUICK,
+        "q5-done", OnboardingStep.DONE, ready, quick, content(download = smallRunning, pending = smallPending(smallRunning)), OnboardingPath.QUICK,
     )
 
-    /** The same on mobile data: the download waits for Wi-Fi, with the way to start it anyway. */
+    /** On mobile data, once the small model came: Parakeet waits for Wi-Fi, with the way to start it anyway. */
     @Test
     fun onboardingQuickDoneWifi() = onboarding(
-        "q5-done-wifi", OnboardingStep.DONE, ready, quick,
-        content(metered = true, pending = parakeetPending(app.amethyst.core.engine.ModelDownload.WaitingForWifi)), OnboardingPath.QUICK,
+        "q5-done-wifi", OnboardingStep.DONE, ready, quickSmallReady,
+        content(metered = true, whisper = smallOnPhone, pending = parakeetPending(app.amethyst.core.engine.ModelDownload.WaitingForWifi)), OnboardingPath.QUICK,
     )
 
-    /** The download gave up. */
+    /** The small model's download gave up. */
     @Test
     fun onboardingQuickDoneFailed() = onboarding(
-        "q5-done-failed", OnboardingStep.DONE, ready, quick, content(pending = parakeetPending(null, failed = true)), OnboardingPath.QUICK,
+        "q5-done-failed", OnboardingStep.DONE, ready, quick, content(pending = smallPending(null, failed = true)), OnboardingPath.QUICK,
     )
 
-    /** Not part of the listing set: Home after "Skip the introduction" - what is missing, and the download held for Wi-Fi. */
+    /** Not part of the listing set: Home after "Skip the introduction" - what is missing, and Parakeet held for Wi-Fi. */
     @Test
     @Config(qualifiers = "+h1100dp")
     fun homeSkipped() = shoot("x-home-skipped", AMBER) {
         HomeScreen(
-            setup = fresh, actions = actions, settings = quick.copy(onboardingDone = true),
+            setup = fresh, actions = actions, settings = quickSmallReady.copy(onboardingDone = true),
             dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = null,
             onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
             onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
             pending = parakeetPending(app.amethyst.core.engine.ModelDownload.WaitingForWifi),
+        )
+    }
+
+    /** Not part of the listing set: Home right after Skip, the small model coming in. */
+    @Test
+    fun homeSmallFirst() = shoot("x-home-small-first", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = quick.copy(onboardingDone = true),
+            dictationState = MutableStateFlow(DictationState.Idle), stats = null, download = smallRunning,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            pending = smallPending(smallRunning),
         )
     }
 

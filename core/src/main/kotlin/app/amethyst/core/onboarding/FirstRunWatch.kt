@@ -15,19 +15,24 @@ interface ModelFetch {
     /** Whether [option]'s model is on the phone, as it changes. */
     fun ready(option: EngineOption): Flow<Boolean>
 
-    /** Starts [option]'s download on Wi-Fi, or holds it until there is one. */
-    suspend fun fetch(option: EngineOption)
+    /** Starts [option]'s download on Wi-Fi - on any network with [mobileData] - or holds it until there is one. */
+    suspend fun fetch(option: EngineOption, mobileData: Boolean)
 
     /** Lets go of [option]'s download, held or running. */
     suspend fun letGo(option: EngineOption)
+
+    /** Deletes [option]'s model from the phone, and lets go of its download if one is held or runs. */
+    suspend fun delete(option: EngineOption)
 }
 
 /**
- * The one thing that outlives the introduction - the model this install still has to fetch
- * ([FirstRun.wanted]): its download is taken up again with every start of the process, until
- * it is on the phone. A recognition that waited for it then takes over from Android's by
- * itself; one that was active all along simply starts to work. A recognition the user chose
- * meanwhile stays, and the download nobody wants any more is let go.
+ * The one thing that outlives the introduction - the models this install still has to fetch
+ * ([FirstRun.wanted]), one after the other: each download is taken up again with every start
+ * of the process, until it is on the phone. The small model that stands in comes first, over
+ * mobile data too; the recognition that waited then takes over from it by itself, and the
+ * small model is deleted ([FirstRun.leftover]). One that was active all along simply starts to
+ * work. A recognition the user chose meanwhile stays, and the download nobody wants any more
+ * is let go.
  */
 class FirstRunWatch(
     /** The stored settings, as they change - from the first value that was read. */
@@ -41,11 +46,13 @@ class FirstRunWatch(
 
     /** Runs for as long as the process lives. */
     suspend fun run() {
-        settings.map { it.firstRun.pendingEngine to it.firstRun.wantedModel }.distinctUntilChanged().collect { (waiting, active) ->
+        settings.map { it.firstRun.copy(appStylesGiven = false) to FirstRun.leftover(it) }.distinctUntilChanged().collect { (firstRun, _) ->
             // One at a time, to the end: the settling below changes the very values collected here.
-            val name = waiting ?: active ?: return@collect
-            val option = FirstRun.wanted(settings.first())
-            if (option != null) downloads.fetch(option)
+            tidy()
+            val name = firstRun.pendingEngine ?: firstRun.wantedModel ?: return@collect
+            val now = settings.first()
+            val option = FirstRun.wanted(now)
+            if (option != null) downloads.fetch(option, mobileData = FirstRun.anyNetwork(now, option))
             var after: AmethystSettings? = null
             do {
                 // Until the model is there, or the user chose a recognition of their own.
@@ -62,6 +69,14 @@ class FirstRunWatch(
             // A download nobody wants any more is let go, held for Wi-Fi or running.
             if (option != null && after?.let { FirstRun.stillWanted(it, option) } == false) downloads.letGo(option)
         }
+    }
+
+    /** The small model that stood in, deleted once nothing needs it - the file first, then the mark. */
+    private suspend fun tidy() {
+        val small = FirstRun.leftover(settings.first()) ?: return
+        downloads.delete(small)
+        update(FirstRun::tidy)
+        log("first run: ${small.name} stood in and is not needed any more - deleted")
     }
 
     /** Whether the wait for [option] has ended, one way or the other. */

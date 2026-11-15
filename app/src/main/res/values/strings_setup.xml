@@ -114,6 +114,14 @@
     <string name="wanted_downloading">Downloading the speech model - you can dictate as soon as it is here.</string>
     <string name="wanted_wifi">The speech model (%1$s) downloads on Wi-Fi - you can dictate as soon as it is here.</string>
     <string name="wanted_stopped">The speech model has not been downloaded yet - you can dictate as soon as it is here.</string>
+    <string name="small_first_downloading">A small speech model comes first (%1$s) - you can dictate as soon as it is here. The better one follows on Wi-Fi and takes over by itself.</string>
+    <string name="small_first_wifi">The small speech model (%1$s) downloads on Wi-Fi - you can dictate as soon as it is here.</string>
+    <string name="small_first_retrying">The small speech model\'s download was interrupted and continues by itself - you can dictate as soon as it is here.</string>
+    <string name="small_first_stopped">The small speech model has not been downloaded yet - you can dictate as soon as it is here.</string>
+    <string name="better_downloading">Downloading the better speech model - until then the small one hears you, then the better one takes over by itself.</string>
+    <string name="better_wifi">The better speech model (%1$s) downloads on Wi-Fi - until then the small one hears you.</string>
+    <string name="better_retrying">The better speech model\'s download was interrupted and continues by itself - until then the small one hears you.</string>
+    <string name="better_stopped">The better speech model has not been downloaded yet - until then the small one hears you.</string>
     <string name="practice_title">Try it</string>
     <string name="practice_lead">The real bubble, above the keyboard. Each try ticks off when Amber sees it.</string>
     <string name="practice_switch_on">Switch it on</string>

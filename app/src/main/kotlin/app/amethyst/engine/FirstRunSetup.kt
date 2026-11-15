@@ -27,9 +27,10 @@ import java.io.File
 /**
  * What a new install is given without being asked ([FirstRun]), done with what only the phone
  * knows: its memory and CPU, the apps on it, the models already there. And the one thing that
- * outlives the introduction - the model still to be fetched ([FirstRunWatch]): its download is
- * taken up again with every start of the process (on Wi-Fi, or held for it), whether its
- * recognition waits behind Android's or was made active at once.
+ * outlives the introduction - the models still to be fetched ([FirstRunWatch]): each download is
+ * taken up again with every start of the process (on Wi-Fi, or held for it; the small model that
+ * stands in on any network), whether its recognition waits behind the small model or was made
+ * active at once.
  *
  * In the app's scope, not a screen's: Skip leaves the introduction the moment it is tapped.
  */
@@ -56,7 +57,8 @@ class FirstRunSetup(
             }
             var after: AmethystSettings? = null
             store.update { current -> FirstRun.quick(current, plan, installed, PhoneLocales.tags(), finish).also { after = it } }
-            Log.i(TAG, "first run: ${plan.now.name} now, ${plan.download?.name ?: "nothing"} to fetch, ${after?.profiles?.size ?: 0} app style(s)")
+            val fetch = plan.downloads.joinToString(" then ") { it.name }.ifEmpty { "nothing" }
+            Log.i(TAG, "first run: ${plan.now.name} now, ${plan.later?.name ?: "nothing"} later, $fetch to fetch, ${after?.profiles?.size ?: 0} app style(s)")
         }
     }
 
@@ -70,10 +72,11 @@ class FirstRunSetup(
         }
     }
 
-    /** The wanted model's download once more - over mobile data too, if the user said so. */
+    /** The wanted model's download once more - over mobile data too, if the user said so, or if it is the small one. */
     fun download(mobileData: Boolean) {
         scope.launch {
-            FirstRun.wanted(loaded.filterNotNull().first())?.let { fetch(it, mobileData) }
+            val current = loaded.filterNotNull().first()
+            FirstRun.wanted(current)?.let { fetch(it, mobileData || FirstRun.anyNetwork(current, it)) }
         }
     }
 
@@ -89,9 +92,11 @@ class FirstRunSetup(
         override fun ready(option: EngineOption): Flow<Boolean> = downloads().ready(option)
 
         // One that runs or is held already - started by hand, perhaps over mobile data - is left alone.
-        override suspend fun fetch(option: EngineOption) = withContext(Dispatchers.Main) { downloads().resume(option) }
+        override suspend fun fetch(option: EngineOption, mobileData: Boolean) = withContext(Dispatchers.Main) { downloads().resume(option, mobileData) }
 
         override suspend fun letGo(option: EngineOption) = withContext(Dispatchers.Main) { downloads().letGo(option) }
+
+        override suspend fun delete(option: EngineOption) = withContext(Dispatchers.Main) { downloads().delete(option) }
     }
 
     private val watch = FirstRunWatch(loaded.filterNotNull(), store::update, fetching, PhoneLocales::tags) { Log.i(TAG, it) }

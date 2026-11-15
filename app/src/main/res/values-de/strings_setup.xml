@@ -114,6 +114,14 @@
     <string name="wanted_downloading">Das Sprachmodell wird geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="wanted_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - sobald es da ist, kannst du diktieren.</string>
     <string name="wanted_stopped">Das Sprachmodell ist noch nicht geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="small_first_downloading">Zuerst kommt ein kleines Sprachmodell (%1$s) - sobald es da ist, kannst du diktieren. Das bessere folgt im WLAN und übernimmt von selbst.</string>
+    <string name="small_first_wifi">Das kleine Sprachmodell (%1$s) wird im WLAN geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="small_first_retrying">Der Download des kleinen Sprachmodells wurde unterbrochen und geht von selbst weiter - sobald es da ist, kannst du diktieren.</string>
+    <string name="small_first_stopped">Das kleine Sprachmodell ist noch nicht geladen - sobald es da ist, kannst du diktieren.</string>
+    <string name="better_downloading">Das bessere Sprachmodell wird geladen - bis dahin hört dich das kleine, dann übernimmt das bessere von selbst.</string>
+    <string name="better_wifi">Das bessere Sprachmodell (%1$s) wird im WLAN geladen - bis dahin hört dich das kleine.</string>
+    <string name="better_retrying">Der Download des besseren Sprachmodells wurde unterbrochen und geht von selbst weiter - bis dahin hört dich das kleine.</string>
+    <string name="better_stopped">Das bessere Sprachmodell ist noch nicht geladen - bis dahin hört dich das kleine.</string>
     <string name="practice_title">Ausprobieren</string>
     <string name="practice_lead">Die echte Bubble, über der Tastatur. Jeder Versuch wird abgehakt, sobald Amber ihn sieht.</string>
     <string name="practice_switch_on">Einschalten</string>

@@ -596,15 +596,22 @@ data class FirstRunSettings(
     val appStylesGiven: Boolean = false,
     /**
      * The speech recognition chosen for this phone whose model is still on its way, by its
-     * [app.amethyst.core.engine.EngineOption] name; Android's recognition stands in until then.
+     * [app.amethyst.core.engine.EngineOption] name; the recognition in [standIn] hears the
+     * dictations until then (Android's, in settings from 0.33, where [standIn] is absent).
      */
     val pendingEngine: String? = null,
     /**
-     * The speech recognition made active before its model was on the phone - where Android's
-     * could not stand in - by its option name. Kept until the model is there, so its download
-     * is taken up again whenever the process starts.
+     * The speech recognition made active before its model was on the phone, by its option
+     * name. Kept until the model is there, so its download is taken up again whenever the
+     * process starts. Beside [pendingEngine], it is the stand-in's own model, fetched first.
      */
     val wantedModel: String? = null,
+    /**
+     * The small model Amber fetched to hear the first dictations while [pendingEngine]'s model
+     * downloads, by its option name. Deleted once nothing needs it any more, unless the user
+     * chose it themselves (then this is cleared). Absent in older settings: none.
+     */
+    val standIn: String? = null,
 )
 
 /**

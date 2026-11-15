@@ -11,13 +11,13 @@ import app.amethyst.core.settings.EngineConfig
 /**
  * The speech recognition the quick setup decides on: [now] hears the first dictation, and
  * [later] takes over by itself once its model is on the phone (null: [now] stays). With
- * [nowMissing], [now] is active before its own model is there - nothing could stand in.
+ * [nowMissing], [now]'s own model is not on the phone yet: a dictation waits for it.
  */
 data class QuickPlan(val now: EngineOption, val later: EngineOption?, val nowMissing: Boolean = false) {
 
-    /** The one whose model has to be fetched, if any. */
-    val download: EngineOption?
-        get() = later ?: now.takeIf { nowMissing }
+    /** The models to fetch, in order: [now]'s first, if it is missing, then [later]'s. */
+    val downloads: List<EngineOption>
+        get() = listOfNotNull(now.takeIf { nowMissing }, later)
 }
 
 /** What becomes of a recognition that waits for its model ([FirstRun.verdict]). */
@@ -28,7 +28,13 @@ enum class PendingVerdict {
     /** The model is still on its way. */
     WAIT,
 
-    /** The model is there and Android's recognition still stands in: time to switch. */
+    /**
+     * The small model that stands in is on the phone: it hears the dictations now, and the
+     * waiting recognition's download comes next.
+     */
+    STANDS_IN,
+
+    /** The model is there and the stand-in is still the active recognition: time to switch. */
     SWITCH,
 
     /** The user chose a recognition meanwhile, or the waiting one is unknown: theirs stays. */
@@ -38,33 +44,61 @@ enum class PendingVerdict {
     DONE,
 }
 
+/** Where a first run's download stands, for the line that says what is happening ([FirstRun.stage]). */
+enum class PendingStage {
+    /** The small model is on its way, the better one follows; a dictation waits for the small one. */
+    SMALL_FIRST,
+
+    /** The small model hears the dictations while the better one's model downloads. */
+    SMALL_STANDS_IN,
+
+    /** Android's recognition stands in while the model downloads - settings from 0.33. */
+    ANDROID_STANDS_IN,
+
+    /** The active recognition's own model is on its way; a dictation waits for it. */
+    OWN,
+}
+
 /**
  * What a new install is given without being asked - by the quick setup, and by skipping the
  * introduction: the speech recognition that fits the phone ([EngineAdvice.recommend]), styles
  * for the known apps that are installed, no cleanup. Nothing here touches what a user chose:
  * a replay of the introduction (the flag set) gets its settings back unchanged.
+ *
+ * Where the recommended recognition needs a big download, a small Whisper model ([SMALL],
+ * about 80 MB, seconds on Wi-Fi) is fetched first - over mobile data too - and hears the
+ * dictations until the big one is there; then Amber switches by itself and deletes the small
+ * model, unless the user chose it. Android's recognition no longer stands in: it may not keep
+ * the voice on the phone, and it fails on a phone without the offline pack for its language.
  */
 object FirstRun {
 
-    /** The recognition nobody chose: what a new install starts on and what stands in during a download. */
-    private val STAND_IN = EnginePresets.ANDROID_ON_DEVICE.id
+    /** The recognition nobody chose: what a new install starts on, and the stand-in of settings from 0.33. */
+    private val UNTOUCHED = EnginePresets.ANDROID_ON_DEVICE.id
+
+    /** The small model that stands in while a big one downloads. */
+    val SMALL = EngineOption.FUTO_74
 
     /**
      * The recommended recognition at once if it needs no download ([ready] says whether a
-     * model is on the phone already). Otherwise Android's recognition until the model is
-     * there - but only where that keeps the voice on the phone, as the introduction promises;
-     * elsewhere, and on a phone without Android's recognition, the recommended one is active
-     * from the start and a dictation waits for its download.
+     * model is on the phone already). One with a big download gets the [SMALL] model in front
+     * of it, where that fits beside it; without room or a CPU for the small one - and for the
+     * small one itself - the recommended one is active from the start and a dictation waits
+     * for its download.
      */
     fun plan(phone: PhoneFacts, ready: (EngineOption) -> Boolean): QuickPlan {
         val recommended = EngineAdvice.recommend(phone).recommended
-        val standIn = phone.androidRecognizer && phone.androidOnDevice
         return when {
             recommended.downloadBytes <= 0 || ready(recommended) -> QuickPlan(recommended, null)
-            standIn -> QuickPlan(EngineOption.ANDROID, recommended)
+            recommended != SMALL && smallFits(phone, recommended) -> QuickPlan(SMALL, recommended, nowMissing = !ready(SMALL))
             else -> QuickPlan(recommended, null, nowMissing = true)
         }
     }
+
+    /** Room and a CPU for the small model beside [recommended]: both are on the phone until the switch. */
+    private fun smallFits(phone: PhoneFacts, recommended: EngineOption): Boolean =
+        EngineAdvice.fits(SMALL, phone) &&
+            (SMALL.downloadBytes + recommended.downloadBytes) / 1_000_000 + EngineAdvice.STORAGE_MARGIN_MB <= phone.freeStorageMb
 
     /** Whether the introduction has anything left to decide for the user: only on a new install. */
     fun applies(settings: AmethystSettings): Boolean = !settings.onboardingDone
@@ -72,10 +106,10 @@ object FirstRun {
     /**
      * The quick setup's choices written into [settings]: the [plan]'s recognition and the app
      * styles. The recognition only while nobody chose one - Android's, as installed, and no
-     * other waiting; cleanup is left as it is, which on a new install is off. A model still to
-     * be fetched is written down either way - for the recognition that waits, and for the one
-     * made active at once - so its download outlives the process. [finish] also ends the
-     * introduction (Skip).
+     * other waiting; cleanup is left as it is, which on a new install is off. The models still
+     * to be fetched are written down - the one that waits, and the active one's own if it is
+     * missing - so their downloads outlive the process. [finish] also ends the introduction
+     * (Skip).
      */
     fun quick(
         settings: AmethystSettings,
@@ -85,13 +119,14 @@ object FirstRun {
         finish: Boolean = false,
     ): AmethystSettings {
         if (!applies(settings)) return settings
-        val untouched = settings.activeEngineId == STAND_IN
+        val untouched = settings.activeEngineId == UNTOUCHED
         val withEngine = if (untouched) {
             activate(settings, plan.now, phoneTags).let { chosen ->
                 chosen.copy(
                     firstRun = chosen.firstRun.copy(
                         pendingEngine = plan.later?.name,
-                        wantedModel = plan.now.name.takeIf { plan.later == null && plan.nowMissing },
+                        wantedModel = plan.now.name.takeIf { plan.nowMissing },
+                        standIn = plan.now.name.takeIf { plan.later != null && plan.now.downloadBytes > 0 },
                     ),
                 )
             }
@@ -116,23 +151,37 @@ object FirstRun {
     /**
      * The user's own choice in the introduction: [option] added if missing, with its model, and
      * made the active recognition. Whatever waited to take over waits no longer - also when the
-     * choice is Android's recognition, the stand-in itself. A model the choice still has to
-     * fetch is written down, so its download outlives the process like quick setup's.
+     * choice is the stand-in itself, which is then theirs and stays. A model the choice still
+     * has to fetch is written down, so its download outlives the process like quick setup's.
      */
     fun use(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings =
         activate(settings, option, phoneTags).let { chosen ->
-            chosen.copy(firstRun = chosen.firstRun.copy(pendingEngine = null, wantedModel = option.name.takeIf { option.downloadBytes > 0 }))
+            chosen.copy(
+                firstRun = chosen.firstRun.copy(
+                    pendingEngine = null,
+                    wantedModel = option.name.takeIf { option.downloadBytes > 0 },
+                    standIn = settings.firstRun.standIn.takeIf { it != option.name },
+                ),
+            )
         }
 
     /**
      * The user's own choice in Settings: the recognition [engineId] becomes the active one, and
-     * nothing takes over from it later - also when it is Android's recognition, which stood in
-     * until now. The model on its way stays wanted only if it is the chosen recognition's own.
+     * nothing takes over from it later - also when it is the one that stood in until now, which
+     * is then theirs and stays. A model on its way stays wanted only if it is the chosen
+     * recognition's own.
      */
     fun chosen(settings: AmethystSettings, engineId: String): AmethystSettings {
         val active = settings.copy(activeEngineId = engineId)
-        val own = wanted(settings)?.takeIf { stillWanted(active, it) }
-        return active.copy(firstRun = active.firstRun.copy(pendingEngine = null, wantedModel = own?.name))
+        val own = onTheirWay(settings).firstOrNull { stillWanted(active, it) }
+        val theirs = active.activeEngine?.let(EngineNames::optionOf)
+        return active.copy(
+            firstRun = active.firstRun.copy(
+                pendingEngine = null,
+                wantedModel = own?.name,
+                standIn = settings.firstRun.standIn.takeIf { it != theirs?.name },
+            ),
+        )
     }
 
     /** [option] added if missing, with its model, and made the active recognition. */
@@ -148,21 +197,54 @@ object FirstRun {
     fun pending(settings: AmethystSettings): EngineOption? = downloadable(settings.firstRun.pendingEngine)
 
     /**
-     * The recognition whose model this install still has to fetch: the one that waits
-     * ([pending]), or the one made active before its model was there.
+     * The small model that stands in, while its own download comes first: fetched before the
+     * waiting recognition's, and over mobile data too - it is small, and nothing can be
+     * dictated without it.
      */
-    fun wanted(settings: AmethystSettings): EngineOption? = pending(settings) ?: downloadable(settings.firstRun.wantedModel)
+    fun smallFirst(settings: AmethystSettings): EngineOption? =
+        if (pending(settings) != null) downloadable(settings.firstRun.wantedModel) else null
+
+    /**
+     * The model this install has to fetch now: the stand-in's own first ([smallFirst]), then
+     * the one that waits ([pending]), or the one made active before its model was there.
+     */
+    fun wanted(settings: AmethystSettings): EngineOption? =
+        smallFirst(settings) ?: pending(settings) ?: downloadable(settings.firstRun.wantedModel)
+
+    /** Whether [option]'s download may go over mobile data without asking: only the small model's, fetched first. */
+    fun anyNetwork(settings: AmethystSettings, option: EngineOption): Boolean = smallFirst(settings) == option
+
+    /** Where the first run's download stands; null when nothing is on its way. */
+    fun stage(settings: AmethystSettings): PendingStage? = when {
+        wanted(settings) == null -> null
+        smallFirst(settings) != null -> PendingStage.SMALL_FIRST
+        pending(settings) != null -> if (smallStandIn(settings) != null) PendingStage.SMALL_STANDS_IN else PendingStage.ANDROID_STANDS_IN
+        else -> PendingStage.OWN
+    }
+
+    /** Every model written down as on its way, the waiting recognition's first. */
+    private fun onTheirWay(settings: AmethystSettings): List<EngineOption> =
+        listOfNotNull(pending(settings), downloadable(settings.firstRun.wantedModel))
+
+    private fun smallStandIn(settings: AmethystSettings): EngineOption? = downloadable(settings.firstRun.standIn)
+
+    /** Whether the recognition that stands in is still the active one - nobody chose another meanwhile. */
+    private fun standingIn(settings: AmethystSettings): Boolean = when (val small = smallStandIn(settings)) {
+        null -> settings.activeEngineId == UNTOUCHED
+        else -> stillWanted(settings, small)
+    }
 
     private fun downloadable(name: String?): EngineOption? =
         name?.let { EngineOption.entries.firstOrNull { option -> option.name == name && option.downloadBytes > 0 } }
 
-    /** What to do about the model still to be fetched now, [ready] saying whether it is on the phone. */
+    /** What to do about the model still to be fetched now ([wanted]), [ready] saying whether it is on the phone. */
     fun verdict(settings: AmethystSettings, ready: Boolean): PendingVerdict = when {
         settings.firstRun.pendingEngine != null -> when {
             pending(settings) == null -> PendingVerdict.DROP
             // Anything but the stand-in was chosen by the user; their choices end the wait
             // themselves ([use], [chosen]), this catches a change made any other way.
-            settings.activeEngineId != STAND_IN -> PendingVerdict.DROP
+            !standingIn(settings) -> PendingVerdict.DROP
+            smallFirst(settings) != null -> if (ready) PendingVerdict.STANDS_IN else PendingVerdict.WAIT
             ready -> PendingVerdict.SWITCH
             else -> PendingVerdict.WAIT
         }
@@ -176,22 +258,50 @@ object FirstRun {
     }
 
     /**
-     * [settings] after the [verdict]: switched to the waiting recognition, or nothing wanted
-     * any more. Decided again on the settings as they are when this is written, so a choice
-     * made a moment before is not switched away from. Someone who made the waiting recognition
-     * active themselves still gets its model: it stays written down as wanted.
+     * [settings] after the [verdict]: the small model taken as the stand-in, switched to the
+     * waiting recognition, or nothing wanted any more. Decided again on the settings as they
+     * are when this is written, so a choice made a moment before is not switched away from.
+     * Someone who made a recognition on its way active themselves still gets its model: it
+     * stays written down as wanted.
      */
     fun settle(settings: AmethystSettings, ready: Boolean, phoneTags: List<String>): AmethystSettings {
         val cleared = settings.copy(firstRun = settings.firstRun.copy(pendingEngine = null, wantedModel = null))
         return when (verdict(settings, ready)) {
             PendingVerdict.NONE, PendingVerdict.WAIT -> settings
+            PendingVerdict.STANDS_IN -> settings.copy(firstRun = settings.firstRun.copy(wantedModel = null))
             PendingVerdict.DONE -> cleared
             PendingVerdict.DROP -> {
-                val own = pending(settings)?.takeIf { !ready && stillWanted(settings, it) }
+                val there = wanted(settings).takeIf { ready }
+                val own = onTheirWay(settings).firstOrNull { it != there && stillWanted(settings, it) }
                 cleared.copy(firstRun = cleared.firstRun.copy(wantedModel = own?.name))
             }
             PendingVerdict.SWITCH -> pending(settings)?.let { activate(cleared, it, phoneTags) } ?: cleared
         }
+    }
+
+    /**
+     * The small model Amber fetched to stand in, once nothing needs it: nothing waits or is
+     * fetched any more, and it is not the active recognition. Its file is deleted, then [tidy]
+     * forgets it. Someone who chose it themselves keeps it: their choice cleared the mark.
+     */
+    fun leftover(settings: AmethystSettings): EngineOption? {
+        val small = smallStandIn(settings) ?: return null
+        val idle = settings.firstRun.pendingEngine == null && settings.firstRun.wantedModel == null
+        return small.takeIf { idle && !stillWanted(settings, it) }
+    }
+
+    /**
+     * [settings] once the [leftover] model's file is deleted: the mark gone, and the small
+     * model's recognition gone from the list too if nothing uses it - not the active one, no
+     * app, not the fallback - so Settings does not offer a model that is not there.
+     */
+    fun tidy(settings: AmethystSettings): AmethystSettings {
+        val small = leftover(settings) ?: return settings
+        val unused = { config: EngineConfig ->
+            config.id != settings.activeEngineId && config.id != settings.fallback.engineId &&
+                settings.profiles.none { it.appEngine.engineId == config.id } && EngineNames.optionOf(config) == small
+        }
+        return settings.copy(engines = settings.engines.filterNot(unused), firstRun = settings.firstRun.copy(standIn = null))
     }
 
     /**

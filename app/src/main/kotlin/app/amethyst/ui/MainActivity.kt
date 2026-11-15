@@ -473,8 +473,8 @@ private fun AmethystScreens(
     }
     // Read so the line under the flame follows the download; forEngine reads their current values.
     // The stores read every model file when they are built, so only for a local engine or the
-    // introduction - not on every start for everyone. And while the recognition chosen for this
-    // phone waits for its model, Android's standing in.
+    // introduction - not on every start for everyone. And while the first run still fetches a
+    // model for this phone: the small one that stands in, or the better one after it.
     val pendingOption = FirstRun.wanted(settings)
     val watchModels = screen == Screen.Onboarding || screen is Screen.EngineDetail || pendingOption != null ||
         settings.activeEngine?.let(ModelDownloads::downloadsModel) == true
@@ -488,11 +488,12 @@ private fun AmethystScreens(
     } else {
         null
     }
-    val pending = pendingOption?.let { option ->
+    val pendingStage = FirstRun.stage(settings)
+    val pending = pendingOption?.takeIf { pendingStage != null }?.let { option ->
         val (pendingDownload, failed) = remember(option, parakeetState, whisperStates, waitingFor) {
             graph.modelDownloads.forOption(option) to graph.modelDownloads.failed(option)
         }
-        PendingModel(option, pendingDownload, failed, standIn = FirstRun.pending(settings) != null) { mobileData -> graph.firstRun.download(mobileData) }
+        PendingModel(option, pendingDownload, failed, pendingStage!!, takesOver = FirstRun.pending(settings)) { mobileData -> graph.firstRun.download(mobileData) }
     }
     val apps = remember(context) { AndroidAppSource(context) }
     val appUsage = remember(statList) { AppChoice.usage(statList) }

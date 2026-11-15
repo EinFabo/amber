@@ -3,6 +3,7 @@ package app.amethyst.ui
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
+import app.amethyst.core.onboarding.PendingStage
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.ui.onboarding.DoneStep
@@ -28,9 +29,13 @@ class DoneFrames : TimelineFrames() {
         DoneStep(settings, ModelDownload.Running(520_000_000, 670_000_000), null) {}
     }
 
-    /** The same on the quick way, where Android's recognition stands in meanwhile. */
+    /** The same on the quick way, where the small model comes first and stands in meanwhile. */
     @Test
     fun pending() = frames("6-done-pending", 1f, dark = false) {
-        DoneStep(settings, null, PendingModel(EngineOption.PARAKEET, ModelDownload.Running(300_000_000, 670_000_000), failed = false) {}) {}
+        val small = PendingModel(
+            EngineOption.FUTO_74, ModelDownload.Running(30_000_000, EngineOption.FUTO_74.downloadBytes), failed = false,
+            stage = PendingStage.SMALL_FIRST, takesOver = EngineOption.PARAKEET,
+        ) {}
+        DoneStep(settings, null, small) {}
     }
 }

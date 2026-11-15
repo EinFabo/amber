@@ -126,9 +126,11 @@ internal fun PracticeStep(
                 PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
                 else -> Unit
             }
-            // The model for this phone is still on its way: said here with its progress, so a
-            // tap on the bubble that cannot recognize yet is no surprise (Fabi, 2026-11-15).
-            content.pending?.let { PendingModelNote(it, progress = true) }
+            // A model for this phone is still on its way: said here, so a tap on the bubble that
+            // cannot recognize yet is no surprise (Fabi, 2026-11-15). The progress of the small
+            // one the tap waits for is on the tap's own row; the better one's, which the tap does
+            // not wait for, here.
+            content.pending?.let { PendingModelNote(it) }
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 PracticeTask.entries.forEach { task ->
                     TaskRow(

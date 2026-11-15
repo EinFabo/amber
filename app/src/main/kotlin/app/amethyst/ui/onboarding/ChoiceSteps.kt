@@ -200,7 +200,7 @@ internal fun DoneStep(settings: AmethystSettings, download: ModelDownload?, pend
         // By the name the engine step gave it, not the one Settings lists it under.
         Chosen(
             stringResource(R.string.settings_recognition),
-            pending?.takeIf { it.standIn }?.let { stringResource(R.string.pending_then, words(EngineNames.of(it.option))) }
+            pending?.takesOver?.let { stringResource(R.string.pending_then, words(EngineNames.of(it))) }
                 ?: settings.activeEngine?.let { words(EngineNames.of(it)) } ?: stringResource(R.string.done_none),
             stringResource(R.string.done_where_recognition),
             Modifier.rowIn(rows, 0),
