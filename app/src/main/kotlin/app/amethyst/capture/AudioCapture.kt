@@ -74,6 +74,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
          * ([PausableRecording]) and the recording goes on seamlessly after it.
          */
         pause: RecordingPause = RecordingPause(),
+        /** The microphone is really open: the recorder records. On the recorder's thread. */
+        onStarted: () -> Unit = {},
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -125,6 +127,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     "recordingState ${recorder.recordingState} - likely a background mic block",
                 )
             }
+            onStarted()
 
             silence.watch(recorder)
             // How the recording ends when the microphone is gone or a tap comes while it

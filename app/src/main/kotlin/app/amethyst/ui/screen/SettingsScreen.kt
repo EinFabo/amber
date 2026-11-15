@@ -342,6 +342,14 @@ fun RecordingScreen(
         ) {
             ChunkingSettings(settings, onUpdateSettings)
         }
+        SectionCard(title = stringResource(R.string.recording_microphone)) {
+            ToggleRow(
+                label = stringResource(R.string.recording_sounds),
+                description = stringResource(R.string.recording_sounds_note),
+                checked = settings.feedback.sounds,
+                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
+            )
+        }
     }
 }
 

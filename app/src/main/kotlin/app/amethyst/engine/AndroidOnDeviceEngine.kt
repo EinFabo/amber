@@ -146,7 +146,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
             }
 
             recognizer.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) = Unit
+                override fun onReadyForSpeech(params: Bundle?) = callbacks.onReady()
                 override fun onBeginningOfSpeech() = Unit
                 override fun onBufferReceived(buffer: ByteArray?) = Unit
                 override fun onEndOfSpeech() = Unit

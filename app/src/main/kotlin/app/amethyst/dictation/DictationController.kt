@@ -20,6 +20,7 @@ import app.amethyst.accessibility.FieldEditor
 import app.amethyst.capture.AudioCapture
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MicProxyActivity
+import app.amethyst.capture.RecordingSounds
 import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.audio.StopReason
@@ -30,6 +31,7 @@ import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
 import app.amethyst.core.capture.RecordingLimit
+import app.amethyst.core.capture.RecordingCue
 import app.amethyst.core.capture.RecordingPause
 import app.amethyst.core.capture.RunLimit
 import app.amethyst.core.capture.TriggerSource
@@ -706,6 +708,8 @@ class DictationController(
         val pause = RecordingPause().also { recordingPause = it }
         wait = null
         runAudio = null
+        // A run cancelled while its recognizer listened left its microphone counted as open.
+        cue.ended()
         stoppedByTap = false
         commandSteps = null
         commandRecorded = false
@@ -814,6 +818,26 @@ class DictationController(
         }
     }
 
+    /** When this run's tones are due; see [RecordingCue]. */
+    private val cue = RecordingCue()
+
+    /** Plays the start and stop tones when the setting is on ([RecordingSounds]). */
+    private val sounds = RecordingSounds()
+
+    /**
+     * The microphone is really open - the recorder records, the recognizer listens: the bubble
+     * buzzes (it watches [DictationState.Listening.open]), and the start tone plays if wanted.
+     */
+    private fun microphoneOpen() {
+        updateListening { it.copy(open = true) }
+        if (cue.opened() != null && graph.settings.value.feedback.sounds) sounds.play(RecordingSounds.Tone.START)
+    }
+
+    /** The recording ended, however: the stop tone, once, if the microphone had opened. */
+    private fun microphoneClosed() {
+        if (cue.ended() != null && graph.settings.value.feedback.sounds) sounds.play(RecordingSounds.Tone.STOP)
+    }
+
     /** What the bubble's level was fed in this dictation, for the log ([LoudnessLog]). */
     @Volatile
     private var loudness: LoudnessLog? = null
@@ -837,13 +861,18 @@ class DictationController(
         trace?.transcribingStarts()
         loudness = LoudnessLog()
 
-        val result = engine.listen(
-            options,
-            ListenCallbacks(
-                onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
-                onPartial = { partial -> updateListening { it.copy(partial = partial) } },
-            ),
-        )
+        val result = try {
+            engine.listen(
+                options,
+                ListenCallbacks(
+                    onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
+                    onPartial = { partial -> updateListening { it.copy(partial = partial) } },
+                    onReady = ::microphoneOpen,
+                ),
+            )
+        } finally {
+            microphoneClosed()
+        }
 
         trace?.recordingEnds()
         trace?.transcribingEnds()
@@ -926,11 +955,14 @@ class DictationController(
                 onChunk = chunkSink?.let { it::submit },
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
                 pause = pause,
+                onStarted = ::microphoneOpen,
             )
         } catch (e: Throwable) {
             chunked?.cancel()
             prepared?.chunks?.cancel()
             throw e
+        } finally {
+            microphoneClosed()
         }
         if (outcome !is AudioCapture.Outcome.Captured || outcome.chunks == 0) chunked?.cancel()
         if (outcome !is AudioCapture.Outcome.Captured) prepared?.chunks?.cancel()

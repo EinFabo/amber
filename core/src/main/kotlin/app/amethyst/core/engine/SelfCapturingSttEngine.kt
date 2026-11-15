@@ -36,4 +36,6 @@ class ListenCallbacks(
     val onAmplitude: (Float) -> Unit = {},
     /** Interim text, shown but never inserted. */
     val onPartial: (String) -> Unit = {},
+    /** The recognizer listens now: the microphone is really open. */
+    val onReady: () -> Unit = {},
 )

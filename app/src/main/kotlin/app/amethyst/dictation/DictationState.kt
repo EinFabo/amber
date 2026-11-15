@@ -23,6 +23,8 @@ sealed interface DictationState {
          * that listens by itself runs.
          */
         val limitLeft: Float? = null,
+        /** The microphone is really open - the recorder records, the recognizer listens - not only asked for. */
+        val open: Boolean = false,
     ) : DictationState
 
     /**

@@ -31,6 +31,8 @@ internal class Haptics(context: Context) {
         CONFIRM,
         /** Refused or failed. */
         REJECT,
+        /** The microphone is really open: a firm buzz, unlike the tap's click. */
+        OPEN,
     }
 
     private val vibrator: Vibrator? = runCatching {
@@ -56,13 +58,16 @@ internal class Haptics(context: Context) {
     }
 
     private fun effect(kind: Kind): VibrationEffect =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (kind == Kind.OPEN) {
+            VibrationEffect.createOneShot(OPEN_MS, VibrationEffect.DEFAULT_AMPLITUDE)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             VibrationEffect.createPredefined(
                 when (kind) {
                     Kind.TICK -> VibrationEffect.EFFECT_TICK
                     Kind.CLICK -> VibrationEffect.EFFECT_CLICK
                     Kind.CONFIRM -> VibrationEffect.EFFECT_HEAVY_CLICK
                     Kind.REJECT -> VibrationEffect.EFFECT_DOUBLE_CLICK
+                    Kind.OPEN -> VibrationEffect.EFFECT_HEAVY_CLICK // made above
                 },
             )
         } else {
@@ -71,11 +76,15 @@ internal class Haptics(context: Context) {
                 Kind.CLICK -> VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE)
                 Kind.CONFIRM -> VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
                 Kind.REJECT -> VibrationEffect.createWaveform(longArrayOf(0, 20, 60, 20), -1)
+                Kind.OPEN -> VibrationEffect.createOneShot(OPEN_MS, VibrationEffect.DEFAULT_AMPLITUDE) // made above
             }
         }
 
     private companion object {
         const val TAG = "Amber"
+
+        /** The microphone's buzz: longer than any predefined click, short enough not to be heard in the recording. */
+        const val OPEN_MS = 45L
 
         val ACCESSIBILITY: VibrationAttributes? =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

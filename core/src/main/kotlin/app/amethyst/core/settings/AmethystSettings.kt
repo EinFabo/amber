@@ -292,6 +292,8 @@ data class AmethystSettings(
     val updates: UpdateSettings = UpdateSettings(),
     /** How the app itself looks: the simple or the advanced settings. */
     val ui: UiSettings = UiSettings(),
+    /** What a recording does around itself: a tone, music paused. Absent in older settings: all off. */
+    val feedback: FeedbackSettings = FeedbackSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
     /** The user's own words. Absent in older settings: none - no new schema version needed. */
     val words: WordsSettings = WordsSettings(),
@@ -634,6 +636,13 @@ data class WordsSettings(
     /** The prompt for a speech recognition, or null without words. */
     fun hint(): String? = OwnWords.hint(own)
 }
+
+/** What a recording does around itself, under Settings -> Recording; everything off by default. */
+@Serializable
+data class FeedbackSettings(
+    /** A short, quiet tone when the microphone is open and when the recording ends. */
+    val sounds: Boolean = false,
+)
 
 /** How the app itself looks. */
 @Serializable
