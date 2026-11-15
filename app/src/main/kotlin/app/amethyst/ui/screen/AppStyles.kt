@@ -41,6 +41,7 @@ import app.amethyst.core.settings.AppRows
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.ui.AmberIcons
+import app.amethyst.ui.GhostButton
 import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
 import app.amethyst.ui.Hint
@@ -310,7 +311,7 @@ internal fun AppPickerDialog(
         },
         // Tapping an app picks it: the one button only leaves.
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
+            GhostButton(stringResource(R.string.cancel), onDismiss)
         },
     )
 }

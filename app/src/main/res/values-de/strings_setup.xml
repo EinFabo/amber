@@ -13,7 +13,7 @@
     <string name="disclosure_text_note">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen.</string>
     <string name="disclosure_text_note_commands">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen - und, mit Sprachbefehlen, für einen Befehl, der dieses Feld bearbeitet.</string>
     <string name="disclosure_back">Bringt dich zurück zu Amber</string>
-    <string name="disclosure_back_note">Direkt nachdem du eingeschaltet hast, wofür Amber dich in die Android-Einstellungen geschickt hat: diesen Dienst, Akkunutzung ohne Einschränkung.</string>
+    <string name="disclosure_back_note">Nachdem du diesen Dienst oder die Akkunutzung ohne Einschränkung in Androids Einstellungen eingeschaltet hast.</string>
     <string name="disclosure_commands">Mit Sprachbefehlen</string>
     <string name="disclosure_commands_note">Es liest deine App-Liste, welche Teile des Bildschirms scrollen können und wo die Einträge in dem stehen, den es scrollt - um zu sehen, ob er sich bewegt hat, nie was sie zeigen -, die Lautstärke und ob die Taschenlampe an ist.</string>
     <string name="disclosure_acts">Handelt nach dem Befehl, den du gesprochen hast</string>
@@ -52,7 +52,7 @@
     <string name="welcome_quick">Schnell einrichten</string>
     <string name="welcome_deep">Schritt für Schritt</string>
     <string name="welcome_skip">Einführung überspringen</string>
-    <string name="welcome_ways">Schnell einrichten fragt nach zwei Berechtigungen und wählt die Spracherkennung, die zu diesem Handy passt. Schritt für Schritt entscheidest du alles selbst.</string>
+    <string name="welcome_ways">Schnell einrichten wählt, was zu diesem Handy passt.</string>
     <string name="welcome_every_app">In jeder App</string>
     <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist.</string>
     <string name="welcome_private">Privat von Anfang an</string>
@@ -102,8 +102,8 @@
     <string name="done_where_cleanup">Einstellungen → Bereinigung</string>
     <string name="done_where_bubble">Einstellungen → Bubble</string>
     <string name="done_else">Alles andere</string>
-    <string name="done_else_value">Aufnahme, Einfügen, Statistik, Diagnose</string>
-    <string name="done_where_advanced">Einstellungen → Erweiterte Einstellungen</string>
+    <string name="done_else_value">Aufnahme, Text, Apps, Darstellung</string>
+    <string name="done_where_advanced">Einstellungen</string>
     <string name="done_download_note">Amber ist bereit, wenn es fertig ist; bis dahin sagt die Bubble Bescheid.</string>
     <string name="pending_downloading">Das Sprachmodell wird geladen - bis dahin wird Androids Spracherkennung verwendet.</string>
     <string name="pending_wifi">Das Sprachmodell (%1$s) wird im WLAN geladen - bis dahin wird Androids Spracherkennung verwendet.</string>

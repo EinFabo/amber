@@ -52,6 +52,7 @@ import app.amethyst.ui.AccessibilityConsentDialog
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.DictateOrb
 import app.amethyst.ui.GhostButton
+import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.Hint
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.PageGutter
@@ -213,7 +214,8 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
     val ownEngineWeakest = ownEngines.mapNotNull { ownEngine(it)?.trustLevelForDisplay() }.maxByOrNull { it.strictness }
     SettingsGroup(label = null) {
         NavRow(
-            title = active?.let { engineName(it) } ?: stringResource(R.string.home_no_engine),
+            // The badge under it says where it runs; the name need not.
+            title = active?.let { recognitionRowName(it) } ?: stringResource(R.string.home_no_engine),
             summary = null,
             icon = AmberIcons.Mic,
             titleColor = if (active == null) AmberPalette.Error else AmberPalette.Text,

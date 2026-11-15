@@ -13,7 +13,7 @@
     <string name="disclosure_text_note">Only while inserting a dictation, so the new words fit in at the cursor.</string>
     <string name="disclosure_text_note_commands">Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field.</string>
     <string name="disclosure_back">Brings you back to Amber</string>
-    <string name="disclosure_back_note">Right after you switch on what Amber sent you to Android\'s settings for: this service, battery use without limits.</string>
+    <string name="disclosure_back_note">After you switch on this service or battery use without limits in Android\'s settings.</string>
     <string name="disclosure_commands">With voice commands on</string>
     <string name="disclosure_commands_note">It reads your list of apps, which parts of the screen can scroll and where the items sit in the one it scrolls - to tell whether it moved, never what they show - the volume and whether the flashlight is on.</string>
     <string name="disclosure_acts">Acts on the command you spoke</string>
@@ -52,7 +52,7 @@
     <string name="welcome_quick">Quick setup</string>
     <string name="welcome_deep">Step by step</string>
     <string name="welcome_skip">Skip the introduction</string>
-    <string name="welcome_ways">Quick setup asks for two permissions and picks the speech recognition that fits this phone. Step by step, you choose everything yourself.</string>
+    <string name="welcome_ways">Quick setup picks what fits this phone.</string>
     <string name="welcome_every_app">In every app</string>
     <string name="welcome_every_app_note">A small bubble floats over the app you are in.</string>
     <string name="welcome_private">Private by default</string>
@@ -102,8 +102,8 @@
     <string name="done_where_cleanup">Settings → Cleanup</string>
     <string name="done_where_bubble">Settings → Bubble</string>
     <string name="done_else">Everything else</string>
-    <string name="done_else_value">Recording, inserting, statistics, diagnostics</string>
-    <string name="done_where_advanced">Settings → Advanced settings</string>
+    <string name="done_else_value">Recording, text, apps, appearance</string>
+    <string name="done_where_advanced">Settings</string>
     <string name="done_download_note">Amber is ready when it is done; until then the bubble says so.</string>
     <string name="pending_downloading">Downloading the speech model - until then Android\'s speech recognition is used.</string>
     <string name="pending_wifi">The speech model (%1$s) downloads on Wi-Fi - until then Android\'s speech recognition is used.</string>

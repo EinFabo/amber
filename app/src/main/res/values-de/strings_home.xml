@@ -11,7 +11,7 @@
     <string name="other_ambers_summary">%1$s Jedes zeigt eine Bubble und tippt in dieselben Felder.</string>
     <string name="open_accessibility_settings">Bedienungshilfen öffnen</string>
     <string name="home_no_dictations">Noch keine Diktate</string>
-    <string name="home_counted_here">Hier gezählt, nur auf diesem Handy.</string>
+    <string name="home_counted_here">Nur auf diesem Handy gezählt.</string>
     <string name="home_nothing_today">Heute nichts diktiert</string>
     <string name="home_words_so_far">%1$s Wörter bisher · %2$s</string>
     <string name="home_words_today">%1$s Wörter heute</string>

@@ -74,7 +74,23 @@ Open - found, not built:
       and on mobile data, a dictation with Android's recognition, the power button while
       recording, two dictations in a row in the Claude app, a login form in a Compose app,
       and Amber on Android 16/17 at target 36.
-- [ ] The UI review of every screen (English and German, light and dark).
+- [x] The UI review of every screen (English and German, light and dark), 2026-11-15. Built
+      from it: the disclosure's "nothing is sent" paragraph comes before its rows and a row
+      got shorter, so it is on screen with "I agree"; the welcome step no longer cuts its
+      third point; Home names the recognition as Settings does (no "(local)"); the done
+      step points to pages that exist; German texts that were cut ("Nur auf diesem Handy
+      gezählt."); the off switch keeps its track on the main switch's card; Cancel looks
+      the same in the app picker and the quick menu picker.
+- [ ] From the UI review, not built: "Your voice never leaves the phone" also stands over
+      Android's recognition, which on a phone without on-device recognition may send it
+      on (a trust level of its own, as the introduction already has); an own server in the
+      own network is badged "Cloud"; cleanup prices have no unit ("~$0.00025" - per
+      dictation); the practice step has three ways out; "The steps in words" looks
+      disabled; the bubble step clips "Ziehen" in German and says "56 dp"; the screenshot
+      harness draws the cleanup sheets blank (`shootDialog` and `ModalBottomSheet`), so the
+      service sheets were not reviewed; no screenshot of Licenses, a phone model's page,
+      empty statistics, a failed key test; the listing icon is a circle on transparency
+      (Play wants a full square).
 
 ## Bugs (Fabi, 2026-11-11)
 

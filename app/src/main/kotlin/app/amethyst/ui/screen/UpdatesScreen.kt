@@ -97,6 +97,7 @@ private fun CheckedUpdates(
     SettingsGroup(label = null) {
         NavRow(
             stringResource(R.string.updates_all_releases), stringResource(R.string.updates_all_releases_summary), icon = AmberIcons.OpenInNew,
+            summaryMaxLines = 2,
         ) { onOpenUrl(GithubReleases.RELEASES_URL) }
     }
 }

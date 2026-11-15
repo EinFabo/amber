@@ -40,8 +40,10 @@ import app.amethyst.ui.theme.AmberShapes
 @Composable
 fun AccessibilityDisclosure(modifier: Modifier = Modifier) {
     Column(modifier) {
-        SettingsGroup(stringResource(R.string.disclosure_title)) { DisclosureRows() }
+        // What happens to it all comes first: it is the sentence that has to be on screen with
+        // "I agree", whatever the rows under it push below the fold.
         NothingStoredLine()
+        SettingsGroup(stringResource(R.string.disclosure_title)) { DisclosureRows() }
         FullDisclosure()
     }
 }
