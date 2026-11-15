@@ -11,6 +11,7 @@ import app.amethyst.core.net.SecureChannel
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.text.OwnWords
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -83,10 +84,7 @@ class OpenAiCompatibleEngine(
             )
         }
 
-        val prompt = listOfNotNull(options.vocabularyHint, options.precedingText)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-            .takeIf { it.isNotEmpty() }
+        val prompt = OwnWords.prompt(options.vocabularyHint?.takeIf { capabilities.vocabulary }, options.precedingText)
 
         var compressed = compressedUpload?.let { upload -> withContext(encodeContext) { upload.encode(audio) } }
         var opusRefused = false

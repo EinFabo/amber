@@ -66,12 +66,20 @@ data class EngineCapabilities(
      * a second request.
      */
     val commandPrompt: Boolean = false,
+    /**
+     * The user's own words ([TranscribeOptions.vocabularyHint]) go into the prompt. Off for a
+     * server not known to take one: a model that refuses a prompt costs a second request.
+     */
+    val vocabulary: Boolean = true,
 )
 
 data class TranscribeOptions(
     /** BCP-47 tag, or null to let the engine detect the language. */
     val languageTag: String? = null,
-    /** Names and jargon passed to engines that accept a biasing prompt. */
+    /**
+     * The user's own names and terms as a prompt ([app.amethyst.core.text.OwnWords.hint]), for
+     * engines that take one ([EngineCapabilities.vocabulary]). Null: none.
+     */
     val vocabularyHint: String? = null,
     /**
      * The text recognized just before this audio, when it is one chunk of a longer dictation:

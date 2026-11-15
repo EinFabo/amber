@@ -9,6 +9,7 @@ import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.text.OwnWords
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -101,7 +102,10 @@ class WhisperCppEngine(
         val raws = mutableListOf<String>()
         for (piece in pieces) {
             val part = if (pieces.size == 1) samples else samples.copyOfRange(piece.first, piece.last + 1)
-            val prompt = if (texts.isEmpty()) options.precedingText.orEmpty() else ChunkedTranscription.join(texts).takeLast(ChunkedTranscription.PROMPT_CHARS)
+            val before = if (texts.isEmpty()) options.precedingText else ChunkedTranscription.join(texts).takeLast(ChunkedTranscription.PROMPT_CHARS)
+            // The user's own words first, so the text before - which matters more - is what
+            // whisper.cpp keeps of a prompt that is too long.
+            val prompt = OwnWords.prompt(options.vocabularyHint, before).orEmpty()
             val (raw, heard) = abortable {
                 guarded("transcribe") {
                     runtime.ensureLoaded(modelPath)

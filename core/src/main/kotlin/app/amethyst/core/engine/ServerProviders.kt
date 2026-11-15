@@ -45,6 +45,12 @@ data class ServerProvider(
     val recognizes: Boolean = true,
     /** Where its API keys are made, for "Get a key"; null for a server of one's own. */
     val keyPage: String? = null,
+    /**
+     * Its transcription endpoint takes a `prompt` (the user's own words): OpenAI's models and
+     * Groq's Whisper, both up to 224 tokens. Not known of Tinfoil's or an own server's - a model
+     * that refuses it would cost every dictation a second request.
+     */
+    val takesPrompt: Boolean = false,
 ) {
     /** The lists came from the server, so they are all it takes; nothing else is typed. */
     val listsItself: Boolean get() = listedBy != null
@@ -102,6 +108,7 @@ object ServerProviders {
         fixedAddress = true,
         streamsChat = true,
         keyPage = "https://console.groq.com/keys",
+        takesPrompt = true,
     )
 
     val OPENAI = ServerProvider(
@@ -122,6 +129,7 @@ object ServerProviders {
         fixedAddress = true,
         streamsChat = true,
         keyPage = "https://platform.openai.com/api-keys",
+        takesPrompt = true,
     )
 
     /*

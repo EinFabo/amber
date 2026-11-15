@@ -684,7 +684,7 @@ class DictationController(
         }
         warmUpConnections(engine, engineConfig, settings)
 
-        val options = TranscribeOptions(languageTag = LanguageList.forDictation(engineConfig))
+        val options = TranscribeOptions(languageTag = LanguageList.forDictation(engineConfig), vocabularyHint = settings.words.hint())
         val appLabels = appLabelsOnce()
         if (engine is ParakeetEngine) {
             trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
@@ -1058,7 +1058,7 @@ class DictationController(
         val scope = CoroutineScope(currentCoroutineContext())
         // The model loads while the user speaks; a failure shows when it is asked for text.
         scope.launch { engine.warmUp() }
-        val options = TranscribeOptions(languageTag = LanguageList.forDictation(config))
+        val options = TranscribeOptions(languageTag = LanguageList.forDictation(config), vocabularyHint = graph.settings.value.words.hint())
         return Prepared(config, engine, options, ChunkedTranscription(engine, options, scope))
     }
 
@@ -1258,7 +1258,7 @@ class DictationController(
             wait.plan(*listOfNotNull(WaitProgress.Step.RECOGNIZE to recognizeMs, cleanupMs?.let { WaitProgress.Step.CLEANUP to it }).toTypedArray())
             _state.value = DictationState.Transcribing(wait)
             val result = try {
-                other.transcribe(audio, TranscribeOptions(languageTag = LanguageList.forDictation(config)))
+                other.transcribe(audio, TranscribeOptions(languageTag = LanguageList.forDictation(config), vocabularyHint = settings.words.hint()))
             } finally {
                 runCatching { other.close() }
             }

@@ -119,7 +119,8 @@ object CommandLanguages {
         var passes = 0
         for (language in languages) {
             val prompt = if (caps.commandPrompt) promptFor(language) else null
-            val result = engine.transcribe(audio, options.copy(languageTag = language, precedingText = prompt))
+            // The command vocabulary alone: the user's own words would crowd it out.
+            val result = engine.transcribe(audio, options.copy(languageTag = language, precedingText = prompt, vocabularyHint = null))
             passes++
             val label = "heard as ${language ?: "auto"}"
             val error = result.exceptionOrNull()

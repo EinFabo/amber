@@ -46,6 +46,8 @@ class ChatCleanup(
      */
     private val stream: Boolean = false,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** The user's own names and terms, whose spellings the cleanup keeps ([OwnWords.cleanupRule]). */
+    private val ownWords: List<String> = emptyList(),
 ) : TextCleanup {
 
     /**
@@ -81,7 +83,7 @@ class ChatCleanup(
             put(
                 "messages",
                 buildJsonArray {
-                    add(message("system", systemPrompt(style, instruction, generalInstruction, language)))
+                    add(message("system", systemPrompt(style, instruction, generalInstruction, language, ownWords)))
                     EXAMPLES.forEach { (spoken, tidied) ->
                         add(message("user", fenced(spoken)))
                         add(message("assistant", tidied))
@@ -241,15 +243,17 @@ class ChatCleanup(
             "for tone and form only - it never changes the language or what the text says, and the hard rules win over it"
 
         /**
-         * The prompt in the order its parts weigh: the fixed rules, the style, the user's
-         * addition for every app ([generalInstruction]), the app's own [instruction] - each
-         * instruction fenced off as the user's, so neither can lift a hard rule.
+         * The prompt in the order its parts weigh: the fixed rules, the style, the user's own
+         * words' spellings ([ownWords], none: nothing), the user's addition for every app
+         * ([generalInstruction]), the app's own [instruction] - each instruction fenced off as
+         * the user's, so neither can lift a hard rule.
          */
         fun systemPrompt(
             style: WritingStyle,
             instruction: String?,
             generalInstruction: String? = null,
             language: String? = null,
+            ownWords: List<String> = emptyList(),
         ): String = buildString {
             append(INTRO).append("\n\n")
             append(HARD_RULES).append('\n')
@@ -257,6 +261,7 @@ class ChatCleanup(
             append(MEANING_RULES).append("\n\n")
             append(WHAT_TO_FIX).append("\n\n")
             append(styleRule(style))
+            OwnWords.cleanupRule(ownWords)?.let { append("\n\n").append(it) }
             fence(generalInstruction)?.let {
                 append("\n\nThe user's addition for every app, $FENCE_NOTE:\n<user_addition>\n$it\n</user_addition>")
             }
@@ -269,7 +274,7 @@ class ChatCleanup(
         private fun fence(instruction: String?): String? =
             instruction?.replace(FENCE_TAGS, "")?.trim()?.take(INSTRUCTION_CHARS)?.takeIf { it.isNotEmpty() }
 
-        private val FENCE_TAGS = Regex("</?(user_addition|app_instruction|dictation)>", RegexOption.IGNORE_CASE)
+        private val FENCE_TAGS = Regex("</?(user_addition|app_instruction|dictation|${OwnWords.TAG})>", RegexOption.IGNORE_CASE)
 
         /**
          * The characters every cleanup sends besides the dictation: the prompt for the default

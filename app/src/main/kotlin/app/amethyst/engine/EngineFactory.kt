@@ -86,6 +86,8 @@ class EngineFactory(
                             typicalRate = 0.08,
                             overheadMs = 900,
                             commandLanguageAttempts = OpenAiCompatibleEngine.COMMAND_LANGUAGE_ATTEMPTS,
+                            // The user's own words as the prompt, only where the service takes one.
+                            vocabulary = ServerProviders.forUrl(baseUrl).takesPrompt,
                         ),
                         // A host Amber can verify gets the verifier, and the engine then
                         // sends only over a connection bound to the attested key. Any other
@@ -196,6 +198,7 @@ class EngineFactory(
                 apiKeyProvider = key,
                 service = config.displayName,
                 thinkingOff = known?.thinkingOff,
+                ownWords = settings.words.own,
             )
             // The same backend for every other server: only the model's own switches differ.
             ChatDialect.OPENAI -> ChatCleanup(
@@ -207,6 +210,7 @@ class EngineFactory(
                 extraParams = known?.extraParams.orEmpty(),
                 // A streamed reply lets the ring follow the cleanup; Amber PC's answers in one piece.
                 stream = provider.streamsChat,
+                ownWords = settings.words.own,
             )
         }
     }

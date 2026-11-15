@@ -11,6 +11,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.NormalizeOptions
+import app.amethyst.core.text.OwnWords
 import app.amethyst.core.text.SpliceOptions
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -292,6 +293,8 @@ data class AmethystSettings(
     /** How the app itself looks: the simple or the advanced settings. */
     val ui: UiSettings = UiSettings(),
     val schemaVersion: Int = SCHEMA_VERSION,
+    /** The user's own words. Absent in older settings: none - no new schema version needed. */
+    val words: WordsSettings = WordsSettings(),
 ) {
     val activeEngine: EngineConfig?
         get() = engines.firstOrNull { it.id == activeEngineId }
@@ -599,6 +602,22 @@ data class FirstRunSettings(
      */
     val wantedModel: String? = null,
 )
+
+/**
+ * What the user tells Amber about their words, edited under Settings -> Text. On the phone
+ * only, like every setting, and never logged.
+ */
+@Serializable
+data class WordsSettings(
+    /**
+     * Names and terms to spell right ("Anna Lüdtke", "Kubernetes"), in the user's order:
+     * Whisper's and a server's prompt and the cleanup get them; see [OwnWords].
+     */
+    val own: List<String> = emptyList(),
+) {
+    /** The prompt for a speech recognition, or null without words. */
+    fun hint(): String? = OwnWords.hint(own)
+}
 
 /** How the app itself looks. */
 @Serializable

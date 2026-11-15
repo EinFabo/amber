@@ -41,6 +41,8 @@ class ClaudeCleanup(
     /** The thinking type that turns this model's thinking off ("disabled", "between_tools"); null sends none. */
     private val thinkingOff: String? = null,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** The user's own names and terms, whose spellings the cleanup keeps ([OwnWords.cleanupRule]). */
+    private val ownWords: List<String> = emptyList(),
 ) : TextCleanup {
 
     override suspend fun warmUp(): Boolean = channel.warmUp(OpenAiCompatibleEngine.apiRoot(baseUrl))
@@ -98,7 +100,7 @@ class ClaudeCleanup(
         // As long as the dictation and a little more; with thinking left on, room for it too,
         // or a short dictation comes back cut off.
         put("max_tokens", text.length / 2 + 256 + if (thinkingOff == null) THINKING_HEADROOM else 0)
-        put("system", ChatCleanup.systemPrompt(style, instruction, generalInstruction, language))
+        put("system", ChatCleanup.systemPrompt(style, instruction, generalInstruction, language, ownWords))
         thinkingOff?.let { type -> put("thinking", buildJsonObject { put("type", type) }) }
         put(
             "messages",

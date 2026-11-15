@@ -37,6 +37,15 @@
     <string name="recording_auto_stop">Bei Stille automatisch stoppen</string>
     <string name="recording_auto_stop_note">Aus: Sie läuft bis zum nächsten Tippen.</string>
     <string name="recording_auto_stop_note_android">Aus: Sie läuft bis zum nächsten Tippen - außer mit Androids Spracherkennung, die immer bei der ersten Pause aufhört.</string>
+    <string name="own_words">Eigene Wörter</string>
+    <string name="own_words_subtitle">Namen und Begriffe, die Amber richtig schreiben soll</string>
+    <string name="own_words_more">Whisper und die Server von OpenAI und Groq bekommen die ersten paar Dutzend als Hinweis; die Bereinigung bekommt alle und behält ihre Schreibweise. Parakeet und die Spracherkennung von Android können sie nicht nutzen. Die Liste bleibt auf dem Handy; ein Server bekommt sie nur mit einem Diktat.</string>
+    <string name="own_words_field">Name oder Begriff</string>
+    <string name="own_words_add">Hinzufügen</string>
+    <string name="own_words_none">Noch keine. Mehrere auf einmal: mit Kommas trennen.</string>
+    <string name="own_words_count">%1$d von %2$d</string>
+    <string name="own_words_full">%1$d von %2$d - die Liste ist voll. Tippe auf ein Wort, um es zu entfernen.</string>
+    <string name="own_words_remove">%1$s entfernen</string>
     <string name="text_words">Wörter und Kommas</string>
     <string name="text_words_more">Beides arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort.</string>
     <string name="text_fillers">Füllwörter entfernen</string>

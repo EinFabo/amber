@@ -107,6 +107,12 @@ class ParakeetEngine(
     override suspend fun transcribe(audio: PcmAudio, options: TranscribeOptions): Result<Transcript> {
         val startedAt = clock()
         // Language and prompt do not apply: Parakeet detects the language and keeps no prompt.
+        // Nor do the user's own words: sherpa-onnx boosts hotwords for this model only with
+        // modified_beam_search instead of the greedy search, and only with the model's
+        // SentencePiece vocabulary (bpe.vocab) to split them into its tokens - which this export
+        // does not ship. A vocabulary rebuilt from tokens.txt would guess the splits, a word
+        // split differently from how the model writes it is never boosted, and the beam search
+        // would change every dictation's text and speed. Left out until a model brings it.
         val samples = WhisperInput.prepare(audio)
         // Its encoder's memory grows with the square of the length: a long recording goes in
         // pieces cut at pauses ([LongAudio]), one after another.

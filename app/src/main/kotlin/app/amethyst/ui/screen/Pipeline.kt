@@ -149,8 +149,8 @@ private fun CleanupInstructionCard(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // As sent for an app with the default style; the app's own style and
                 // instruction take their places in it, and the language is named when known.
-                val prompt = remember(settings.cleanupInstruction) {
-                    ChatCleanup.systemPrompt(WritingStyle.AS_SPOKEN, null, settings.cleanupInstruction)
+                val prompt = remember(settings.cleanupInstruction, settings.words.own) {
+                    ChatCleanup.systemPrompt(WritingStyle.AS_SPOKEN, null, settings.cleanupInstruction, ownWords = settings.words.own)
                 }
                 Text(
                     prompt,
