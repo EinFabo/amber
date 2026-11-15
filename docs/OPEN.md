@@ -2,6 +2,43 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Polish reviews (2026-11-15) - waiting for Fabi's go
+
+Four read-only reviews (user frustration, battery and performance, polish features against
+Wispr Flow / FUTO / Gboard / Typeless, the first run). Nothing built yet. Found on the Pixel
+9a over adb the same day: Quick setup plans Android's recognition as the stand-in
+("first run: ANDROID now, PARAKEET to fetch"), but the phone's language is en-DE and only
+German is installed for offline use - every tap fails with "This language is not installed
+for offline use", and the practice step shows nothing of it. Update over an existing Amber
+(rc1 to rc2, store key): fine, settings and keys kept.
+
+Proposed, by benefit (S/M/L = effort):
+1. Stand-in that works: at Quick setup ask Android which languages it has offline
+   (`checkRecognitionSupport`), use an installed one of the phone's languages (de here), or
+   ask Android to fetch the pack; say a failure in the practice step. M.
+2. Keep a failed recording a few minutes: "Try again" in the quick menu. M.
+3. Toasts at most two lines, the way out first ("Not inserted - hold the bubble, Copy"); the
+   reason to Diagnostics. S.
+4. A cleanup that fails because of the key, credit or model says so once. S.
+5. Text that did not go in: "Copy" as the hint, and "Last dictation [Copy]" on Home. S.
+6. A buzz (and an optional sound) when the microphone is really open. S.
+7. Pause music while dictating (audio focus). S.
+8. Working or stuck: past twice the estimate a hint "hold the bubble to cancel". S.
+9. Battery: one model window (no reload on focus after 3 minutes), free the model at once on
+   phones with 6 GB or less, onnxruntime threads without spinning, Whisper's boost only after
+   the stop, bubble bars at 30 fps. S each, to be measured on the Pixel first.
+10. Own words (names) for Whisper's prompt, Parakeet's hotwords and the cleanup. M.
+11. Spoken punctuation and "new paragraph" on the phone; "scratch that" at the end. M.
+12. A nudge to a real app after the introduction; Home tips for the quick menu and cleanup;
+    "Allow" for the microphone opens app info after two refusals. S.
+13. Opus uploads to OpenAI and Groq (a tenth of the data). M.
+14. Later: a history of today's dictations (stores text - needs Fabi's call on how long),
+    snippets, a Quick Settings tile to the clipboard, live text near the bubble.
+
+Not to copy: learning words by watching edits (reads the field after insertion), sending the
+screen or clipboard as context, formatting that cannot be switched off, accounts and word
+caps, shake to wake.
+
 ## Before a store launch: reviews and research (Fabi, 2026-11-14: "polished for the Play Store and F-Droid")
 
 Four read-only passes on 0.33.0 - Google Play's rules, F-Droid's rules, security and privacy,
