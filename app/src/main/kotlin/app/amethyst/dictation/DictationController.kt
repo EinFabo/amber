@@ -522,12 +522,12 @@ class DictationController(
     fun screenBack() {
         if (!keptWhileScreenOff) return
         keptWhileScreenOff = false
-        val message = notInsertedWhileScreenOff(context)
-        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+        toast(R.string.toast_screen_off_insert_again, long = true)
     }
 
+    /** For the record and Amber's screen: why the text did not go in. */
     private fun notInsertedWhileScreenOff(context: Context): String =
-        context.getString(R.string.dictation_not_inserted_insert_again, context.getString(R.string.dictation_why_screen_off))
+        context.getString(R.string.dictation_not_inserted, context.getString(R.string.dictation_why_screen_off))
 
     /** Whether a text may go into a field now: the screen is on and the phone unlocked. */
     private fun mayInsertNow(): Boolean = ScreenOff.mayInsert(
@@ -768,6 +768,8 @@ class DictationController(
             if (DebugLog.enabled) Log.e(TAG, "dictation failed", e) else Log.e(TAG, "dictation failed: ${e::class.java.name}")
             fail(
                 say(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
+                // The message may be long and technical: the toast says where it is.
+                brief = say(R.string.toast_unexpected),
                 logAs = english.getString(R.string.dictation_unexpected, e::class.java.name),
                 details = listOf("unexpected ${e::class.java.name}"),
             )
@@ -1284,12 +1286,22 @@ class DictationController(
         val message = when {
             local.serverTooSlow -> context.getString(R.string.fallback_server_too_slow)
             // What the server said, in full: the fallback must not hide that it needs the user.
-            refused != null -> context.getString(R.string.fallback_server_refused, Texts.problem(context, refused.problem), name)
+            refused != null -> refusedButRecognized(refused.problem, name)
             trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
             else -> context.getString(R.string.fallback_no_answer_on_phone, name)
         }
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         return transcript.copy(trustLevel = trust)
+    }
+
+    /**
+     * The fallback's toast after a server that cannot serve ([SttFailure.serverCannotServe]):
+     * what the server said, short - only the user can put it right - and who recognized instead.
+     */
+    private fun refusedButRecognized(problem: Problem, by: String): String = when (problem) {
+        is Problem.NoCredit -> context.getString(R.string.fallback_no_credit, Texts.catalog(context, problem.service), by)
+        is Problem.ModelNotOnServer -> context.getString(R.string.fallback_model_gone, Texts.catalog(context, problem.service), by)
+        else -> Texts.problem(context, problem)
     }
 
     /** For Diagnostics: a server that answered but cannot serve - what it said, in English, without its body. */
@@ -1413,7 +1425,7 @@ class DictationController(
                 val name = Texts.engineName(context, config)
                 val message = when {
                     // What the server said, in full: the fallback must not hide that it needs the user.
-                    cause.serverCannotServe -> context.getString(R.string.fallback_server_refused, Texts.problem(context, cause.problem), name)
+                    cause.serverCannotServe -> refusedButRecognized(cause.problem, name)
                     trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
                     local -> context.getString(R.string.fallback_no_answer_on_phone, name)
                     else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)
@@ -1727,19 +1739,30 @@ class DictationController(
             // user allows the clipboard at all; else the text stays in the diagnostics.
             val copied = verdict != TargetCheck.Verdict.SECRET &&
                 settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
-            // The words stay in the record: Insert again and Copy last take them.
+            // The words stay in the record: Insert again and Copy last take them. The reason
+            // goes to the record and Amber's screen; the toast says the way out, in two lines.
+            val reason = english.getString(R.string.dictation_not_inserted, english.getString(why))
             when {
-                copied -> fail({ it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) }, engineId, text = cleaned)
+                copied -> fail(
+                    { it.getString(R.string.dictation_on_clipboard_instead, it.getString(why)) },
+                    engineId,
+                    brief = say(R.string.toast_on_clipboard),
+                    logAs = reason,
+                    text = cleaned,
+                )
                 // The way back, said on the bubble's toast: in the field, Insert again.
                 verdict != TargetCheck.Verdict.SECRET -> fail(
-                    { it.getString(R.string.dictation_not_inserted_insert_again, it.getString(why)) },
+                    { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
                     engineId,
+                    brief = say(R.string.toast_insert_again),
+                    logAs = reason,
                     text = cleaned,
                 )
                 else -> fail(
                     { it.getString(R.string.dictation_not_inserted, it.getString(why)) },
                     engineId,
-                    brief = { it.getString(R.string.dictation_not_inserted_in_diagnostics, it.getString(why)) },
+                    brief = say(R.string.toast_not_inserted_password),
+                    logAs = reason,
                     text = cleaned,
                 )
             }
@@ -1768,12 +1791,13 @@ class DictationController(
             // they survive in the diagnostics card and Insert again can still take them.
             val what = if (insertion.uncertain) R.string.dictation_typed_never_showed else R.string.dictation_no_field_accepted
             // Typed and maybe still on its way: Insert again could give the words twice.
-            val brief = if (insertion.uncertain) R.string.dictation_in_diagnostics else R.string.dictation_insert_again
+            val brief = if (insertion.uncertain) R.string.toast_in_diagnostics else R.string.toast_insert_again
             val lastTrace = inserter.lastTrace
             fail(
                 { "${it.getString(what)} [$lastTrace]" },
                 engineId,
-                brief = { it.getString(brief, it.getString(what)) },
+                brief = say(brief),
+                logAs = english.getString(what),
                 text = cleaned,
             )
             return

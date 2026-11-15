@@ -1,5 +1,6 @@
 """Checks the app's texts: English (values/) and German (values-de/) hold the same strings
-with the same placeholders, and the Compose screens carry no English sentence of their own.
+with the same placeholders, toasts fit in two lines, and the Compose screens carry no English
+sentence of their own.
 
 Usage: python3 -I tools/check_strings.py
 
@@ -68,6 +69,50 @@ for name in sorted(en.keys() & de.keys()):
     if "" not in en[name] and "other" not in de[name]:
         errors.append(f"{name}: German plural has no 'other'")
 
+# Toasts: from target 36 Android shows at most two lines of a text toast and cuts the rest. So a
+# toast says the way out first, in about 60-70 characters, and the reason goes to Diagnostics.
+# Checked: the strings named here, those whose name starts with one of the prefixes, and the
+# composed ones - a reason put before a way out - with each reason that comes with them. A
+# placeholder counts as a name of PLACEHOLDER_CHARS characters.
+TOAST_LIMIT = 70
+COMPOSED_LIMIT = 75
+PLACEHOLDER_CHARS = 10
+TOAST_PREFIXES = ("toast_", "problem_", "capture_", "quick_done_", "undo_")
+TOASTS = {
+    "dictation_mic_permission", "dictation_mic_not_opened", "dictation_no_field", "dictation_not_inserted_here",
+    "dictation_copied", "dictation_no_engine", "dictation_timed_out", "dictation_too_short", "dictation_nothing_heard",
+    "dictation_mic_taken_sent", "dictation_mic_lost_sent", "dictation_service_off",
+    "quick_too_late", "quick_open_failed", "bubble_hidden_in",
+    "fallback_server_too_slow", "fallback_no_connection", "fallback_no_answer_on_phone", "fallback_other_server",
+    "fallback_no_credit", "fallback_model_gone",
+}
+# The reasons a kept recording's toast names before "Try again" (DictationController.failRecognition).
+RETRY_REASONS = [
+    "problem_no_connection", "problem_no_answer_in_time", "problem_key_rejected", "problem_no_credit",
+    "problem_server_error", "problem_service_down", "problem_rate_limited", "problem_address_not_found",
+    "problem_answer_unreadable", "problem_model_not_on_server", "problem_no_api_key",
+]
+COMPOSED = {"toast_try_again": RETRY_REASONS}
+
+
+def shown(text):
+    """The text as a toast shows it, a placeholder as a name of PLACEHOLDER_CHARS characters."""
+    text = re.sub(r"\\(['\"@?])", r"\1", text)
+    return PLACEHOLDER.sub(lambda m: "%" if m.group(0) == "%%" else "x" * PLACEHOLDER_CHARS, text)
+
+
+for lang, texts in (("values", en), ("values-de", de)):
+    for name, forms in sorted(texts.items()):
+        if name in TOASTS or name.startswith(TOAST_PREFIXES):
+            for text in forms.values():
+                if len(shown(text)) > TOAST_LIMIT:
+                    errors.append(f"{lang}: {name} is a toast of {len(shown(text))} characters, more than {TOAST_LIMIT} (two lines)")
+    for name, reasons in COMPOSED.items():
+        for reason in reasons:
+            text = shown(texts[name][""].replace("%1$s", texts[reason][""].rstrip(".")))
+            if len(text) > COMPOSED_LIMIT:
+                errors.append(f"{lang}: {name} with {reason} is a toast of {len(text)} characters, more than {COMPOSED_LIMIT}")
+
 # The catalog's English texts are looked up by their exact text in :core (Texts.catalog): each
 # must still be there, or that name or note silently stays English.
 core_text = ""
@@ -122,4 +167,4 @@ if errors:
     for e in errors:
         print("  -", e)
     sys.exit(1)
-print(f"OK: {len(en)} texts in English and German with the same placeholders; no English sentence in the screens.")
+print(f"OK: {len(en)} texts in English and German with the same placeholders; toasts within {TOAST_LIMIT} characters; no English sentence in the screens.")
