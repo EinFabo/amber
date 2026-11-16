@@ -2,6 +2,30 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Second test device: Samsung Galaxy A20e (2026-11-16, adb)
+
+SM-A202F, Android 11 (API 30), 2.8 GB RAM, Cortex-A53 (no dot product), 720x1560 at 320 dpi,
+Samsung keyboard, German. Test build from amber (after rc4, with the tone on the media stream).
+- [ ] **Quick setup sends the voice to Google here.** No local model fits (Whisper needs the
+      dot product, Parakeet is held back below 6 GB), so `EngineAdvice` recommends Android's
+      recognition - which on Android 11 is not on the phone. The welcome step says "your voice
+      stays on this phone unless you pick a server", and the done step says nothing about it.
+      Decide: try Parakeet on a 3 GB phone (it needs no dot product; measure memory and speed
+      on this A20e), or say it plainly and ask before using a recognition that leaves the
+      phone.
+- [ ] **No bubble in Amber's own fields below Android 13.** The practice step's field and
+      Home's test field are Compose fields; on Android 11 they send no focus event, so the
+      service never sees them (no "field" line in the log) - the practice step cannot be done.
+      In Samsung Messages the bubble comes with the keyboard as it should. Fix: Amber's own
+      activity tells the service directly when its field has focus.
+- [ ] **The welcome step cuts its third point on a small screen** ("Nur während du
+      diktierst" is not visible at 360x780 dp).
+- Fine: Samsung keyboard measured (settled at 860 of 1560), the bubble above it; insertion
+  into Samsung Messages by SET_TEXT with spoken punctuation and a real line break ("Hallo
+  Anna,\nwie geht es dir?"); "Punkt 2" and "drei Komma fünf" stay words. (The adb insertion
+  hook skips "streich das" - it starts after that step - so that was not tested here.)
+- A Samsung preinstall (DT Ignite) crashes in the background; not Amber.
+
 ## Fabi's test of 0.34.0-rc3 (2026-11-16, Pixel 9a, Parakeet with Tinfoil's cleanup)
 
 - [ ] **rc4 (2026-11-16): the cursor and the rest fine, but "neue Zeile" gave no line break
