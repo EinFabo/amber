@@ -33,6 +33,7 @@ import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.ProxyHandover
 import app.amethyst.core.capture.RecordingLimit
 import app.amethyst.core.capture.RecordingCue
+import app.amethyst.core.capture.StartToneMute
 import app.amethyst.core.capture.RecordingPause
 import app.amethyst.core.capture.RunLimit
 import app.amethyst.core.capture.TriggerSource
@@ -866,7 +867,8 @@ class DictationController(
 
     /**
      * The microphone is really open - the recorder records, the recognizer listens: the bubble
-     * buzzes (it watches [DictationState.Listening.open]), and the start tone plays if wanted.
+     * buzzes (it watches [DictationState.Listening.open]), and the start tone plays if wanted -
+     * its beep silenced in Amber's own recording ([StartToneMute]).
      */
     private fun microphoneOpen() {
         updateListening { it.copy(open = true) }
@@ -1000,6 +1002,8 @@ class DictationController(
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
                 pause = pause,
                 onStarted = ::microphoneOpen,
+                // The start tone plays as the microphone opens: its beep is not to be recognized.
+                silenceFirstMs = if (graph.settings.value.feedback.sounds) StartToneMute.START_TONE_MS else 0,
             )
         } catch (e: Throwable) {
             chunked?.cancel()

@@ -21,6 +21,7 @@ import app.amethyst.core.capture.MicrophoneWatch
 import app.amethyst.core.capture.PausableRecording
 import app.amethyst.core.capture.PcmAccumulator
 import app.amethyst.core.capture.RecordingPause
+import app.amethyst.core.capture.StartToneMute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -76,6 +77,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         pause: RecordingPause = RecordingPause(),
         /** The microphone is really open: the recorder records. On the recorder's thread. */
         onStarted: () -> Unit = {},
+        /** The recording's first moments silenced, for the start tone that plays then ([StartToneMute]); 0 for none. */
+        silenceFirstMs: Int = 0,
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -118,6 +121,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         val frame = ShortArray(frameSamples)
         val silence = SilencedWatch()
         val watch = MicrophoneWatch(config.frameMs, silenceKnown = silence.known)
+        val toneMute = StartToneMute(sampleRate, silenceFirstMs)
 
         try {
             recorder.startRecording()
@@ -167,6 +171,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     }
                 }
 
+                // After the check for a silenced microphone, which must see what it delivered.
+                toneMute.apply(frame, read)
                 val rms = PcmAudio.rms(frame, 0, read)
                 val decision = when (val step = gate.onFrame(rms, stop)) {
                     // Paused: never stored, never chunked, the level shown as silence.
