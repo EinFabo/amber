@@ -251,11 +251,11 @@ open class Screenshots {
 
     /** Not part of the listing set: the history with a few dictations, and a failed one to try again. */
     @Test
-    @Config(qualifiers = "+h1160dp")
+    @Config(qualifiers = "+h1300dp")
     fun history() = shoot("x-history", SettingsPage.HISTORY.title()) { History(historyEntries, canTryAgain = true) }
 
     @Test
-    @Config(qualifiers = "+h1160dp")
+    @Config(qualifiers = "+h1300dp")
     fun historyLight() = light(::history)
 
     /** Not part of the listing set: the history before the first dictation. */

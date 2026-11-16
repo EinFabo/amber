@@ -1,5 +1,6 @@
 package app.amethyst.ui.screen
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.DangerAction
 import app.amethyst.ui.GhostButton
+import app.amethyst.ui.GroupFootnote
 import app.amethyst.ui.Hint
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.RadioRow
@@ -74,6 +76,9 @@ fun HistoryScreen(
                 RadioRow(label = Texts.historyKeep(context, choice), note = null, selected = choice == keep, onSelect = { onKeepChange(choice) })
             }
         }
+        GroupFootnote(stringResource(R.string.history_lock_note), AmberIcons.Lock)
+        // Android 9 to 11 check "unlocked" in the keystore's software, not in its secure hardware.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) GroupFootnote(stringResource(R.string.history_lock_weak), AmberIcons.Info)
         if (canTryAgain) {
             SettingsGroup(label = null) {
                 NavRow(
@@ -94,7 +99,7 @@ fun HistoryScreen(
                 Hint(stringResource(R.string.history_empty_note, Texts.historyKeep(context, keep)))
             }
         } else {
-            SettingsGroup(label = stringResource(R.string.history_recent)) {
+            SettingsGroup(label = stringResource(R.string.history_recent), note = stringResource(R.string.history_copy_note)) {
                 entries.forEachIndexed { i, entry ->
                     key(entry.atMillis) {
                         if (i > 0) RowDivider()
@@ -104,7 +109,10 @@ fun HistoryScreen(
             }
         }
         // Also for what is kept but cannot be shown: it can always be deleted.
-        if (entries.isNotEmpty() || count > 0) DangerAction(stringResource(R.string.history_delete_all), onDeleteAll)
+        if (entries.isNotEmpty() || count > 0) {
+            DangerAction(stringResource(R.string.history_delete_all), onDeleteAll)
+            GroupFootnote(stringResource(R.string.history_delete_note), AmberIcons.Info)
+        }
     }
 }
 

@@ -2,14 +2,14 @@
 <resources>
     <!-- The security mode: for whoever does not want anyone who takes the phone to read what they dictated. -->
     <string name="settings_security_mode">Security mode</string>
-    <string name="security_switch_note">Nothing you dictate stays on this phone</string>
+    <string name="security_switch_note">None of the words you dictate stay on this phone</string>
     <string name="security_on_title">When it is on</string>
-    <string name="security_nothing_kept">Nothing dictated is kept</string>
+    <string name="security_nothing_kept">No words are kept</string>
     <string name="security_nothing_kept_note">Once a dictation is in the field, Amber forgets it: no Try again, no Last dictation, no Insert again, Copy last or Undo last, no history. A dictation that could not go in is gone.</string>
     <string name="security_diagnostics">Diagnostics without words</string>
     <string name="security_diagnostics_note">Only how many characters and words a dictation had, and its language.</string>
     <string name="security_stats">Statistics without apps</string>
-    <string name="security_stats_note">Counts and times only. Which app you dictated in is not kept, nor how the text got into each app.</string>
+    <string name="security_stats_note">Each dictation\'s time, word count and length - no words, no app, nor how the text got into each app. Switch the statistics off on their page to keep none of it.</string>
     <string name="security_clipboard">The clipboard stays untouched</string>
     <string name="security_clipboard_note">Amber never puts text on it; using the clipboard when typing fails is off.</string>
     <string name="security_screens">Amber\'s screens are hidden</string>
@@ -19,7 +19,7 @@
     <string name="security_installed">It does not hide Amber</string>
     <string name="security_installed_note">Anyone with your phone can see that Amber is installed.</string>
     <string name="security_other_apps">It cannot reach other apps</string>
-    <string name="security_other_apps_note">What you dictated into a chat, a note or a mail stays there.</string>
+    <string name="security_other_apps_note">What you dictated into a chat, a note or a mail stays there. Text copied before may stay in a keyboard\'s own clipboard history (Gboard, Samsung).</string>
     <string name="security_servers">A server still gets it</string>
     <string name="security_servers_note">A speech recognition or cleanup on a server still receives your recording or its text. Only speech recognition on this phone, with the cleanup off, keeps it all here.</string>
     <string name="inserting_clipboard_secure">Off in the security mode</string>
@@ -29,7 +29,11 @@
     <!-- The history of recent dictations, kept encrypted on the phone. -->
     <string name="settings_history">History</string>
     <string name="history_keep">Keep dictations</string>
-    <string name="history_keep_note">Encrypted on this phone, readable only while it is unlocked, never in a backup.</string>
+    <string name="history_keep_note">On this phone, never in a backup: the words and the app encrypted, the time not.</string>
+    <string name="history_lock_note">Readable only while the phone is unlocked - that needs a screen lock (PIN, pattern or password).</string>
+    <string name="history_lock_weak">Before Android 12 the phone checks that in software only: a weaker protection.</string>
+    <string name="history_copy_note">Copy marks the text as private, but some keyboards keep their own clipboard history (Gboard, Samsung): copied text may stay there.</string>
+    <string name="history_delete_note">Deleting destroys the keys: the words can no longer be read, even where the storage chip still holds them for a while.</string>
     <string name="history_keep_day">24 hours</string>
     <string name="history_keep_week">7 days</string>
     <string name="history_off_secure">Off - security mode</string>

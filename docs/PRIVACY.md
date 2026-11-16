@@ -17,23 +17,38 @@ https://github.com/EinFabo/amber/issues
   to the address it was typed for.
 - **Statistics**: for each dictation the time, the app you dictated in, the number of words and
   how long it took - not what you said. You can clear them under Settings → Statistics.
-- **History**: your recent dictations - their text, the app and the time - kept encrypted on
-  this phone for 24 hours unless you change it (off, 24 hours or 7 days, under Settings →
-  History) or switch on the security mode. The key is in Android's keystore and works only while
-  the phone is unlocked: a locked phone can neither read the history nor add to it. "Delete all"
-  deletes the entries and the key.
+- **History**: your recent dictations - their text, the app and the time - kept on this phone
+  for 24 hours unless you change it (off, 24 hours or 7 days, under Settings → History) or
+  switch on the security mode. An install from before the history starts with it off and is
+  offered it once on Home. The text and the app are encrypted; the time is not, so what is past
+  its time can be deleted while the phone is locked. The keys - one per day - are in Android's
+  keystore and work only while the phone is unlocked, which needs a screen lock (PIN, pattern or
+  password): a locked phone can neither read the history nor add to it. On Android 9 to 11 that
+  check is made in software only, a weaker protection. A day's key is deleted once the whole day
+  is past keeping, and "Delete all" deletes the entries and every key: the storage chip may hold
+  the deleted bytes for a while, but without the key they cannot be read. Copy marks the text as
+  sensitive, but some keyboards (Gboard, Samsung) keep their own clipboard history, where copied
+  text may stay.
 - **Diagnostics**: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words.
 - **Speech models** you download.
 
-With the **security mode** on (Settings → Security mode), Amber keeps nothing of a dictation
-once it is in the field: no recording to try again, no last dictation, no history, no text in Diagnostics
-(only how many characters and words it had, and its language), statistics without the app, no
-record of how text went into each app; it never puts text on the clipboard, and its own screens
-are kept out of screenshots and Recents. Switching it on deletes what is kept at that moment.
-It does not hide that Amber is installed, it cannot reach text already in other apps, and a
-speech recognition or cleanup on a server still receives what the table below says.
+With the **security mode** on (Settings → Security mode), Amber keeps none of a dictation's
+words once it is in the field: no recording to try again, no last dictation, no history, no text
+in Diagnostics (only how many characters and words it had, and its language, and not the app),
+no record of how text went into each app; it never puts text on the clipboard, and its own
+screens are kept out of screenshots and Recents. The statistics still keep each dictation's
+time, word count and length, without the app - switch them off under Settings → Statistics to
+keep none of it. Switching the mode on deletes what is kept at that moment; each start with the
+mode on removes app names an interrupted switch may have left. Until Amber has read its settings
+after a start, it acts as if the mode were on. It does not hide that Amber is installed, it
+cannot reach text already in other apps or in a keyboard's own clipboard history, and a speech
+recognition or cleanup on a server still receives what the table below says.
+
+Without the mode, a screen of Amber's that shows dictated words - the history, Diagnostics with
+a dictation's text shown, Home's last dictation, a test field holding text - is kept out of
+screenshots and the Recents picture while it does.
 
 None of this is in Android's cloud backup or in a transfer to a new phone; Amber excludes all
 of its files from both. Removing the app removes all of it.

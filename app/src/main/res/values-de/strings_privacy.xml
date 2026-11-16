@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_security_mode">Sicherheitsmodus</string>
-    <string name="security_switch_note">Nichts, was du diktierst, bleibt auf dem Handy</string>
+    <string name="security_switch_note">Keines der Wörter, die du diktierst, bleibt auf dem Handy</string>
     <string name="security_on_title">Wenn er an ist</string>
-    <string name="security_nothing_kept">Nichts Diktiertes wird behalten</string>
+    <string name="security_nothing_kept">Keine Wörter werden behalten</string>
     <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst Amber es: kein Nochmal versuchen, kein Letztes Diktat, kein Nochmal einfügen, Letztes kopieren oder Letztes rückgängig, kein Verlauf. Ein Diktat, das nicht hineinging, ist weg.</string>
     <string name="security_diagnostics">Diagnose ohne Wörter</string>
     <string name="security_diagnostics_note">Nur wie viele Zeichen und Wörter ein Diktat hatte und seine Sprache.</string>
     <string name="security_stats">Statistik ohne Apps</string>
-    <string name="security_stats_note">Nur Zahlen und Zeiten. In welcher App du diktiert hast, wird nicht behalten, auch nicht, wie der Text in jede App kam.</string>
+    <string name="security_stats_note">Von jedem Diktat Uhrzeit, Wortzahl und Länge - keine Wörter, keine App, auch nicht, wie der Text in jede App kam. Schalte die Statistik auf ihrer Seite aus, um nichts davon zu behalten.</string>
     <string name="security_clipboard">Die Zwischenablage bleibt unberührt</string>
     <string name="security_clipboard_note">Amber legt nie Text darauf; die Zwischenablage zu nutzen, wenn das Tippen nicht klappt, ist aus.</string>
     <string name="security_screens">Ambers Bildschirme sind verborgen</string>
@@ -18,7 +18,7 @@
     <string name="security_installed">Er versteckt Amber nicht</string>
     <string name="security_installed_note">Wer dein Handy hat, sieht, dass Amber installiert ist.</string>
     <string name="security_other_apps">Er erreicht keine anderen Apps</string>
-    <string name="security_other_apps_note">Was du in einen Chat, eine Notiz oder eine Mail diktiert hast, bleibt dort.</string>
+    <string name="security_other_apps_note">Was du in einen Chat, eine Notiz oder eine Mail diktiert hast, bleibt dort. Früher kopierter Text kann im eigenen Zwischenablage-Verlauf einer Tastatur bleiben (Gboard, Samsung).</string>
     <string name="security_servers">Ein Server bekommt es trotzdem</string>
     <string name="security_servers_note">Eine Spracherkennung oder Bereinigung auf einem Server bekommt weiter deine Aufnahme oder ihren Text. Nur die Spracherkennung auf dem Handy, ohne Bereinigung, behält alles hier.</string>
     <string name="inserting_clipboard_secure">Aus im Sicherheitsmodus</string>
@@ -27,7 +27,11 @@
     <string name="toast_screen_off_not_kept">Bildschirm war aus - nicht eingefügt, ohne Kopie (Sicherheitsmodus)</string>
     <string name="settings_history">Verlauf</string>
     <string name="history_keep">Diktate behalten</string>
-    <string name="history_keep_note">Verschlüsselt auf dem Handy, nur entsperrt lesbar, nie in einem Backup.</string>
+    <string name="history_keep_note">Auf dem Handy, nie in einem Backup: Wörter und App verschlüsselt, die Uhrzeit nicht.</string>
+    <string name="history_lock_note">Nur lesbar, solange das Handy entsperrt ist - dafür braucht es eine Displaysperre (PIN, Muster oder Passwort).</string>
+    <string name="history_lock_weak">Vor Android 12 prüft das Handy das nur in Software: ein schwächerer Schutz.</string>
+    <string name="history_copy_note">Kopieren markiert den Text als privat, aber manche Tastaturen haben einen eigenen Zwischenablage-Verlauf (Gboard, Samsung): Kopierter Text kann dort bleiben.</string>
+    <string name="history_delete_note">Löschen vernichtet die Schlüssel: Die Wörter sind nicht mehr lesbar, auch wo der Speicherchip sie noch eine Weile hält.</string>
     <string name="history_keep_day">24 Stunden</string>
     <string name="history_keep_week">7 Tage</string>
     <string name="history_off_secure">Aus - Sicherheitsmodus</string>
