@@ -61,6 +61,39 @@ class SecurityModeTest {
     }
 
     @Test
+    fun `before the settings are read, everything acts as if the mode were on`() {
+        assertTrue(SecurityMode.on(null as AmethystSettings?))
+        assertFalse(SecurityMode.keepsWords(null))
+        assertFalse(SecurityMode.mayUseClipboard(null))
+        assertFalse(SecurityMode.mayCopy(null))
+        assertNull(SecurityMode.statApp(null, "com.whatsapp"))
+        assertFalse(SecurityMode.remembersApps(null))
+        assertEquals(app.amethyst.core.history.HistoryKeep.OFF, SecurityMode.historyKeep(null))
+        assertTrue(SecurityMode.hidesWindows(null))
+    }
+
+    @Test
+    fun `the statistics strip the app as they write, by the settings of that moment`() {
+        val stat = DictationStat(at = 1, day = 0, engine = "parakeet", trust = TrustLevel.ON_DEVICE, words = 4, audioMs = 2_000, waitMs = 400, app = "com.whatsapp")
+        assertEquals("com.whatsapp", SecurityMode.statToKeep(off, stat).app)
+        assertNull(SecurityMode.statToKeep(on, stat).app)
+        assertNull(SecurityMode.statToKeep(null, stat).app)
+        assertEquals(4, SecurityMode.statToKeep(on, stat).words)
+    }
+
+    @Test
+    fun `at every start with the mode on, what it does not keep is looked for again`() {
+        assertTrue(SecurityMode.repairsAtStart(null, on))
+        assertFalse(SecurityMode.repairsAtStart(null, off))
+        // Not on every later change of the settings: switching on wipes by itself.
+        assertFalse(SecurityMode.repairsAtStart(PrivacySettings(securityMode = true), on))
+        fun stat(app: String?) = DictationStat(at = 1, day = 0, engine = "parakeet", trust = TrustLevel.ON_DEVICE, words = 4, audioMs = 2_000, waitMs = 400, app = app)
+        assertTrue(SecurityMode.namesApps(listOf(stat(null), stat("com.whatsapp"))))
+        assertFalse(SecurityMode.namesApps(listOf(stat(null))))
+        assertFalse(SecurityMode.namesApps(emptyList()))
+    }
+
+    @Test
     fun `only switching it on wipes - not reading the settings, not switching it off`() {
         assertTrue(SecurityMode.wipesOnSwitch(PrivacySettings(), PrivacySettings(securityMode = true)))
         assertFalse(SecurityMode.wipesOnSwitch(null, PrivacySettings(securityMode = true)))

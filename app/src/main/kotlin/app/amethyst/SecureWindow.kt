@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.amethyst.core.privacy.SecurityMode
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -17,14 +16,15 @@ import kotlinx.coroutines.launch
 object SecureWindow {
 
     /**
-     * Keeps [activity]'s window hidden while the security mode is on, from its first frame once
-     * the settings are read, and follows every change for as long as it lives. Called in onCreate.
+     * Keeps [activity]'s window hidden while the security mode is on - and from its first frame
+     * until the settings are read, which may say it is - following every change for as long as
+     * it lives. Called in onCreate.
      */
     fun follow(activity: ComponentActivity) {
         val graph = AmethystApp.graph(activity)
-        graph.loadedSettings.value?.let { apply(activity, SecurityMode.hidesWindows(it)) }
+        apply(activity, SecurityMode.hidesWindows(graph.loadedSettings.value))
         activity.lifecycleScope.launch {
-            graph.loadedSettings.filterNotNull().map(SecurityMode::hidesWindows).distinctUntilChanged().collect { hide ->
+            graph.loadedSettings.map(SecurityMode::hidesWindows).distinctUntilChanged().collect { hide ->
                 apply(activity, hide)
             }
         }

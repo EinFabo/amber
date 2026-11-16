@@ -5,7 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.PersistableBundle
 import android.util.Log
+import app.amethyst.AmethystApp
 import app.amethyst.core.insert.OwnClip
+import app.amethyst.core.privacy.SecurityMode
 
 /**
  * Every clip Amber writes, and taking it off the clipboard again. A clip is marked sensitive -
@@ -15,11 +17,19 @@ import app.amethyst.core.insert.OwnClip
 object OwnClipboard {
 
     /**
-     * [text] on the clipboard under [label]. False when Android refused. The previous clip is
-     * not restored later: since Android 10 an app that is not in front cannot read the
-     * clipboard, so a "restore" would overwrite it with nothing.
+     * [text] on the clipboard under [label]. False when Android refused - or when the security
+     * mode is on now, or the settings are not read yet ([SecurityMode.mayCopy]): asked here, at
+     * the one place every clip goes through, so a dictation that began before the mode went on
+     * cannot write it either. The previous clip is not restored later: since Android 10 an app
+     * that is not in front cannot read the clipboard, so a "restore" would overwrite it with
+     * nothing.
      */
     fun copy(context: Context, text: String, label: String = OwnClip.LABEL): Boolean {
+        val settings = (context.applicationContext as? AmethystApp)?.graph?.loadedSettings?.value
+        if (!SecurityMode.mayCopy(settings)) {
+            Log.i(TAG, "clipboard not written: security mode, or the settings not read yet")
+            return false
+        }
         val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
         return try {
             val clip = ClipData.newPlainText(label, text)

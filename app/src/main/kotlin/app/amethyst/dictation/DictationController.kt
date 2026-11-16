@@ -556,7 +556,7 @@ class DictationController(
         if (!keptWhileScreenOff) return
         keptWhileScreenOff = false
         // The security mode kept no copy: nothing to insert again.
-        val kept = SecurityMode.keepsWords(graph.settings.value)
+        val kept = SecurityMode.keepsWords(graph.loadedSettings.value)
         toast(if (kept) R.string.toast_screen_off_insert_again else R.string.toast_screen_off_not_kept, long = true)
     }
 
@@ -585,8 +585,8 @@ class DictationController(
             context.getString(if (onClipboard) R.string.dictation_on_clipboard_instead else R.string.dictation_not_inserted, context.getString(reason)) +
                 fieldTrace?.let { " [$it]" }.orEmpty()
         }
-        val hint = NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.settings.value))
-        val toast = if (retryForHistory && why == NotInserted.Why.NO_FIELD && SecurityMode.historyKeep(graph.settings.value) != HistoryKeep.OFF) R.string.toast_in_history else when (hint) {
+        val hint = NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.loadedSettings.value))
+        val toast = if (retryForHistory && why == NotInserted.Why.NO_FIELD && SecurityMode.historyKeep(graph.loadedSettings.value) != HistoryKeep.OFF) R.string.toast_in_history else when (hint) {
             NotInserted.Hint.INSERT_AGAIN -> R.string.toast_insert_again
             NotInserted.Hint.COPY -> R.string.toast_copy_last
             NotInserted.Hint.ON_CLIPBOARD -> R.string.toast_on_clipboard
@@ -709,7 +709,7 @@ class DictationController(
             return false
         }
         val settings = graph.settings.value
-        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(settings), expectedPackage = target.packageName)
+        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value), expectedPackage = target.packageName)
         Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
         remember(insertion)
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
@@ -726,7 +726,7 @@ class DictationController(
      */
     fun copyLast(): Boolean {
         // The security mode never writes the clipboard; it keeps no last dictation either.
-        if (!SecurityMode.mayCopy(graph.settings.value)) return false
+        if (!SecurityMode.mayCopy(graph.loadedSettings.value)) return false
         val text = graph.memory.sessionDictation()?.text ?: return false
         val inserter = graph.accessibilityService?.textInserter ?: return false
         if (!inserter.copyToClipboard(text)) return false
@@ -1876,7 +1876,7 @@ class DictationController(
             // Never into a password field, not even via the clipboard. Otherwise only when the
             // user allows the clipboard at all; else the text stays in the diagnostics.
             val copied = why != NotInserted.Why.PASSWORD &&
-                SecurityMode.mayUseClipboard(settings) && inserter.copyToClipboard(cleaned)
+                SecurityMode.mayUseClipboard(graph.loadedSettings.value) && inserter.copyToClipboard(cleaned)
             notInserted(why, engineId, cleaned, onClipboard = copied)
             return
         }
@@ -1885,7 +1885,7 @@ class DictationController(
         val insertion = inserter.insert(
             cleaned,
             settings.insertion.toSpliceOptions(),
-            allowClipboard = SecurityMode.mayUseClipboard(settings),
+            allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value),
             into = refound,
             expectedPackage = TargetCheck.expectedPackage(startTarget, startApp),
         )
@@ -1958,7 +1958,7 @@ class DictationController(
                 audioMs = audioMs,
                 waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
                 // Never in the security mode: counts and times only.
-                app = SecurityMode.statApp(settings, (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName }),
+                app = SecurityMode.statApp(graph.loadedSettings.value, (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName }),
                 cleanupModel = trace?.cleanupModel,
                 // Recognition and cleanup each priced by the provider that did it; an own server
                 // gives null.

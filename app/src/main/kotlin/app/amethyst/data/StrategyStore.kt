@@ -38,4 +38,15 @@ class StrategyStore(context: Context, private val writing: () -> Boolean = { tru
         memory.clear()
         prefs.edit().clear().commit()
     }
+
+    /**
+     * [forget], only when the file still names an app - at a start with the security mode on,
+     * for what an earlier switch left ([app.amethyst.core.privacy.SecurityMode.repairsAtStart]).
+     * True when something was there. Blocking: not on the main thread.
+     */
+    fun forgetIfAny(): Boolean {
+        if (prefs.all.isEmpty()) return false
+        forget()
+        return true
+    }
 }

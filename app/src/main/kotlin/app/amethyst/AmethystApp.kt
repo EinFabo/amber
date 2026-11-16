@@ -113,7 +113,7 @@ class Graph(app: Application) {
 
     val settingsStore = SettingsStore(app)
     /** Which insertion method worked in which app - not written down in the security mode. */
-    val strategyStore = StrategyStore(app) { SecurityMode.remembersApps(settings.value) }
+    val strategyStore = StrategyStore(app) { SecurityMode.remembersApps(loadedSettings.value) }
 
     /**
      * Lazy on purpose. Building this generates or unwraps a keystore-backed master key and
@@ -130,7 +130,8 @@ class Graph(app: Application) {
     /**
      * The stored settings, null until DataStore has answered. [settings] starts on the defaults,
      * which would show a fresh install's introduction to everyone for a moment; the start screen
-     * is decided from this instead.
+     * is decided from this instead. So is every privacy question ([SecurityMode]): asked of the
+     * defaults, a security mode that is on would be off for that moment.
      */
     val loadedSettings: StateFlow<AmethystSettings?> = settingsStore.settings
         .stateIn(appScope, SharingStarted.Eagerly, null)
@@ -242,6 +243,8 @@ class Graph(app: Application) {
     val memory = DictationMemory(KeptDictation({ System.currentTimeMillis() }), DictationLog()).apply {
         hold { OwnClipboard.forgetIfOurs(app) }
         hold { opusEncoder.clearLeftovers() }
+        // Nothing kept until the settings say the security mode is off.
+        keepsWords = SecurityMode.keepsWords(loadedSettings.value)
     }
 
     /** A cleanup that will not run until the user puts something right, for a toast and the row on top of Settings. */
@@ -257,7 +260,7 @@ class Graph(app: Application) {
         cleanupTrouble.keySaved(settings.value.engines.filter { it.apiKeyAlias == alias }.map { it.id })
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
-    val stats = StatsStore(app, appScope)
+    val stats = StatsStore(app, appScope) { loadedSettings.value }
 
     private val amberPackage = app.packageName
 
@@ -298,9 +301,11 @@ class Graph(app: Application) {
      * the security mode on, or the phone locked. Off the caller's thread.
      */
     fun keepInHistory(text: String, app: String?) {
-        val keep = SecurityMode.historyKeep(settings.value)
-        if (keep == HistoryKeep.OFF || text.isBlank()) return
+        if (SecurityMode.historyKeep(loadedSettings.value) == HistoryKeep.OFF || text.isBlank()) return
         appScope.launch(Dispatchers.IO) {
+            // Asked again as it is written: the security mode may have gone on meanwhile.
+            val keep = SecurityMode.historyKeep(loadedSettings.value)
+            if (keep == HistoryKeep.OFF) return@launch
             history.add(text, app, keep)
             historyChanges.update { it + 1 }
         }
@@ -308,12 +313,14 @@ class Graph(app: Application) {
 
     init {
         // The security mode as the settings say: on, nothing more is kept; switched on, what is
-        // kept now is forgotten. Not on reading the settings at a start - nothing switched then.
+        // kept now is forgotten. Not on reading the settings at a start - nothing switched then;
+        // but with the mode on, what an earlier switch may have left is looked for again.
         appScope.launch {
             var before: PrivacySettings? = null
             loadedSettings.filterNotNull().collect { current ->
                 memory.keepsWords = SecurityMode.keepsWords(current)
                 if (SecurityMode.wipesOnSwitch(before, current.privacy)) forgetForSecurityMode()
+                if (SecurityMode.repairsAtStart(before, current)) repairForSecurityMode()
                 before = current.privacy
             }
         }
@@ -337,6 +344,23 @@ class Graph(app: Application) {
             stats.forgetApps()
             strategyStore.forget()
             android.util.Log.i("Amber", "security mode on: what was kept is forgotten")
+        }
+    }
+
+    /**
+     * A start with the security mode on ([SecurityMode.repairsAtStart]): app names still in the
+     * statistics and insertion methods still written down per app - left when the process died
+     * between switching the mode on and forgetting, or the forgetting failed - go now. The
+     * history goes with the prune above, which the mode turns into "delete all".
+     */
+    private fun repairForSecurityMode() {
+        stats.forgetAppsIfNamed { before -> rememberRealApp(before) }
+        appScope.launch(Dispatchers.IO) {
+            try {
+                if (strategyStore.forgetIfAny()) android.util.Log.i("Amber", "security mode: insertion methods per app left over removed")
+            } catch (e: Exception) {
+                android.util.Log.w("Amber", "insertion methods per app not removed: ${e.javaClass.simpleName}")
+            }
         }
     }
 
