@@ -579,9 +579,11 @@ class DictationController(
             NotInserted.Why.REFUSED -> R.string.dictation_no_field_accepted
             NotInserted.Why.UNCERTAIN -> R.string.dictation_typed_never_showed
         }
+        // The trace names the app and its field: not in the security mode ([DictationLog.namesApps]).
+        val fieldTrace = insertionTrace?.takeIf { graph.memory.log.namesApps }
         val words: Words = { context ->
             context.getString(if (onClipboard) R.string.dictation_on_clipboard_instead else R.string.dictation_not_inserted, context.getString(reason)) +
-                insertionTrace?.let { " [$it]" }.orEmpty()
+                fieldTrace?.let { " [$it]" }.orEmpty()
         }
         val hint = NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.settings.value))
         val toast = if (retryForHistory && why == NotInserted.Why.NO_FIELD && SecurityMode.historyKeep(graph.settings.value) != HistoryKeep.OFF) R.string.toast_in_history else when (hint) {
@@ -827,7 +829,7 @@ class DictationController(
                 commandRecorded = true
                 val steps = commandSteps
                 graph.memory.log.recordFailure(
-                    "Stopped by a tap.", engineConfig.id, trace?.summary(), command = true,
+                    "Stopped by a tap.", engineConfig.id, trace?.summary(namesApps = graph.memory.log.namesApps), command = true,
                     details = if (steps == null) listOf("stopped by a tap before the command ran")
                     else steps.apply { note("stopped by a tap") }.lines,
                 )
@@ -951,7 +953,7 @@ class DictationController(
         Log.i(TAG, "recording ended: paused too long, nothing recorded")
         graph.memory.log.recordFailure(
             "Paused for more than ${RecordingPause.MAX_PAUSE_MS / 60_000} minutes with nothing recorded - the recording ended.",
-            timing = trace?.summary(),
+            timing = trace?.summary(namesApps = graph.memory.log.namesApps),
         )
         _state.value = DictationState.Idle
     }
@@ -1718,7 +1720,7 @@ class DictationController(
             if (stoppedByTap && !commandRecorded) {
                 commandRecorded = true
                 steps.note("stopped by a tap")
-                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(), steps.lines)
+                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines)
             }
             throw e
         }
@@ -1730,7 +1732,7 @@ class DictationController(
             }),
         )
         commandRecorded = true
-        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
+        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines)
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
             fail(plain(outcome.message), transcript.engineId, record = false, logAs = "command not done")
@@ -1912,7 +1914,7 @@ class DictationController(
             inserted = insertion.insertedIntoField,
             targetPackage = insertion.targetPackage,
             note = inserter.lastTrace,
-            timing = trace?.summary(),
+            timing = trace?.summary(namesApps = graph.memory.log.namesApps),
         )
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
         loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
@@ -2037,9 +2039,9 @@ class DictationController(
                 val steps = commandSteps ?: CommandTrace()
                 details.forEach(steps::note)
                 commandRecorded = true
-                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
+                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, details = steps.lines)
             } else {
-                graph.memory.log.recordFailure(logged, engineId, trace?.summary(), text = text)
+                graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text)
                 // Words that did not go in are a dictation too: the history keeps them.
                 if (history && text.isNotBlank()) graph.keepInHistory(text, startTarget?.packageName)
             }

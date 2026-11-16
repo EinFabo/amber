@@ -132,6 +132,13 @@ class DictationLog(
     @Volatile
     var keepsWords: Boolean = true
 
+    /**
+     * Whether a record may name the app a dictation went into - in its timing, in how its field
+     * was found: only while words are kept. The security mode keeps neither, so Diagnostics tell
+     * whoever takes the phone no more than the statistics do.
+     */
+    val namesApps: Boolean get() = keepsWords
+
     fun clear() {
         _records.value = emptyList()
     }
@@ -181,16 +188,20 @@ data class DictationRecord(
 
     /**
      * This record without its words: their [shape] instead of [text], and every line that could
-     * quote them - the error, the note, a command's steps - without them ([Anonymize]).
+     * quote them - the error, the note, a command's steps - without them ([Anonymize]). Nor
+     * does it name the app: no [targetPackage], and a dictation's [note] - how its field was
+     * found, "EditText in com.whatsapp" - goes whole. Its [timing] is built without app names
+     * by whoever records it ([DictationLog.namesApps]).
      */
     fun withoutWords(): DictationRecord {
-        if (text.isBlank()) return copy(text = "")
+        // A command's note is what came of it, not a field's trace.
+        val anonymous = copy(text = "", targetPackage = null, note = note.takeIf { command })
+        if (text.isBlank()) return anonymous
         val words = listOf(text)
-        return copy(
-            text = "",
+        return anonymous.copy(
             shape = TextShape.of(text),
             error = error?.let { Anonymize.line(it, words) },
-            note = note?.let { Anonymize.line(it, words) },
+            note = anonymous.note?.let { Anonymize.line(it, words) },
             details = Anonymize.lines(details, words),
         )
     }

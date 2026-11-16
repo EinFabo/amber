@@ -101,6 +101,26 @@ class SecurityModeTest {
     }
 
     @Test
+    fun `a record without words names no app - no package, no field's trace`() {
+        assertTrue(memory.log.namesApps)
+        memory.keepsWords = false
+        assertFalse(memory.log.namesApps)
+        memory.log.recordSuccess(
+            transcript("Treffen wir uns um acht"), InsertionStrategy.COMMIT_TEXT, inserted = true, targetPackage = "com.whatsapp",
+            note = "EditText in com.whatsapp → COMMIT_TEXT", timing = "route BUBBLE",
+        )
+        val record = memory.log.records.value.single()
+        assertNull(record.targetPackage)
+        assertNull(record.note)
+        assertFalse("whatsapp" in record.summary())
+        assertFalse(DiagnosticsReport.lines(record).any { "whatsapp" in it })
+        // A failure without words loses them too.
+        memory.log.recordSuccess(transcript(""), InsertionStrategy.COMMIT_TEXT, inserted = false, targetPackage = "com.whatsapp", note = "EditText in com.whatsapp")
+        assertNull(memory.log.records.value.first().targetPackage)
+        assertNull(memory.log.records.value.first().note)
+    }
+
+    @Test
     fun `off again, words are kept again`() {
         memory.keepsWords = false
         memory.keepsWords = true
