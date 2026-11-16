@@ -20,13 +20,14 @@ Parakeet followed in about 4.5 minutes on Wi-Fi, Amber switched by itself and de
 small model; the done step and Home named WhatsApp; Home showed "Last dictation" and the
 history with its entry; the security mode page reads as meant, switching it on removed
 "Last dictation" and "History" from Home at once and screenshots came out black.
-Found: Whisper base wrote "Hello?" for 4 s of near silence (levels p50 0.00, max 0.55) - a
-silent recording should be "nothing heard" before any model sees it.
+Not a fault: the "Hello?" from that test was Fabi saying "Hallo" (said 2026-11-16); Whisper
+base heard English (p=0.59 between en and de, the phone's first language en). A one-word
+dictation is ambiguous between the two - known, see "Short dictations and a language list".
 Battery with Parakeet, measured 2026-11-16 (11 h on battery since the reset, 2457 mAh
 drained in all): Amber 7.0 mAh (0.28 %), 4.3 of it CPU, 2 minutes of recording. With
 Tinfoil the day before: 3.3 mAh. Phase E's changes are not worth their risk at these
 numbers; the reload-on-focus and the trim levels stay on the list for low-RAM phones.
-Open: the dictation tests that need a voice (the plan's list), the silence finding, later:
+Open: the dictation tests that need a voice (the plan's list), later:
 snippets, a Quick Settings tile, live text.
 
 ## Polish reviews (2026-11-15) - the findings
