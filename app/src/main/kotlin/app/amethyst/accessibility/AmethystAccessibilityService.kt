@@ -481,7 +481,13 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
             bubble?.setLocked(locked)
             if (!::graph.isInitialized) return
-            if (intent.action == Intent.ACTION_SCREEN_OFF) graph.dictation.screenOff() else if (!locked) graph.dictation.screenBack()
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                graph.dictation.screenOff()
+                // The phone may lie on a table now: what is past its time goes before anyone picks it up.
+                graph.pruneHistory()
+            } else if (!locked) {
+                graph.dictation.screenBack()
+            }
         }
     }
     private var lockWatchRegistered = false

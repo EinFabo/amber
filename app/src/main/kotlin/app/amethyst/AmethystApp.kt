@@ -273,6 +273,19 @@ class Graph(app: Application) {
     /** Counts every change of the history, for the screens that show it. */
     val historyChanges = MutableStateFlow(0L)
 
+    /**
+     * What is past its time goes, and the keys of the days past it - when the screen goes off,
+     * as well as with every dictation added and every count. Only once the settings are read:
+     * before, "off" would delete it all.
+     */
+    fun pruneHistory() {
+        val settings = loadedSettings.value ?: return
+        appScope.launch(Dispatchers.IO) {
+            history.prune(SecurityMode.historyKeep(settings))
+            historyChanges.update { it + 1 }
+        }
+    }
+
     init {
         // What is past its time goes at every start and whenever the choice changes - off, or
         // the security mode, takes it all.

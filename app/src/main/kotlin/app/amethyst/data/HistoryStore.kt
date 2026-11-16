@@ -15,10 +15,12 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 /**
- * The history of recent dictations on this phone ([DictationHistory]): sealed with an AES-GCM key
- * in Android's keystore that works only while the phone is unlocked (setUnlockedDeviceRequired),
- * so a locked phone can neither read it nor write to it. In noBackupFilesDir: never in a cloud
- * backup or a transfer to a new phone, and the keystore key could not go along anyway.
+ * The history of recent dictations on this phone ([DictationHistory]): sealed with AES-GCM keys
+ * in Android's keystore, one per day, that work only while the phone is unlocked
+ * (setUnlockedDeviceRequired), so a locked phone can neither read it nor write to it. A day's key
+ * is deleted once the day is past keeping, so what is left of its words on the flash cannot be
+ * read. In noBackupFilesDir: never in a cloud backup or a transfer to a new phone, and the
+ * keystore keys could not go along anyway.
  *
  * Every call touches the file or the keystore: not on the main thread.
  */
@@ -26,7 +28,7 @@ class HistoryStore(private val context: Context) {
 
     private val history = DictationHistory(
         File(context.noBackupFilesDir, "history/dictations"),
-        AesGcmLock(::key, ::deleteKey),
+        AesGcmLock(::key, ::days, ::deleteKey),
     )
 
     /**
@@ -35,19 +37,19 @@ class HistoryStore(private val context: Context) {
      */
     fun add(text: String, app: String?, keep: HistoryKeep) {
         if (keep == HistoryKeep.OFF || locked()) return
-        if (!history.add(text, app, keep)) Log.i(TAG, "a dictation was not kept in the history: the key cannot be used now")
+        if (!guarded(false) { history.add(text, app, keep) }) Log.i(TAG, "a dictation was not kept in the history")
     }
 
     /** The dictations kept for [keep], newest first; what is past its time goes first. */
     fun entries(keep: HistoryKeep): List<HistoryEntry> = guarded(emptyList()) { history.entries(keep) }
 
-    /** How many dictations are kept for [keep], without opening any. */
+    /** How many dictations are kept for [keep], without opening any; what is past its time goes first. */
     fun count(keep: HistoryKeep): Int = guarded(0) { history.count(keep) }
 
-    /** Deletes what is older than [keep] allows; off, everything and its key. Works while locked. */
+    /** Deletes what is older than [keep] allows, and the keys of the days past it; off, everything. Works while locked. */
     fun prune(keep: HistoryKeep) = guarded(Unit) { history.prune(keep) }
 
-    /** Deletes every dictation, and the key. */
+    /** Deletes every dictation, and every key. */
     fun deleteAll() = history.deleteAll()
 
     private fun locked(): Boolean = context.getSystemService(KeyguardManager::class.java)?.isDeviceLocked != false
@@ -59,12 +61,14 @@ class HistoryStore(private val context: Context) {
         otherwise
     }
 
-    /** The history's key, made the first time it is needed. Null when the keystore refuses. */
-    private fun key(): SecretKey? = try {
-        val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        (store.getKey(ALIAS, null) as? SecretKey) ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
+    private fun keyStore(): KeyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
+
+    /** [day]'s key, made when [create] says so and there is none. Null when the keystore refuses. */
+    private fun key(day: Long, create: Boolean): SecretKey? = try {
+        val alias = PREFIX + day
+        (keyStore().getKey(alias, null) as? SecretKey) ?: if (!create) null else KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
             init(
-                KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                     .setKeySize(256)
@@ -79,9 +83,23 @@ class HistoryStore(private val context: Context) {
         null
     }
 
-    private fun deleteKey() {
+    /**
+     * The days a key exists for. The one key of the first builds, for every day at once, goes
+     * here: what it sealed can no longer be read, and goes when it is past its time.
+     */
+    private fun days(): Set<Long> = try {
+        val store = keyStore()
+        val aliases = store.aliases().toList()
+        if (LEGACY_ALIAS in aliases) store.deleteEntry(LEGACY_ALIAS)
+        aliases.mapNotNull { it.removePrefix(PREFIX).takeIf { _ -> it.startsWith(PREFIX) }?.toLongOrNull() }.toSet()
+    } catch (e: Exception) {
+        Log.w(TAG, "history keys not listed: ${e.javaClass.simpleName}")
+        emptySet()
+    }
+
+    private fun deleteKey(day: Long) {
         try {
-            KeyStore.getInstance(KEYSTORE).apply { load(null) }.deleteEntry(ALIAS)
+            keyStore().deleteEntry(PREFIX + day)
         } catch (e: Exception) {
             Log.w(TAG, "history key not deleted: ${e.javaClass.simpleName}")
         }
@@ -90,6 +108,7 @@ class HistoryStore(private val context: Context) {
     private companion object {
         const val TAG = "Amber"
         const val KEYSTORE = "AndroidKeyStore"
-        const val ALIAS = "amber.history"
+        const val PREFIX = "amber.history.day."
+        const val LEGACY_ALIAS = "amber.history"
     }
 }
