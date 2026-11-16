@@ -1635,7 +1635,7 @@ class DictationController(
                 // of Settings until a cleanup runs again. Anything else stays silent.
                 (error as? SttFailure)?.problem?.let { problem ->
                     val service = settings.engines.firstOrNull { it.id == choice.engineId }?.displayName ?: choice.engineId
-                    graph.cleanupTrouble.failed(problem, service, cleanup.model)?.let { open ->
+                    graph.cleanupTrouble.failed(problem, service, choice)?.let { open ->
                         mainHandler.post {
                             Toast.makeText(context, context.getString(R.string.toast_cleanup_did_not_run, Texts.cleanupTrouble(context, open)), Toast.LENGTH_LONG).show()
                         }

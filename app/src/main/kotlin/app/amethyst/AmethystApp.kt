@@ -233,6 +233,15 @@ class Graph(app: Application) {
     /** A cleanup that will not run until the user puts something right, for a toast and the row on top of Settings. */
     val cleanupTrouble = CleanupTrouble()
 
+    init {
+        // A cleanup turned off, or another service or model in its place: the old trouble goes.
+        appScope.launch { settings.collect(cleanupTrouble::settingsChanged) }
+    }
+
+    /** A key was saved for [alias]: a cleanup trouble with its service may be put right. */
+    fun keySaved(alias: String) =
+        cleanupTrouble.keySaved(settings.value.engines.filter { it.apiKeyAlias == alias }.map { it.id })
+
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)
 

@@ -180,10 +180,13 @@ open class Screenshots {
     /** Not part of the listing set: the cleanup's key was refused, said on top until a cleanup runs again. */
     @Test
     fun settingsAttentionCleanup() = shoot("x-settings-attention-cleanup", R.string.title_settings) {
+        val choice = app.amethyst.core.settings.CleanupChoice(EnginePresets.GROQ.id, "llama-3.3-70b-versatile")
         SettingsScreen(
-            settings = settings, setup = ready, version = "0.34.0", releaseChannel = ReleaseChannel.OTHER,
+            // Shown only while a cleanup still uses the one that failed.
+            settings = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(cleanup = choice),
+            setup = ready, version = "0.34.0", releaseChannel = ReleaseChannel.OTHER,
             onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
-            cleanupTrouble = app.amethyst.core.text.CleanupTrouble.Open(app.amethyst.core.text.CleanupTrouble.Cause.KEY_REFUSED, "Groq"),
+            cleanupTrouble = app.amethyst.core.text.CleanupTrouble.Open(app.amethyst.core.text.CleanupTrouble.Cause.KEY_REFUSED, "Groq", choice),
         )
     }
 

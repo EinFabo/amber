@@ -110,7 +110,9 @@ fun SettingsScreen(
     val trust = engine?.trustLevelForDisplay()
     val reliability = SettingsAttention.reliabilityOpen(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted)
     val reliabilityOpen = reliability.size
-    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, cleanupTrouble)
+    // Only while a cleanup still uses the one that failed.
+    val trouble = cleanupTrouble?.takeIf { CleanupTrouble.stillApplies(it, settings) }
+    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, trouble)
     val advanced = settings.ui.advanced
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null

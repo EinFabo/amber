@@ -556,7 +556,10 @@ private fun AmethystScreens(
     // introduction's step, one app's own model.
     fun cleanupAccess(onOpenEngine: ((String) -> Unit)?) = CleanupAccess(
         hasKeyFor = { alias -> graph.secretStore.has(alias) },
-        onSaveKey = { alias, key -> graph.secretStore.put(alias, key) },
+        onSaveKey = { alias, key ->
+            graph.secretStore.put(alias, key)
+            graph.keySaved(alias)
+        },
         onUpdateSettings = ::updateSettings,
         fetchModels = { baseUrl, key ->
             withContext(Dispatchers.IO) { ServerModels.fetch(graph.httpTransport, baseUrl, key) }
@@ -860,8 +863,12 @@ private fun AmethystScreens(
                                 },
                                 whisperModels = whisperStates,
                                 onSaveKey = { alias, value ->
-                                    if (value.isBlank()) graph.secretStore.clear(alias)
-                                    else graph.secretStore.put(alias, value)
+                                    if (value.isBlank()) {
+                                        graph.secretStore.clear(alias)
+                                    } else {
+                                        graph.secretStore.put(alias, value)
+                                        graph.keySaved(alias)
+                                    }
                                 },
                                 onSave = { updated: EngineConfig ->
                                     scope.launch {
