@@ -358,6 +358,12 @@ fun RecordingScreen(
                 onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
             )
             ToggleRow(
+                label = stringResource(R.string.recording_buzz_on_open),
+                description = stringResource(R.string.recording_buzz_on_open_note),
+                checked = settings.bubble.buzzOnOpen,
+                onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(buzzOnOpen = value)) } },
+            )
+            ToggleRow(
                 label = stringResource(R.string.recording_pause_media),
                 description = stringResource(R.string.recording_pause_media_note),
                 checked = settings.feedback.pauseMedia,

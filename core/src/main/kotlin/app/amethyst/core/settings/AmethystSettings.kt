@@ -220,6 +220,11 @@ data class BubbleSettings(
      * ([app.amethyst.core.bubble.QuickMenuLayout.idle]).
      */
     val quickMenuIdle: List<String?>? = null,
+    /**
+     * A light buzz when the microphone is really open. Off by default: Fabi found it too strong
+     * (2026-11-16) - it is there for dictating without looking. Needs [haptics] on as well.
+     */
+    val buzzOnOpen: Boolean = false,
 ) {
     companion object {
         /**

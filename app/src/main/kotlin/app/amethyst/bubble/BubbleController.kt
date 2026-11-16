@@ -579,7 +579,7 @@ class BubbleController(
         if (state is DictationState.Failed) sparkView.extinguish()
         // The microphone is really open: one buzz, so the first word is not said into nothing.
         if (state is DictationState.Listening && state.open) {
-            if (micCue.opened() != null) haptic(Haptics.Kind.OPEN)
+            if (micCue.opened() != null && settings.buzzOnOpen) haptic(Haptics.Kind.OPEN)
         } else if (state !is DictationState.Listening) {
             micCue.ended()
         }

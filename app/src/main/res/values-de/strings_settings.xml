@@ -173,7 +173,9 @@
     <string name="quick_menu_reset">Auf Standard zurücksetzen</string>
     <string name="recording_microphone">Mikrofon</string>
     <string name="recording_sounds">Ton bei Start und Stopp</string>
-    <string name="recording_sounds_note">Ein kurzer, leiser Ton, wenn das Mikrofon offen ist und wenn die Aufnahme endet. Die Bubble vibriert außerdem, wenn das Mikrofon offen ist, sofern ihre Vibration an ist.</string>
+    <string name="recording_sounds_note">Ein kurzer, leiser Ton, wenn das Mikrofon offen ist und wenn die Aufnahme endet.</string>
+    <string name="recording_buzz_on_open">Beim Start vibrieren</string>
+    <string name="recording_buzz_on_open_note">Ein leichtes Antippen, sobald das Mikrofon zuhört.</string>
     <string name="recording_pause_media">Musik beim Diktieren pausieren</string>
     <string name="recording_pause_media_note">Musik und Videos pausieren, solange das Mikrofon offen ist, und laufen gleich danach weiter.</string>
 </resources>
