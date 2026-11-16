@@ -16,7 +16,9 @@ package app.amethyst.core.text
  *   Punkt", "the period", "without comma"), nor after an attributive adjective ("guter Punkt",
  *   "ein großes Fragezeichen", "a big question mark", "the Oxford comma");
  * - "Komma", "Punkt", "comma" and "period" not before a number ("drei Komma fünf", "Punkt
- *   zwölf"), and no mark before "für", "von", "of", "for" ("Punkt für Punkt", "period of time");
+ *   zwölf", "eins Komma fünfundzwanzig"), "Komma" not after one ("in null Komma nichts"),
+ *   "Punkt" not before a time ("um Punkt Mitternacht", "Punkt Viertel nach acht"), and no
+ *   mark before "für", "von", "of", "for" ("Punkt für Punkt", "period of time");
  * - English words in lower case, unless they follow a sentence's end ("done. Period.") - a
  *   capital in the middle of a sentence is a name ("Comma", "New Line");
  * - English "period" and "full stop" only at the end, before a mark (said or written) or before
@@ -128,9 +130,11 @@ object SpokenPunctuation {
         val markAfter = restAfter.firstOrNull()?.let { it in MARKS } == true
         val next = wordAfter(after)
         val nextLower = next?.lowercase()
-        val numberNext = next != null && (next.first().isDigit() || nextLower in (if (german) GERMAN_NUMBERS else ENGLISH_NUMBERS))
+        val numberNext = next != null && isNumber(next, german)
         if ((mark == Mark.COMMA || mark == Mark.PERIOD) && numberNext) return false
         return if (german) {
+            // "in null Komma nichts", "eins Komma fünfundzwanzig": a number's comma.
+            if (mark == Mark.COMMA && isNumber(previous[0], german = true)) return false
             germanConverts(mark, prev1, prev2, prev3, previous[0], nextLower)
         } else {
             val afterSentence = before.trimEnd(' ', '\t').lastOrNull()?.let { it in SENTENCE_END || it == '\n' } == true
@@ -150,7 +154,21 @@ object SpokenPunctuation {
         val adjectiveShape = prev1AsWritten.first().isLowerCase() && GERMAN_ENDINGS.any { prev1.endsWith(it) && prev1.length > it.length + 2 }
         if (adjectiveShape && (prev2 in GERMAN_DETERMINERS || (prev2 in GERMAN_INTENSIFIERS && prev3 in GERMAN_DETERMINERS))) return false
         if (next in GERMAN_FOLLOWERS) return false
+        // "um Punkt Mitternacht", "Punkt Viertel nach acht": a time to the minute.
+        if (mark == Mark.PERIOD && next in GERMAN_TIME_FOLLOWERS) return false
         return true
+    }
+
+    /**
+     * Whether [word] is a number: digits, or a number word - in German also one put together
+     * ("fünfundzwanzig", "dreihundertzwölf", "zweitausend"), in English one with hyphens
+     * ("twenty-five").
+     */
+    private fun isNumber(word: String, german: Boolean): Boolean {
+        if (word.first().isDigit()) return true
+        val lower = word.lowercase()
+        if (!german) return lower.split('-').all { it in ENGLISH_NUMBERS }
+        return lower in GERMAN_NUMBERS || (lower !in GERMAN_NUMBER_PARTS_ALONE && GERMAN_COMPOUND_NUMBER.matches(lower))
     }
 
     private fun englishConverts(mark: Mark, prev1: String, prev2: String?, prev3: String?, next: String?): Boolean {
@@ -259,6 +277,18 @@ object SpokenPunctuation {
         "dreizehn", "vierzehn", "fünfzehn", "sechzehn", "siebzehn", "achtzehn", "neunzehn", "zwanzig", "dreißig",
         "vierzig", "fünfzig", "sechzig", "siebzig", "achtzig", "neunzig", "hundert", "tausend", "halb",
     )
+
+    /** The parts German number words are put together from ("ein-und-zwanzig", "sech-zehn"). */
+    private val GERMAN_COMPOUND_NUMBER = Regex(
+        "(?:null|eins|ein|zwei|zwo|drei|vier|fünf|sechs|sech|sieben|sieb|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|" +
+            "vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig|hundert|tausend|und)+",
+    )
+
+    /** Parts that alone are other words: an article, "and", a syllable. */
+    private val GERMAN_NUMBER_PARTS_ALONE = setOf("ein", "und", "sech", "sieb")
+
+    /** Words after "Punkt" that make it a time to the minute ("Punkt Mitternacht"). */
+    private val GERMAN_TIME_FOLLOWERS = setOf("mitternacht", "mittag", "viertel", "dreiviertel", "uhr", "halb")
 
     // --- English -----------------------------------------------------------------------
 

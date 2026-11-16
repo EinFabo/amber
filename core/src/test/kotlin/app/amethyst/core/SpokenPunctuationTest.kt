@@ -144,6 +144,35 @@ class SpokenPunctuationTest {
     }
 
     @Test
+    fun `a number's comma stays - after a number word, before one put together`() {
+        listOf(
+            "Das war in null Komma nichts erledigt",
+            "Das ging in null Komma nix",
+            "Es sind eins Komma fünfundzwanzig Liter",
+            "Es sind drei Komma vierundsechzig Prozent",
+            "Er lief zehn Komma zweihundert Meter",
+            "Das sind zwanzig Komma acht",
+            "It was one comma twenty-five",
+        ).forEach { assertEquals(it, if (it.startsWith("It")) en(it) else de(it)) }
+        // A number at a sentence's end still takes its period.
+        assertEquals("Wir sehen uns um acht. Bis dann", de("Wir sehen uns um acht Punkt bis dann"))
+        assertEquals("Ich bin fünfundzwanzig.", de("Ich bin fünfundzwanzig Punkt"))
+        // "und" and "ein" alone are no numbers.
+        assertEquals("Äpfel und Birnen, bitte", de("Äpfel und Birnen Komma bitte"))
+    }
+
+    @Test
+    fun `Punkt before a time stays`() {
+        listOf(
+            "Wir treffen uns um Punkt Mitternacht",
+            "Er kam Punkt Viertel nach acht",
+            "Sie kam um Punkt Mittag",
+            "Wir essen Punkt dreiviertel sieben",
+            "Er kam Punkt neunzehn Uhr",
+        ).forEach { assertEquals(it, de(it)) }
+    }
+
+    @Test
     fun `german words talked about, or a noun with what follows, stay`() {
         assertEquals("Das Wort Komma ist schwer", de("Das Wort Komma ist schwer"))
         assertEquals("Wir gehen Punkt für Punkt durch", de("Wir gehen Punkt für Punkt durch"))
