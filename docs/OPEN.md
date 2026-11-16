@@ -2,7 +2,23 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
-## Polish reviews (2026-11-15) - waiting for Fabi's go
+## Polish, built (2026-11-15/16) - docs/plans/2026-11-15-polish-plan.md
+
+Phases A-D built by agents, each reviewed and the findings fixed; in test build 77; nothing
+of it run on a phone yet. A: a small Whisper model (81 MB) stands in while Parakeet
+downloads, a nudge naming an installed app, "Allow" opens app info after refusals. B: a
+failed recording kept 10 minutes in memory for "Try again", toasts within 70 characters,
+Copy last for refused text and "Last dictation" on Home, cleanup failures said once, a buzz
+when the microphone opens, optional tone and music pause. C: own words (not for Parakeet:
+its hotwords need beam search and a vocabulary file the model lacks), spoken punctuation,
+"scratch that" as a sentence of its own. D: `DictationMemory` owns everything dictated; the
+security mode; an encrypted history (a keystore key per day, needs the phone unlocked),
+24 hours for new installs, off with a one-time offer for existing ones (schema 15).
+Open: the device tests (the plan's list and each agent's), Phase E's battery measurement
+with a day of Parakeet (stats reset 2026-11-15 20:42), later: snippets, a Quick Settings
+tile, live text.
+
+## Polish reviews (2026-11-15) - the findings
 
 Four read-only reviews (user frustration, battery and performance, polish features against
 Wispr Flow / FUTO / Gboard / Typeless, the first run). Nothing built yet. Found on the Pixel
