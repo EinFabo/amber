@@ -25,7 +25,7 @@
 
     <string name="fallback_server_too_slow">Server zu langsam - der auf dem Handy erkannte Text wurde genommen</string>
     <string name="fallback_no_connection">Keine Verbindung - auf dem Handy erkannt mit %1$s</string>
-    <string name="fallback_no_answer_on_phone">Server antwortete nicht - auf dem Handy erkannt mit %1$s</string>
+    <string name="fallback_no_answer_on_phone">Keine Antwort - auf dem Handy erkannt; Aufnahme evtl. beim Server</string>
     <string name="fallback_other_server">%1$s antwortete nicht - stattdessen von %2$s erkannt</string>
 
     <string name="capture_no_16khz">Das Mikrofon unterstützt keine 16 kHz.</string>

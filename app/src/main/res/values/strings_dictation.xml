@@ -27,7 +27,7 @@
 
     <string name="fallback_server_too_slow">Server too slow - used the text recognized on the phone</string>
     <string name="fallback_no_connection">No connection - recognized on the phone with %1$s</string>
-    <string name="fallback_no_answer_on_phone">No answer from the server - recognized on the phone with %1$s</string>
+    <string name="fallback_no_answer_on_phone">No answer - recognized on the phone; the server may have the recording</string>
     <string name="fallback_other_server">%1$s did not answer - recognized by %2$s instead</string>
 
     <string name="capture_no_16khz">The microphone does not support 16 kHz.</string>

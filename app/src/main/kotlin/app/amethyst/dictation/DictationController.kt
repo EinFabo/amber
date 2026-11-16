@@ -1395,7 +1395,8 @@ class DictationController(
             // What the server said, in full: the fallback must not hide that it needs the user.
             refused != null -> refusedButRecognized(refused.problem, name)
             trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
-            else -> context.getString(R.string.fallback_no_answer_on_phone, name)
+            // A read timeout or a 5xx came after the upload: the recording may be the server's.
+            else -> context.getString(R.string.fallback_no_answer_on_phone)
         }
         mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         return transcript.copy(trustLevel = trust)
@@ -1534,7 +1535,7 @@ class DictationController(
                     // What the server said, in full: the fallback must not hide that it needs the user.
                     cause.serverCannotServe -> refusedButRecognized(cause.problem, name)
                     trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
-                    local -> context.getString(R.string.fallback_no_answer_on_phone, name)
+                    local -> context.getString(R.string.fallback_no_answer_on_phone)
                     else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)
                 }
                 mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
