@@ -71,11 +71,25 @@ class FirstRunWatch(
         }
     }
 
-    /** The small model that stood in, deleted once nothing needs it - the file first, then the mark. */
+    /**
+     * The small model that stood in, deleted once nothing needs it: decided and forgotten in one
+     * write of the settings ([FirstRun.tidy]), then the file - only what nothing uses goes, and a
+     * choice made a moment before counts. One an app or the fallback uses only loses its mark.
+     */
     private suspend fun tidy() {
-        val small = FirstRun.leftover(settings.first()) ?: return
+        val now = settings.first()
+        if (FirstRun.tidy(now) == now) return
+        var unused: EngineOption? = null
+        var kept = false
+        update { current ->
+            FirstRun.tidy(current).also { tidied ->
+                unused = FirstRun.leftover(current)
+                kept = unused == null && tidied != current
+            }
+        }
+        if (kept) log("first run: the small model that stood in is used by an app or the fallback - kept")
+        val small = unused ?: return
         downloads.delete(small)
-        update(FirstRun::tidy)
         log("first run: ${small.name} stood in and is not needed any more - deleted")
     }
 

@@ -7,6 +7,9 @@ import app.amethyst.core.onboarding.FirstRunWatch
 import app.amethyst.core.onboarding.ModelFetch
 import app.amethyst.core.onboarding.QuickPlan
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.AppEngine
+import app.amethyst.core.settings.AppEngineMode
+import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.EngineConfig
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -103,6 +106,34 @@ class FirstRunWatchTest {
         assertNull(phone.stored.value.firstRun.standIn)
         assertFalse(phone.stored.value.engines.any { it.id == whisper })
         assertEquals(listOf("fetch FUTO_74 on any network", "fetch PARAKEET", "delete FUTO_74"), phone.downloads.calls)
+    }
+
+    /** An app given the small model while Parakeet came: its file stays, and Amber no longer calls it a stand-in. */
+    @Test
+    fun `the small model an app uses is not deleted when parakeet takes over`() = watched(viaSmall) { phone ->
+        phone.downloads.arrives(EngineOption.FUTO_74)
+        advanceUntilIdle()
+        phone.stored.update { it.copy(profiles = listOf(AppProfile("com.whatsapp", "WhatsApp", appEngine = AppEngine(AppEngineMode.ENGINE, whisper)))) }
+        advanceUntilIdle()
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertEquals(parakeet, phone.stored.value.activeEngineId)
+        assertNull(phone.stored.value.firstRun.standIn)
+        assertTrue(phone.stored.value.engines.any { it.id == whisper })
+        assertFalse("delete FUTO_74" in phone.downloads.calls)
+        assertTrue(EngineOption.FUTO_74 in phone.downloads.onPhone.value)
+    }
+
+    /** The same with the small model as the fallback. */
+    @Test
+    fun `the small model the fallback uses is not deleted either`() = watched(viaSmall) { phone ->
+        phone.downloads.arrives(EngineOption.FUTO_74)
+        advanceUntilIdle()
+        phone.stored.update { it.copy(fallback = it.fallback.copy(engineId = whisper)) }
+        phone.downloads.arrives(EngineOption.PARAKEET)
+        advanceUntilIdle()
+        assertNull(phone.stored.value.firstRun.standIn)
+        assertFalse("delete FUTO_74" in phone.downloads.calls)
     }
 
     /**

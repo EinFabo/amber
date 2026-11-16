@@ -281,28 +281,42 @@ object FirstRun {
 
     /**
      * The small model Amber fetched to stand in, once nothing needs it: nothing waits or is
-     * fetched any more, and it is not the active recognition. Its file is deleted, then [tidy]
-     * forgets it. Someone who chose it themselves keeps it: their choice cleared the mark.
+     * fetched any more, it is not the active recognition, and no app and not the fallback uses
+     * it. Its file may be deleted - after [tidy] has forgotten it, decided on the same settings.
+     * Someone who chose it themselves keeps it: their choice cleared the mark.
      */
-    fun leftover(settings: AmethystSettings): EngineOption? {
+    fun leftover(settings: AmethystSettings): EngineOption? =
+        idleStandIn(settings)?.takeIf { !usedElsewhere(settings, it) }
+
+    /**
+     * [settings] once the stand-in's work is done: the [leftover] model forgotten - the mark
+     * gone, and its recognition gone from the list too, so Settings does not offer a model that
+     * is not there; or, when an app or the fallback uses the small model, the mark alone gone:
+     * it is theirs now, and its file stays.
+     */
+    fun tidy(settings: AmethystSettings): AmethystSettings {
+        val small = idleStandIn(settings) ?: return settings
+        val unmarked = settings.copy(firstRun = settings.firstRun.copy(standIn = null))
+        if (usedElsewhere(settings, small)) return unmarked
+        return unmarked.copy(engines = settings.engines.filterNot { it.id != settings.activeEngineId && EngineNames.optionOf(it) == small })
+    }
+
+    /** The small model that stood in, once nothing waits or is fetched any more and it is not the active recognition. */
+    private fun idleStandIn(settings: AmethystSettings): EngineOption? {
         val small = smallStandIn(settings) ?: return null
         val idle = settings.firstRun.pendingEngine == null && settings.firstRun.wantedModel == null
         return small.takeIf { idle && !stillWanted(settings, it) }
     }
 
     /**
-     * [settings] once the [leftover] model's file is deleted: the mark gone, and the small
-     * model's recognition gone from the list too if nothing uses it - not the active one, no
-     * app, not the fallback - so Settings does not offer a model that is not there.
+     * Whether an app's own recognition or the fallback is a recognition with [small]'s model -
+     * a Whisper that has another model by now does not count.
      */
-    fun tidy(settings: AmethystSettings): AmethystSettings {
-        val small = leftover(settings) ?: return settings
-        val unused = { config: EngineConfig ->
-            config.id != settings.activeEngineId && config.id != settings.fallback.engineId &&
-                settings.profiles.none { it.appEngine.engineId == config.id } && EngineNames.optionOf(config) == small
+    private fun usedElsewhere(settings: AmethystSettings, small: EngineOption): Boolean =
+        settings.engines.any { config ->
+            EngineNames.optionOf(config) == small &&
+                (config.id == settings.fallback.engineId || settings.profiles.any { it.appEngine.engineId == config.id })
         }
-        return settings.copy(engines = settings.engines.filterNot(unused), firstRun = settings.firstRun.copy(standIn = null))
-    }
 
     /**
      * Whether [option]'s download is still wanted once nothing waits for it: only if that very

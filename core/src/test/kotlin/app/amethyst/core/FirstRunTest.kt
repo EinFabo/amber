@@ -245,12 +245,35 @@ class FirstRunTest {
     }
 
     @Test
-    fun `the small model's recognition stays in the list while an app or the fallback uses it`() {
+    fun `the small model an app or the fallback uses is theirs - not deleted, the mark gone`() {
         val switched = FirstRun.settle(FirstRun.settle(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), true, TEST_PHONE), true, TEST_PHONE)
         val byApp = switched.copy(profiles = switched.profiles.map { it.copy(appEngine = AppEngine(AppEngineMode.ENGINE, whisper)) })
-        assertTrue(FirstRun.tidy(byApp).engines.any { it.id == whisper })
         val byFallback = switched.copy(fallback = switched.fallback.copy(engineId = whisper))
-        assertTrue(FirstRun.tidy(byFallback).engines.any { it.id == whisper })
+        for (used in listOf(byApp, byFallback)) {
+            // Its file stays: nothing to delete.
+            assertNull(FirstRun.leftover(used))
+            val tidy = FirstRun.tidy(used)
+            assertTrue(tidy.engines.any { it.id == whisper })
+            assertNull(tidy.firstRun.standIn)
+            assertSame(tidy, FirstRun.tidy(tidy))
+        }
+    }
+
+    @Test
+    fun `while parakeet is on its way an app using the small model changes nothing yet`() {
+        val small = FirstRun.settle(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), ready = true, TEST_PHONE)
+        val byApp = small.copy(profiles = small.profiles.map { it.copy(appEngine = AppEngine(AppEngineMode.ENGINE, whisper)) })
+        // The mark stays, so Parakeet still takes over when it is there.
+        assertSame(byApp, FirstRun.tidy(byApp))
+        assertEquals(PendingVerdict.SWITCH, FirstRun.verdict(byApp, ready = true))
+    }
+
+    @Test
+    fun `a whisper that has the big model by now is no use of the small one`() {
+        val start = FirstRun.quick(fresh, QuickPlan(EngineOption.FUTO_74, EngineOption.FUTO_244, nowMissing = true), apps, TEST_PHONE)
+        val switched = FirstRun.settle(FirstRun.settle(start, ready = true, TEST_PHONE), ready = true, TEST_PHONE)
+        val byApp = switched.copy(profiles = switched.profiles.map { it.copy(appEngine = AppEngine(AppEngineMode.ENGINE, whisper)) })
+        assertEquals(EngineOption.FUTO_74, FirstRun.leftover(byApp))
     }
 
     @Test
