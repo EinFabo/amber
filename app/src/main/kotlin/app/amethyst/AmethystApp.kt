@@ -264,6 +264,8 @@ class Graph(app: Application) {
 
     private val amberPackage = app.packageName
 
+    private val appContext: Context = app
+
     /**
      * The recent dictations, encrypted on this phone for as long as the user chose
      * ([SecurityMode.historyKeep]); forgotten with everything else ([DictationMemory.wipe]).
@@ -297,8 +299,13 @@ class Graph(app: Application) {
         }
     }
 
-    /** "Delete all" on the History page: every dictation and the key they were sealed with. */
+    /**
+     * "Delete all" on the History page: every dictation and the keys they were sealed with - and
+     * Amber's own clip, a dictation copied from the page. Called on the main thread, with Amber in
+     * front: the only moment Android lets it see whose clip is on the clipboard.
+     */
     fun deleteHistory() {
+        OwnClipboard.forgetIfOurs(appContext)
         appScope.launch(Dispatchers.IO) {
             try {
                 history.deleteAll()
@@ -315,11 +322,12 @@ class Graph(app: Application) {
      */
     fun keepInHistory(text: String, app: String?) {
         if (SecurityMode.historyKeep(loadedSettings.value) == HistoryKeep.OFF || text.isBlank()) return
+        // A "Delete all" or the security mode's wipe before the add runs refuses it.
+        val ticket = history.ticket()
         appScope.launch(Dispatchers.IO) {
-            // Asked again as it is written: the security mode may have gone on meanwhile.
-            val keep = SecurityMode.historyKeep(loadedSettings.value)
-            if (keep == HistoryKeep.OFF) return@launch
-            history.add(text, app, keep)
+            // Asked again as it is written, under the lock "Delete all" takes: the security mode
+            // may have gone on meanwhile.
+            history.add(text, app, ticket) { SecurityMode.historyKeep(loadedSettings.value) }
             historyChanges.update { it + 1 }
         }
     }

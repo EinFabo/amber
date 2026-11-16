@@ -775,10 +775,12 @@ private fun AmethystScreens(
                             SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
                             SettingsPage.HISTORY -> {
                                 // Opened: what is past its time goes, the rest is opened - only
-                                // here, while the phone is unlocked.
-                                val entries by produceState(emptyList<HistoryEntry>(), historyKeep, historyChanges) {
-                                    value = withContext(Dispatchers.IO) { graph.history.entries(historyKeep) }
+                                // here, while the phone is unlocked. Counted too: what cannot be
+                                // opened can still be deleted.
+                                val opened by produceState(emptyList<HistoryEntry>() to 0, historyKeep, historyChanges) {
+                                    value = withContext(Dispatchers.IO) { graph.history.entries(historyKeep).let { it to graph.history.count(historyKeep) } }
                                 }
+                                val (entries, keptCount) = opened
                                 val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
                                 val canTryAgain = remember(keptChanges) { graph.memory.kept.hasRecording }
                                 HistoryScreen(
@@ -797,6 +799,7 @@ private fun AmethystScreens(
                                         runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                                     },
                                     onDeleteAll = { graph.deleteHistory() },
+                                    count = keptCount,
                                     canTryAgain = canTryAgain,
                                     onTryAgain = { graph.dictation.tryAgain(forHistory = true) },
                                 )

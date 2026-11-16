@@ -203,6 +203,85 @@ class DictationHistoryTest {
         assertTrue(history.entries(HistoryKeep.DAY).isEmpty())
     }
 
+    /** Named as Android's: the lock knows it by its name. */
+    private class KeyPermanentlyInvalidatedException : java.security.InvalidKeyException()
+
+    @Test
+    fun `a key unusable for good takes the history with it, and it starts over`() {
+        history.add("vorher", null, HistoryKeep.DAY)
+        val broken = lockThrowing(KeyPermanentlyInvalidatedException())
+        val brokenHistory = DictationHistory(file, broken) { now }
+        assertTrue(brokenHistory.entries(HistoryKeep.DAY).isEmpty())
+        assertFalse(file.exists())
+        assertTrue(keys.isEmpty())
+    }
+
+    @Test
+    fun `an unusable key found while adding starts the history over with the new dictation`() {
+        history.add("vorher", null, HistoryKeep.DAY)
+        var throwOnce = true
+        val flaky = AesGcmLock(
+            key = { d, create ->
+                if (throwOnce) {
+                    throwOnce = false
+                    throw KeyPermanentlyInvalidatedException()
+                }
+                keys[d] ?: if (create) newKey().also { keys[d] = it } else null
+            },
+            days = { keys.keys.toSet() },
+            destroyKey = { d -> keys.remove(d) },
+        )
+        val flakyHistory = DictationHistory(file, flaky) { now }
+        assertTrue(flakyHistory.add("neu", null, HistoryKeep.DAY))
+        assertEquals(listOf("neu"), flakyHistory.entries(HistoryKeep.DAY).map { it.text })
+    }
+
+    @Test
+    fun `when not one line opens while the keys work, the history starts over`() {
+        history.add("vorher", null, HistoryKeep.DAY)
+        // The key is gone - not by the history's doing - and the line can never be opened.
+        keys.clear()
+        assertEquals(1, history.count(HistoryKeep.DAY))
+        assertTrue(history.entries(HistoryKeep.DAY).isEmpty())
+        assertFalse(file.exists())
+        assertEquals(0, history.count(HistoryKeep.DAY))
+        assertTrue(keys.isEmpty())
+    }
+
+    @Test
+    fun `a locked phone deletes nothing it cannot open`() {
+        history.add("vorher", null, HistoryKeep.DAY)
+        unlocked = false
+        assertTrue(history.entries(HistoryKeep.DAY, unlocked = false).isEmpty())
+        // Even told it is unlocked: today's key cannot be used either, so nothing is broken.
+        assertTrue(history.entries(HistoryKeep.DAY).isEmpty())
+        unlocked = true
+        assertEquals(listOf("vorher"), history.entries(HistoryKeep.DAY).map { it.text })
+    }
+
+    @Test
+    fun `a dictation decided on before delete all is not added after it`() {
+        val ticket = history.ticket()
+        history.deleteAll()
+        assertFalse(history.add("zu spät", null, ticket) { HistoryKeep.DAY })
+        assertFalse(file.exists())
+        assertTrue(keys.isEmpty())
+        assertTrue(history.add("danach", null, history.ticket()) { HistoryKeep.DAY })
+    }
+
+    @Test
+    fun `how long to keep is asked as the line is written`() {
+        // The security mode went on between the dictation and its add.
+        assertFalse(history.add("Hallo", null, history.ticket()) { HistoryKeep.OFF })
+        assertFalse(file.exists())
+    }
+
+    private fun lockThrowing(e: Exception) = AesGcmLock(
+        key = { _, _ -> throw e },
+        days = { keys.keys.toSet() },
+        destroyKey = { d -> keys.remove(d) },
+    )
+
     @Test
     fun `the security mode keeps no history, whatever the choice`() {
         val settings = AmethystSettings.defaults(listOf("de-DE"))

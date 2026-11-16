@@ -48,6 +48,8 @@ fun HistoryScreen(
     onCopy: (String) -> Unit,
     onShare: (String) -> Unit,
     onDeleteAll: () -> Unit,
+    /** How many dictations are kept, counted without opening any: also those that cannot be shown. */
+    count: Int = entries.size,
     /** A failed dictation's recording is still kept for "Try again" ([app.amethyst.core.dictation.KeptDictation]). */
     canTryAgain: Boolean = false,
     onTryAgain: () -> Unit = {},
@@ -88,17 +90,18 @@ fun HistoryScreen(
                 Text(stringResource(R.string.history_empty), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
                 Hint(stringResource(R.string.history_empty_note, Texts.historyKeep(context, keep)))
             }
-            return@SubPage
-        }
-        SettingsGroup(label = stringResource(R.string.history_recent)) {
-            entries.forEachIndexed { i, entry ->
-                key(entry.atMillis) {
-                    if (i > 0) RowDivider()
-                    EntryRow(entry, entry.app?.let(appName), timeOf(entry.atMillis, zone, today), { onCopy(entry.text) }, { onShare(entry.text) })
+        } else {
+            SettingsGroup(label = stringResource(R.string.history_recent)) {
+                entries.forEachIndexed { i, entry ->
+                    key(entry.atMillis) {
+                        if (i > 0) RowDivider()
+                        EntryRow(entry, entry.app?.let(appName), timeOf(entry.atMillis, zone, today), { onCopy(entry.text) }, { onShare(entry.text) })
+                    }
                 }
             }
         }
-        DangerAction(stringResource(R.string.history_delete_all), onDeleteAll)
+        // Also for what is kept but cannot be shown: it can always be deleted.
+        if (entries.isNotEmpty() || count > 0) DangerAction(stringResource(R.string.history_delete_all), onDeleteAll)
     }
 }
 

@@ -31,17 +31,23 @@ class HistoryStore(private val context: Context) {
         AesGcmLock(::key, ::days, ::deleteKey),
     )
 
+    /** Taken where a dictation is decided on; a [deleteAll] before its [add] refuses it ([DictationHistory.ticket]). Any thread. */
+    fun ticket(): Long = history.ticket()
+
     /**
-     * Keeps [text], dictated into [app], for [keep] - only while the phone is unlocked: locked,
-     * nothing is written and nobody is told.
+     * Keeps [text], dictated into [app], for as long as [keep] says when it is written - only
+     * while the phone is unlocked: locked, nothing is written and nobody is told.
      */
-    fun add(text: String, app: String?, keep: HistoryKeep) {
-        if (keep == HistoryKeep.OFF || locked()) return
-        if (!guarded(false) { history.add(text, app, keep) }) Log.i(TAG, "a dictation was not kept in the history")
+    fun add(text: String, app: String?, ticket: Long, keep: () -> HistoryKeep) {
+        if (locked()) return
+        if (!guarded(false) { history.add(text, app, ticket, keep) }) Log.i(TAG, "a dictation was not kept in the history")
     }
 
-    /** The dictations kept for [keep], newest first; what is past its time goes first. */
-    fun entries(keep: HistoryKeep): List<HistoryEntry> = guarded(emptyList()) { history.entries(keep) }
+    /**
+     * The dictations kept for [keep], newest first; what is past its time goes first, and a
+     * history that can never be opened again starts over ([DictationHistory.entries]).
+     */
+    fun entries(keep: HistoryKeep): List<HistoryEntry> = guarded(emptyList()) { history.entries(keep, unlocked = !locked()) }
 
     /** How many dictations are kept for [keep], without opening any; what is past its time goes first. */
     fun count(keep: HistoryKeep): Int = guarded(0) { history.count(keep) }
@@ -85,7 +91,7 @@ class HistoryStore(private val context: Context) {
 
     /**
      * The days a key exists for. The one key of the first builds, for every day at once, goes
-     * here: what it sealed can no longer be read, and goes when it is past its time.
+     * here: what it sealed can no longer be read, and goes when the history is next read.
      */
     private fun days(): Set<Long> = try {
         val store = keyStore()
