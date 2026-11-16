@@ -4,6 +4,12 @@ As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bo
 
 ## Fabi's test of 0.34.0-rc3 (2026-11-16, Pixel 9a, Parakeet with Tinfoil's cleanup)
 
+- [ ] **rc4 (2026-11-16): the cursor and the rest fine, but "neue Zeile" gave no line break
+      in WhatsApp.** Likely: Amber writes a line break only where Enter makes a new line
+      (`TextInserter.enterMakesNewLine`: multi-line input type and no IME action) and WhatsApp's
+      field may announce an action (send) - then the text goes in as one line. Needs the log of
+      one dictation in WhatsApp (the insertion line says the strategy) and a decision: a line
+      break by SET_TEXT or by the input connection's own newline where Enter would send.
 - [ ] **The "?" lands behind the cursor** ("Hallo Anna Komma neue Zeile wie geht es dir
       Fragezeichen" in WhatsApp): the text comes in, but the cursor stands before the final
       question mark instead of after it.
