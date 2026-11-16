@@ -2,6 +2,21 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Fabi's test of 0.34.0-rc3 (2026-11-16, Pixel 9a, Parakeet with Tinfoil's cleanup)
+
+- [ ] **The "?" lands behind the cursor** ("Hallo Anna Komma neue Zeile wie geht es dir
+      Fragezeichen" in WhatsApp): the text comes in, but the cursor stands before the final
+      question mark instead of after it.
+- [ ] **"Streich das" takes back only itself**, not the sentence before it: "Ich komme um
+      drei. Streich das." and "Hallo Anna. Ich komme um drei. Streich das." both keep the
+      sentence and drop only the phrase (probably the cleanup removing the phrase because
+      Amber's own rule did not fire on Parakeet's text - needs the log).
+- [ ] **"Punkt 2" became ".2"**: spoken punctuation turned "Punkt" before a number written in
+      digits into a dot.
+- [ ] **The Text page reads badly**: the explanations in English and German "sound dumb",
+      too much text, AI-sounding. Research how setting descriptions should look per language
+      (short, plain, not slop) and rewrite them.
+
 ## Polish, built (2026-11-15/16) - docs/plans/2026-11-15-polish-plan.md
 
 Phases A-D built by agents, each reviewed and the findings fixed; in test build 77; nothing
