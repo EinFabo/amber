@@ -8,6 +8,7 @@ enum class SettingsPage {
     RECOGNITION,
     CLEANUP,
     BUBBLE,
+    SECURITY_MODE,
     QUICK_MENU,
     COMMANDS,
     APP_STYLES,
@@ -28,6 +29,7 @@ fun SettingsPage.title(): Int = when (this) {
     SettingsPage.RECOGNITION -> R.string.settings_recognition
     SettingsPage.CLEANUP -> R.string.settings_cleanup
     SettingsPage.BUBBLE -> R.string.settings_bubble
+    SettingsPage.SECURITY_MODE -> R.string.settings_security_mode
     SettingsPage.QUICK_MENU -> R.string.settings_quick_menu
     SettingsPage.COMMANDS -> R.string.settings_voice_commands
     SettingsPage.APP_STYLES -> R.string.settings_apps

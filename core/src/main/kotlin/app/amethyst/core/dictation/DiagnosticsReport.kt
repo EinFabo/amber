@@ -87,7 +87,7 @@ object DiagnosticsReport {
     fun anonymous(record: DictationRecord, texts: Collection<String> = texts(listOf(record))): Anonymous {
         val all = Anonymize.lines(listOf(record.summary()) + lines(record), texts)
         return Anonymous(
-            shape = record.text.takeIf { it.isNotBlank() }?.let(TextShape::of),
+            shape = record.text.takeIf { it.isNotBlank() }?.let(TextShape::of) ?: record.shape,
             summary = all.first(),
             lines = all.drop(1),
         )

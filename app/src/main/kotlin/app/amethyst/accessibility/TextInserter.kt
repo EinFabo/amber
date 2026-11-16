@@ -48,7 +48,7 @@ class TextInserter(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val engine = InsertionEngine(
-        memory = strategyStore.load(),
+        memory = strategyStore.memory,
         clipboard = Clipboard { text -> copyToClipboard(text) },
         onMemoryChanged = { memory -> strategyStore.save(memory) },
     )

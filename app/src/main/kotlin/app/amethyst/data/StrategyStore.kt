@@ -4,12 +4,19 @@ import android.content.Context
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.StrategyMemory
 
-/** Persists [StrategyMemory] - which insertion method worked in which app. */
-class StrategyStore(context: Context) {
+/**
+ * Persists [StrategyMemory] - which insertion method worked in which app. While [writing] says
+ * no (the security mode, [app.amethyst.core.privacy.SecurityMode.remembersApps]) the memory
+ * lives in this process only and nothing is written; [forget] drops it everywhere.
+ */
+class StrategyStore(context: Context, private val writing: () -> Boolean = { true }) {
 
     private val prefs = context.getSharedPreferences("amethyst_insertion", Context.MODE_PRIVATE)
 
-    fun load(): StrategyMemory {
+    /** The one memory every insertion uses, read from the file the first time it is needed. */
+    val memory: StrategyMemory by lazy { load() }
+
+    private fun load(): StrategyMemory {
         val restored = prefs.all.mapNotNull { (pkg, raw) ->
             val strategy = (raw as? String)?.let { name ->
                 InsertionStrategy.entries.firstOrNull { it.name == name }
@@ -20,8 +27,15 @@ class StrategyStore(context: Context) {
     }
 
     fun save(memory: StrategyMemory) {
+        if (!writing()) return
         prefs.edit().clear().apply {
             memory.snapshot().forEach { (pkg, strategy) -> putString(pkg, strategy.name) }
         }.apply()
+    }
+
+    /** Forgets every app, in memory and in the file. Blocking: not on the main thread. */
+    fun forget() {
+        memory.clear()
+        prefs.edit().clear().commit()
     }
 }

@@ -1,6 +1,7 @@
 package app.amethyst.data
 
 import android.content.Context
+import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.stats.DictationStat
 import app.amethyst.core.stats.StatsLedger
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,17 @@ class StatsStore(context: Context, private val scope: CoroutineScope) {
         scope.launch(io) {
             ledger.clear()
             _all.value = emptyList()
+        }
+    }
+
+    /** The file written again without the app each dictation went into ([SecurityMode.withoutApps]). */
+    fun forgetApps() {
+        scope.launch(io) {
+            try {
+                _all.value = ledger.rewrite(SecurityMode::withoutApps)
+            } catch (e: Exception) {
+                android.util.Log.w("Amber", "statistics not written again: ${e.javaClass.simpleName}")
+            }
         }
     }
 }

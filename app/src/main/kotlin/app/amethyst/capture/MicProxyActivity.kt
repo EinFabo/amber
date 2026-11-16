@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.amethyst.AmethystApp
+import app.amethyst.SecureWindow
 import app.amethyst.dictation.DictationState
 import app.amethyst.core.capture.TriggerSource
 import kotlinx.coroutines.flow.first
@@ -26,6 +27,8 @@ class MicProxyActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Amber's window: hidden from screenshots and Recents in the security mode.
+        SecureWindow.follow(this)
         alive = true
 
         val dictation = AmethystApp.graph(this).dictation

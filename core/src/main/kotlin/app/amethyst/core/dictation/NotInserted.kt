@@ -4,7 +4,8 @@ import app.amethyst.core.insert.TargetCheck
 
 /**
  * A dictation's words were recognized and did not go into the field: why, and which way out
- * the toast names. The words stay kept either way (Insert again, Copy last).
+ * the toast names. The words stay kept either way (Insert again, Copy last) - except in the
+ * security mode, which keeps no copy.
  *
  * "Insert again" helps where the field was gone or the focus had moved: back in the field, it
  * goes in. Where the field itself refused the text - it accepted none of the ways in, or the
@@ -53,11 +54,21 @@ object NotInserted {
 
         /** Nothing to do: a password field gets no dictation. */
         NONE,
+
+        /** The security mode keeps no copy: the words are gone. */
+        NOT_KEPT,
+
+        /** The words may still show up; the security mode keeps no copy if not. */
+        MAY_ARRIVE_NOT_KEPT,
     }
 
-    /** The way out for words that did not go in for [why]; [onClipboard]: the clipboard fallback took them. */
-    fun hint(why: Why, onClipboard: Boolean): Hint = when {
+    /**
+     * The way out for words that did not go in for [why]; [onClipboard]: the clipboard fallback
+     * took them. [kept] false - the security mode - keeps no copy: no way out but to say it again.
+     */
+    fun hint(why: Why, onClipboard: Boolean, kept: Boolean = true): Hint = when {
         why == Why.PASSWORD -> Hint.NONE
+        !kept -> if (why == Why.UNCERTAIN) Hint.MAY_ARRIVE_NOT_KEPT else Hint.NOT_KEPT
         why == Why.UNCERTAIN -> if (onClipboard) Hint.MAY_ARRIVE_ON_CLIPBOARD else Hint.MAY_ARRIVE
         onClipboard -> Hint.ON_CLIPBOARD
         why == Why.REFUSED -> Hint.COPY

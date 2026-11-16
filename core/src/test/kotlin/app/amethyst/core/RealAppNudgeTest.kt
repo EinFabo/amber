@@ -23,7 +23,7 @@ class RealAppNudgeTest {
 
     @Test
     fun `a messenger on the phone is named, in the known list's order`() {
-        assertEquals(RealAppNudge("WhatsApp"), RealAppNudges.of(emptyList(), statsKept = true, bubbleCanShow = true, installed = phone))
+        assertEquals(RealAppNudge("WhatsApp"), RealAppNudges.of(reached = false, bubbleCanShow = true, installed = phone))
         assertEquals("Messages", RealAppNudges.appName(phone - "com.whatsapp"))
     }
 
@@ -42,20 +42,29 @@ class RealAppNudgeTest {
 
     @Test
     fun `no known app on the phone - any app`() {
-        assertEquals(RealAppNudge(null), RealAppNudges.of(emptyList(), true, true, mapOf("org.example.game" to "A game")))
-        assertEquals(RealAppNudge(null), RealAppNudges.of(emptyList(), true, true, emptyMap()))
+        assertEquals(RealAppNudge(null), RealAppNudges.of(false, true, mapOf("org.example.game" to "A game")))
+        assertEquals(RealAppNudge(null), RealAppNudges.of(false, true, emptyMap()))
     }
 
     @Test
     fun `dictations in amber's own field keep it, the first one into another app ends it`() {
-        assertEquals(RealAppNudge("WhatsApp"), RealAppNudges.of(listOf(stat(null), stat(null)), true, true, phone))
-        assertNull(RealAppNudges.of(listOf(stat(null), stat("com.google.android.gm")), true, true, phone))
+        assertEquals(false, RealAppNudges.reached(remembered = false, listOf(stat(null), stat(null))))
+        assertEquals(true, RealAppNudges.reached(remembered = false, listOf(stat(null), stat("com.google.android.gm"))))
+        assertEquals(false, RealAppNudges.ends(null, amber = "app.amethyst"))
+        assertEquals(false, RealAppNudges.ends("app.amethyst", amber = "app.amethyst"))
+        assertEquals(true, RealAppNudges.ends("com.whatsapp", amber = "app.amethyst"))
+        assertNull(RealAppNudges.of(reached = true, bubbleCanShow = true, installed = phone))
     }
 
     @Test
-    fun `nothing while the statistics are off, the bubble cannot show, or the apps are still being read`() {
-        assertNull(RealAppNudges.of(emptyList(), statsKept = false, bubbleCanShow = true, installed = phone))
-        assertNull(RealAppNudges.of(emptyList(), statsKept = true, bubbleCanShow = false, installed = phone))
-        assertNull(RealAppNudges.of(emptyList(), statsKept = true, bubbleCanShow = true, installed = null))
+    fun `remembered, it never comes back - not after the statistics were cleared or lost their app names`() {
+        assertEquals(true, RealAppNudges.reached(remembered = true, emptyList()))
+        assertEquals(true, RealAppNudges.reached(remembered = true, listOf(stat(null))))
+    }
+
+    @Test
+    fun `nothing while the bubble cannot show, or the apps are still being read`() {
+        assertNull(RealAppNudges.of(reached = false, bubbleCanShow = false, installed = phone))
+        assertNull(RealAppNudges.of(reached = false, bubbleCanShow = true, installed = null))
     }
 }

@@ -137,6 +137,8 @@ fun DiagnosticsScreen(
     /** Other Ambers switched on beside this one: shown on top and noted in a copy. */
     otherAmbers: List<AmberVariant> = emptyList(),
     onOpenAccessibility: () -> Unit = {},
+    /** Off in the security mode, which never writes the clipboard: no Copy. */
+    canCopy: Boolean = true,
 ) {
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf(initialFilter) }
@@ -186,19 +188,23 @@ fun DiagnosticsScreen(
             SettingsGroup(
                 label = lastEntries(filter, shown.size),
                 note = stringResource(R.string.diag_note),
-                trailing = {
-                    Spacer(Modifier.weight(1f))
-                    GhostButton(
-                        text = stringResource(if (copied) R.string.copied else R.string.copy),
-                        onClick = {
-                            val text = DiagnosticsReport.of(
-                                shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
-                                keyboard = if (keyboardShown) keyboardLog else emptyList(),
-                                warning = Texts.otherAmbers(Texts.english(context), otherAmbers),
-                            )
-                            copied = copySensitive(context, text)
-                        },
-                    )
+                trailing = if (canCopy) {
+                    {
+                        Spacer(Modifier.weight(1f))
+                        GhostButton(
+                            text = stringResource(if (copied) R.string.copied else R.string.copy),
+                            onClick = {
+                                val text = DiagnosticsReport.of(
+                                    shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
+                                    keyboard = if (keyboardShown) keyboardLog else emptyList(),
+                                    warning = Texts.otherAmbers(Texts.english(context), otherAmbers),
+                                )
+                                copied = copySensitive(context, text)
+                            },
+                        )
+                    }
+                } else {
+                    null
                 },
             ) {
                 // Every record's words, kept out of every card's lines until "Show text".
@@ -252,8 +258,9 @@ private fun RecordRow(
     val foldable = record.details.isNotEmpty() || record.timing != null
     val anonymous = remember(record, texts) { DiagnosticsReport.anonymous(record, texts) }
     val allLines = remember(record) { DiagnosticsReport.lines(record) }
-    // Only where something is hidden: the words, or a line that quoted them.
-    val hidesWords = anonymous.shape != null || anonymous.summary != record.summary() || anonymous.lines != allLines
+    // Only where something is hidden: the words, or a line that quoted them. A record that kept
+    // no words (the security mode) has its shape and nothing to show.
+    val hidesWords = (anonymous.shape != null && record.text.isNotBlank()) || anonymous.summary != record.summary() || anonymous.lines != allLines
     val show = revealed && hidesWords
     val shape = anonymous.shape
     Column(Modifier.fillMaxWidth()) {

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.amethyst.AmethystApp
 import app.amethyst.R
+import app.amethyst.SecureWindow
 import app.amethyst.apps.Launcher
 import app.amethyst.core.bubble.QuickActions
 import app.amethyst.core.settings.AppProfile
@@ -56,6 +57,8 @@ class QuickStyleActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Amber's window: hidden from screenshots and Recents in the security mode.
+        SecureWindow.follow(this)
         val app = Launcher.installed(this, runCatching { intent.getStringExtra(EXTRA_PACKAGE) }.getOrNull())
         if (app == null) {
             finish()

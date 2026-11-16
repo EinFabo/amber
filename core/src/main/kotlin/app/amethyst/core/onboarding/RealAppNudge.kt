@@ -19,22 +19,31 @@ object RealAppNudges {
 
     /**
      * The nudge, or null when there is none to show: once a dictation went into another app
-     * (the statistics name the app only then - Amber's own field and an unknown one name none),
-     * while the statistics are not kept (nothing would ever end it), where the bubble cannot
-     * come up at all, and while the apps on the phone are still being read ([installed] null:
-     * no "any app" that turns into WhatsApp a moment later).
+     * ([reached]), where the bubble cannot come up at all, and while the apps on the phone are
+     * still being read ([installed] null: no "any app" that turns into WhatsApp a moment later).
      *
      * [installed]: package to the name its launcher shows.
      */
     fun of(
-        stats: List<DictationStat>,
-        statsKept: Boolean,
+        reached: Boolean,
         bubbleCanShow: Boolean,
         installed: Map<String, String>?,
     ): RealAppNudge? {
-        if (installed == null || !statsKept || !bubbleCanShow || stats.any { it.app != null }) return null
+        if (installed == null || reached || !bubbleCanShow) return null
         return RealAppNudge(appName(installed))
     }
+
+    /**
+     * Whether a dictation went into another app: [remembered] once it did
+     * ([app.amethyst.core.settings.FirstRunSettings.realAppReached]), or - from before that was
+     * remembered - the statistics name an app (Amber's own field and an unknown one name none).
+     * Remembered, it stays over after the statistics are cleared, switched off or lose their app
+     * names in the security mode - the nudge never comes back.
+     */
+    fun reached(remembered: Boolean, stats: List<DictationStat>): Boolean = remembered || stats.any { it.app != null }
+
+    /** Whether a dictation into [app] ends the nudge: an app that is not Amber ([amber], its package). */
+    fun ends(app: String?, amber: String): Boolean = app != null && app != amber
 
     /** The first known app on the phone, messengers first and in the known list's order; null when none is. */
     fun appName(installed: Map<String, String>): String? {

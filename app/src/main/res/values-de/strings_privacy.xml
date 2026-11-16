@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_security_mode">Sicherheitsmodus</string>
+    <string name="security_switch_note">Nichts, was du diktierst, bleibt auf dem Handy</string>
+    <string name="security_on_title">Wenn er an ist</string>
+    <string name="security_nothing_kept">Nichts Diktiertes wird behalten</string>
+    <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst Amber es: kein Nochmal versuchen, kein Letztes Diktat, kein Nochmal einfügen, Letztes kopieren oder Letztes rückgängig. Ein Diktat, das nicht hineinging, ist weg.</string>
+    <string name="security_diagnostics">Diagnose ohne Wörter</string>
+    <string name="security_diagnostics_note">Nur wie viele Zeichen und Wörter ein Diktat hatte und seine Sprache.</string>
+    <string name="security_stats">Statistik ohne Apps</string>
+    <string name="security_stats_note">Nur Zahlen und Zeiten. In welcher App du diktiert hast, wird nicht behalten, auch nicht, wie der Text in jede App kam.</string>
+    <string name="security_clipboard">Die Zwischenablage bleibt unberührt</string>
+    <string name="security_clipboard_note">Amber legt nie Text darauf; die Zwischenablage zu nutzen, wenn das Tippen nicht klappt, ist aus.</string>
+    <string name="security_screens">Ambers Bildschirme sind verborgen</string>
+    <string name="security_screens_note">Keine Screenshots oder Bildschirmaufnahmen von Amber und ein leeres Bild in den letzten Apps.</string>
+    <string name="security_wipes">Beim Einschalten wird gelöscht, was jetzt behalten ist: die letzten Diktate und die App-Namen in der Statistik.</string>
+    <string name="security_limits_title">Was er nicht kann</string>
+    <string name="security_installed">Er versteckt Amber nicht</string>
+    <string name="security_installed_note">Wer dein Handy hat, sieht, dass Amber installiert ist.</string>
+    <string name="security_other_apps">Er erreicht keine anderen Apps</string>
+    <string name="security_other_apps_note">Was du in einen Chat, eine Notiz oder eine Mail diktiert hast, bleibt dort.</string>
+    <string name="security_servers">Ein Server bekommt es trotzdem</string>
+    <string name="security_servers_note">Eine Spracherkennung oder Bereinigung auf einem Server bekommt weiter deine Aufnahme oder ihren Text. Nur die Spracherkennung auf dem Handy, ohne Bereinigung, behält alles hier.</string>
+    <string name="inserting_clipboard_secure">Aus im Sicherheitsmodus</string>
+    <string name="toast_not_kept">Nicht eingefügt - der Sicherheitsmodus behält keine Kopie</string>
+    <string name="toast_may_arrive_not_kept">Kommt evtl. noch - der Sicherheitsmodus behält keine Kopie</string>
+    <string name="toast_screen_off_not_kept">Bildschirm war aus - nicht eingefügt, ohne Kopie (Sicherheitsmodus)</string>
+</resources>

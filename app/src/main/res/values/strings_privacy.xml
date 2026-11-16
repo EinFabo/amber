@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The security mode: for whoever does not want anyone who takes the phone to read what they dictated. -->
+    <string name="settings_security_mode">Security mode</string>
+    <string name="security_switch_note">Nothing you dictate stays on this phone</string>
+    <string name="security_on_title">When it is on</string>
+    <string name="security_nothing_kept">Nothing dictated is kept</string>
+    <string name="security_nothing_kept_note">Once a dictation is in the field, Amber forgets it: no Try again, no Last dictation, no Insert again, Copy last or Undo last. A dictation that could not go in is gone.</string>
+    <string name="security_diagnostics">Diagnostics without words</string>
+    <string name="security_diagnostics_note">Only how many characters and words a dictation had, and its language.</string>
+    <string name="security_stats">Statistics without apps</string>
+    <string name="security_stats_note">Counts and times only. Which app you dictated in is not kept, nor how the text got into each app.</string>
+    <string name="security_clipboard">The clipboard stays untouched</string>
+    <string name="security_clipboard_note">Amber never puts text on it; using the clipboard when typing fails is off.</string>
+    <string name="security_screens">Amber\'s screens are hidden</string>
+    <string name="security_screens_note">No screenshots or screen recordings of Amber, and a blank picture in recent apps.</string>
+    <string name="security_wipes">Switching it on deletes what is kept now: the last dictations and the app names in the statistics.</string>
+    <string name="security_limits_title">What it cannot do</string>
+    <string name="security_installed">It does not hide Amber</string>
+    <string name="security_installed_note">Anyone with your phone can see that Amber is installed.</string>
+    <string name="security_other_apps">It cannot reach other apps</string>
+    <string name="security_other_apps_note">What you dictated into a chat, a note or a mail stays there.</string>
+    <string name="security_servers">A server still gets it</string>
+    <string name="security_servers_note">A speech recognition or cleanup on a server still receives your recording or its text. Only speech recognition on this phone, with the cleanup off, keeps it all here.</string>
+    <string name="inserting_clipboard_secure">Off in the security mode</string>
+    <string name="toast_not_kept">Not inserted - the security mode keeps no copy</string>
+    <string name="toast_may_arrive_not_kept">May still show up - the security mode keeps no copy</string>
+    <string name="toast_screen_off_not_kept">Screen was off - not inserted, the security mode keeps no copy</string>
+</resources>

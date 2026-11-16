@@ -19,7 +19,10 @@ import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
+import app.amethyst.core.onboarding.RealAppNudges
+import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.PrivacySettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.EstimateStore
 import app.amethyst.data.OwnClipboard
@@ -104,7 +107,8 @@ class Graph(app: Application) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settingsStore = SettingsStore(app)
-    val strategyStore = StrategyStore(app)
+    /** Which insertion method worked in which app - not written down in the security mode. */
+    val strategyStore = StrategyStore(app) { SecurityMode.remembersApps(settings.value) }
 
     /**
      * Lazy on purpose. Building this generates or unwraps a keystore-backed master key and
@@ -249,6 +253,66 @@ class Graph(app: Application) {
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope)
+
+    private val amberPackage = app.packageName
+
+    init {
+        // The security mode as the settings say: on, nothing more is kept; switched on, what is
+        // kept now is forgotten. Not on reading the settings at a start - nothing switched then.
+        appScope.launch {
+            var before: PrivacySettings? = null
+            loadedSettings.filterNotNull().collect { current ->
+                memory.keepsWords = SecurityMode.keepsWords(current)
+                if (SecurityMode.wipesOnSwitch(before, current.privacy)) forgetForSecurityMode()
+                before = current.privacy
+            }
+        }
+        // Statistics that name an app from before the nudge's end was remembered: remembered now,
+        // so clearing them or losing their app names cannot bring the nudge back.
+        appScope.launch { stats.all.collect { rememberRealApp(it) } }
+    }
+
+    /**
+     * The security mode was switched on: everything dictated is forgotten ([DictationMemory.wipe]),
+     * the statistics are written again without their apps and the insertion methods per app go.
+     */
+    private fun forgetForSecurityMode() {
+        appScope.launch(Dispatchers.IO) {
+            rememberRealApp(stats.all.value)
+            try {
+                memory.wipe()
+            } catch (e: Exception) {
+                android.util.Log.w("Amber", "not everything dictated was forgotten: ${e.javaClass.simpleName}")
+            }
+            stats.forgetApps()
+            strategyStore.forget()
+            android.util.Log.i("Amber", "security mode on: what was kept is forgotten")
+        }
+    }
+
+    /** The statistics are cleared - once the nudge's end is remembered apart from them. */
+    fun clearStats() {
+        appScope.launch {
+            rememberRealApp(stats.all.value)
+            stats.clear()
+        }
+    }
+
+    private suspend fun rememberRealApp(stats: List<app.amethyst.core.stats.DictationStat>) {
+        if (RealAppNudges.reached(remembered = false, stats)) rememberRealApp()
+    }
+
+    /** A dictation went into another app: the nudge toward one is over for good ([RealAppNudges.reached]). */
+    private suspend fun rememberRealApp() {
+        if (settingsStore.settings.first().firstRun.realAppReached) return
+        settingsStore.update { it.copy(firstRun = it.firstRun.copy(realAppReached = true)) }
+    }
+
+    /** A dictation went into [app]: past the nudge if that is another app than Amber ([RealAppNudges.ends]). */
+    fun dictatedInto(app: String?) {
+        if (!RealAppNudges.ends(app, amberPackage) || settings.value.firstRun.realAppReached) return
+        appScope.launch { rememberRealApp() }
+    }
 
     /**
      * What the bubble just did - a dictation inserted, a quick action run, a dock - for the

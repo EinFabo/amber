@@ -112,12 +112,14 @@ fun TextScreen(
                     onUpdateSettings { it.copy(insertion = it.insertion.copy(gluePunctuation = value)) }
                 },
             )
+            // The security mode never writes the clipboard: off, and it stays off until the mode is.
+            val secure = app.amethyst.core.privacy.SecurityMode.on(settings)
             ToggleRow(
                 label = stringResource(R.string.inserting_clipboard),
-                description = stringResource(R.string.inserting_clipboard_note),
-                checked = settings.insertion.allowClipboard,
+                description = stringResource(if (secure) R.string.inserting_clipboard_secure else R.string.inserting_clipboard_note),
+                checked = app.amethyst.core.privacy.SecurityMode.mayUseClipboard(settings),
                 onChange = { value ->
-                    onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
+                    if (!secure) onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
                 },
             )
         }

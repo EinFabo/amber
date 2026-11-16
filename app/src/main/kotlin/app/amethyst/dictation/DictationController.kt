@@ -78,6 +78,7 @@ import app.amethyst.core.insert.InputTarget
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.insert.UndoLast
+import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.net.ConnectionWarmUp
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
@@ -552,7 +553,9 @@ class DictationController(
     fun screenBack() {
         if (!keptWhileScreenOff) return
         keptWhileScreenOff = false
-        toast(R.string.toast_screen_off_insert_again, long = true)
+        // The security mode kept no copy: nothing to insert again.
+        val kept = SecurityMode.keepsWords(graph.settings.value)
+        toast(if (kept) R.string.toast_screen_off_insert_again else R.string.toast_screen_off_not_kept, long = true)
     }
 
     /** For the record and Amber's screen: why the text did not go in. */
@@ -578,13 +581,15 @@ class DictationController(
             context.getString(if (onClipboard) R.string.dictation_on_clipboard_instead else R.string.dictation_not_inserted, context.getString(reason)) +
                 insertionTrace?.let { " [$it]" }.orEmpty()
         }
-        val toast = when (NotInserted.hint(why, onClipboard)) {
+        val toast = when (NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.settings.value))) {
             NotInserted.Hint.INSERT_AGAIN -> R.string.toast_insert_again
             NotInserted.Hint.COPY -> R.string.toast_copy_last
             NotInserted.Hint.ON_CLIPBOARD -> R.string.toast_on_clipboard
             NotInserted.Hint.MAY_ARRIVE -> R.string.toast_may_arrive
             NotInserted.Hint.MAY_ARRIVE_ON_CLIPBOARD -> R.string.toast_may_arrive_on_clipboard
             NotInserted.Hint.NONE -> R.string.toast_not_inserted_password
+            NotInserted.Hint.NOT_KEPT -> R.string.toast_not_kept
+            NotInserted.Hint.MAY_ARRIVE_NOT_KEPT -> R.string.toast_may_arrive_not_kept
         }
         // Logcat gets the reason, never the field's trace, which names the app.
         fail(words, engineId, brief = say(toast), logAs = english.getString(R.string.dictation_not_inserted, english.getString(reason)), text = text)
@@ -695,7 +700,7 @@ class DictationController(
             return false
         }
         val settings = graph.settings.value
-        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = settings.insertion.allowClipboard, expectedPackage = target.packageName)
+        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(settings), expectedPackage = target.packageName)
         Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
         remember(insertion)
         if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
@@ -711,6 +716,8 @@ class DictationController(
      * fallback setting says.
      */
     fun copyLast(): Boolean {
+        // The security mode never writes the clipboard; it keeps no last dictation either.
+        if (!SecurityMode.mayCopy(graph.settings.value)) return false
         val text = graph.memory.sessionDictation()?.text ?: return false
         val inserter = graph.accessibilityService?.textInserter ?: return false
         if (!inserter.copyToClipboard(text)) return false
@@ -1852,7 +1859,7 @@ class DictationController(
             // Never into a password field, not even via the clipboard. Otherwise only when the
             // user allows the clipboard at all; else the text stays in the diagnostics.
             val copied = why != NotInserted.Why.PASSWORD &&
-                settings.insertion.allowClipboard && inserter.copyToClipboard(cleaned)
+                SecurityMode.mayUseClipboard(settings) && inserter.copyToClipboard(cleaned)
             notInserted(why, engineId, cleaned, onClipboard = copied)
             return
         }
@@ -1861,7 +1868,7 @@ class DictationController(
         val insertion = inserter.insert(
             cleaned,
             settings.insertion.toSpliceOptions(),
-            allowClipboard = settings.insertion.allowClipboard,
+            allowClipboard = SecurityMode.mayUseClipboard(settings),
             into = refound,
             expectedPackage = TargetCheck.expectedPackage(startTarget, startApp),
         )
@@ -1895,6 +1902,7 @@ class DictationController(
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
         loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
         recordStat(finalTranscript, insertion.targetPackage, settings)
+        graph.dictatedInto(startTarget?.packageName ?: insertion.targetPackage)
 
         _state.value = DictationState.Done(
             transcript = finalTranscript,
@@ -1931,7 +1939,8 @@ class DictationController(
                 words = countWords(transcript.text),
                 audioMs = audioMs,
                 waitMs = trace?.sinceStopMs ?: transcript.latencyMs,
-                app = (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName },
+                // Never in the security mode: counts and times only.
+                app = SecurityMode.statApp(settings, (startTarget?.packageName ?: targetPackage)?.takeIf { it != context.packageName }),
                 cleanupModel = trace?.cleanupModel,
                 // Recognition and cleanup each priced by the provider that did it; an own server
                 // gives null.

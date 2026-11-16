@@ -32,11 +32,13 @@ class StrategyMemory(initial: Map<String, InsertionStrategy> = emptyMap()) {
     private val preferred = initial.toMutableMap()
 
     /** Strategies to try for [packageName], best first. */
+    @Synchronized
     fun order(packageName: String): List<InsertionStrategy> {
         val known = preferred[packageName] ?: return DEFAULT_ORDER
         return listOf(known) + DEFAULT_ORDER.filter { it != known }
     }
 
+    @Synchronized
     fun recordSuccess(packageName: String, strategy: InsertionStrategy) {
         // Clipboard-only is a fallback, not a preference: never lock an app onto it, or a
         // single bad moment would permanently downgrade that app.
@@ -47,14 +49,23 @@ class StrategyMemory(initial: Map<String, InsertionStrategy> = emptyMap()) {
         }
     }
 
+    @Synchronized
     fun recordFailure(packageName: String, strategy: InsertionStrategy) {
         if (preferred[packageName] == strategy) preferred.remove(packageName)
     }
 
+    @Synchronized
     fun forget(packageName: String) {
         preferred.remove(packageName)
     }
 
+    /** Forgets every app: the security mode keeps no list of where Amber inserted. */
+    @Synchronized
+    fun clear() {
+        preferred.clear()
+    }
+
+    @Synchronized
     fun snapshot(): Map<String, InsertionStrategy> = preferred.toMap()
 
     companion object {

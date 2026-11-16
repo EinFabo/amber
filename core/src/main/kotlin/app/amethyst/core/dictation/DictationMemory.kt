@@ -14,7 +14,8 @@ import java.util.concurrent.CopyOnWriteArrayList
  *   is on it, the history of recent dictations, the scratch file a recording is compressed in.
  *
  * Not here, because they hold no words: the statistics (counts and times, and which app) and
- * the insertion method remembered per app.
+ * the insertion method remembered per app. The security mode reaches them on its own
+ * ([app.amethyst.core.privacy.SecurityMode]).
  */
 class DictationMemory(val kept: KeptDictation, val log: DictationLog) {
 
@@ -39,9 +40,25 @@ class DictationMemory(val kept: KeptDictation, val log: DictationLog) {
     var lastInsertion: UndoLast.Insertion? = null
         private set
 
-    /** A dictation went in as [insertion] (null: nothing that can be undone). */
+    /**
+     * Whether a dictation's words are kept after it ends - off in the security mode
+     * ([app.amethyst.core.privacy.SecurityMode.keepsWords]). Off, what is kept now goes at once
+     * (the recording, the last dictation for Home and the quick menu, the insertion to undo),
+     * and from then on a record keeps only the shape of its words. Records from before go with
+     * [wipe].
+     */
+    @Volatile
+    var keepsWords: Boolean = true
+        set(value) {
+            field = value
+            kept.keeping = value
+            log.keepsWords = value
+            if (!value) lastInsertion = null
+        }
+
+    /** A dictation went in as [insertion] (null: nothing that can be undone); not kept while [keepsWords] is off. */
     fun inserted(insertion: UndoLast.Insertion?) {
-        lastInsertion = insertion
+        lastInsertion = insertion?.takeIf { keepsWords }
     }
 
     /** "Undo last" took it out: nothing left to undo. */

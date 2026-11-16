@@ -125,12 +125,20 @@ class DictationLog(
         ),
     )
 
+    /**
+     * Off in the security mode: a record keeps the shape of its words, not the words
+     * ([DictationRecord.withoutWords]) - nothing for Insert again, Copy last or "Show text".
+     */
+    @Volatile
+    var keepsWords: Boolean = true
+
     fun clear() {
         _records.value = emptyList()
     }
 
     private fun add(record: DictationRecord) {
-        _records.value = (listOf(record) + _records.value).take(capacity)
+        val kept = if (keepsWords) record else record.withoutWords()
+        _records.value = (listOf(kept) + _records.value).take(capacity)
     }
 
     companion object {
@@ -163,8 +171,29 @@ data class DictationRecord(
      * never a field's text. Empty for a dictation.
      */
     val details: List<String> = emptyList(),
+    /**
+     * The shape of the words when they were not kept ([withoutWords], the security mode): what
+     * Diagnostics show in their place. Null while [text] holds them.
+     */
+    val shape: TextShape? = null,
 ) {
     val failed: Boolean get() = error != null
+
+    /**
+     * This record without its words: their [shape] instead of [text], and every line that could
+     * quote them - the error, the note, a command's steps - without them ([Anonymize]).
+     */
+    fun withoutWords(): DictationRecord {
+        if (text.isBlank()) return copy(text = "")
+        val words = listOf(text)
+        return copy(
+            text = "",
+            shape = TextShape.of(text),
+            error = error?.let { Anonymize.line(it, words) },
+            note = note?.let { Anonymize.line(it, words) },
+            details = Anonymize.lines(details, words),
+        )
+    }
 
     /** One line for the diagnostics card. User-facing. */
     fun summary(): String = when {

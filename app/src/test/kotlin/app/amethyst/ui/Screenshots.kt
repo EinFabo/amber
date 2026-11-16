@@ -216,6 +216,21 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: the simple settings in the light theme. */
+    @Test
+    fun settingsListLight() = light(::settingsList)
+
+    /** Not part of the listing set: the security mode, on - what it does, and what it cannot do. */
+    @Test
+    @Config(qualifiers = "+h1300dp")
+    fun securityMode() = shoot("x-security-mode", SettingsPage.SECURITY_MODE.title()) {
+        app.amethyst.ui.screen.SecurityModeScreen(settings.copy(privacy = app.amethyst.core.settings.PrivacySettings(securityMode = true))) {}
+    }
+
+    @Test
+    @Config(qualifiers = "+h1300dp")
+    fun securityModeLight() = light(::securityMode)
+
     /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
     @Test
     @Config(qualifiers = "+h1160dp")

@@ -69,11 +69,11 @@ class SettingsLayoutTest {
     }
 
     @Test
-    fun `the simple view is recognition, cleanup, bubble and app styles, plus how Amber looks and the page about it`() {
+    fun `the simple view is recognition, cleanup, bubble, the security mode and app styles, plus how Amber looks and the page about it`() {
         val simple = SettingsLayout.groups(advanced = false, voiceCommands = false)
         assertEquals(
             listOf(
-                SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE),
+                SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE, SettingsItem.SECURITY_MODE),
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
                 SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.ABOUT),
             ),
@@ -86,7 +86,7 @@ class SettingsLayoutTest {
         val all = SettingsLayout.groups(advanced = true, voiceCommands = false)
         assertEquals(
             listOf(
-                SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE),
+                SettingsGroupKind.MAIN to listOf(SettingsItem.RECOGNITION, SettingsItem.CLEANUP, SettingsItem.BUBBLE, SettingsItem.SECURITY_MODE),
                 SettingsGroupKind.PER_APP to listOf(SettingsItem.APP_STYLES),
                 SettingsGroupKind.ADVANCED to listOf(SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY),
                 SettingsGroupKind.AMBER to listOf(SettingsItem.APPEARANCE, SettingsItem.ABOUT),

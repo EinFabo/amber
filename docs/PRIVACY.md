@@ -22,6 +22,14 @@ https://github.com/EinFabo/amber/issues
   its words.
 - **Speech models** you download.
 
+With the **security mode** on (Settings → Security mode), Amber keeps nothing of a dictation
+once it is in the field: no recording to try again, no last dictation, no text in Diagnostics
+(only how many characters and words it had, and its language), statistics without the app, no
+record of how text went into each app; it never puts text on the clipboard, and its own screens
+are kept out of screenshots and Recents. Switching it on deletes what is kept at that moment.
+It does not hide that Amber is installed, it cannot reach text already in other apps, and a
+speech recognition or cleanup on a server still receives what the table below says.
+
 None of this is in Android's cloud backup or in a transfer to a new phone; Amber excludes all
 of its files from both. Removing the app removes all of it.
 

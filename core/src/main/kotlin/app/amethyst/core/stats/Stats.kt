@@ -57,6 +57,24 @@ class StatsLedger(private val file: File, private val zone: () -> ZoneId = ZoneI
 
     fun clear() = synchronized(lock) { file.delete() }
 
+    /**
+     * Writes the file again with [transform] of every stat - into a new file first, which then
+     * takes the old one's place, so nothing of the old lines stays behind in it. Returns what
+     * was written.
+     */
+    fun rewrite(transform: (List<DictationStat>) -> List<DictationStat>): List<DictationStat> = synchronized(lock) {
+        val written = transform(all())
+        if (!file.exists() && written.isEmpty()) return written
+        file.parentFile?.mkdirs()
+        val fresh = File(file.path + ".new")
+        fresh.writeText(written.joinToString("") { json.encodeToString(DictationStat.serializer(), it) + "\n" })
+        if (!fresh.renameTo(file)) {
+            file.delete()
+            check(fresh.renameTo(file)) { "statistics not written again" }
+        }
+        written
+    }
+
     fun dayOf(atMillis: Long): Long = Instant.ofEpochMilli(atMillis).atZone(zone()).toLocalDate().toEpochDay()
 
     /** How long until [dayOf] changes, so a screen left open can wait for it in one go. */

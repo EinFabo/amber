@@ -297,6 +297,8 @@ data class AmethystSettings(
     val schemaVersion: Int = SCHEMA_VERSION,
     /** The user's own words. Absent in older settings: none - no new schema version needed. */
     val words: WordsSettings = WordsSettings(),
+    /** The security mode. Absent in older settings: off - no new schema version needed. */
+    val privacy: PrivacySettings = PrivacySettings(),
 ) {
     val activeEngine: EngineConfig?
         get() = engines.firstOrNull { it.id == activeEngineId }
@@ -614,6 +616,12 @@ data class FirstRunSettings(
      * chose it themselves (then this is cleared). Absent in older settings: none.
      */
     val standIn: String? = null,
+    /**
+     * A dictation went into another app once: the nudge toward one ([app.amethyst.core.onboarding.RealAppNudges])
+     * is over for good - also after the statistics, which said so before, were cleared or lost
+     * their app names. Absent in older settings: false, and the statistics still tell.
+     */
+    val realAppReached: Boolean = false,
 )
 
 /**
@@ -644,6 +652,15 @@ data class FeedbackSettings(
     val sounds: Boolean = false,
     /** Music and videos pause while the microphone is open (transient audio focus for the recording only). */
     val pauseMedia: Boolean = false,
+)
+
+/**
+ * What Amber keeps of what was dictated. With [securityMode] on, nothing anyone could read
+ * later; see [app.amethyst.core.privacy.SecurityMode].
+ */
+@Serializable
+data class PrivacySettings(
+    val securityMode: Boolean = false,
 )
 
 /** How the app itself looks. */

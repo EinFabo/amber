@@ -55,6 +55,7 @@ import androidx.lifecycle.lifecycleScope
 import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
+import app.amethyst.SecureWindow
 import app.amethyst.Texts
 import app.amethyst.apps.Launcher
 import app.amethyst.capture.MicForegroundService
@@ -77,6 +78,7 @@ import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
+import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
@@ -104,6 +106,7 @@ import app.amethyst.ui.screen.LicensesScreen
 import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.RecordingScreen
+import app.amethyst.ui.screen.SecurityModeScreen
 import app.amethyst.ui.screen.ReliabilityScreen
 import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
@@ -149,8 +152,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Diagnostics and the test field show recent dictations: keep them out of the Recents
-        // thumbnail. Screenshots stay possible - they are how a problem gets reported.
+        // thumbnail. Screenshots stay possible - they are how a problem gets reported - unless
+        // the security mode hides the window altogether.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
+        SecureWindow.follow(this)
         // The background runs behind the status and navigation bars; their icons follow the
         // theme once it is known (applyTheme), the phone's until then.
         enableEdgeToEdge()
@@ -519,7 +524,7 @@ private fun AmethystScreens(
     val installedApps by produceState<Map<String, String>?>(null, apps) {
         value = runCatching { apps.all() }.getOrDefault(emptyList()).associate { it.packageName to it.label }
     }
-    val nudge = RealAppNudges.of(statList, settings.stats.keep, setup.ready && settings.bubble.enabled, installedApps)
+    val nudge = RealAppNudges.of(RealAppNudges.reached(settings.firstRun.realAppReached, statList), setup.ready && settings.bubble.enabled, installedApps)
     // Home's "Last dictation" while it is kept: looked at again with every dictation, every
     // change of what is kept, and every half minute - so it goes when its ten minutes are up.
     val cleanupTrouble by graph.cleanupTrouble.open.collectAsStateWithLifecycle()
@@ -751,6 +756,10 @@ private fun AmethystScreens(
                                 onOpenApps = { open(Screen.Page(SettingsPage.APP_STYLES)) },
                             )
                             SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
+                            // Switched on, the graph forgets what is kept now.
+                            SettingsPage.SECURITY_MODE -> SecurityModeScreen(settings) { on ->
+                                updateSettings { it.copy(privacy = it.privacy.copy(securityMode = on)) }
+                            }
                             SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
                             SettingsPage.STATS -> StatsScreen(
                                 settings = settings,
@@ -759,7 +768,7 @@ private fun AmethystScreens(
                                 engineName = { id -> settings.engines.firstOrNull { it.id == id }?.let { Texts.engineName(context, it) } ?: id },
                                 appName = apps::label,
                                 onUpdateSettings = ::updateSettings,
-                                onClear = { graph.stats.clear() },
+                                onClear = { graph.clearStats() },
                             )
                             SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
                             SettingsPage.LICENSES -> LicensesScreen()
@@ -799,6 +808,8 @@ private fun AmethystScreens(
                                         graph.keyboardLog.value = emptyList()
                                     },
                                     appTitle = "Amber $version".trim(), // English: the report's heading
+                                    // The security mode never writes the clipboard.
+                                    canCopy = SecurityMode.mayCopy(settings),
                                 )
                             }
                             SettingsPage.ABOUT -> {
