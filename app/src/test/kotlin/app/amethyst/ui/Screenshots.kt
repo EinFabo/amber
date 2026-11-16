@@ -287,6 +287,21 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: Home offering the history, once, to an install from before it. */
+    @Test
+    fun homeHistoryOffer() = shoot("x-home-history-offer", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            historyOffer = true,
+        )
+    }
+
+    @Test
+    fun homeHistoryOfferLight() = light(::homeHistoryOffer)
+
     /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
     @Test
     @Config(qualifiers = "+h1160dp")

@@ -80,6 +80,7 @@ import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.history.HistoryEntry
 import app.amethyst.core.history.HistoryKeep
+import app.amethyst.core.history.HistoryOffer
 import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.data.OwnClipboard
 import app.amethyst.core.settings.AppProfiles
@@ -711,6 +712,8 @@ private fun AmethystScreens(
                         lastDictation = lastDictation,
                         historyCount = historyCount,
                         onOpenHistory = { open(Screen.Page(SettingsPage.HISTORY)) },
+                        historyOffer = HistoryOffer.shows(settings),
+                        onHistoryOffer = { on -> updateSettings { if (on) HistoryOffer.accept(it) else HistoryOffer.decline(it) } },
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

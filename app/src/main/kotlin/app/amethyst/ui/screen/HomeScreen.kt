@@ -114,6 +114,10 @@ fun HomeScreen(
     /** How many dictations the history keeps now; null while it is off or in the security mode: no row. */
     historyCount: Int? = null,
     onOpenHistory: () -> Unit = {},
+    /** Offers the history to an install from before it, once ([app.amethyst.core.history.HistoryOffer]). */
+    historyOffer: Boolean = false,
+    /** The offer answered: true "Turn on", false "No thanks" - either way for good. */
+    onHistoryOffer: (Boolean) -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -138,6 +142,8 @@ fun HomeScreen(
         }
 
         if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
+
+        if (historyOffer && setup.ready) HistoryOfferCard({ onHistoryOffer(true) }, { onHistoryOffer(false) })
 
         if (setup.otherAmbers.isNotEmpty()) OtherAmbersCard(setup.otherAmbers, actions.openAccessibilityList)
 
@@ -309,6 +315,34 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
         ) {
             GhostButton(stringResource(R.string.dismiss), onDismiss, color = AmberPalette.Muted)
             PrimaryButton(stringResource(R.string.download), onDownload)
+        }
+    }
+}
+
+/**
+ * The history, offered once to an install from before it: its disclosure did not name it, so it
+ * starts off ([app.amethyst.core.history.HistoryOffer]). Either answer ends the offer.
+ */
+@Composable
+private fun HistoryOfferCard(onTurnOn: () -> Unit, onNoThanks: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.settings_history),
+            summary = stringResource(R.string.history_offer),
+            icon = AmberIcons.Replay,
+            summaryMaxLines = 3,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GhostButton(stringResource(R.string.history_offer_no), onNoThanks, color = AmberPalette.Muted)
+            PrimaryButton(stringResource(R.string.history_offer_on), onTurnOn)
         }
     }
 }

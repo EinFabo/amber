@@ -44,4 +44,7 @@
         <item quantity="other">%1$d Diktate</item>
     </plurals>
     <string name="toast_in_history">Erkannt - kopiere es aus dem Verlauf</string>
+    <string name="history_offer">Amber kann deine Diktate jetzt 24&#160;Stunden lang behalten, verschlüsselt auf diesem Handy.</string>
+    <string name="history_offer_on">Einschalten</string>
+    <string name="history_offer_no">Nein danke</string>
 </resources>

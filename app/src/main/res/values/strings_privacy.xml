@@ -46,4 +46,8 @@
         <item quantity="other">%1$d dictations</item>
     </plurals>
     <string name="toast_in_history">Recognized - copy it from the history</string>
+    <!-- Home, once, for an install from before the history: it starts off for them. -->
+    <string name="history_offer">Amber can now keep your dictations for 24&#160;hours, encrypted on this phone.</string>
+    <string name="history_offer_on">Turn on</string>
+    <string name="history_offer_no">No thanks</string>
 </resources>

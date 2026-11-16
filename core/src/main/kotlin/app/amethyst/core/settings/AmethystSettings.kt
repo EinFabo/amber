@@ -9,6 +9,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.history.HistoryOffer
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.NormalizeOptions
 import app.amethyst.core.text.OwnWords
@@ -351,13 +352,16 @@ data class AmethystSettings(
          * and the old default place, where the keyboard opens, becomes the new one.
          * 13: the longest recording grows from two minutes to five - a stored two minutes was
          * the old default (settings are saved with every field), any other value the user's.
+         * 15: the history of recent dictations - an install from before it agreed to a
+         * disclosure that did not name it, so it starts off, and Home offers it once
+         * ([app.amethyst.core.history.HistoryOffer]); a new install keeps 24 hours.
          * The update check ([updates]) needed no new version: an absent field decodes to its
          * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
          * (settings from before it), and a new install starts with it off ([defaults]).
          * Nor did light and dark ([UiSettings.theme]): absent, it follows the phone.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 14
+        const val SCHEMA_VERSION = 15
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -439,7 +443,9 @@ object SettingsCodec {
             profiles = if (settings.schemaVersion < 9) settings.profiles.map(::migrateProfile) else settings.profiles,
             bubble = settings.bubble
                 .let { if (settings.schemaVersion < 11) migrateBubble(it) else it }
-                .let(::migrateBubblePlace),
+                .let { if (settings.schemaVersion < 14) migrateBubblePlace(it) else it },
+            // Version 15: the history starts off for an install from before it, offered on Home.
+            privacy = if (settings.schemaVersion < 15) HistoryOffer.forEarlierInstall(settings.privacy) else settings.privacy,
             engines = kept.map { engine ->
                 when {
                     engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
@@ -663,9 +669,12 @@ data class PrivacySettings(
     val securityMode: Boolean = false,
     /**
      * How long the history of recent dictations keeps one ([app.amethyst.core.history.DictationHistory]);
-     * never in the security mode. Absent in older settings: a day.
+     * never in the security mode. A new install: a day. Settings from before schema 15: off,
+     * and offered once ([historyOffer]).
      */
     val history: app.amethyst.core.history.HistoryKeep = app.amethyst.core.history.HistoryKeep.DAY,
+    /** Whether Home still offers the history to an install from before it ([app.amethyst.core.history.HistoryOffer]). */
+    val historyOffer: Boolean = false,
 )
 
 /** How the app itself looks. */

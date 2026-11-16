@@ -291,8 +291,11 @@ class DictationHistoryTest {
     }
 
     @Test
-    fun `absent from older settings, the history keeps a day`() {
-        val decoded = app.amethyst.core.settings.SettingsCodec.decode("""{"schemaVersion":14}""", listOf("de-DE"))
+    fun `absent from settings of this version, the history keeps a day`() {
+        val decoded = app.amethyst.core.settings.SettingsCodec.decode(
+            """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":${AmethystSettings.SCHEMA_VERSION}}""",
+            listOf("de-DE"),
+        )
         assertEquals(HistoryKeep.DAY, decoded.privacy.history)
     }
 }
