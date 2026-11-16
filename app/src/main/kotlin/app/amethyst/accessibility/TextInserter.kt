@@ -87,6 +87,8 @@ class TextInserter(
         lastTrace = if (refused != null) "$trace → refused: ${refused.describe()}" else "$trace → ${outcome.strategy.name}" +
             when {
                 outcome.uncertain -> " (typed, never showed up in the field)"
+                // The app left the cursor elsewhere, e.g. before a final "?" ([InsertionEngine]).
+                outcome.insertedIntoField && outcome.cursorPutBack -> " (cursor put back behind the words)"
                 outcome.insertedIntoField -> ""
                 else -> " (not in the field)"
             }

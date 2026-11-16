@@ -30,6 +30,13 @@ interface EditableTarget {
 
     fun setSelection(cursor: Int)
 
+    /**
+     * The field's text and selection right after a write, to see where the cursor ended up.
+     * Null where that cannot be told: a window onto the field ([WindowedTarget]) is not the
+     * field, and a position in it is none in the field.
+     */
+    fun readCursor(): FieldState? = readField()
+
     /** Paste whatever is on the clipboard into the field. */
     fun paste(): Boolean
 
@@ -87,6 +94,11 @@ data class InsertionOutcome(
      * words are still the caller's to keep.
      */
     val refused: TargetCheck.Verdict? = null,
+    /**
+     * The field had the cursor somewhere other than right behind the words after taking them
+     * in, and it was put there ([InsertionEngine]) - for the diagnostics.
+     */
+    val cursorPutBack: Boolean = false,
 )
 
 /**
@@ -123,6 +135,7 @@ class InsertionEngine(
         var copied = false
         committed = null
         setFragment = null
+        cursorPutBack = false
 
         if (target == null) {
             // Nothing is focused, so there is nothing to write into. The clipboard keeps the
@@ -185,7 +198,7 @@ class InsertionEngine(
                     InsertionStrategy.PASTE -> words
                     InsertionStrategy.CLIPBOARD_ONLY -> null
                 }
-                return InsertionOutcome(strategy, true, copied, packageName, fragment = fragment)
+                return InsertionOutcome(strategy, true, copied, packageName, fragment = fragment, cursorPutBack = cursorPutBack)
             }
 
             memory.recordFailure(packageName, strategy)
@@ -202,6 +215,9 @@ class InsertionEngine(
 
     /** What the last SET_TEXT added before the cursor, if it only added. */
     private var setFragment: String? = null
+
+    /** The last insertion found the cursor elsewhere and put it behind the words. */
+    private var cursorPutBack = false
 
     /**
      * A commit travels to the app asynchronously and the accessibility input connection reports
@@ -224,11 +240,35 @@ class InsertionEngine(
         val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, text.length)
         repeat(attempts) { attempt ->
             val after = target.readBack() ?: return Commit.LANDED
-            if (Landed.inField(field, after, text)) return Commit.LANDED
+            if (Landed.inField(field, after, text)) {
+                cursorPutBack = cursorBehindWords(target, tail = textAfterSelection(field))
+                return Commit.LANDED
+            }
             if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
         }
         return Commit.LOST
     }
+
+    /**
+     * Typing asks the app to put the cursor behind the words (commitText with position 1), and
+     * the next dictation goes on from there. An app that leaves it elsewhere - in WhatsApp it
+     * stood before a final "?" (Pixel 9a, 2026-11-16) - gets it put there: the text that stood
+     * behind the selection, [tail], is all that may follow it. Counted from the field as it now
+     * reads, so a field that wrote the words a little differently still gets it right. Left
+     * alone where the end of the field is no longer [tail]: then the field changed in another
+     * way, and nobody can say where "behind the words" is. True when it was moved.
+     */
+    private fun cursorBehindWords(target: EditableTarget, tail: String): Boolean {
+        val now = target.readCursor() ?: return false
+        if (!now.text.endsWith(tail)) return false
+        val behind = now.text.length - tail.length
+        if (now.selectionStart == behind && now.selectionEnd == behind) return false
+        target.setSelection(behind)
+        return true
+    }
+
+    private fun textAfterSelection(field: FieldState): String =
+        field.text.substring(maxOf(field.selectionStart, field.selectionEnd).coerceIn(0, field.text.length))
 
     /**
      * What to type so the field ends up as [TextSplicer] would have spliced it: the seam
@@ -261,7 +301,13 @@ class InsertionEngine(
         // the following paste would land somewhere arbitrary.
         if (!verify(target, field, text)) return false
 
-        target.setSelection(spliced.cursor)
+        // Where the splice put the cursor, counted from the end: a field that reformats what
+        // it is given (a line break written as two characters) would otherwise have it land
+        // inside the words - one before a final "?".
+        val tail = spliced.text.substring(spliced.cursor.coerceIn(0, spliced.text.length))
+        val now = target.readCursor()
+        val cursor = now?.takeIf { it.text.endsWith(tail) }?.let { it.text.length - tail.length } ?: spliced.cursor
+        target.setSelection(cursor)
         return true
     }
 

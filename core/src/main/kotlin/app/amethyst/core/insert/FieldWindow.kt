@@ -161,5 +161,8 @@ abstract class WindowedTarget : EditableTarget {
 
     final override fun setSelection(cursor: Int) = Unit
 
+    /** A position in the window is none in the field: where the cursor went is the app's to say. */
+    final override fun readCursor(): FieldState? = null
+
     final override fun paste(): Boolean = false
 }

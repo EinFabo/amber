@@ -7,6 +7,9 @@ import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.StrategyMemory
 import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.text.FieldState
+import app.amethyst.core.text.NormalizeOptions
+import app.amethyst.core.text.ScratchThat
+import app.amethyst.core.text.TranscriptNormalizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -40,6 +43,8 @@ class InsertionEngineTest {
         /** What the field makes of the words it is given: emoji, line breaks, a length limit. */
         private val reformat: (String) -> String = { it },
         override val isSecret: Boolean = false,
+        /** Where the field leaves the cursor after taking typed words in, from where typing put it. */
+        private val cursorAfterCommit: (text: String, cursor: Int) -> Int = { _, cursor -> cursor },
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -115,6 +120,8 @@ class InsertionEngineTest {
             staleText = this.text
             staleReadsLeft = commitLag
             replaceSelection(reformat(text))
+            cursor = cursorAfterCommit(this.text, cursor)
+            anchor = cursor
             return true
         }
     }
@@ -612,5 +619,111 @@ class InsertionEngineTest {
 
         assertFalse(outcome.insertedIntoField)
         assertTrue(outcome.uncertain)
+    }
+
+    // --- the cursor after the words ----------------------------------------------------------
+
+    /**
+     * "Hallo Anna Komma neue Zeile wie geht es dir Fragezeichen" into WhatsApp (Pixel 9a,
+     * 2026-11-16): the words came in, the cursor stood before the final "?". The whole text
+     * path on the phone, from what Parakeet may have written to the field.
+     */
+    @Test
+    fun `a spoken question mark at the end leaves the cursor behind it, whatever the recognizer wrote`() {
+        val spoken = listOf(
+            "Hallo Anna Komma neue Zeile wie geht es dir Fragezeichen",
+            "Hallo Anna, Komma, neue Zeile, wie geht es dir Fragezeichen",
+            "Hallo Anna, Komma, neue Zeile, wie geht es dir? Fragezeichen.",
+            "Hallo Anna, Komma, neue Zeile, wie geht es dir, Fragezeichen?",
+            "Hallo Anna Komma neue Zeile wie geht es dir Fragezeichen?",
+            // What a cleanup model may already have made of it.
+            "Hallo Anna,\nwie geht es dir?",
+        )
+        for (raw in spoken) {
+            for (formatted in listOf(false, true)) {
+                if ('\n' in raw && !formatted) continue
+                val text = TranscriptNormalizer.normalize(
+                    ScratchThat.apply(raw).text,
+                    NormalizeOptions(spokenPunctuation = true),
+                    language = "de",
+                    keepLineBreaks = formatted,
+                )
+                assertEquals("Hallo Anna,\nwie geht es dir?", text, raw)
+                for (lineBreaks in listOf(true, false)) {
+                    val field = FakeTarget(initialText = "", hasInputConnection = true, takesLineBreaks = lineBreaks)
+                    val outcome = engine(field).insert(field, text)
+
+                    val expected = if (lineBreaks) "Hallo Anna,\nwie geht es dir?" else "Hallo Anna, wie geht es dir?"
+                    assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy, raw)
+                    assertEquals(expected, field.text, raw)
+                    assertEquals(expected.length, field.cursor, "cursor behind the \"?\": $raw")
+                    assertFalse(outcome.cursorPutBack, raw)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `an app that leaves the cursor before the final mark has it put behind the words`() {
+        val field = FakeTarget(
+            initialText = "",
+            hasInputConnection = true,
+            takesLineBreaks = true,
+            cursorAfterCommit = { _, cursor -> cursor - 1 },
+        )
+        val outcome = engine(field).insert(field, "Hallo Anna,\nwie geht es dir?")
+
+        assertEquals("Hallo Anna,\nwie geht es dir?", field.text)
+        assertEquals(field.text.length, field.cursor)
+        assertTrue(outcome.cursorPutBack)
+    }
+
+    @Test
+    fun `with text behind the cursor, the cursor goes right behind the words, before that text`() {
+        val field = FakeTarget(
+            initialText = "Bis dann",
+            hasInputConnection = true,
+            cursorAfterCommit = { text, _ -> text.length },
+        )
+        field.select(0, 0)
+        val outcome = engine(field).insert(field, "wie geht es dir?")
+
+        assertEquals("Wie geht es dir? Bis dann", field.text)
+        assertEquals("Wie geht es dir? ".length, field.cursor)
+        assertTrue(outcome.cursorPutBack)
+    }
+
+    @Test
+    fun `a field that writes the words differently still gets the cursor behind them`() {
+        val field = FakeTarget(initialText = "Ende", hasInputConnection = true, cursorAfterCommit = { _, _ -> 0 }, reformat = { "$it!" })
+        field.select(0, 0)
+        val outcome = engine(field).insert(field, "Anfang")
+
+        assertTrue(outcome.insertedIntoField)
+        assertEquals("Anfang !Ende", field.text)
+        assertEquals("Anfang !".length, field.cursor)
+    }
+
+    @Test
+    fun `a written field that makes a line break two characters still gets the cursor at the end`() {
+        // No input connection: SET_TEXT, and the cursor the splice worked out for its own text
+        // would land one before the end - before the "?".
+        val field = FakeTarget(initialText = "", takesLineBreaks = true, reformat = { it.replace("\n", "\r\n") })
+        val outcome = engine(field).insert(field, "Hallo Anna,\nwie geht es dir?")
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertEquals("Hallo Anna,\r\nwie geht es dir?", field.text)
+        assertEquals(field.text.length, field.cursor)
+    }
+
+    @Test
+    fun `a written field keeps the cursor before the text that stood behind it`() {
+        val field = FakeTarget(initialText = "Ende", takesLineBreaks = true, reformat = { it.replace("\n", "\r\n") })
+        field.select(0, 0)
+        engine(field).insert(field, "Erste Zeile\nzweite Zeile.")
+
+        assertEquals("Erste Zeile\r\nzweite Zeile. Ende", field.text)
+        // As the splice places it: right behind the words, before the space it added.
+        assertEquals("Erste Zeile\r\nzweite Zeile.".length, field.cursor)
     }
 }
