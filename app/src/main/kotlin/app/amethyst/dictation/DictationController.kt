@@ -191,7 +191,10 @@ class DictationController(
     @Volatile
     private var wait: WaitProgress? = null
 
-    /** This dictation's recording once it is complete - what "Try again" gets, should recognition fail. */
+    /**
+     * This dictation's recording once it is complete - what "Try again" gets, should recognition
+     * fail. Only for as long as its run lasts: the run lets go of it when it ends.
+     */
     @Volatile
     private var runAudio: PcmAudio? = null
 
@@ -838,7 +841,10 @@ class DictationController(
             // which cannot be aborted, this runs seconds late - a new dictation may be
             // recording by then, and its recognizer and the tap that stopped it are not ours.
             (engine as? SelfCapturingSttEngine)?.let { selfCapturing.compareAndSet(it, null) }
-            runStop.end(token)
+            // The recording had its chance to be kept for "Try again" ([keepForRetry]): what
+            // is not in [kept] now is let go, not held in memory until the next dictation. A
+            // run another has followed leaves alone what is that one's.
+            if (runStop.end(token)) runAudio = null
             runCatching { engine.close() }
             graph.scheduleModelRelease()
         }
