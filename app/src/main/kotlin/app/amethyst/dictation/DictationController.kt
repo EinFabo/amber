@@ -783,9 +783,9 @@ class DictationController(
                 val estimateKey = "${engineConfig.id}/${engineConfig.modelId}"
                 val transcript = when {
                     // Android's recognizer listens by itself: it cannot take the kept recording,
-                    // which stays kept for another speech recognition.
+                    // which stays kept for another speech recognition - as it was, its time not
+                    // started again, and not offered again for this one ([KeptDictation.worthTryingAgain]).
                     retry != null && engine is SelfCapturingSttEngine -> {
-                        runAudio = retry
                         failRecognition(
                             SttFailure(Problem.RecordsByItself(engineConfig.displayName), "the kept recording cannot go to a recognizer that records by itself"),
                             details = emptyList(),
@@ -1225,8 +1225,9 @@ class DictationController(
      * which the toast then names as the way out.
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
+        // Not a problem Amber knows (null): nothing says another go would help.
         val problem = (error as? SttFailure)?.problem
-        if (keepForRetry(problem)) {
+        if (problem != null && keepForRetry(problem)) {
             fail(
                 failureOf(error),
                 remedy = remedyOf(error),

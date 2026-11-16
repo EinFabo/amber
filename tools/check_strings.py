@@ -86,12 +86,27 @@ TOASTS = {
     "fallback_server_too_slow", "fallback_no_connection", "fallback_no_answer_on_phone", "fallback_other_server",
     "fallback_no_credit", "fallback_model_gone",
 }
-# The reasons a kept recording's toast names before "Try again" (DictationController.failRecognition).
-RETRY_REASONS = [
-    "problem_no_connection", "problem_no_answer_in_time", "problem_key_rejected", "problem_no_credit",
-    "problem_server_error", "problem_service_down", "problem_rate_limited", "problem_address_not_found",
-    "problem_answer_unreadable", "problem_model_not_on_server", "problem_no_api_key",
-]
+# The reasons a kept recording's toast names before "Try again" (DictationController.failRecognition):
+# every problem KeptDictation.worthTryingAgain keeps a recording for, with the string Texts.problem
+# says it with - read from the code, so a problem added there is measured here too.
+def retry_reasons():
+    kept = (root / "core/src/main/kotlin/app/amethyst/core/dictation/KeptDictation.kt").read_text(encoding="utf-8")
+    body = re.search(r"fun worthTryingAgain\(why: Problem\?\): Boolean = when \(why\) \{(.*?)-> true", kept, re.S)
+    if not body:
+        errors.append("KeptDictation.worthTryingAgain: its list of problems could not be read")
+        return []
+    texts = (root / "app/src/main/kotlin/app/amethyst/Texts.kt").read_text(encoding="utf-8")
+    reasons = []
+    for problem in re.findall(r"Problem\.(\w+)", body.group(1)):
+        said = re.search(r"Problem\." + problem + r" -> getString\(R\.string\.(\w+)", texts)
+        if said:
+            reasons.append(said.group(1))
+        else:
+            errors.append(f"KeptDictation.worthTryingAgain: no text for Problem.{problem} found in Texts.problem")
+    return reasons
+
+
+RETRY_REASONS = retry_reasons()
 COMPOSED = {
     "toast_try_again": RETRY_REASONS,
     # The cleanup that did not run, with what stands in its way (Texts.cleanupTrouble).

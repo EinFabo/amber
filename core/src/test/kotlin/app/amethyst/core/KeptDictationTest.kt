@@ -41,17 +41,41 @@ class KeptDictationTest {
     }
 
     @Test
-    fun `every failure but nothing heard is worth trying again`() {
+    fun `a failure that goes away by itself or by a fix in Settings is worth trying again`() {
         for (why in listOf(
-            Problem.NoConnection("Groq"), Problem.NoAnswerInTime("Groq"), Problem.KeyRejected, Problem.NoCredit("Groq"),
-            Problem.ServerError(500, "Groq"), Problem.ServiceDown(503), Problem.RateLimited, Problem.OutOfMemory, null,
+            Problem.NoConnection("Groq"), Problem.NoAnswerInTime("Groq"), Problem.KeyRejected, Problem.NoApiKey("Groq"),
+            Problem.NoCredit("Groq"), Problem.ServerError(500, "Groq"), Problem.ServiceDown(503), Problem.RateLimited,
+            Problem.ModelNotOnServer("whisper-large-v3", "Groq"), Problem.AddressNotFound, Problem.AnswerUnreadable("Groq"), null,
         )) {
             assertTrue(KeptDictation.worthTryingAgain(why), why.toString())
         }
-        assertFalse(KeptDictation.worthTryingAgain(Problem.NothingRecognized))
-        assertFalse(KeptDictation.worthTryingAgain(Problem.NoSpeechHeard))
+    }
+
+    @Test
+    fun `a failure the same recording would meet again is not`() {
+        for (why in listOf(
+            Problem.NothingRecognized, Problem.NoSpeechHeard, Problem.RecordingTooLong, Problem.AudioFormatRefused,
+            Problem.ProcessorTooOld, Problem.UnencryptedRefused, Problem.EnclaveOtherAddress, Problem.EnclaveCannotBind,
+            Problem.NotToVerifiedEnclave(Problem.Payload.RECORDING), Problem.EnclaveNotVerified("Tinfoil", Problem.Payload.RECORDING),
+            Problem.EnclaveKeyMismatch("Tinfoil", Problem.Payload.RECORDING), Problem.RecordsByItself("Android"),
+            Problem.OutOfMemory, Problem.LocalModelFailed, Problem.NotSupported,
+        )) {
+            assertFalse(KeptDictation.worthTryingAgain(why), why.toString())
+        }
         assertFalse(kept.keepRecording(audio(2.0), Problem.NothingRecognized))
         assertNull(kept.recording())
+    }
+
+    @Test
+    fun `a retry that fails for good leaves the kept recording and its time as they were`() {
+        val audio = audio(2.0)
+        kept.keepRecording(audio, Problem.NoConnection("Groq"))
+        val expires = kept.expiresAt()
+        now += 60_000
+        // "Try again" with Android's recognizer, which records by itself: not kept anew.
+        assertFalse(kept.keepRecording(audio, Problem.RecordsByItself("Android")))
+        assertSame(audio, kept.recording())
+        assertEquals(expires, kept.expiresAt())
     }
 
     @Test

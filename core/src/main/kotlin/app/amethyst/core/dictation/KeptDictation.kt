@@ -52,7 +52,8 @@ class KeptDictation(
     /**
      * Keeps [audio] of a dictation whose recognition failed for [why] (null: the run's time
      * limit ran out), in place of any recording kept before. False when it is
-     * not kept: nothing to try again ([worthTryingAgain]), too long, or keeping is off.
+     * not kept: nothing to try again ([worthTryingAgain]), too long, or keeping is off - and
+     * then a recording kept before stays as it was, its time not started again.
      */
     @Synchronized
     fun keepRecording(audio: PcmAudio, why: Problem?): Boolean {
@@ -135,13 +136,35 @@ class KeptDictation(
         const val MAX_RECORDING_MS = 330_000L
 
         /**
-         * Whether recognizing the same recording again can bring its text: after no connection, a
-         * timeout, a refused key, no credit, a server error - anything but a recording in which
-         * nothing was heard. [why] null is the run's time limit: worth it.
+         * Whether recognizing the same recording again can bring its text - only after a problem
+         * that goes away by itself or by a fix in Settings, so "Try again" is worth offering:
+         * no connection, no answer in time, a server error or a service down, too many requests,
+         * a key missing or refused, no credit, a model gone from the server, a wrong address, an
+         * answer that could not be read. [why] null is the run's time limit: worth it.
+         *
+         * Not after anything else: nothing heard, a recording too long or in a format a server
+         * refuses, a processor too old, an enclave that could not be verified, an unencrypted
+         * address refused, a recognizer that records by itself - the same recording would fail
+         * the same way, and "Try again" would go round in circles.
+         *
+         * The toast names the reason before "Try again": `tools/check_strings.py` reads this list
+         * to keep every such toast within two lines.
          */
         fun worthTryingAgain(why: Problem?): Boolean = when (why) {
-            Problem.NothingRecognized, Problem.NoSpeechHeard -> false
-            else -> true
+            null,
+            is Problem.NoConnection,
+            is Problem.NoAnswerInTime,
+            is Problem.ServerError,
+            is Problem.ServiceDown,
+            Problem.RateLimited,
+            is Problem.NoApiKey,
+            Problem.KeyRejected,
+            is Problem.NoCredit,
+            is Problem.ModelNotOnServer,
+            Problem.AddressNotFound,
+            is Problem.AnswerUnreadable,
+            -> true
+            else -> false
         }
     }
 }
