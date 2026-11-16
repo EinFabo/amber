@@ -68,6 +68,8 @@ import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerModels
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.onboarding.FirstRun
+import app.amethyst.core.onboarding.MicrophoneAsk
+import app.amethyst.core.onboarding.MicrophoneWay
 import app.amethyst.core.onboarding.RealAppNudges
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingPath
@@ -133,6 +135,8 @@ class MainActivity : ComponentActivity() {
 
     private val requestMicrophone =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk).
+            getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_MIC_REFUSED, MicrophoneAsk.refused(granted)).apply()
             refreshSetup()
             // The mic foreground service may only be started while we are visible, so this
             // is the right moment - right after the grant, with the app in front.
@@ -180,9 +184,7 @@ class MainActivity : ComponentActivity() {
                     onInstallLanguage = { tag -> installLanguage(tag) },
                     setup = setupState.collectAsStateWithLifecycle().value,
                     actions = SetupActions(
-                        requestMicrophone = {
-                            requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
-                        },
+                        requestMicrophone = ::askForMicrophone,
                         requestNotifications = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -284,6 +286,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * "Allow" for the microphone, wherever it is: Android's question while Android still asks;
+     * after a second refusal it answers no without a word, so Amber's app info opens instead,
+     * where the microphone can still be granted.
+     */
+    private fun askForMicrophone() {
+        val refused = getSharedPreferences(MIC_PREFS, MODE_PRIVATE).getBoolean(KEY_MIC_REFUSED, false)
+        when (MicrophoneAsk.way(refused, shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO))) {
+            MicrophoneWay.ASK -> requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+            MicrophoneWay.APP_INFO -> Setup.openAppSettings(this)
+        }
+    }
+
     /** To the battery list, watched while the user is there; back to Amber once Amber is exempt. */
     private fun openBattery() {
         val back = AmethystApp.graph(this).returnToAmber
@@ -344,6 +359,8 @@ class MainActivity : ComponentActivity() {
         private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
         private const val THEME_PREFS = "theme"
         private const val KEY_THEME = "theme"
+        private const val MIC_PREFS = "microphone"
+        private const val KEY_MIC_REFUSED = "refused"
 
         /** Behind a three-button navigation bar, as androidx.activity's own defaults. */
         private val NAV_SCRIM_LIGHT = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)
