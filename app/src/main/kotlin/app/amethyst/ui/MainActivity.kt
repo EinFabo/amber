@@ -523,11 +523,11 @@ private fun AmethystScreens(
     // Home's "Last dictation" while it is kept: looked at again with every dictation, every
     // change of what is kept, and every half minute - so it goes when its ten minutes are up.
     val cleanupTrouble by graph.cleanupTrouble.open.collectAsStateWithLifecycle()
-    val records by graph.dictationLog.records.collectAsStateWithLifecycle()
-    val keptChanges by graph.keptDictation.changes.collectAsStateWithLifecycle()
+    val records by graph.memory.log.records.collectAsStateWithLifecycle()
+    val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
     val lastDictation by produceState<String?>(null, records, keptChanges) {
         while (true) {
-            value = graph.keptDictation.lastDictation(records)?.text
+            value = graph.memory.kept.lastDictation(records)?.text
             delay(LAST_DICTATION_RECHECK_MS)
         }
     }
@@ -625,7 +625,7 @@ private fun AmethystScreens(
             ) { current ->
                 when (current) {
                     Screen.Onboarding -> {
-                        val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                        val records by graph.memory.log.records.collectAsStateWithLifecycle()
                         OnboardingScreen(
                             step = step,
                             settings = settings,
@@ -786,7 +786,7 @@ private fun AmethystScreens(
                                 }
                             }
                             SettingsPage.DIAGNOSTICS -> {
-                                val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                                val records by graph.memory.log.records.collectAsStateWithLifecycle()
                                 val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
                                 val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                                 DiagnosticsScreen(
@@ -795,14 +795,14 @@ private fun AmethystScreens(
                                     otherAmbers = setup.otherAmbers,
                                     onOpenAccessibility = actions.openAccessibilityList,
                                     onClear = {
-                                        graph.dictationLog.clear()
+                                        graph.memory.log.clear()
                                         graph.keyboardLog.value = emptyList()
                                     },
                                     appTitle = "Amber $version".trim(), // English: the report's heading
                                 )
                             }
                             SettingsPage.ABOUT -> {
-                                val records by graph.dictationLog.records.collectAsStateWithLifecycle()
+                                val records by graph.memory.log.records.collectAsStateWithLifecycle()
                                 AboutScreen(
                                     settings = settings,
                                     diagnosticsCount = records.size,

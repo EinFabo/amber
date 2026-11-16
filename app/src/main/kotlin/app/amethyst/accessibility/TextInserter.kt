@@ -2,8 +2,6 @@ package app.amethyst.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -31,6 +29,7 @@ import app.amethyst.core.insert.WindowedTarget
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import android.view.inputmethod.EditorInfo
+import app.amethyst.data.OwnClipboard
 import app.amethyst.data.StrategyStore
 
 /**
@@ -273,26 +272,8 @@ class TextInserter(
         "${className?.toString()?.substringAfterLast('.') ?: "?"} in ${packageName ?: "?"}" +
             if (isEditable) "" else " (not editable)"
 
-    /**
-     * The previous clipboard content is deliberately not restored: since Android 10 an app
-     * that is not in the foreground cannot read the clipboard, so a "restore" would overwrite
-     * it with null. Better to leave the dictation there than to destroy what the user copied.
-     */
-    fun copyToClipboard(text: String): Boolean {
-        val clipboard = service.getSystemService(ClipboardManager::class.java) ?: return false
-        return try {
-            val clip = ClipData.newPlainText("Amber", text)
-            // Dictations are private: kept out of clipboard previews, history and keyboard sync.
-            clip.description.extras = android.os.PersistableBundle().apply {
-                putBoolean(SENSITIVE_EXTRA, true)
-            }
-            clipboard.setPrimaryClip(clip)
-            true
-        } catch (e: Exception) {
-            Log.w(TAG, "clipboard write failed", e)
-            false
-        }
-    }
+    /** [text] on the clipboard as Amber's own clip ([OwnClipboard]). False when Android refused. */
+    fun copyToClipboard(text: String): Boolean = OwnClipboard.copy(service, text)
 
     /** One focused accessibility node, seen as an editable field. */
     private class NodeTarget(
@@ -452,9 +433,6 @@ class TextInserter(
     companion object {
         private const val TAG = "Amber"
         private const val MAX_NODES_SEARCHED = 1_500
-
-        /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
-        private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
 
         /**
          * The input the service's input method is bound to, if input has started - only

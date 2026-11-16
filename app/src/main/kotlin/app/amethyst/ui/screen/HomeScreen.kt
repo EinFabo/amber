@@ -352,7 +352,7 @@ private fun LastDictationCard(text: String) {
             summaryMaxLines = 3,
             trailing = {
                 GhostButton(stringResource(R.string.copy), {
-                    if (copySensitive(context, text, label = "Amber") && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) { // English: a label for the system
+                    if (copySensitive(context, text, label = app.amethyst.core.insert.OwnClip.LABEL) && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                         Toast.makeText(context, R.string.dictation_copied, Toast.LENGTH_SHORT).show()
                     }
                 })

@@ -1,9 +1,6 @@
 package app.amethyst.ui.screen
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.os.PersistableBundle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +36,8 @@ import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
+import app.amethyst.core.insert.OwnClip
+import app.amethyst.data.OwnClipboard
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.ui.AmberIcons
@@ -351,20 +350,12 @@ private fun filterLabel(filter: DiagnosticsReport.Filter): String = stringResour
 )
 
 /**
- * [text] on the clipboard, marked sensitive as a dictation is ([app.amethyst.accessibility.TextInserter]):
+ * [text] on the clipboard as Amber's own clip, marked sensitive as a dictation is ([OwnClipboard]):
  * kept out of clipboard previews, history and keyboard sync. False when Android refused.
  */
-internal fun copySensitive(context: Context, text: String, label: String = "Amber diagnostics"): Boolean { // English: a label for the system
-    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
-    return runCatching {
-        val clip = ClipData.newPlainText(label, text)
-        clip.description.extras = PersistableBundle().apply { putBoolean(SENSITIVE_EXTRA, true) }
-        clipboard.setPrimaryClip(clip)
-    }.isSuccess
-}
+internal fun copySensitive(context: Context, text: String, label: String = OwnClip.DIAGNOSTICS_LABEL): Boolean =
+    OwnClipboard.copy(context, text, label)
 
-/** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
-private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
 private const val COPIED_MS = 2_000L
 
 /** Where a row's text starts behind its icon tile: the steps line up with it. */

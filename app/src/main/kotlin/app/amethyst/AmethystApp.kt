@@ -8,6 +8,7 @@ import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.dictation.DictationMemory
 import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.engine.AmberAddress
@@ -21,6 +22,7 @@ import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.EstimateStore
+import app.amethyst.data.OwnClipboard
 import app.amethyst.data.PhoneLocales
 import app.amethyst.data.SecretStore
 import app.amethyst.data.SettingsStore
@@ -220,15 +222,18 @@ class Graph(app: Application) {
     /** What the keyboard tracker decided lately, newest first, for the diagnostics card. */
     val keyboardLog = MutableStateFlow<List<String>>(emptyList())
 
-    /** Outcomes of the last dictations, for the diagnostics card. */
-    val dictationLog = DictationLog()
-
     /**
-     * What is kept of a dictation for a while, in memory only: a failed one's recording for "Try
-     * again", the last one's words for Home and the quick menu. The one place to forget it
-     * ([KeptDictation.keeping], [KeptDictation.clear]). On the clock of [dictationLog]'s records.
+     * Everything Amber holds of what was dictated, and the one call that forgets it all
+     * ([DictationMemory.wipe]): the records Diagnostics shows ([DictationMemory.log]), a failed
+     * dictation's recording for "Try again" and the last dictation for Home and the quick menu
+     * ([DictationMemory.kept], on the clock of the records), the insertion "Undo last" may take
+     * back - and here the clipboard while Amber's clip is on it, and the scratch file a recording
+     * is compressed in.
      */
-    val keptDictation = KeptDictation({ System.currentTimeMillis() })
+    val memory = DictationMemory(KeptDictation({ System.currentTimeMillis() }), DictationLog()).apply {
+        hold { OwnClipboard.forgetIfOurs(app) }
+        hold { opusEncoder.clearLeftovers() }
+    }
 
     /** A cleanup that will not run until the user puts something right, for a toast and the row on top of Settings. */
     val cleanupTrouble = CleanupTrouble()

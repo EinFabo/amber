@@ -200,7 +200,7 @@ class DictationController(
     private var runAudio: PcmAudio? = null
 
     /** What is kept of a failed dictation for "Try again"; see [KeptDictation]. */
-    private val kept: KeptDictation get() = graph.keptDictation
+    private val kept: KeptDictation get() = graph.memory.kept
 
     /** The engine that failed when [fellBack] took over. */
     private var fellBackFrom: String? = null
@@ -652,22 +652,11 @@ class DictationController(
         skipCleanup.complete(Unit)
     }
 
-    /**
-     * The last dictation of this session (any app) typed again into the field that has focus
-     * now - never into a password field. False with nothing to insert or nowhere to put it.
-     */
-    /**
-     * The last insertion that "Undo last" may take out again: its app and exactly what went in.
-     * Kept in memory only, like the dictation it came from.
-     */
-    @Volatile
-    var lastInsertion: UndoLast.Insertion? = null
-        private set
-
+    /** The insertion "Undo last" may take out again: its app and exactly what went in ([graph]'s memory). */
     private fun remember(insertion: InsertionOutcome) {
         val app = insertion.targetPackage
         val fragment = insertion.fragment
-        lastInsertion = if (insertion.insertedIntoField && app != null && !fragment.isNullOrEmpty()) UndoLast.Insertion(app, fragment) else null
+        graph.memory.inserted(if (insertion.insertedIntoField && app != null && !fragment.isNullOrEmpty()) UndoLast.Insertion(app, fragment) else null)
     }
 
     /**
@@ -676,11 +665,11 @@ class DictationController(
      */
     fun undoLast(): Boolean {
         if (isRunning) return false
-        val last = lastInsertion ?: return false
+        val last = graph.memory.lastInsertion ?: return false
         val service = graph.accessibilityService ?: return false
         scope.launch {
             val result = service.fieldEditor.undo(last)
-            if (result == FieldEditor.Undo.DONE) lastInsertion = null
+            if (result == FieldEditor.Undo.DONE) graph.memory.undone()
             toast(
                 when (result) {
                     FieldEditor.Undo.DONE -> R.string.undo_done
@@ -692,9 +681,13 @@ class DictationController(
         return true
     }
 
+    /**
+     * The last dictation of this session (any app) typed again into the field that has focus
+     * now - never into a password field. False with nothing to insert or nowhere to put it.
+     */
     fun insertAgain(): Boolean {
         if (isRunning) return false
-        val text = kept.sessionDictation(graph.dictationLog.records.value)?.text ?: return false
+        val text = graph.memory.sessionDictation()?.text ?: return false
         val service = graph.accessibilityService ?: return false
         val target = service.focusedTarget()
         if (target == null || target.kind == TextFieldKind.SECRET) {
@@ -718,7 +711,7 @@ class DictationController(
      * fallback setting says.
      */
     fun copyLast(): Boolean {
-        val text = kept.sessionDictation(graph.dictationLog.records.value)?.text ?: return false
+        val text = graph.memory.sessionDictation()?.text ?: return false
         val inserter = graph.accessibilityService?.textInserter ?: return false
         if (!inserter.copyToClipboard(text)) return false
         // From Android 13 the system confirms a copy itself.
@@ -819,7 +812,7 @@ class DictationController(
             if (stoppedByTap && _mode.value == RunMode.COMMAND && !commandRecorded) {
                 commandRecorded = true
                 val steps = commandSteps
-                graph.dictationLog.recordFailure(
+                graph.memory.log.recordFailure(
                     "Stopped by a tap.", engineConfig.id, trace?.summary(), command = true,
                     details = if (steps == null) listOf("stopped by a tap before the command ran")
                     else steps.apply { note("stopped by a tap") }.lines,
@@ -942,7 +935,7 @@ class DictationController(
         trace?.pausedMs = pause.pausedMs(now)
         trace?.paused = pause.summary(now)
         Log.i(TAG, "recording ended: paused too long, nothing recorded")
-        graph.dictationLog.recordFailure(
+        graph.memory.log.recordFailure(
             "Paused for more than ${RecordingPause.MAX_PAUSE_MS / 60_000} minutes with nothing recorded - the recording ended.",
             timing = trace?.summary(),
         )
@@ -1703,7 +1696,7 @@ class DictationController(
             if (stoppedByTap && !commandRecorded) {
                 commandRecorded = true
                 steps.note("stopped by a tap")
-                graph.dictationLog.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(), steps.lines)
+                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(), steps.lines)
             }
             throw e
         }
@@ -1715,7 +1708,7 @@ class DictationController(
             }),
         )
         commandRecorded = true
-        graph.dictationLog.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
+        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(), steps.lines)
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
             fail(plain(outcome.message), transcript.engineId, record = false, logAs = "command not done")
@@ -1891,7 +1884,7 @@ class DictationController(
         remember(insertion)
         trace?.servedBy = transcript.servedBy
         val finalTranscript = transcript.copy(text = cleaned)
-        graph.dictationLog.recordSuccess(
+        graph.memory.log.recordSuccess(
             transcript = finalTranscript,
             strategy = insertion.strategy,
             inserted = insertion.insertedIntoField,
@@ -2017,9 +2010,9 @@ class DictationController(
                 val steps = commandSteps ?: CommandTrace()
                 details.forEach(steps::note)
                 commandRecorded = true
-                graph.dictationLog.recordFailure(logged, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
+                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
             } else {
-                graph.dictationLog.recordFailure(logged, engineId, trace?.summary(), text = text)
+                graph.memory.log.recordFailure(logged, engineId, trace?.summary(), text = text)
             }
         }
         _state.value = DictationState.Failed(message, remedy)

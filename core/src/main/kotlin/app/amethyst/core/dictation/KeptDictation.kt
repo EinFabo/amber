@@ -17,8 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * time, after any dictation whose words came ([textRecognized]) - they are kept for Insert
  * again and Copy last even when they could not go in - or when cleared ([clear]).
  *
- * The one place to forget it all: a security mode switches [keeping] off, which clears what is
- * kept and keeps nothing more until it is on again.
+ * One of the holders [DictationMemory] reaches - the one place that forgets everything dictated.
+ * The security mode switches [keeping] off, which clears what is kept and keeps nothing more
+ * until it is on again.
  *
  * Kept by the dictation (its run's thread), read by the quick menu (the main thread): every call
  * holds the lock.

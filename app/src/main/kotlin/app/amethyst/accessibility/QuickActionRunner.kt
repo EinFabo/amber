@@ -89,16 +89,16 @@ class QuickActionRunner(
         val hasKey = { alias: String? -> graph.secretStore.has(alias) }
         return QuickMenuContext(
             phase = phase(),
-            hasLastDictation = graph.keptDictation.sessionDictation(graph.dictationLog.records.value) != null,
+            hasLastDictation = graph.memory.sessionDictation() != null,
             fieldFocused = service.editableFieldFocused,
             otherAppInFront = app != null,
             cleanupHere = QuickActions.cleanupHere(settings, app, hasKey),
-            canUndo = graph.dictation.lastInsertion?.packageName.let { it != null && it == service.targetPackage() },
+            canUndo = graph.memory.lastInsertion?.packageName.let { it != null && it == service.targetPackage() },
             cleanupPlanned = CleanupRouting.decide(settings, service.targetPackage(), fellBackFrom = null, hasKey = hasKey).choice != null,
             command = graph.dictation.mode.value == RunMode.COMMAND,
             canPause = graph.dictation.canPause,
             paused = (graph.dictation.state.value as? DictationState.Listening)?.paused == true,
-            keptRecording = graph.keptDictation.hasRecording,
+            keptRecording = graph.memory.kept.hasRecording,
         )
     }
 
