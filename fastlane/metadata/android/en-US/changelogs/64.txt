@@ -1,0 +1,5 @@
+- A small speech model first, so the first dictation works at once; Parakeet follows on Wi-Fi
+- Try again after a failed dictation; Copy last for text a field refused
+- Own words, spoken punctuation, "scratch that"
+- Security mode and an encrypted history
+- Shorter messages, a buzz when the microphone opens, optional tone and music pause

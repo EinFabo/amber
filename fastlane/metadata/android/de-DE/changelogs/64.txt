@@ -1,0 +1,5 @@
+- Erst ein kleines Sprachmodell, damit das erste Diktat sofort geht; Parakeet folgt im WLAN
+- Nochmal versuchen nach einem fehlgeschlagenen Diktat; Letztes kopieren für abgelehnten Text
+- Eigene Wörter, gesprochene Satzzeichen, „streich das“
+- Sicherheitsmodus und ein verschlüsselter Verlauf
+- Kürzere Meldungen, Vibration beim Mikrofonstart, Ton und Musik-Pause auf Wunsch
