@@ -86,6 +86,7 @@ import app.amethyst.core.stats.countWords
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
+import app.amethyst.core.text.ScratchThat
 import app.amethyst.core.text.TranscriptNormalizer
 import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
@@ -709,7 +710,7 @@ class DictationController(
                     else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey = "${engineConfig.id}/${engineConfig.modelId}", appLabels, pause, limit)
                 } ?: return@withPausableTimeout Unit // the failure was already reported
 
-                if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else deliver(cleanUp(transcript), settings, engineConfig.id)
+                if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else scratched(transcript, settings)?.let { deliver(cleanUp(it), settings, engineConfig.id) } ?: Unit
             }
 
             if (finished == null) {
@@ -1498,6 +1499,22 @@ class DictationController(
         startTarget = service?.focusedTarget()
         startNode = startTarget?.let { service?.textInserter?.inputFocus() }
         startApp = service?.appInFront
+    }
+
+    /**
+     * "Streich das" / "scratch that" at the end takes back the sentence before it ([ScratchThat]),
+     * before a cleanup sees the text - with the spoken punctuation, under one switch. Null when
+     * nothing is left: nothing is inserted, and a short toast says so.
+     */
+    private fun scratched(transcript: Transcript, settings: app.amethyst.core.settings.AmethystSettings): Transcript? {
+        if (!settings.words.spokenPunctuation) return transcript
+        val result = ScratchThat.apply(transcript.text)
+        if (!result.scratched) return transcript
+        if (result.text.isNotBlank()) return transcript.copy(text = result.text)
+        Log.i(TAG, "scratched: nothing left to insert")
+        toast(R.string.dictation_scratched)
+        _state.value = DictationState.Idle
+        return null
     }
 
     private suspend fun deliver(

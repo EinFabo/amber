@@ -47,7 +47,7 @@
     <string name="own_words_full">%1$d von %2$d - die Liste ist voll. Tippe auf ein Wort, um es zu entfernen.</string>
     <string name="own_words_remove">%1$s entfernen</string>
     <string name="text_words">Wörter und Kommas</string>
-    <string name="text_words_more">Alles hier arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort. Gesprochene Satzzeichen kennen Komma, Punkt, Fragezeichen, Ausrufezeichen, Doppelpunkt, neue Zeile und neuer Absatz - auf Englisch comma, period oder full stop, question mark, exclamation mark, colon, new line und new paragraph -, jeweils in einem Diktat dieser Sprache. Wo das Wort zum Satz gehört („da fehlt ein Komma“, „Punkt zwölf“), bleibt es ein Wort.</string>
+    <string name="text_words_more">Alles hier arbeitet nach Regeln, ohne Sprachmodell, also wird nichts erfunden. Die Kommas kommen vor „dass“, „weil“, „wenn“ oder „um ... zu“, wo die Erkennung sie oft weglässt - sie ändern nie ein Wort. Gesprochene Satzzeichen kennen Komma, Punkt, Fragezeichen, Ausrufezeichen, Doppelpunkt, neue Zeile und neuer Absatz - auf Englisch comma, period oder full stop, question mark, exclamation mark, colon, new line und new paragraph -, jeweils in einem Diktat dieser Sprache. Wo das Wort zum Satz gehört („da fehlt ein Komma“, „Punkt zwölf“), bleibt es ein Wort. „Streich das“ oder „scratch that“ ganz am Ende eines Diktats nimmt den Satz davor zurück.</string>
     <string name="text_fillers">Füllwörter entfernen</string>
     <string name="text_fillers_note">„ähm“, „äh“ und Ähnliches</string>
     <string name="text_commas">Fehlende Kommas setzen</string>

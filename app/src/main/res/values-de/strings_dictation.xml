@@ -4,6 +4,7 @@
     <string name="dictation_mic_not_opened">Das Mikrofon ließ sich nicht öffnen. Öffne Amber einmal, dann geht die Bubble direkt.</string>
     <string name="dictation_no_field">Kein Textfeld zum Einfügen.</string>
     <string name="dictation_not_inserted_here">Der Text ließ sich hier nicht einfügen.</string>
+    <string name="dictation_scratched">Gestrichen - nichts eingefügt.</string>
     <string name="dictation_copied">Letztes Diktat kopiert.</string>
     <string name="dictation_no_engine">Keine Spracherkennung gewählt. Bitte wähle eine in den Einstellungen.</string>
     <string name="dictation_timed_out">Zeit abgelaufen - das Diktat wurde abgebrochen.</string>

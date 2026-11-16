@@ -6,6 +6,7 @@
     <string name="dictation_mic_not_opened">The microphone could not be opened. Open Amber once, then the bubble works directly.</string>
     <string name="dictation_no_field">No text field to insert into.</string>
     <string name="dictation_not_inserted_here">The text could not be inserted here.</string>
+    <string name="dictation_scratched">Scratched - nothing inserted.</string>
     <string name="dictation_copied">Last dictation copied.</string>
     <string name="dictation_no_engine">No speech recognition selected. Please pick one in the settings.</string>
     <string name="dictation_timed_out">Timed out - the dictation was cancelled.</string>
