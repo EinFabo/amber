@@ -17,6 +17,9 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | Putting the text into the field | insert | einfügen | paste, type |
 | The page for what changes the text by rules: filler words, commas, spaces, capitals, punctuation, the clipboard (not yet approved) | Text | Text | Inserting (as the page's name) |
 | Quick menu actions | Insert again, Copy last | Nochmal einfügen, Letztes kopieren | |
+| Recognizing a failed dictation's kept recording once more (quick menu; added with the polish plan, not yet approved) | Try again | Nochmal versuchen | Retry |
+| The last dictation's words, shown on Home for ten minutes (added with the polish plan, not yet approved) | Last dictation | Letztes Diktat | history |
+| The user's names and terms the speech recognition and the cleanup are told (added with the polish plan, not yet approved) | Own words | Eigene Wörter | vocabulary, dictionary, hotwords |
 | How the text reads in one app | style per app | Stil pro App | app profile, preset |
 | The page listing the apps with a style or a hidden bubble (not yet approved) | Apps | Apps | Style per app (as the page's name) |
 | The one switch for every setting | Advanced settings | Erweiterte Einstellungen | expert mode |

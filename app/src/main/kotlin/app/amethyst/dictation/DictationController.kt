@@ -582,6 +582,8 @@ class DictationController(
             NotInserted.Hint.INSERT_AGAIN -> R.string.toast_insert_again
             NotInserted.Hint.COPY -> R.string.toast_copy_last
             NotInserted.Hint.ON_CLIPBOARD -> R.string.toast_on_clipboard
+            NotInserted.Hint.MAY_ARRIVE -> R.string.toast_may_arrive
+            NotInserted.Hint.MAY_ARRIVE_ON_CLIPBOARD -> R.string.toast_may_arrive_on_clipboard
             NotInserted.Hint.NONE -> R.string.toast_not_inserted_password
         }
         // Logcat gets the reason, never the field's trace, which names the app.

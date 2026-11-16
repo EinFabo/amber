@@ -58,6 +58,8 @@
     <string name="quick_open_failed">Android hat Amber das Öffnen nicht erlaubt.</string>
     <string name="toast_unexpected">Etwas ging schief - Details in der Diagnose</string>
     <string name="toast_on_clipboard">Nicht eingefügt - steht in der Zwischenablage, selbst einfügen</string>
+    <string name="toast_may_arrive">Kommt evtl. noch - sonst Bubble halten, Letztes kopieren</string>
+    <string name="toast_may_arrive_on_clipboard">Kommt evtl. noch - sonst aus der Zwischenablage einfügen</string>
     <string name="toast_not_inserted_password">Nicht eingefügt - das Feld ist ein Passwortfeld</string>
     <string name="toast_insert_again">Nicht eingefügt - ins Feld tippen, Bubble halten, Nochmal einfügen</string>
     <string name="toast_screen_off_insert_again">Bildschirm war aus - ins Feld tippen, Bubble halten, Nochmal einfügen</string>

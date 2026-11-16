@@ -9,7 +9,9 @@ import app.amethyst.core.insert.TargetCheck
  * "Insert again" helps where the field was gone or the focus had moved: back in the field, it
  * goes in. Where the field itself refused the text - it accepted none of the ways in, or the
  * words were typed and never showed - Insert again would fail the same way in the same field;
- * there the way out is Copy last, and pasting by hand.
+ * there the way out is Copy last, and pasting by hand. Words that were typed and never showed
+ * may still arrive (a slow app): the toast says so before the way out, so they are not pasted
+ * twice.
  */
 object NotInserted {
 
@@ -43,6 +45,12 @@ object NotInserted {
         /** The text is on the clipboard already: paste it by hand. */
         ON_CLIPBOARD,
 
+        /** The words may still show up; if not: hold the bubble, Copy last. */
+        MAY_ARRIVE,
+
+        /** The words may still show up; if not: paste them from the clipboard. */
+        MAY_ARRIVE_ON_CLIPBOARD,
+
         /** Nothing to do: a password field gets no dictation. */
         NONE,
     }
@@ -50,8 +58,9 @@ object NotInserted {
     /** The way out for words that did not go in for [why]; [onClipboard]: the clipboard fallback took them. */
     fun hint(why: Why, onClipboard: Boolean): Hint = when {
         why == Why.PASSWORD -> Hint.NONE
+        why == Why.UNCERTAIN -> if (onClipboard) Hint.MAY_ARRIVE_ON_CLIPBOARD else Hint.MAY_ARRIVE
         onClipboard -> Hint.ON_CLIPBOARD
-        why == Why.REFUSED || why == Why.UNCERTAIN -> Hint.COPY
+        why == Why.REFUSED -> Hint.COPY
         else -> Hint.INSERT_AGAIN
     }
 

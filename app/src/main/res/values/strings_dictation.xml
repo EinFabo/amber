@@ -51,7 +51,7 @@
     <string name="quick_done_resumed">Listening again.</string>
     <string name="quick_done_cleanup_on">Cleanup on in %1$s.</string>
     <string name="quick_done_cleanup_off">Cleanup off in %1$s.</string>
-    <string name="bubble_hidden_in">Bubble hidden in %1$s. Show it again in Amber → Settings → Apps.</string>
+    <string name="bubble_hidden_in">Bubble off in %1$s - back via Amber → Settings → Apps</string>
     <string name="undo_done">Last dictation taken out again.</string>
     <string name="undo_changed">The text has changed since - nothing undone.</string>
     <string name="undo_failed">Could not undo it in this field.</string>
@@ -60,6 +60,8 @@
     <string name="quick_open_failed">Android did not let Amber open it.</string>
     <string name="toast_unexpected">Something went wrong - details in Diagnostics</string>
     <string name="toast_on_clipboard">Not inserted - it is on the clipboard, paste it yourself</string>
+    <string name="toast_may_arrive">May still show up - if not, hold the bubble, Copy last</string>
+    <string name="toast_may_arrive_on_clipboard">May still show up - if not, paste it from the clipboard</string>
     <string name="toast_not_inserted_password">Not inserted - the field is a password field</string>
     <string name="toast_insert_again">Not inserted - tap the field, hold the bubble, Insert again</string>
     <string name="toast_screen_off_insert_again">Screen was off - tap the field, hold the bubble, Insert again</string>

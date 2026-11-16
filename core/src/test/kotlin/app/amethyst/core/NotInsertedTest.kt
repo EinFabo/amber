@@ -12,7 +12,12 @@ class NotInsertedTest {
     @Test
     fun `a field that refused the text points to Copy, not to Insert again which fails there again`() {
         assertEquals(Hint.COPY, NotInserted.hint(Why.REFUSED, onClipboard = false))
-        assertEquals(Hint.COPY, NotInserted.hint(Why.UNCERTAIN, onClipboard = false))
+    }
+
+    @Test
+    fun `words typed that never showed may still arrive - said before the way out`() {
+        assertEquals(Hint.MAY_ARRIVE, NotInserted.hint(Why.UNCERTAIN, onClipboard = false))
+        assertEquals(Hint.MAY_ARRIVE_ON_CLIPBOARD, NotInserted.hint(Why.UNCERTAIN, onClipboard = true))
     }
 
     @Test

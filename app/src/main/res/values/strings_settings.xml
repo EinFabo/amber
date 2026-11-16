@@ -53,7 +53,7 @@
     <string name="text_commas">Add missing commas</string>
     <string name="text_commas_note">German only</string>
     <string name="text_spoken">Spoken punctuation</string>
-    <string name="text_spoken_note">Say \"comma\", \"period\", \"new line\" - in German \"Komma\", \"Punkt\", \"neue Zeile\"</string>
+    <string name="text_spoken_note">Say \"comma\", \"period\", \"new line\" - in German \"Komma\", \"Punkt\", \"neue Zeile\". \"Scratch that\" or \"streich das\" at the end takes back the sentence before it</string>
     <string name="text_inserting">Inserting</string>
     <string name="recording_while_speaking">Recognize while speaking</string>
     <string name="recording_while_speaking_more">Longer dictations are cut at pauses and recognized while you keep talking, so stopping only waits for the last part.</string>
