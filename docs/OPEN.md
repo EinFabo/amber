@@ -14,9 +14,20 @@ its hotwords need beam search and a vocabulary file the model lacks), spoken pun
 "scratch that" as a sentence of its own. D: `DictationMemory` owns everything dictated; the
 security mode; an encrypted history (a keystore key per day, needs the phone unlocked),
 24 hours for new installs, off with a one-time offer for existing ones (schema 15).
-Open: the device tests (the plan's list and each agent's), Phase E's battery measurement
-with a day of Parakeet (stats reset 2026-11-15 20:42), later: snippets, a Quick Settings
-tile, live text.
+Tried on the Pixel 9a over adb, 2026-11-16, test build 77 as a fresh install: Quick setup
+fetched the small model in 27 s and the first dictation ran on it (Whisper base, 234 ms);
+Parakeet followed in about 4.5 minutes on Wi-Fi, Amber switched by itself and deleted the
+small model; the done step and Home named WhatsApp; Home showed "Last dictation" and the
+history with its entry; the security mode page reads as meant, switching it on removed
+"Last dictation" and "History" from Home at once and screenshots came out black.
+Found: Whisper base wrote "Hello?" for 4 s of near silence (levels p50 0.00, max 0.55) - a
+silent recording should be "nothing heard" before any model sees it.
+Battery with Parakeet, measured 2026-11-16 (11 h on battery since the reset, 2457 mAh
+drained in all): Amber 7.0 mAh (0.28 %), 4.3 of it CPU, 2 minutes of recording. With
+Tinfoil the day before: 3.3 mAh. Phase E's changes are not worth their risk at these
+numbers; the reload-on-focus and the trim levels stay on the list for low-RAM phones.
+Open: the dictation tests that need a voice (the plan's list), the silence finding, later:
+snippets, a Quick Settings tile, live text.
 
 ## Polish reviews (2026-11-15) - the findings
 
