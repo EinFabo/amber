@@ -4,7 +4,7 @@
     <string name="security_switch_note">Nichts, was du diktierst, bleibt auf dem Handy</string>
     <string name="security_on_title">Wenn er an ist</string>
     <string name="security_nothing_kept">Nichts Diktiertes wird behalten</string>
-    <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst Amber es: kein Nochmal versuchen, kein Letztes Diktat, kein Nochmal einfügen, Letztes kopieren oder Letztes rückgängig. Ein Diktat, das nicht hineinging, ist weg.</string>
+    <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst Amber es: kein Nochmal versuchen, kein Letztes Diktat, kein Nochmal einfügen, Letztes kopieren oder Letztes rückgängig, kein Verlauf. Ein Diktat, das nicht hineinging, ist weg.</string>
     <string name="security_diagnostics">Diagnose ohne Wörter</string>
     <string name="security_diagnostics_note">Nur wie viele Zeichen und Wörter ein Diktat hatte und seine Sprache.</string>
     <string name="security_stats">Statistik ohne Apps</string>
@@ -13,7 +13,7 @@
     <string name="security_clipboard_note">Amber legt nie Text darauf; die Zwischenablage zu nutzen, wenn das Tippen nicht klappt, ist aus.</string>
     <string name="security_screens">Ambers Bildschirme sind verborgen</string>
     <string name="security_screens_note">Keine Screenshots oder Bildschirmaufnahmen von Amber und ein leeres Bild in den letzten Apps.</string>
-    <string name="security_wipes">Beim Einschalten wird gelöscht, was jetzt behalten ist: die letzten Diktate und die App-Namen in der Statistik.</string>
+    <string name="security_wipes">Beim Einschalten wird gelöscht, was jetzt behalten ist: die letzten Diktate, der Verlauf und die App-Namen in der Statistik.</string>
     <string name="security_limits_title">Was er nicht kann</string>
     <string name="security_installed">Er versteckt Amber nicht</string>
     <string name="security_installed_note">Wer dein Handy hat, sieht, dass Amber installiert ist.</string>
@@ -25,4 +25,23 @@
     <string name="toast_not_kept">Nicht eingefügt - der Sicherheitsmodus behält keine Kopie</string>
     <string name="toast_may_arrive_not_kept">Kommt evtl. noch - der Sicherheitsmodus behält keine Kopie</string>
     <string name="toast_screen_off_not_kept">Bildschirm war aus - nicht eingefügt, ohne Kopie (Sicherheitsmodus)</string>
+    <string name="settings_history">Verlauf</string>
+    <string name="history_keep">Diktate behalten</string>
+    <string name="history_keep_note">Verschlüsselt auf dem Handy, nur entsperrt lesbar, nie in einem Backup.</string>
+    <string name="history_keep_day">24 Stunden</string>
+    <string name="history_keep_week">7 Tage</string>
+    <string name="history_off_secure">Aus - Sicherheitsmodus</string>
+    <string name="history_secure_note">Der Sicherheitsmodus behält keinen Verlauf. Ist er aus, stehen deine Diktate eine Weile hier.</string>
+    <string name="history_recent">Letzte Diktate</string>
+    <string name="history_empty">Noch keine Diktate</string>
+    <string name="history_empty_note">Was du diktierst, steht hier %1$s lang.</string>
+    <string name="history_failed">Ein Diktat, das nicht klappte</string>
+    <string name="history_failed_note">Seine Aufnahme ist noch ein paar Minuten da. Nochmal versuchen - die Wörter landen hier.</string>
+    <string name="history_delete_all">Alle löschen</string>
+    <string name="share">Teilen</string>
+    <plurals name="history_count">
+        <item quantity="one">%1$d Diktat</item>
+        <item quantity="other">%1$d Diktate</item>
+    </plurals>
+    <string name="toast_in_history">Erkannt - kopiere es aus dem Verlauf</string>
 </resources>

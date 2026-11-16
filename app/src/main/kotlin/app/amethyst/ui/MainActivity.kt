@@ -78,7 +78,10 @@ import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
+import app.amethyst.core.history.HistoryEntry
+import app.amethyst.core.history.HistoryKeep
 import app.amethyst.core.privacy.SecurityMode
+import app.amethyst.data.OwnClipboard
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
@@ -105,6 +108,7 @@ import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.LicensesScreen
 import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
+import app.amethyst.ui.screen.HistoryScreen
 import app.amethyst.ui.screen.RecordingScreen
 import app.amethyst.ui.screen.SecurityModeScreen
 import app.amethyst.ui.screen.ReliabilityScreen
@@ -537,6 +541,17 @@ private fun AmethystScreens(
         }
     }
 
+    // How many dictations the history keeps, for Home's row: counted without opening any, again
+    // with every change and every minute, as the oldest run out of time.
+    val historyKeep = SecurityMode.historyKeep(settings)
+    val historyChanges by graph.historyChanges.collectAsStateWithLifecycle()
+    val historyCount by produceState<Int?>(null, historyKeep, historyChanges) {
+        while (true) {
+            value = if (historyKeep == HistoryKeep.OFF) null else withContext(Dispatchers.IO) { graph.history.count(historyKeep) }
+            delay(HISTORY_RECOUNT_MS)
+        }
+    }
+
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
         scope.launch { graph.settingsStore.update(transform) }
     }
@@ -693,6 +708,8 @@ private fun AmethystScreens(
                         pending = pending,
                         nudge = nudge,
                         lastDictation = lastDictation,
+                        historyCount = historyCount,
+                        onOpenHistory = { open(Screen.Page(SettingsPage.HISTORY)) },
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
@@ -756,6 +773,34 @@ private fun AmethystScreens(
                                 onOpenApps = { open(Screen.Page(SettingsPage.APP_STYLES)) },
                             )
                             SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
+                            SettingsPage.HISTORY -> {
+                                // Opened: what is past its time goes, the rest is opened - only
+                                // here, while the phone is unlocked.
+                                val entries by produceState(emptyList<HistoryEntry>(), historyKeep, historyChanges) {
+                                    value = withContext(Dispatchers.IO) { graph.history.entries(historyKeep) }
+                                }
+                                val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
+                                val canTryAgain = remember(keptChanges) { graph.memory.kept.hasRecording }
+                                HistoryScreen(
+                                    settings = settings,
+                                    entries = entries,
+                                    appName = apps::label,
+                                    onKeepChange = { keep -> updateSettings { it.copy(privacy = it.privacy.copy(history = keep)) } },
+                                    onCopy = { text ->
+                                        // From Android 13 the system confirms a copy itself.
+                                        if (OwnClipboard.copy(context, text) && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                            Toast.makeText(context, R.string.dictation_copied, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onShare = { text ->
+                                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                                        runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                                    },
+                                    onDeleteAll = { graph.deleteHistory() },
+                                    canTryAgain = canTryAgain,
+                                    onTryAgain = { graph.dictation.tryAgain(forHistory = true) },
+                                )
+                            }
                             // Switched on, the graph forgets what is kept now.
                             SettingsPage.SECURITY_MODE -> SecurityModeScreen(settings) { on ->
                                 updateSettings { it.copy(privacy = it.privacy.copy(securityMode = on)) }
@@ -971,6 +1016,9 @@ private const val APP_PAGE_WAIT_MS = 2_000L
 
 private const val UPDATES_CLOCK_MS = 30_000L
 
+
+/** How often Home counts the history again, as its oldest dictations run out of time. */
+private const val HISTORY_RECOUNT_MS = 60_000L
 
 /** How often Home looks again whether the last dictation is still kept. */
 private const val LAST_DICTATION_RECHECK_MS = 30_000L

@@ -19,6 +19,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | Quick menu actions | Insert again, Copy last | Nochmal einfügen, Letztes kopieren | |
 | Recognizing a failed dictation's kept recording once more (quick menu; added with the polish plan, not yet approved) | Try again | Nochmal versuchen | Retry |
 | The last dictation's words, shown on Home for ten minutes (added with the polish plan, not yet approved) | Last dictation | Letztes Diktat | history |
+| The recent dictations, kept encrypted on the phone for a while (added with the polish plan, not yet approved) | History | Verlauf | log, archive |
 | The setting that keeps nothing dictated on the phone (added with the polish plan, not yet approved) | Security mode | Sicherheitsmodus | privacy mode, incognito |
 | The user's names and terms the speech recognition and the cleanup are told (added with the polish plan, not yet approved) | Own words | Eigene Wörter | vocabulary, dictionary, hotwords |
 | How the text reads in one app | style per app | Stil pro App | app profile, preset |

@@ -231,6 +231,62 @@ open class Screenshots {
     @Config(qualifiers = "+h1300dp")
     fun securityModeLight() = light(::securityMode)
 
+    /** A few dictations from today and yesterday, newest first. */
+    private val historyEntries = listOf(
+        app.amethyst.core.history.HistoryEntry(NOW - 12 * 60_000, "Bin in zehn Minuten da, bring bitte den Schlüssel mit.", "com.whatsapp"),
+        app.amethyst.core.history.HistoryEntry(NOW - 95 * 60_000, "Hi Jonas, the slides are in the shared folder - could you have a look before Thursday?", "com.google.android.gm"),
+        app.amethyst.core.history.HistoryEntry(NOW - 20 * 3_600_000L, "Einkaufsliste: Milch, Brot, Tomaten, Kaffee", "com.google.android.keep"),
+    )
+
+    @Composable
+    private fun History(entries: List<app.amethyst.core.history.HistoryEntry>, canTryAgain: Boolean = false) {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        app.amethyst.ui.screen.HistoryScreen(
+            settings = settings, entries = entries, appName = { pkg -> APP_NAMES[pkg] ?: pkg },
+            onKeepChange = {}, onCopy = {}, onShare = {}, onDeleteAll = {},
+            canTryAgain = canTryAgain, zone = zone,
+            today = java.time.Instant.ofEpochMilli(NOW).atZone(zone).toLocalDate(),
+        )
+    }
+
+    /** Not part of the listing set: the history with a few dictations, and a failed one to try again. */
+    @Test
+    @Config(qualifiers = "+h1160dp")
+    fun history() = shoot("x-history", SettingsPage.HISTORY.title()) { History(historyEntries, canTryAgain = true) }
+
+    @Test
+    @Config(qualifiers = "+h1160dp")
+    fun historyLight() = light(::history)
+
+    /** Not part of the listing set: the history before the first dictation. */
+    @Test
+    fun historyEmpty() = shoot("x-history-empty", SettingsPage.HISTORY.title()) { History(emptyList()) }
+
+    @Test
+    fun historyEmptyLight() = light(::historyEmpty)
+
+    /** Not part of the listing set: the history page in the security mode. */
+    @Test
+    fun historySecure() = shoot("x-history-secure", SettingsPage.HISTORY.title()) {
+        app.amethyst.ui.screen.HistoryScreen(
+            settings = settings.copy(privacy = app.amethyst.core.settings.PrivacySettings(securityMode = true)), entries = emptyList(),
+            appName = { it }, onKeepChange = {}, onCopy = {}, onShare = {}, onDeleteAll = {},
+        )
+    }
+
+    /** Not part of the listing set: Home with the way to the history. */
+    @Test
+    @Config(qualifiers = "+h1000dp")
+    fun homeHistory() = shoot("x-home-history", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            historyCount = 3,
+        )
+    }
+
     /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
     @Test
     @Config(qualifiers = "+h1160dp")

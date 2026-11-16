@@ -17,13 +17,18 @@ https://github.com/EinFabo/amber/issues
   to the address it was typed for.
 - **Statistics**: for each dictation the time, the app you dictated in, the number of words and
   how long it took - not what you said. You can clear them under Settings → Statistics.
+- **History**: your recent dictations - their text, the app and the time - kept encrypted on
+  this phone for 24 hours unless you change it (off, 24 hours or 7 days, under Settings →
+  History) or switch on the security mode. The key is in Android's keystore and works only while
+  the phone is unlocked: a locked phone can neither read the history nor add to it. "Delete all"
+  deletes the entries and the key.
 - **Diagnostics**: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words.
 - **Speech models** you download.
 
 With the **security mode** on (Settings → Security mode), Amber keeps nothing of a dictation
-once it is in the field: no recording to try again, no last dictation, no text in Diagnostics
+once it is in the field: no recording to try again, no last dictation, no history, no text in Diagnostics
 (only how many characters and words it had, and its language), statistics without the app, no
 record of how text went into each app; it never puts text on the clipboard, and its own screens
 are kept out of screenshots and Recents. Switching it on deletes what is kept at that moment.
@@ -43,7 +48,7 @@ Amber's bubble is an Android accessibility service. Through it Amber reads:
   words fit at the cursor.
 
 None of this is sent anywhere. Which app a dictation went into is kept for the statistics
-above; the text of the field is not kept. Password fields get no bubble and are not read. The
+and the history above; the text of the field is not kept. Password fields get no bubble and are not read. The
 service types your dictation into the field; it does nothing else in other apps.
 
 ## What leaves the phone, and to whom

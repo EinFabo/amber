@@ -110,6 +110,9 @@ fun HomeScreen(
      * ten minutes, also when they did not go in. Null: no card.
      */
     lastDictation: String? = null,
+    /** How many dictations the history keeps now; null while it is off or in the security mode: no row. */
+    historyCount: Int? = null,
+    onOpenHistory: () -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -148,6 +151,8 @@ fun HomeScreen(
 
         // What did not go in can be taken from here; what did, once more.
         if (lastDictation != null) LastDictationCard(lastDictation)
+
+        if (historyCount != null) HistoryRow(historyCount, onOpenHistory)
 
         if (settings.stats.keep) TodayRow(stats, onOpenStats)
 
@@ -363,6 +368,19 @@ private fun LastDictationCard(text: String) {
 }
 
 /** Today in one row - the door to the statistics. */
+/** The way to the history of recent dictations, with how many it keeps. */
+@Composable
+private fun HistoryRow(count: Int, onOpen: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            stringResource(R.string.settings_history),
+            if (count == 0) stringResource(R.string.history_empty) else pluralStringResource(R.plurals.history_count, count, count),
+            icon = AmberIcons.Replay,
+            onClick = onOpen,
+        )
+    }
+}
+
 @Composable
 private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
     val (title, summary) = when {

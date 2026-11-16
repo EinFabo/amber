@@ -1,5 +1,6 @@
 package app.amethyst.core.privacy
 
+import app.amethyst.core.history.HistoryKeep
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.PrivacySettings
 import app.amethyst.core.stats.DictationStat
@@ -42,6 +43,9 @@ object SecurityMode {
 
     /** Whether the insertion method that worked is written down per app. */
     fun remembersApps(settings: AmethystSettings): Boolean = !on(settings)
+
+    /** How long the history keeps a dictation: as chosen, and not at all in the security mode. */
+    fun historyKeep(settings: AmethystSettings): HistoryKeep = if (on(settings)) HistoryKeep.OFF else settings.privacy.history
 
     /** Whether Amber's own windows are kept out of screenshots, screen recordings and the Recents thumbnail. */
     fun hidesWindows(settings: AmethystSettings): Boolean = on(settings)

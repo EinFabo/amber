@@ -78,6 +78,7 @@ import app.amethyst.core.insert.InputTarget
 import app.amethyst.core.insert.InsertionOutcome
 import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.insert.UndoLast
+import app.amethyst.core.history.HistoryKeep
 import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.net.ConnectionWarmUp
 import app.amethyst.core.privacy.TrustLevel
@@ -330,6 +331,7 @@ class DictationController(
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
+        if (source != TriggerSource.PROXY_ACTIVITY) retryForHistory = false
         // The proxy activity records only for a run that still waits for it - not after a
         // cancel - and brings along a release that came while it was on its way.
         val stoppedDuringHandover = if (source == TriggerSource.PROXY_ACTIVITY) {
@@ -581,7 +583,8 @@ class DictationController(
             context.getString(if (onClipboard) R.string.dictation_on_clipboard_instead else R.string.dictation_not_inserted, context.getString(reason)) +
                 insertionTrace?.let { " [$it]" }.orEmpty()
         }
-        val toast = when (NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.settings.value))) {
+        val hint = NotInserted.hint(why, onClipboard, kept = SecurityMode.keepsWords(graph.settings.value))
+        val toast = if (retryForHistory && why == NotInserted.Why.NO_FIELD && SecurityMode.historyKeep(graph.settings.value) != HistoryKeep.OFF) R.string.toast_in_history else when (hint) {
             NotInserted.Hint.INSERT_AGAIN -> R.string.toast_insert_again
             NotInserted.Hint.COPY -> R.string.toast_copy_last
             NotInserted.Hint.ON_CLIPBOARD -> R.string.toast_on_clipboard
@@ -592,7 +595,11 @@ class DictationController(
             NotInserted.Hint.MAY_ARRIVE_NOT_KEPT -> R.string.toast_may_arrive_not_kept
         }
         // Logcat gets the reason, never the field's trace, which names the app.
-        fail(words, engineId, brief = say(toast), logAs = english.getString(R.string.dictation_not_inserted, english.getString(reason)), text = text)
+        fail(
+            words, engineId, brief = say(toast), logAs = english.getString(R.string.dictation_not_inserted, english.getString(reason)), text = text,
+            // Words that met a password field may be one: never into the history.
+            history = why != NotInserted.Why.PASSWORD,
+        )
     }
 
     /** Whether a text may go into a field now: the screen is on and the phone unlocked. */
@@ -1264,13 +1271,21 @@ class DictationController(
     }
 
     /**
+     * Tried again from the History page ([tryAgain] forHistory): with no field there, the words
+     * land in the history, and the toast says so instead of pointing to a field.
+     */
+    @Volatile
+    private var retryForHistory = false
+
+    /**
      * "Try again" from the quick menu: the kept recording of a dictation that failed is
      * recognized again with the speech recognition set now, and goes into the field in focus
      * now as a dictation would. False with nothing kept, or while a dictation runs.
      */
-    fun tryAgain(): Boolean {
+    fun tryAgain(forHistory: Boolean = false): Boolean {
         if (isRunning) return false
         val audio = kept.recording() ?: return false
+        retryForHistory = forHistory
         takeStartTarget()
         runInAmber = false
         runPackage = targetApp()
@@ -1903,6 +1918,7 @@ class DictationController(
         loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
         recordStat(finalTranscript, insertion.targetPackage, settings)
         graph.dictatedInto(startTarget?.packageName ?: insertion.targetPackage)
+        graph.keepInHistory(cleaned, startTarget?.packageName ?: insertion.targetPackage)
 
         _state.value = DictationState.Done(
             transcript = finalTranscript,
@@ -2006,6 +2022,8 @@ class DictationController(
         text: String = "",
         // Off when nobody can read it now and it is said later instead.
         toast: Boolean = true,
+        // Whether [text] may go into the history of recent dictations.
+        history: Boolean = true,
     ) {
         val message = words(context)
         val logged = words(english)
@@ -2022,6 +2040,8 @@ class DictationController(
                 graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(), command = true, details = steps.lines)
             } else {
                 graph.memory.log.recordFailure(logged, engineId, trace?.summary(), text = text)
+                // Words that did not go in are a dictation too: the history keeps them.
+                if (history && text.isNotBlank()) graph.keepInHistory(text, startTarget?.packageName)
             }
         }
         _state.value = DictationState.Failed(message, remedy)

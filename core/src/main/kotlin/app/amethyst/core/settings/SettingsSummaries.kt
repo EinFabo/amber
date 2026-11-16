@@ -72,6 +72,9 @@ sealed interface Summary {
     /** Light, dark, or as the phone is set. */
     data class Theme(val mode: ThemeMode) : Summary
 
+    /** How long the history keeps a dictation; [secure]: off by the security mode. */
+    data class History(val keep: app.amethyst.core.history.HistoryKeep, val secure: Boolean) : Summary
+
     /** A folded server on a model list: "3 models". */
     data class Models(val count: Int) : Summary
 
@@ -113,6 +116,8 @@ object SettingsSummaries {
     }
 
     fun onOff(on: Boolean): Summary = if (on) Summary.On else Summary.Off
+
+    fun history(settings: AmethystSettings): Summary = Summary.History(settings.privacy.history, settings.privacy.securityMode)
 
     fun commands(settings: AmethystSettings): Summary = when {
         !settings.commands.enabled -> Summary.Off

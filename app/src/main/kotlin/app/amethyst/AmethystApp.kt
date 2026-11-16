@@ -19,12 +19,14 @@ import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
+import app.amethyst.core.history.HistoryKeep
 import app.amethyst.core.onboarding.RealAppNudges
 import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.PrivacySettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.EstimateStore
+import app.amethyst.data.HistoryStore
 import app.amethyst.data.OwnClipboard
 import app.amethyst.data.PhoneLocales
 import app.amethyst.data.SecretStore
@@ -53,9 +55,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AmethystApp : Application() {
@@ -255,6 +260,51 @@ class Graph(app: Application) {
     val stats = StatsStore(app, appScope)
 
     private val amberPackage = app.packageName
+
+    /**
+     * The recent dictations, encrypted on this phone for as long as the user chose
+     * ([SecurityMode.historyKeep]); forgotten with everything else ([DictationMemory.wipe]).
+     */
+    val history = HistoryStore(app).also { store -> memory.hold { store.deleteAll() } }
+
+    /** Counts every change of the history, for the screens that show it. */
+    val historyChanges = MutableStateFlow(0L)
+
+    init {
+        // What is past its time goes at every start and whenever the choice changes - off, or
+        // the security mode, takes it all.
+        appScope.launch(Dispatchers.IO) {
+            loadedSettings.filterNotNull().map(SecurityMode::historyKeep).distinctUntilChanged().collect { keep ->
+                history.prune(keep)
+                historyChanges.update { it + 1 }
+            }
+        }
+    }
+
+    /** "Delete all" on the History page: every dictation and the key they were sealed with. */
+    fun deleteHistory() {
+        appScope.launch(Dispatchers.IO) {
+            try {
+                history.deleteAll()
+            } catch (e: Exception) {
+                android.util.Log.w("Amber", "history not deleted: ${e.javaClass.simpleName}")
+            }
+            historyChanges.update { it + 1 }
+        }
+    }
+
+    /**
+     * Keeps a dictation's [text], dictated into [app], in the history - unless the history is off,
+     * the security mode on, or the phone locked. Off the caller's thread.
+     */
+    fun keepInHistory(text: String, app: String?) {
+        val keep = SecurityMode.historyKeep(settings.value)
+        if (keep == HistoryKeep.OFF || text.isBlank()) return
+        appScope.launch(Dispatchers.IO) {
+            history.add(text, app, keep)
+            historyChanges.update { it + 1 }
+        }
+    }
 
     init {
         // The security mode as the settings say: on, nothing more is kept; switched on, what is

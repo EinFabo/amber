@@ -13,6 +13,9 @@ enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     CLEANUP(simple = true, SettingsGroupKind.MAIN),
     BUBBLE(simple = true, SettingsGroupKind.MAIN),
 
+    /** The recent dictations, kept encrypted for a while ([app.amethyst.core.history.DictationHistory]). */
+    HISTORY(simple = true, SettingsGroupKind.MAIN),
+
     /** What is kept of a dictation: the security mode, in plain sight for whoever looks for it. */
     SECURITY_MODE(simple = true, SettingsGroupKind.MAIN),
     VOICE_COMMANDS(simple = false, SettingsGroupKind.MAIN),
@@ -50,7 +53,7 @@ data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<Settin
 
 /**
  * Which settings show: in the simple view (a new install's) only the few most people need -
- * how speech is recognized, whether it is cleaned up, the bubble, the security mode and the app styles, then how
+ * how speech is recognized, whether it is cleaned up, the bubble, the history, the security mode and the app styles, then how
  * Amber looks and the page about it; with [UiSettings.advanced] every one. Voice commands only ever with [Features.VOICE_COMMANDS].
  */
 object SettingsLayout {

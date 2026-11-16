@@ -661,6 +661,11 @@ data class FeedbackSettings(
 @Serializable
 data class PrivacySettings(
     val securityMode: Boolean = false,
+    /**
+     * How long the history of recent dictations keeps one ([app.amethyst.core.history.DictationHistory]);
+     * never in the security mode. Absent in older settings: a day.
+     */
+    val history: app.amethyst.core.history.HistoryKeep = app.amethyst.core.history.HistoryKeep.DAY,
 )
 
 /** How the app itself looks. */

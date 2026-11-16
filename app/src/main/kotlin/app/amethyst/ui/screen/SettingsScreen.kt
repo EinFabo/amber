@@ -126,6 +126,9 @@ fun SettingsScreen(
         ) { onOpen(SettingsPage.RECOGNITION) }
         SettingsItem.CLEANUP -> NavRow(stringResource(R.string.settings_cleanup), words(SettingsSummaries.cleanup(settings)), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
         SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
+        SettingsItem.HISTORY -> NavRow(
+            stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
+        ) { onOpen(SettingsPage.HISTORY) }
         SettingsItem.SECURITY_MODE -> NavRow(
             stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Lock,
         ) { onOpen(SettingsPage.SECURITY_MODE) }

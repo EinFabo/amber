@@ -198,6 +198,7 @@ object Texts {
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
             is Summary.Theme -> theme(this, summary.mode)
+            is Summary.History -> if (summary.secure) getString(R.string.history_off_secure) else historyKeep(this, summary.keep)
             is Summary.About -> when (val newer = summary.newer) {
                 Summary.About.Newer.Unknown -> getString(R.string.summary_version, summary.version)
                 Summary.About.Newer.None -> getString(R.string.summary_version_up_to_date, summary.version)
@@ -214,6 +215,15 @@ object Texts {
             Summary.Text.Part.CAPITALS -> R.string.text_part_capitals
             Summary.Text.Part.PUNCTUATION -> R.string.text_part_punctuation
             Summary.Text.Part.CLIPBOARD -> R.string.text_part_clipboard
+        },
+    )
+
+    /** How long the history keeps a dictation, as its choice says it. */
+    fun historyKeep(context: Context, keep: app.amethyst.core.history.HistoryKeep): String = context.getString(
+        when (keep) {
+            app.amethyst.core.history.HistoryKeep.OFF -> R.string.off
+            app.amethyst.core.history.HistoryKeep.DAY -> R.string.history_keep_day
+            app.amethyst.core.history.HistoryKeep.WEEK -> R.string.history_keep_week
         },
     )
 

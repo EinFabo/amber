@@ -5,7 +5,7 @@
     <string name="security_switch_note">Nothing you dictate stays on this phone</string>
     <string name="security_on_title">When it is on</string>
     <string name="security_nothing_kept">Nothing dictated is kept</string>
-    <string name="security_nothing_kept_note">Once a dictation is in the field, Amber forgets it: no Try again, no Last dictation, no Insert again, Copy last or Undo last. A dictation that could not go in is gone.</string>
+    <string name="security_nothing_kept_note">Once a dictation is in the field, Amber forgets it: no Try again, no Last dictation, no Insert again, Copy last or Undo last, no history. A dictation that could not go in is gone.</string>
     <string name="security_diagnostics">Diagnostics without words</string>
     <string name="security_diagnostics_note">Only how many characters and words a dictation had, and its language.</string>
     <string name="security_stats">Statistics without apps</string>
@@ -14,7 +14,7 @@
     <string name="security_clipboard_note">Amber never puts text on it; using the clipboard when typing fails is off.</string>
     <string name="security_screens">Amber\'s screens are hidden</string>
     <string name="security_screens_note">No screenshots or screen recordings of Amber, and a blank picture in recent apps.</string>
-    <string name="security_wipes">Switching it on deletes what is kept now: the last dictations and the app names in the statistics.</string>
+    <string name="security_wipes">Switching it on deletes what is kept now: the last dictations, the history and the app names in the statistics.</string>
     <string name="security_limits_title">What it cannot do</string>
     <string name="security_installed">It does not hide Amber</string>
     <string name="security_installed_note">Anyone with your phone can see that Amber is installed.</string>
@@ -26,4 +26,24 @@
     <string name="toast_not_kept">Not inserted - the security mode keeps no copy</string>
     <string name="toast_may_arrive_not_kept">May still show up - the security mode keeps no copy</string>
     <string name="toast_screen_off_not_kept">Screen was off - not inserted, the security mode keeps no copy</string>
+    <!-- The history of recent dictations, kept encrypted on the phone. -->
+    <string name="settings_history">History</string>
+    <string name="history_keep">Keep dictations</string>
+    <string name="history_keep_note">Encrypted on this phone, readable only while it is unlocked, never in a backup.</string>
+    <string name="history_keep_day">24 hours</string>
+    <string name="history_keep_week">7 days</string>
+    <string name="history_off_secure">Off - security mode</string>
+    <string name="history_secure_note">The security mode keeps no history. Switched off, your dictations are kept here for a while.</string>
+    <string name="history_recent">Recent dictations</string>
+    <string name="history_empty">No dictations yet</string>
+    <string name="history_empty_note">What you dictate shows up here for %1$s.</string>
+    <string name="history_failed">A dictation that failed</string>
+    <string name="history_failed_note">Its recording is still kept for a few minutes. Try again - the words land here.</string>
+    <string name="history_delete_all">Delete all</string>
+    <string name="share">Share</string>
+    <plurals name="history_count">
+        <item quantity="one">%1$d dictation</item>
+        <item quantity="other">%1$d dictations</item>
+    </plurals>
+    <string name="toast_in_history">Recognized - copy it from the history</string>
 </resources>
