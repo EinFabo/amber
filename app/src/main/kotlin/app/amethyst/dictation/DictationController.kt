@@ -1799,10 +1799,21 @@ class DictationController(
      * nothing is left: nothing is inserted, and a short toast says so.
      */
     private fun scratched(transcript: Transcript, settings: app.amethyst.core.settings.AmethystSettings): Transcript? {
-        if (!settings.words.spokenPunctuation) return transcript
         val result = ScratchThat.apply(transcript.text)
+        // For Diagnostics, without the words: whether the phrase was there and what became of it.
+        trace?.scratch = when {
+            result.verdict == ScratchThat.Verdict.NOT_SAID -> null
+            !settings.words.spokenPunctuation -> "scratch that: not applied, spoken punctuation is off"
+            else -> when (result.verdict) {
+                ScratchThat.Verdict.TOOK_BACK -> "scratch that: took back ${result.sentences} sentence" + if (result.sentences == 1) "" else "s"
+                ScratchThat.Verdict.PART_OF_A_SENTENCE -> "scratch that: part of a sentence, kept"
+                else -> "scratch that: something like it at the end, not taken"
+            }
+        }
+        if (!settings.words.spokenPunctuation) return transcript
         if (!result.scratched) return transcript
-        if (result.text.isNotBlank()) return transcript.copy(text = result.text)
+        // Nothing left - or only marks: no cleanup gets anything to undo, nothing is inserted.
+        if (!result.nothingLeft) return transcript.copy(text = result.text)
         Log.i(TAG, "scratched: nothing left to insert")
         toast(R.string.dictation_scratched)
         _state.value = DictationState.Idle

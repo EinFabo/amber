@@ -126,4 +126,95 @@ class ScratchThatTest {
         assertEquals("We meet at 5 p.m.", kept("We meet at 5 p.m. Then lunch. Scratch that."))
         assertEquals("Äpfel, Birnen usw.", kept("Äpfel, Birnen usw. Dann Brot. Streich das."))
     }
+
+    // --- As Parakeet may write it (Pixel 9a, 2026-11-16: only the phrase went, the sentence stayed)
+
+    @Test
+    fun `Fabi's two dictations, however the recognizer set the marks`() {
+        listOf(
+            "Ich komme um drei. Streich das.",
+            "Ich komme um drei, streich das.",
+            "Ich komme um drei streich das",
+            "ich komme um drei streich das",
+            "Ich komme um drei. Streich das!",
+            "Ich komme um drei. streich das",
+            "Ich komme um drei.\nStreich das.",
+            "Ich komme um drei Punkt streich das",
+        ).forEach { assertEquals("", kept(it), it) }
+
+        listOf(
+            "Hallo Anna. Ich komme um drei. Streich das.",
+            "Hallo Anna. Ich komme um drei, streich das.",
+            "Hallo Anna. Ich komme um drei streich das",
+            "Hallo Anna! Ich komme um drei. Streich das!",
+        ).forEach { assertTrue(kept(it).startsWith("Hallo Anna"), it) }
+        assertEquals("Hallo Anna.", kept("Hallo Anna. Ich komme um drei. Streich das."))
+        assertEquals("Hallo Anna Punkt", kept("Hallo Anna Punkt ich komme um drei Punkt streich das"))
+    }
+
+    @Test
+    fun `the phrase misheard - streiche, dass, daß`() {
+        listOf(
+            "Ich komme um drei. Streiche das.",
+            "Ich komme um drei. Streich dass.",
+            "Ich komme um drei, streich daß",
+            "Ich komme um drei streiche dass",
+        ).forEach { assertEquals("", kept(it), it) }
+        assertEquals("Hallo.", kept("Hallo. Ich komme um drei. Streiche das."))
+    }
+
+    @Test
+    fun `streicht das only as a sentence of its own`() {
+        assertEquals("Hallo.", kept("Hallo. Ich komme um drei. Streicht das."))
+        assertEquals("", kept("Streicht das."))
+        listOf(
+            "Ich komme um drei, streicht das.",
+            "Anna streicht das.",
+            "Der Maler streicht das.",
+            "Wer streicht die Wand? Anna streicht das.",
+            "Ihr streicht das.",
+        ).forEach { text ->
+            val result = ScratchThat.apply(text)
+            assertFalse(result.scratched, text)
+            assertEquals(text, result.text)
+        }
+    }
+
+    @Test
+    fun `the variants are sentences too after a subject or a request`() {
+        listOf(
+            "Ich streiche das.",
+            "Ich streich dass",
+            "Bitte streiche das.",
+            "Bitte, streich dass.",
+            "Dann streiche das",
+            "Wer streicht die Wand? Ich streich das.",
+            "Wer streicht die Wand? Ich streiche das.",
+        ).forEach { text ->
+            val result = ScratchThat.apply(text)
+            assertFalse(result.scratched, text)
+            assertEquals(text, result.text)
+            assertEquals(ScratchThat.Verdict.PART_OF_A_SENTENCE, result.verdict, text)
+        }
+    }
+
+    @Test
+    fun `what it came to, for the diagnostics`() {
+        assertEquals(ScratchThat.Verdict.NOT_SAID, ScratchThat.apply("Ich komme um drei.").verdict)
+        assertEquals(ScratchThat.Verdict.NOT_SAID, ScratchThat.apply("Streich das Zimmer blau.").verdict)
+        assertEquals(ScratchThat.Verdict.LOOKS_LIKE_IT, ScratchThat.apply("Ich komme um drei. Streichen das.").verdict)
+        assertEquals(ScratchThat.Verdict.LOOKS_LIKE_IT, ScratchThat.apply("I'm late. Scratched that.").verdict)
+        ScratchThat.apply("Eins. Zwei. Drei. Streich das. Streich das.").let {
+            assertEquals(ScratchThat.Verdict.TOOK_BACK, it.verdict)
+            assertEquals(2, it.sentences)
+        }
+    }
+
+    @Test
+    fun `nothing left but marks counts as nothing left`() {
+        assertTrue(ScratchThat.apply("Ich komme um drei streich das").nothingLeft)
+        assertTrue(ScratchThat.apply("Streich das.").nothingLeft)
+        assertFalse(ScratchThat.apply("Hallo. Ich komme. Streich das.").nothingLeft)
+        assertFalse(ScratchThat.apply("Hallo.").nothingLeft, "nothing scratched, nothing taken away")
+    }
 }

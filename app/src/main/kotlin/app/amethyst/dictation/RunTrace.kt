@@ -38,6 +38,9 @@ internal class RunTrace(val route: String) {
     /** How many parts the recording was recognized in; 0 means in one piece. */
     var chunks = 0
 
+    /** What became of a "scratch that" at the end, when there was one - never the words. */
+    var scratch: String? = null
+
     /** What the cleanup model did, when one is chosen. */
     var cleanup: String? = null
 
@@ -133,6 +136,7 @@ internal class RunTrace(val route: String) {
         kept?.let(::add)
         fallback?.let(::add)
         prepared?.let(::add)
+        scratch?.let(::add)
         cleanupNote?.let { add(if (namesApps) it else "cleanup routed by the app's style") }
         cleanup?.let(::add)
         upload?.let(::add)

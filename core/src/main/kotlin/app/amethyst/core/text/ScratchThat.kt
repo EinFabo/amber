@@ -24,18 +24,56 @@ package app.amethyst.core.text
  *
  * Not on the list: "vergiss das", "lösch das", "delete that" - people say them to each other
  * ("Ach, vergiss das."), and such a message would vanish.
+ *
+ * As a recognizer may write the German phrase: "streiche das", and "streich dass" / "daß" - no
+ * sentence ends in "dass", so that one is always the phrase misheard. "Streicht das" only as a
+ * sentence of its own (at the start, after a sentence's end or a line break): after a word it
+ * is a sentence's verb ("Anna streicht das.").
  */
 object ScratchThat {
 
     /** The phrases, as spoken. */
     val PHRASES = listOf("scratch that", "streich das")
 
-    /** [text] after the scratch; [scratched]: a phrase was there and went. */
-    class Result(val text: String, val scratched: Boolean)
+    /** What became of a phrase at the end, for the diagnostics - never the words themselves. */
+    enum class Verdict {
+        /** Nothing like it at the end. */
+        NOT_SAID,
 
-    /** A phrase as the last words: a whole word first, marks after it allowed. */
+        /** Taken back, with the sentence before it ([Result.sentences]). */
+        TOOK_BACK,
+
+        /** Said as part of a sentence ("Ich streich das."): kept as words. */
+        PART_OF_A_SENTENCE,
+
+        /** The last words start like it ("streichen das", "scratched that") without being it. */
+        LOOKS_LIKE_IT,
+    }
+
+    /**
+     * [text] after the scratch; [scratched]: a phrase was there and went, with [sentences]
+     * sentences before it.
+     */
+    class Result(val text: String, val scratched: Boolean, val verdict: Verdict = Verdict.NOT_SAID, val sentences: Int = 0) {
+        /** Nothing worth inserting is left: no letter, no digit. */
+        val nothingLeft: Boolean get() = scratched && text.none { it.isLetterOrDigit() }
+    }
+
+    /** The phrase and how a recognizer may write it, wherever a sentence of its own can stand. */
+    private const val PHRASE = "scratch[ \\t]+that|streiche?[ \\t]+(?:das|dass|daß)"
+
+    /** "Streicht das": only where nothing before it could be its subject. */
+    private const val PHRASE_ALONE = "streicht[ \\t]+(?:das|dass|daß)"
+
+    /** The phrase as the last words: a whole word first, marks after it allowed. */
     private val AT_END = Regex(
-        "(?<![\\p{L}\\p{N}_'’-])(?:" + PHRASES.joinToString("|") { it.replace(" ", "[ \\t]+") } + ")[\\s,.;:!?]*$",
+        "(?<![\\p{L}\\p{N}_'’-])(?:($PHRASE)|$PHRASE_ALONE)[\\s,.;:!?]*$",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** The last words start like the phrase: "streich", "scratch" among the last three. */
+    private val LOOKALIKE = Regex(
+        "(?<![\\p{L}\\p{N}_'’-])(?:streich|scratch)\\S*(?:\\s+\\S+){0,2}[\\s,.;:!?]*$",
         RegexOption.IGNORE_CASE,
     )
 
@@ -97,16 +135,39 @@ object ScratchThat {
     fun apply(text: String): Result {
         var rest = text.trimEnd()
         var count = 0
+        var inASentence = false
         while (true) {
             val match = AT_END.find(rest) ?: break
             val before = rest.substring(0, match.range.first)
-            if (!standsAlone(before)) break
+            // "Streicht das" needs a sentence's end or nothing before it; the phrase itself
+            // also a comma or an ordinary word.
+            val alone = if (match.groups[1] != null) standsAlone(before) else afterSentenceEnd(before)
+            if (!alone) {
+                inASentence = true
+                break
+            }
             rest = before.trimEnd()
             count++
         }
-        if (count == 0) return Result(text, scratched = false)
+        if (count == 0) {
+            val verdict = when {
+                inASentence -> Verdict.PART_OF_A_SENTENCE
+                LOOKALIKE.containsMatchIn(text.trimEnd()) -> Verdict.LOOKS_LIKE_IT
+                else -> Verdict.NOT_SAID
+            }
+            return Result(text, scratched = false, verdict = verdict)
+        }
         repeat(count) { rest = withoutLastSentence(rest) }
-        return Result(rest, scratched = true)
+        return Result(rest, scratched = true, verdict = Verdict.TOOK_BACK, sentences = count)
+    }
+
+    /** Nothing before it, a sentence's end (written or said) or a line break. */
+    private fun afterSentenceEnd(before: String): Boolean {
+        val trimmed = before.trimEnd()
+        if (trimmed.isEmpty()) return true
+        if ('\n' in before.substring(trimmed.length)) return true
+        if (trimmed.last() in SENTENCE_END) return true
+        return SPOKEN_END_AT_END.containsMatchIn(trimmed)
     }
 
     /**
@@ -115,11 +176,8 @@ object ScratchThat {
      * also across a comma ("Bitte, streich das" is still a request).
      */
     private fun standsAlone(before: String): Boolean {
+        if (afterSentenceEnd(before)) return true
         val trimmed = before.trimEnd()
-        if (trimmed.isEmpty()) return true
-        if ('\n' in before.substring(trimmed.length)) return true
-        if (trimmed.last() in SENTENCE_END) return true
-        if (SPOKEN_END_AT_END.containsMatchIn(trimmed)) return true
         val comma = trimmed.last() in ",;:"
         val word = trimmed.trimEnd { it in ",;:" || it.isWhitespace() }
             .takeLastWhile { !it.isWhitespace() }

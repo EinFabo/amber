@@ -197,14 +197,19 @@ class ChatCleanup(
         /**
          * What to change, and how far. A licence to fix "obvious recognition errors from
          * context" let a model "correct" right words into likelier ones; a spoken
-         * self-correction was left in for want of a rule (docs/OPEN.md).
+         * self-correction was left in for want of a rule (docs/OPEN.md). "Streich das" and
+         * "scratch that" are Amber's to carry out, before the cleanup ([ScratchThat]). One still
+         * in the text is a sentence's words, or written in a way Amber does not know - better
+         * typed than half carried out: a model that dropped just the phrase kept the sentence
+         * it was meant to take back (Pixel 9a, 2026-11-16).
          */
         private const val WHAT_TO_FIX =
             "What to fix: punctuation and capitalization; filler words, stutters and repeated words.\n" +
                 "Self-corrections: when the speaker takes something back (\"um drei, nee, um vier\", " +
                 "\"ohne Prüfung ... nein, stopp, mit Prüfung\", \"at three, no wait, at four\", \"I mean\"), " +
                 "keep only what they settled on and nothing of the dropped version. A \"Nein\" or \"No\" " +
-                "that answers or refuses is content and stays.\n" +
+                "that answers or refuses is content and stays. \"Streich das\" or \"scratch that\" still in " +
+                "the text is content too: keep it.\n" +
                 "Words: change a word only when it makes no sense in context and the right word sounds " +
                 "alike; when unsure, keep it.\n" +
                 "Layout: one paragraph. Only when the speaker enumerates three or more items, or says " +

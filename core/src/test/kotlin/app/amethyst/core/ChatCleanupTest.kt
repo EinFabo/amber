@@ -220,6 +220,8 @@ class ChatCleanupTest {
             val prompt = ChatCleanup.systemPrompt(style, null)
             assertContains(prompt, "keep only what they settled on and nothing of the dropped version.")
             assertContains(prompt, "that answers or refuses is content and stays.")
+            // Amber takes the sentence back before the cleanup; a phrase left over is not the model's to drop.
+            assertContains(prompt, "\"Streich das\" or \"scratch that\" still in the text is content too: keep it.")
             assertContains(prompt, "change a word only when it makes no sense in context and the right word sounds alike; when unsure, keep it.")
         }
     }
