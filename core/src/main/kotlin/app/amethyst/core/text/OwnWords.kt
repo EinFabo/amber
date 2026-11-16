@@ -7,7 +7,10 @@ package app.amethyst.core.text
  * - Whisper on the phone and a server that takes a prompt: [hint], the words as a short list
  *   before the text (Whisper writes what follows its prompt in the prompt's spellings).
  *   Whisper reads only the last 224 tokens of a prompt, and Groq refuses a longer one, so the
- *   list stops at [HINT_CHARS] - the first words count.
+ *   list stops at [HINT_CHARS] - the first words count - and the whole [prompt], the list with
+ *   the text before it, at [PROMPT_CHARS].
+ * - A small Whisper writes its prompt back on silence or very short audio: a text that is
+ *   nothing but the list again ([echoed]) counts as nothing heard.
  * - The cleanup: [cleanupRule], every word, as spellings to keep.
  *
  * Bounded: [MAX_WORDS] words of up to [MAX_CHARS] characters. They live in the settings, on the
@@ -24,6 +27,13 @@ object OwnWords {
      * before a chunk (`ChunkedTranscription.PROMPT_CHARS`).
      */
     const val HINT_CHARS = 300
+
+    /**
+     * Characters of a whole recognition prompt, the list and the text before together: Whisper's
+     * 224 tokens at a conservative 2 characters a token, so Groq and OpenAI never refuse it -
+     * a refused prompt would be retried without one, own words and all.
+     */
+    const val PROMPT_CHARS = 448
 
     /** What separates words when several are typed or pasted at once. */
     private val SEPARATORS = Regex("[\\n\\r,;]+")
@@ -77,14 +87,52 @@ object OwnWords {
     /**
      * A recognition's prompt: the [hint] first, then the text just before this audio - Whisper
      * and OpenAI keep the end of a prompt that is too long, and the text before matters more.
-     * Null when there is neither.
+     * At most [PROMPT_CHARS]: the text before keeps its end, the list as many of its first
+     * words as there is room for. Null when there is neither.
      */
-    fun prompt(hint: String?, precedingText: String?): String? =
-        listOfNotNull(hint, precedingText)
-            .map { it.trim() }
+    fun prompt(hint: String?, precedingText: String?): String? {
+        val before = precedingText?.trim()?.takeLast(PROMPT_CHARS)?.trim().orEmpty()
+        val room = PROMPT_CHARS - if (before.isEmpty()) 0 else before.length + 1
+        val list = hint?.let { fitted(it.trim(), room) }.orEmpty()
+        return listOf(list, before).filter { it.isNotEmpty() }.joinToString(" ").takeIf { it.isNotEmpty() }
+    }
+
+    /** A [hint] cut to its first words that fit [room] characters, with its full stop; empty when none fits. */
+    private fun fitted(hint: String, room: Int): String {
+        if (hint.length <= room) return hint
+        val out = StringBuilder()
+        for (word in words(hint)) {
+            val next = if (out.isEmpty()) word else ", $word"
+            if (out.length + next.length + 1 > room) break
+            out.append(next)
+        }
+        return if (out.isEmpty()) "" else out.append('.').toString()
+    }
+
+    /** The words of a [hint] again: "Anna Lüdtke, Kubernetes." to "Anna Lüdtke" and "Kubernetes". */
+    private fun words(hint: String): List<String> =
+        hint.trim().removeSuffix(".").split(", ").map { it.trim() }.filter { it.isNotEmpty() }
+
+    private val TOKEN = Regex("[\\p{L}\\p{N}]+")
+
+    /**
+     * Whether [text] is (nearly) only the [hint] written back - what a small Whisper does with
+     * its prompt on silence or very short audio: at least nine in ten of its words are own
+     * words, and it holds two or more of them. A dictation of a single own word stays; so does
+     * one with a few words of its own around them ("Kubernetes and Amber").
+     */
+    fun echoed(text: String, hint: String?): Boolean {
+        val own = words(hint ?: return false)
+            .map { word -> TOKEN.findAll(word.lowercase()).map { it.value }.toList() }
             .filter { it.isNotEmpty() }
-            .joinToString(" ")
-            .takeIf { it.isNotEmpty() }
+        val tokens = TOKEN.findAll(text.lowercase()).map { it.value }.toList()
+        if (tokens.isEmpty()) return false
+        val ownTokens = own.flatten().toSet()
+        val inList = tokens.count { it in ownTokens }
+        val present = tokens.toSet()
+        val heard = own.count { word -> word.all { it in present } }
+        return heard >= 2 && inList * 10 >= tokens.size * 9
+    }
 
     /** The cleanup's tag around the words; a word can never hold it ([clean] drops < and >). */
     const val TAG = "own_words"

@@ -149,11 +149,13 @@ class OpenAiCompatibleEngine(
             )
         }
 
-        if (parsed.text.isBlank()) {
+        // A Whisper on the server may write the own words back on silence, as a small one on the phone does.
+        val echo = OwnWords.echoed(parsed.text, options.vocabularyHint?.takeIf { capabilities.vocabulary })
+        if (parsed.text.isBlank() || echo) {
             return Result.failure(
                 SttFailure(
                     problem = Problem.NothingRecognized,
-                    technical = "engine returned empty text",
+                    technical = if (echo) "engine returned only the own words of its prompt" else "engine returned empty text",
                     statusCode = response.code,
                 ),
             )

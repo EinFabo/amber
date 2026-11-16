@@ -3,7 +3,9 @@ package app.amethyst.core
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.engine.whisper.WhisperCppEngine
 import app.amethyst.core.engine.whisper.WhisperRuntime
@@ -93,6 +95,70 @@ class OwnWordsTest {
         assertTrue(hint.endsWith("."))
         // Cut between words, never inside one.
         assertTrue(hint.removeSuffix(".").split(", ").all { it in words })
+    }
+
+    @Test
+    fun `the whole prompt stays within Whisper's 224 tokens - the text before keeps its end, the list its first words`() {
+        val words = (1..100).map { "Begriff${it}x".padEnd(30, 'x') }
+        val hint = OwnWords.hint(words)!!
+        val before = "Das ist der Text davor. ".repeat(10).take(200)
+        val prompt = OwnWords.prompt(hint, before)!!
+        assertTrue(prompt.length <= OwnWords.PROMPT_CHARS, "${prompt.length}")
+        assertTrue(prompt.endsWith(before.trim()))
+        assertTrue(prompt.startsWith(words.first()))
+        // The list is cut between words, and keeps its full stop.
+        val list = prompt.removeSuffix(before.trim()).trim()
+        assertTrue(list.endsWith("."))
+        assertTrue(list.removeSuffix(".").split(", ").all { it in words })
+        // A text before too long for the prompt alone keeps its end, and the list has no room.
+        val long = "x".repeat(OwnWords.PROMPT_CHARS + 50)
+        assertEquals("x".repeat(OwnWords.PROMPT_CHARS), OwnWords.prompt(hint, long))
+        // Short ones go as they are.
+        assertEquals("Anna, Amber. Das ist", OwnWords.prompt("Anna, Amber.", "Das ist"))
+    }
+
+    @Test
+    fun `a text that is only the own words written back is an echo`() {
+        val hint = OwnWords.hint(listOf("Anna Lüdtke", "Kubernetes", "Amber"))
+        assertTrue(OwnWords.echoed("Anna Lüdtke, Kubernetes, Amber.", hint))
+        assertTrue(OwnWords.echoed(" anna lüdtke kubernetes", hint))
+        assertTrue(OwnWords.echoed("Kubernetes, Amber, Amber, Amber.", hint))
+    }
+
+    @Test
+    fun `a dictation that uses the own words is no echo`() {
+        val hint = OwnWords.hint(listOf("Anna Lüdtke", "Kubernetes", "Amber"))
+        assertFalse(OwnWords.echoed("Kubernetes", hint))
+        assertFalse(OwnWords.echoed("Anna Lüdtke", hint))
+        assertFalse(OwnWords.echoed("Kubernetes und Amber", hint))
+        assertFalse(OwnWords.echoed("Anna Lüdtke fragt, ob Kubernetes in Amber läuft.", hint))
+        assertFalse(OwnWords.echoed("", hint))
+        assertFalse(OwnWords.echoed("Anna Lüdtke, Kubernetes, Amber.", null))
+    }
+
+    @Test
+    fun `whisper on the phone takes the words written back on silence for nothing heard`() = runTest {
+        val runtime = object : WhisperRuntime {
+            override fun ensureLoaded(modelPath: String) = Unit
+            override fun transcribe(samples: FloatArray, language: String, audioCtx: Int, threads: Int, prompt: String) = " Anna Lüdtke, Kubernetes."
+            override fun abort() = Unit
+        }
+        val engine = WhisperCppEngine("w", "Whisper", "/m.bin", runtime, threads = 2, shortContext = true, clock = { 0L })
+        val result = engine.transcribe(PcmAudio(ShortArray(16_000) { 500 }), TranscribeOptions(vocabularyHint = "Anna Lüdtke, Kubernetes."))
+        assertEquals(Problem.NothingRecognized, (result.exceptionOrNull() as SttFailure).problem)
+        // Without own words the same text is a dictation.
+        assertTrue(engine.transcribe(PcmAudio(ShortArray(16_000) { 500 }), TranscribeOptions()).isSuccess)
+    }
+
+    @Test
+    fun `a server's answer that is only the own words is nothing heard`() = runTest {
+        val transport = FakeHttpTransport.json("""{"text":"Anna, Amber."}""")
+        val result = OpenAiCompatibleEngine(
+            id = "groq", displayName = "Groq", baseUrl = "https://api.groq.com/openai/v1", modelId = "whisper-large-v3-turbo",
+            transport = transport, apiKeyProvider = { "key" },
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = true, vocabulary = true),
+        ).transcribe(PcmAudio(ShortArray(16_000)), TranscribeOptions(vocabularyHint = "Anna, Amber."))
+        assertEquals(Problem.NothingRecognized, (result.exceptionOrNull() as SttFailure).problem)
     }
 
     @Test

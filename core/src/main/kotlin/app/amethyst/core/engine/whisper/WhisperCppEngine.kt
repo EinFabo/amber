@@ -123,7 +123,8 @@ class WhisperCppEngine(
                 heard?.lowercase()?.takeIf { pieces.size > 1 && LANGUAGE_CODE.matches(it) }?.let { language = it }
             }
             raws += raw
-            WhisperOutput.clean(raw).takeIf { it.isNotBlank() }?.let(texts::add)
+            // The own words written back on silence or a short piece: nothing heard ([OwnWords.echoed]).
+            WhisperOutput.clean(raw).takeIf { it.isNotBlank() && !OwnWords.echoed(it, options.vocabularyHint) }?.let(texts::add)
         }
         val text = ChunkedTranscription.join(texts)
         if (text.isBlank()) {
