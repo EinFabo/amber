@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.amethyst.R
+import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
@@ -72,6 +73,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier) {
     var testText by rememberSaveable { mutableStateOf("") }
+    // What was dictated into it: out of screenshots and the Recents picture while it is there.
+    ShowsDictatedText(testText.isNotEmpty())
 
     // The field is the group's surface itself, not a box inside it.
     SettingsGroup(
@@ -145,6 +148,8 @@ fun DiagnosticsScreen(
     var open by remember { mutableStateOf(initiallyOpen) }
     // The entries (by their time) whose words are shown: none until asked, and never kept.
     var revealed by remember { mutableStateOf(emptySet<Long>()) }
+    // A dictation's words shown: out of screenshots and the Recents picture while they are.
+    ShowsDictatedText(revealed.isNotEmpty() && records.isNotEmpty())
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) {
         if (copied) {

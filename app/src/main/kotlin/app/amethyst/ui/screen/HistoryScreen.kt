@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.history.HistoryEntry
 import app.amethyst.core.history.HistoryKeep
@@ -57,6 +58,8 @@ fun HistoryScreen(
     today: LocalDate = LocalDate.now(zone),
 ) {
     val context = LocalContext.current
+    // Dictated words on screen: out of screenshots and the Recents picture while they are.
+    ShowsDictatedText(entries.isNotEmpty())
     SubPage {
         if (SecurityMode.on(settings)) {
             SectionCard(title = null) {

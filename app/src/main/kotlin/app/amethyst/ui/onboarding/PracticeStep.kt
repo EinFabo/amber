@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EngineKind
@@ -81,6 +82,8 @@ internal fun PracticeStep(
     val dictated = tapOpenAtFirst && practice.state(PracticeTask.TAP) == TaskState.DONE
 
     var text by rememberSaveable { mutableStateOf("") }
+    // What was dictated into it: out of screenshots and the Recents picture while it is there.
+    ShowsDictatedText(text.isNotEmpty())
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     // The field takes focus as the step opens: the keyboard comes up, the flame above it.

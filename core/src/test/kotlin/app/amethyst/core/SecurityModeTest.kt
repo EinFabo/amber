@@ -61,6 +61,14 @@ class SecurityModeTest {
     }
 
     @Test
+    fun `a screen with dictated words is kept out of screenshots, mode or not`() {
+        assertFalse(SecurityMode.hidesWindow(off, showsDictatedText = false))
+        assertTrue(SecurityMode.hidesWindow(off, showsDictatedText = true))
+        assertTrue(SecurityMode.hidesWindow(on, showsDictatedText = false))
+        assertTrue(SecurityMode.hidesWindow(null, showsDictatedText = false))
+    }
+
+    @Test
     fun `before the settings are read, everything acts as if the mode were on`() {
         assertTrue(SecurityMode.on(null as AmethystSettings?))
         assertFalse(SecurityMode.keepsWords(null))

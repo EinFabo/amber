@@ -62,6 +62,16 @@ object SecurityMode {
     fun hidesWindows(settings: AmethystSettings?): Boolean = on(settings)
 
     /**
+     * Whether a window of Amber's is kept out of screenshots and the Recents picture: always in
+     * the security mode ([hidesWindows]), and - mode or not, on every Android version - while it
+     * [showsDictatedText]: the history, Diagnostics with a dictation's words shown, Home's last
+     * dictation, a test field holding text. Android 9 to 12 keep the Recents picture as a file,
+     * and only from 13 can an app turn that picture off; FLAG_SECURE works on all of them.
+     * Elsewhere screenshots stay possible: they are how a problem gets reported.
+     */
+    fun hidesWindow(settings: AmethystSettings?, showsDictatedText: Boolean): Boolean = hidesWindows(settings) || showsDictatedText
+
+    /**
      * Whether, on reading the settings at a start ([before] null: nothing read before), what the
      * mode keeps from being written is looked for again - app names in the statistics, insertion
      * methods per app - and removed if found. The process may have died between switching the

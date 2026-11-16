@@ -155,9 +155,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Diagnostics and the test field show recent dictations: keep them out of the Recents
-        // thumbnail. Screenshots stay possible - they are how a problem gets reported - unless
-        // the security mode hides the window altogether.
+        // From Android 13 no Recents picture at all. Before, and for screenshots, the window is
+        // hidden while a screen shows dictated words (ShowsDictatedText) or the
+        // security mode is on; elsewhere screenshots stay possible - they are how a problem gets
+        // reported.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
         SecureWindow.follow(this)
         // The background runs behind the status and navigation bars; their icons follow the

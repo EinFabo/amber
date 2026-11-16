@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.amethyst.R
+import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
@@ -348,6 +349,7 @@ fun OtherAmbersCard(others: List<AmberVariant>, onOpenSettings: () -> Unit) {
 @Composable
 private fun LastDictationCard(text: String) {
     val context = LocalContext.current
+    ShowsDictatedText(true)
     SettingsGroup(label = null) {
         NavRow(
             title = stringResource(R.string.home_last_dictation),
