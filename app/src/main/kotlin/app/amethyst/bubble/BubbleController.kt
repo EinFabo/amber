@@ -32,7 +32,6 @@ import app.amethyst.core.bubble.QuickSlot
 import app.amethyst.core.bubble.SafeArea
 import app.amethyst.core.bubble.Screen
 import app.amethyst.core.bubble.Box
-import app.amethyst.core.capture.RecordingCue
 import app.amethyst.core.dictation.BubbleTap
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
@@ -104,9 +103,6 @@ class BubbleController(
     private var menuSlots: List<QuickSlot?> = emptyList()
     private var hapticsEnabled = true
     private val haptics = Haptics(service)
-
-    /** When the buzz for the microphone opening is due: once a recording, not at the tap. */
-    private val micCue = RecordingCue()
 
     private var textFieldFocused = false
     private var locked = false
@@ -577,12 +573,6 @@ class BubbleController(
         if (listening) showSparks()
         sparkView.listening = listening
         if (state is DictationState.Failed) sparkView.extinguish()
-        // The microphone is really open: one buzz, so the first word is not said into nothing.
-        if (state is DictationState.Listening && state.open) {
-            if (micCue.opened() != null && settings.buzzOnOpen) haptic(Haptics.Kind.OPEN)
-        } else if (state !is DictationState.Listening) {
-            micCue.ended()
-        }
         when (state) {
             is DictationState.Done, is DictationState.Commanded -> haptic(Haptics.Kind.CONFIRM)
             is DictationState.Failed -> haptic(Haptics.Kind.REJECT)

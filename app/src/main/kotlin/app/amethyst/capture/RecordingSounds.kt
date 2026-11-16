@@ -8,8 +8,10 @@ import android.util.Log
 
 /**
  * The start and stop tones (Settings -> Recording, off by default): Android's own tone
- * generator - no sound file, so nothing to license - on the system sounds' stream, quiet, so the
- * phone's volume and silent mode decide as for any other system sound. A generator per tone,
+ * generator - no sound file, so nothing to license - on the media stream, quiet. Not the system
+ * sounds' stream: on a phone set to vibrate or silent it plays nothing, and someone who turned
+ * the tones on did not hear them (Fabi, Pixel 9a, 2026-11-16). The media volume is the one the
+ * volume keys change, so it is turned down the usual way. A generator per tone,
  * released right after it: nothing is held between dictations.
  */
 class RecordingSounds {
@@ -27,7 +29,7 @@ class RecordingSounds {
     /** Plays [tone]; any thread. A phone that refuses a tone generator plays nothing. */
     fun play(tone: Tone) {
         main.post {
-            val generator = runCatching { ToneGenerator(AudioManager.STREAM_SYSTEM, VOLUME) }
+            val generator = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, VOLUME) }
                 .onFailure { Log.w(TAG, "no tone generator: ${it.javaClass.simpleName}") }
                 .getOrNull() ?: return@post
             if (!generator.startTone(tone.type, tone.ms)) {

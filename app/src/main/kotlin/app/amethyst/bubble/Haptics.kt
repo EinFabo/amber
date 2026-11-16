@@ -31,8 +31,6 @@ internal class Haptics(context: Context) {
         CONFIRM,
         /** Refused or failed. */
         REJECT,
-        /** The microphone is really open: a short, light tick - only felt, never in the way. */
-        OPEN,
     }
 
     private val vibrator: Vibrator? = runCatching {
@@ -58,23 +56,13 @@ internal class Haptics(context: Context) {
     }
 
     private fun effect(kind: Kind): VibrationEffect =
-        if (kind == Kind.OPEN) {
-            // Half strength where the motor can be dimmed; else the system's lightest tick.
-            if (vibrator?.hasAmplitudeControl() == true) {
-                VibrationEffect.createOneShot(OPEN_MS, OPEN_AMPLITUDE)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
-            } else {
-                VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             VibrationEffect.createPredefined(
                 when (kind) {
                     Kind.TICK -> VibrationEffect.EFFECT_TICK
                     Kind.CLICK -> VibrationEffect.EFFECT_CLICK
                     Kind.CONFIRM -> VibrationEffect.EFFECT_HEAVY_CLICK
                     Kind.REJECT -> VibrationEffect.EFFECT_DOUBLE_CLICK
-                    Kind.OPEN -> VibrationEffect.EFFECT_TICK // made above
                 },
             )
         } else {
@@ -83,16 +71,12 @@ internal class Haptics(context: Context) {
                 Kind.CLICK -> VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE)
                 Kind.CONFIRM -> VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
                 Kind.REJECT -> VibrationEffect.createWaveform(longArrayOf(0, 20, 60, 20), -1)
-                Kind.OPEN -> VibrationEffect.createOneShot(OPEN_MS, VibrationEffect.DEFAULT_AMPLITUDE) // made above
             }
         }
 
     private companion object {
         const val TAG = "Amber"
 
-        /** The microphone's tick: short and light (Fabi, 2026-11-16: the first one, 45 ms at full strength, was too strong). */
-        const val OPEN_MS = 20L
-        const val OPEN_AMPLITUDE = 70
 
         val ACCESSIBILITY: VibrationAttributes? =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
