@@ -227,6 +227,16 @@ class ChatCleanupTest {
     }
 
     @Test
+    fun `punctuation said as a word is left to the phone's rules`() {
+        // A model that turned "Punkt" into "." itself made "Punkt 2" ".2" (Pixel 9a, 2026-11-16).
+        for (style in WritingStyle.entries) {
+            val prompt = ChatCleanup.systemPrompt(style, null)
+            assertContains(prompt, "stays a word, also before a number: it is turned into the mark afterwards.")
+            assertFalse("spoken line breaks" in prompt)
+        }
+    }
+
+    @Test
     fun `each style says what it may not change`() {
         assertContains(ChatCleanup.styleRule(WritingStyle.CASUAL), "no synonyms, slang or English words they did not use")
         assertContains(ChatCleanup.styleRule(WritingStyle.FORMAL), "Keep du or Sie as spoken")

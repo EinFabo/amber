@@ -201,7 +201,10 @@ class ChatCleanup(
          * "scratch that" are Amber's to carry out, before the cleanup ([ScratchThat]). One still
          * in the text is a sentence's words, or written in a way Amber does not know - better
          * typed than half carried out: a model that dropped just the phrase kept the sentence
-         * it was meant to take back (Pixel 9a, 2026-11-16).
+         * it was meant to take back (Pixel 9a, 2026-11-16). Punctuation said as a word is
+         * Amber's too ([SpokenPunctuation], after the cleanup, with its rules for where the word
+         * is a word, "Punkt 2" among them): a model doing it first is how "Punkt 2" most likely
+         * became ".2" (Pixel 9a, 2026-11-16).
          */
         private const val WHAT_TO_FIX =
             "What to fix: punctuation and capitalization; filler words, stutters and repeated words.\n" +
@@ -210,11 +213,14 @@ class ChatCleanup(
                 "keep only what they settled on and nothing of the dropped version. A \"Nein\" or \"No\" " +
                 "that answers or refuses is content and stays. \"Streich das\" or \"scratch that\" still in " +
                 "the text is content too: keep it.\n" +
+                "Punctuation said as a word (\"Komma\", \"Punkt\", \"Fragezeichen\", \"neue Zeile\", " +
+                "\"comma\", \"period\", \"new line\") stays a word, also before a number: it is turned into the " +
+                "mark afterwards.\n" +
                 "Words: change a word only when it makes no sense in context and the right word sounds " +
                 "alike; when unsure, keep it.\n" +
                 "Layout: one paragraph. Only when the speaker enumerates three or more items, or says " +
                 "\"erstens/zweitens\", put each item on its own line starting with \"- \", in the spoken " +
-                "order, without a heading they did not say. Keep spoken line breaks; a greeting or " +
+                "order, without a heading they did not say. Keep the text's line breaks; a greeting or " +
                 "sign-off the speaker said may stand on its own line."
 
         /**

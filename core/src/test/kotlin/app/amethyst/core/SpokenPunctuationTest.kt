@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.SettingsCodec
+import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.NormalizeOptions
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlin.test.Test
@@ -136,7 +137,6 @@ class SpokenPunctuationTest {
     fun `german numbers around Komma and Punkt stay - a decimal, a time`() {
         listOf(
             "Das kostet drei Komma fünf Euro",
-            "Das sind 3 Komma 5 Prozent",
             "Wir treffen uns um Punkt acht",
             "Er kam Punkt 12 Uhr",
             "Er kam Punkt halb drei",
@@ -300,5 +300,88 @@ class SpokenPunctuationTest {
         assertFalse("spokenPunctuation" in old)
         assertTrue(SettingsCodec.decode(old, listOf("de-DE")).words.spokenPunctuation)
         assertFalse(AmethystSettings().let { it.copy(words = it.words.copy(spokenPunctuation = false)) }.normalizeOptions().spokenPunctuation)
+    }
+
+    // --- Numbers in digits (Pixel 9a, 2026-11-16: "Punkt 2" came out as ".2") -----------
+
+    @Test
+    fun `Punkt and Komma before a number in digits stay words`() {
+        listOf(
+            "Das ist Punkt 2",
+            "Siehe Punkt 2 der Liste",
+            "Wir sprechen über Punkt 2 und Punkt 3",
+            "Er kam Punkt 12 Uhr",
+            "Wir treffen uns Punkt 8",
+            "Seite 3 Punkt 4",
+            "Kapitel 3 Punkt 2 ist neu",
+            "Das war Komma 5",
+            "Ich meine Punkt 2, nicht Punkt 3",
+            "Das ist Punkt 2.",
+            "Das ist Punkt 2a",
+            "Das ist Punkt 2-3",
+            "Das ist Punkt 10%",
+        ).forEach { assertEquals(it, de(it), it) }
+        // The recognizer's own marks next to the word change nothing.
+        assertEquals("Das ist Punkt, 2", de("Das ist Punkt, 2"))
+        assertEquals("Das ist Punkt. 2", de("Das ist Punkt. 2"))
+        // In English, too.
+        listOf("It is period 2 today", "See comma 5", "Version 3 period 2").forEach { assertEquals(it, en(it), it) }
+    }
+
+    @Test
+    fun `no dot is ever glued to a number`() {
+        val said = listOf(
+            "Punkt 2", "Das ist Punkt 2", "das ist Punkt 2 Punkt", "Punkt 2 Punkt 3", "Seite 3 Punkt 4 Punkt",
+            "Erstens Punkt 1 dann Punkt 2", "Kapitel Punkt 2", "Mach Punkt 2 neue Zeile Punkt 3",
+        )
+        val glued = Regex("""\.\p{N}""")
+        for (raw in said) {
+            for (formatted in listOf(false, true)) {
+                val out = de(raw, keepLineBreaks = formatted)
+                assertFalse(glued.containsMatchIn(out), "$raw -> $out")
+            }
+        }
+    }
+
+    @Test
+    fun `a German decimal in digits is written as one`() {
+        assertEquals("Das sind 3,5 Prozent", de("Das sind 3 Komma 5 Prozent"))
+        assertEquals("Es kostet 12,50 Euro.", de("Es kostet 12 Komma 50 Euro Punkt"))
+        assertEquals("Die Note ist 1,3", de("Die Note ist 1 komma 3"))
+        // Words, the recognizer's marks, or more than a number around it: left as said.
+        listOf(
+            "Das kostet drei Komma fünf Euro",
+            "Das sind 3, Komma, 5 Prozent",
+            "Das sind 3.5 Komma 5 Prozent",
+            "Seite 3 Punkt 4",
+        ).forEach { assertEquals(it, de(it), it) }
+        // Not in English, where a decimal takes a point.
+        assertEquals("It was 3 comma 5", en("It was 3 comma 5"))
+    }
+
+    /**
+     * Parakeet detects the language itself, so the hint is the phone's: on a phone set to
+     * English alone, "en-DE". Normalized as English, German "Komma" stayed a word and "um"
+     * went as an English filler; the words decide first, as they do for the cleanup.
+     */
+    @Test
+    fun `German words on an English phone are normalized as German`() {
+        val raw = "Hallo Anna Komma ich komme um drei Fragezeichen"
+        fun normalized(hint: String?) = TranscriptNormalizer.normalize(raw, on, language = LanguageGuess.forDictation(raw, null, hint))
+
+        assertEquals("Hallo Anna, ich komme um drei?", normalized("en-DE"))
+        assertEquals("Hallo Anna, ich komme um drei?", normalized("en-DE,de-DE"))
+        assertEquals("Hallo Anna, ich komme um drei?", normalized(null))
+        // Before, the phone's English alone settled it.
+        assertEquals("Hallo Anna Komma ich komme drei Fragezeichen", TranscriptNormalizer.normalize(raw, on, language = "en-DE"))
+        // Short, with few small words to go by: still German, the English hint contradicted.
+        val short = "Ich komme um drei Punkt"
+        assertEquals("Ich komme um drei.", TranscriptNormalizer.normalize(short, on, language = LanguageGuess.forDictation(short, null, "en-DE")))
+        // English words stay English with a German hint.
+        val english = "I think we should meet at the station comma right"
+        assertEquals(
+            "I think we should meet at the station, right",
+            TranscriptNormalizer.normalize(english, on, language = LanguageGuess.forDictation(english, null, "de-DE")),
+        )
     }
 }

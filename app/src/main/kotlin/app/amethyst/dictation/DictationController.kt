@@ -1828,7 +1828,14 @@ class DictationController(
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.normalizeOptions(),
-            language = transcript.detectedLanguage ?: settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
+            // The words first, as for the cleanup: a recognizer that detects the language itself
+            // (Parakeet) is otherwise named by the phone's - English on a phone set to English
+            // alone, where German "Komma" stayed a word and "um" went as an English filler.
+            language = LanguageGuess.forDictation(
+                transcript.text,
+                transcript.detectedLanguage,
+                settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
+            ),
             // Whether the field takes them is decided at insertion (InsertionEngine).
             keepLineBreaks = transcript.formatted,
         )

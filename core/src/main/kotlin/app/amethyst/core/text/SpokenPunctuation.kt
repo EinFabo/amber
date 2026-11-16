@@ -15,10 +15,12 @@ package app.amethyst.core.text
  * - not after an article, a possessive, a quantifier or a preposition ("ein Komma", "zum
  *   Punkt", "the period", "without comma"), nor after an attributive adjective ("guter Punkt",
  *   "ein großes Fragezeichen", "a big question mark", "the Oxford comma");
- * - "Komma", "Punkt", "comma" and "period" not before a number ("drei Komma fünf", "Punkt
- *   zwölf", "eins Komma fünfundzwanzig"), "Komma" not after one ("in null Komma nichts"),
- *   "Punkt" not before a time ("um Punkt Mitternacht", "Punkt Viertel nach acht"), and no
- *   mark before "für", "von", "of", "for" ("Punkt für Punkt", "period of time");
+ * - "Komma", "Punkt", "comma" and "period" not before a number, in words or digits ("drei
+ *   Komma fünf", "Punkt zwölf", "Punkt 2", "Seite 3 Punkt 4", "Komma 5"), "Komma" not after
+ *   one ("in null Komma nichts") - except in German between two numbers in digits, which is
+ *   a decimal: "3 Komma 5 Prozent" is "3,5 Prozent". "Punkt" not before a time ("um Punkt
+ *   Mitternacht", "Punkt Viertel nach acht"), and no mark before "für", "von", "of", "for"
+ *   ("Punkt für Punkt", "period of time");
  * - English words in lower case, unless they follow a sentence's end ("done. Period.") - a
  *   capital in the middle of a sentence is a name ("Comma", "New Line");
  * - English "period" and "full stop" only at the end, before a mark (said or written) or before
@@ -93,6 +95,14 @@ object SpokenPunctuation {
         while (from <= out.length) {
             val match = regex.find(out, from) ?: break
             val mark = table.getValue(match.value.lowercase().replace(Regex("[ \\t]+"), " "))
+            if (german && mark == Mark.COMMA) {
+                val decimal = decimal(out, match)
+                if (decimal != null) {
+                    out = decimal.first
+                    from = decimal.second
+                    continue
+                }
+            }
             if (!converts(out, match, mark, german)) {
                 from = match.range.last + 1
                 continue
@@ -113,6 +123,25 @@ object SpokenPunctuation {
             trailing = if (rest.isBlank() && !mark.breaks) mark.text.single() else null
         }
         return Result(out, lineBreaks, trailing?.takeIf { out.trimEnd().endsWith(it) })
+    }
+
+    /** A number in digits right before, as a word of its own ("3", not "3.5", "A3" or "3,"). */
+    private val DIGITS_BEFORE = Regex("(?<![\\p{L}\\p{N}_.,'’-])\\p{N}+[ \\t]+$")
+
+    /** A number in digits right after ("5", "50", "5%"). */
+    private val DIGITS_AFTER = Regex("^[ \\t]+\\p{N}")
+
+    /**
+     * "3 Komma 5": a German decimal said aloud, written "3,5" - the text and where to go on
+     * after the comma. Null unless digits stand right before and after with spaces only: "3,
+     * Komma, 5" or "drei Komma fünf" stay as they are.
+     */
+    private fun decimal(text: String, match: MatchResult): Pair<String, Int>? {
+        val before = text.substring(0, match.range.first)
+        val after = text.substring(match.range.last + 1)
+        if (!DIGITS_BEFORE.containsMatchIn(before) || !DIGITS_AFTER.containsMatchIn(after)) return null
+        val head = before.trimEnd(' ', '\t') + ","
+        return head + after.trimStart(' ', '\t') to head.length
     }
 
     /** Whether the words at [match] are the mark rather than a word of the sentence. */
