@@ -283,12 +283,14 @@ class DictationController(
     private var commandRecorded = false
 
     /**
-     * What the bubble does on a tap. True when it started a recording rather than stopped one.
+     * What the bubble does on a tap, and what it came to ([BubbleTap.Result]): a recording
+     * started, something stopped, or - while a dictation is being written - nothing, said with
+     * the hint how to cancel.
      * While a command is being carried out a tap stops it at once - a misheard "zwanzigmal
      * lauter" must have a way out - and the second tap of a double tap given for that is no
      * new recording.
      */
-    fun toggle(): Boolean {
+    fun toggle(): BubbleTap.Result {
         val now = SystemClock.uptimeMillis()
         val state = _state.value
         // A run that is still starting - its microphone being opened, nothing working on it
@@ -310,12 +312,16 @@ class DictationController(
                 mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
             }
             BubbleTap.Action.NOTHING -> Unit
+            BubbleTap.Action.STILL_WORKING -> {
+                toast(R.string.toast_still_working)
+                return BubbleTap.Result.STILL_WORKING
+            }
             BubbleTap.Action.START -> {
                 start()
-                return _state.value is DictationState.Starting
+                return if (_state.value is DictationState.Starting) BubbleTap.Result.STARTED else BubbleTap.Result.HANDLED
             }
         }
-        return false
+        return BubbleTap.Result.HANDLED
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
@@ -407,6 +413,22 @@ class DictationController(
         // begin before the coroutine gets its first dispatch.
         _state.value = DictationState.Starting
         job = scope.launch { run(source, token) }
+    }
+
+    /**
+     * Working or stuck: once this run's wait passes twice its estimate ([WaitProgress.stuck]),
+     * one toast says how to cancel - the ring says it too, pulsing slower. Ends with the run.
+     */
+    private suspend fun watchStuck() {
+        while (true) {
+            delay(STUCK_CHECK_MS)
+            val waiting = wait
+            if (_state.value is DictationState.Transcribing && waiting?.stuck() == true) {
+                Log.i(TAG, "still working past twice the estimate")
+                toast(R.string.toast_still_working, long = true)
+                return
+            }
+        }
     }
 
     /**
@@ -716,6 +738,9 @@ class DictationController(
         commandRecorded = false
 
         val settings = graph.settings.value
+        // Watches this run's wait, and ends with the run.
+        val stuckWatch = scope.launch { watchStuck() }
+        currentCoroutineContext()[Job]?.invokeOnCompletion { stuckWatch.cancel() }
         val routing = graph.engineFor(runPackage)
         runRouting = routing
         trace?.routing = routing
@@ -2045,6 +2070,9 @@ class DictationController(
         const val PROXY_EXIT_TIMEOUT_MS = 1_500L
         const val PROXY_POLL_MS = 50L
         const val FOCUS_SETTLE_MS = 200L
+
+        /** How often a wait is looked at for being stuck. */
+        const val STUCK_CHECK_MS = 500L
 
         /** How much of a heard command a toast or message quotes. */
         const val SHOWN_CHARS = 60

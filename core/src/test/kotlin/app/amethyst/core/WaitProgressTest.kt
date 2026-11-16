@@ -5,6 +5,7 @@ import app.amethyst.core.engine.WaitProgress
 import app.amethyst.core.engine.WaitProgress.Step
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class WaitProgressTest {
@@ -15,6 +16,42 @@ class WaitProgressTest {
     private fun at(ms: Long): Float {
         now = ms
         return wait.value()
+    }
+
+    @Test
+    fun `stuck past twice the estimate, never before six seconds`() {
+        wait.plan(Step.UPLOAD to 2_000, Step.RECOGNIZE to 3_000)
+        now = 10_000
+        assertFalse(wait.stuck(), "exactly twice the estimate is still working")
+        now = 10_001
+        assertTrue(wait.stuck())
+    }
+
+    @Test
+    fun `a quick estimate is not stuck before six seconds`() {
+        wait.plan(Step.RECOGNIZE to 500)
+        now = 5_900
+        assertFalse(wait.stuck())
+        now = 6_001
+        assertTrue(wait.stuck())
+    }
+
+    @Test
+    fun `a changed course moves the threshold, counted from the start of the wait`() {
+        wait.plan(Step.RECOGNIZE to 4_000)
+        now = 7_000
+        // The fallback takes over with 6 s more expected: the wait is expected to end at 13 s.
+        wait.plan(Step.RECOGNIZE to 6_000)
+        now = 25_000
+        assertFalse(wait.stuck())
+        now = 26_001
+        assertTrue(wait.stuck())
+    }
+
+    @Test
+    fun `nothing planned is never stuck`() {
+        now = 60_000
+        assertFalse(wait.stuck())
     }
 
     @Test

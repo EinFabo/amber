@@ -51,8 +51,11 @@ class BubbleTapTest {
     }
 
     @Test
-    fun `a tap while a dictation is being written does not throw its words away`() {
-        assertEquals(Action.STOP_RECORDING, tap(working = true))
+    fun `a tap while a dictation is being written does not throw its words away, it says how to cancel`() {
+        assertEquals(Action.STILL_WORKING, tap(working = true))
+        // Still recording: the tap is the stop, as always.
+        assertEquals(Action.STOP_RECORDING, tap(working = true, listening = true))
+        assertEquals(Action.STOP_RECORDING, tap(working = true, starting = true))
     }
 
     @Test

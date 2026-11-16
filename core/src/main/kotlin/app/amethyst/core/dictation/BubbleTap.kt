@@ -26,6 +26,24 @@ object BubbleTap {
 
         /** The second tap of the double tap that just stopped a command: starts nothing. */
         NOTHING,
+
+        /**
+         * A dictation past its recording is being written: a tap changes nothing - its words
+         * are not thrown away - but buzzes and says how to cancel (hold the bubble).
+         */
+        STILL_WORKING,
+    }
+
+    /** What the tap came to, for the bubble's buzz. */
+    enum class Result {
+        /** A recording began: a quick second tap may make it a command. */
+        STARTED,
+
+        /** It stopped or ended something, or did nothing on purpose. */
+        HANDLED,
+
+        /** Nothing to do now: refused with a buzz and the hint ([Action.STILL_WORKING]). */
+        STILL_WORKING,
     }
 
     /**
@@ -34,6 +52,7 @@ object BubbleTap {
      * [secondTapOfStop]: see [CommandTrigger.isSecondTapOfStop].
      */
     fun onTap(working: Boolean, starting: Boolean, listening: Boolean, mode: RunMode, secondTapOfStop: Boolean): Action {
+        if (working && !starting && !listening && mode == RunMode.DICTATION) return Action.STILL_WORKING
         if (working || starting) {
             return when (CommandTrigger.tapInRun(mode, recording = starting || listening)) {
                 CommandTrigger.TapInRun.STOP_RECORDING -> Action.STOP_RECORDING

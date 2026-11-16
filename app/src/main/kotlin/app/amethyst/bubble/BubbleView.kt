@@ -160,7 +160,7 @@ class BubbleView(context: Context) : View(context) {
         when (visual) {
             BubbleVisual.TRANSCRIBING -> {
                 val work = work
-                if (work != null) drawProgress(canvas, r, work.value(), elapsed)
+                if (work != null) drawProgress(canvas, r, work.value(), elapsed, stuck = work.stuck() && !still)
                 else drawFuse(canvas, r, elapsed, still)
             }
             BubbleVisual.DONE -> if (!still) {
@@ -184,7 +184,8 @@ class BubbleView(context: Context) : View(context) {
             BubbleVisual.IDLE -> drawFlame(canvas, r)
             BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
             BubbleVisual.PAUSED -> drawPause(canvas, r)
-            BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else elapsed)
+            // Stuck, the flame burns slower too: still alive, no longer hurrying.
+            BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else if (work?.stuck() == true) elapsed * STUCK_FLICKER else elapsed)
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
@@ -289,10 +290,15 @@ class BubbleView(context: Context) : View(context) {
         canvas.drawCircle(cx + cos(rad).toFloat() * fr, cy + sin(rad).toFloat() * fr, fuse.strokeWidth * 1.1f, spark)
     }
 
-    /** The rim as a progress ring: a faint track, the filled part, a spark at its head. */
-    private fun drawProgress(canvas: Canvas, r: Float, progress: Float, elapsed: Float) {
+    /**
+     * The rim as a progress ring: a faint track, the filled part, a spark at its head. [stuck]:
+     * past twice the estimate the ring breathes, slowly - working, not stuck for good; a hold
+     * cancels ([app.amethyst.core.engine.WaitProgress.stuck]).
+     */
+    private fun drawProgress(canvas: Canvas, r: Float, progress: Float, elapsed: Float, stuck: Boolean = false) {
         val fr = r * Fire.FUSE_RADIUS
-        val enter = (elapsed / ENTER_MS).coerceIn(0f, 1f)
+        val breath = if (stuck) STUCK_LOW + (1f - STUCK_LOW) * (0.5f + 0.5f * cos(elapsed / STUCK_PULSE_MS * 2 * PI).toFloat()) else 1f
+        val enter = (elapsed / ENTER_MS).coerceIn(0f, 1f) * breath
         bounds.set(cx - fr, cy - fr, cx + fr, cy + fr)
         fuse.strokeCap = Paint.Cap.ROUND
         fuse.alpha = (255 * enter * Fire.TRACK_ALPHA).toInt()
@@ -506,6 +512,11 @@ class BubbleView(context: Context) : View(context) {
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f
         const val WORKING_FRAME_MS = 33L
+
+        /** Stuck: the ring breathes once in this long, down to this much of its light, and the flame flickers at this speed. */
+        const val STUCK_PULSE_MS = 2_400f
+        const val STUCK_LOW = 0.35f
+        const val STUCK_FLICKER = 0.5f
         const val MIN_OPACITY = 0.2f
         const val STILL_PROGRESS_MS = 250L
 

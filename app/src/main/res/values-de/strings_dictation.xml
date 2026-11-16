@@ -64,4 +64,5 @@
     <string name="fallback_no_credit">Kein Guthaben bei %1$s - stattdessen mit %2$s erkannt</string>
     <string name="fallback_model_gone">%1$s hat das Modell nicht - stattdessen mit %2$s erkannt</string>
     <string name="toast_copy_last">Nicht eingefügt - Bubble halten, Letztes kopieren, selbst einfügen</string>
+    <string name="toast_still_working">Läuft noch - Bubble halten zum Abbrechen</string>
 </resources>

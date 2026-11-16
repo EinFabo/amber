@@ -66,4 +66,5 @@
     <string name="fallback_no_credit">No credit left at %1$s - recognized with %2$s instead</string>
     <string name="fallback_model_gone">%1$s lacks the model - recognized with %2$s instead</string>
     <string name="toast_copy_last">Not inserted - hold the bubble, Copy last, then paste it</string>
+    <string name="toast_still_working">Still working - hold the bubble to cancel</string>
 </resources>

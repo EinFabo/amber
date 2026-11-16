@@ -165,6 +165,28 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: a dictation a field refused, kept on Home with Copy for ten minutes. */
+    @Test
+    fun homeLastDictation() = shoot("x-home-last-dictation", AMBER) {
+        HomeScreen(
+            setup = ready, actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+            lastDictation = "Bin in zehn Minuten da, bring bitte den Schlüssel mit und sag Anna Bescheid, dass wir später essen.",
+        )
+    }
+
+    /** Not part of the listing set: the cleanup's key was refused, said on top until a cleanup runs again. */
+    @Test
+    fun settingsAttentionCleanup() = shoot("x-settings-attention-cleanup", R.string.title_settings) {
+        SettingsScreen(
+            settings = settings, setup = ready, version = "0.34.0", releaseChannel = ReleaseChannel.OTHER,
+            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            cleanupTrouble = app.amethyst.core.text.CleanupTrouble.Open(app.amethyst.core.text.CleanupTrouble.Cause.KEY_REFUSED, "Groq"),
+        )
+    }
+
     @Test
     fun statistics() = shoot("3-statistics", SettingsPage.STATS.title()) {
         StatsScreen(

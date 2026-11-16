@@ -33,6 +33,7 @@ import app.amethyst.core.bubble.SafeArea
 import app.amethyst.core.bubble.Screen
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.capture.RecordingCue
+import app.amethyst.core.dictation.BubbleTap
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
 import kotlin.math.roundToInt
@@ -45,8 +46,8 @@ import kotlin.math.roundToInt
  */
 class BubbleController(
     private val service: AccessibilityService,
-    /** Returns whether the tap started a recording (not stopped one) - for the double tap. */
-    private val onTap: () -> Boolean,
+    /** What the tap came to: a recording started (for the double tap), or refused while working. */
+    private val onTap: () -> BubbleTap.Result,
     /** A second tap right after a tap that started recording; false when it made no command. */
     private val onDoubleTap: () -> Boolean,
     /** The quick menu's slots for the state now, in the app in front ([currentApp]). */
@@ -665,7 +666,10 @@ class BubbleController(
                     haptic(Haptics.Kind.CLICK)
                     // The recording the first tap started becomes a command instead of stopping.
                     val wasDoubleTap = event.doubleTap && onDoubleTap()
-                    gesture.tapDone(at, startedRecording = !wasDoubleTap && onTap())
+                    val result = if (wasDoubleTap) null else onTap()
+                    // Being written: the tap changes nothing, and says so with a buzz and the hint.
+                    if (result == BubbleTap.Result.STILL_WORKING) haptic(Haptics.Kind.REJECT)
+                    gesture.tapDone(at, startedRecording = result == BubbleTap.Result.STARTED)
                 }
 
                 is BubbleGesture.Event.Drag -> {

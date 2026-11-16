@@ -31,12 +31,20 @@ class WaitProgress(private val clock: () -> Long) {
     private var ceiling = 1f
     private var since = 0L
 
+    // For [stuck]: when the wait began, and when the latest plan expected it to end.
+    private var waitFrom = -1L
+    private var expectedEnd = 0L
+
     /**
      * The steps still ahead, in order, with their expected milliseconds. The first begins at
      * once; what the ring shows so far stays.
      */
     @Synchronized
     fun plan(vararg steps: Pair<Step, Long>) {
+        val now = clock()
+        if (waitFrom < 0) waitFrom = now
+        // A changed course (the fallback, the cleanup's own estimate) moves the expected end.
+        expectedEnd = now + steps.sumOf { (_, ms) -> ms.coerceAtLeast(1) }
         offset = valueLocked()
         parts = steps.map { (step, ms) -> Part(step, ms.coerceAtLeast(1)) }
         current = -1
@@ -63,6 +71,18 @@ class WaitProgress(private val clock: () -> Long) {
         floor = done.coerceIn(0f, 1f).coerceAtLeast(minOf(partNow, upTo.coerceIn(0f, 1f)))
         ceiling = upTo.coerceIn(floor, 1f)
         since = clock()
+    }
+
+    /**
+     * Working or stuck: the wait has run past twice what was expected of it - and at least
+     * [STUCK_AFTER_MS], so a quick recognition that takes a second instead of half a one is no
+     * alarm. The ring then pulses slower and the bubble says once that it can be cancelled.
+     */
+    @Synchronized
+    fun stuck(): Boolean {
+        if (waitFrom < 0) return false
+        val waited = clock() - waitFrom
+        return waited > maxOf(2 * (expectedEnd - waitFrom), STUCK_AFTER_MS)
     }
 
     /** Where the ring stands, 0..[CEILING]. */
@@ -98,6 +118,9 @@ class WaitProgress(private val clock: () -> Long) {
     companion object {
         /** Short of full: the tick shows completion. */
         const val CEILING = 0.98f
+
+        /** Never stuck before this long a wait, whatever was expected. */
+        const val STUCK_AFTER_MS = 6_000L
 
         private const val LINEAR_UNTIL = 0.9f
 
