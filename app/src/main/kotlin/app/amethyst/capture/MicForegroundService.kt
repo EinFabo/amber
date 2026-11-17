@@ -62,15 +62,21 @@ class MicForegroundService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * The channel at the lowest importance: no icon in the status bar, folded away in the shade.
+     * A channel's importance cannot be lowered once it exists, so this is a new channel; the old
+     * one, at low importance, goes.
+     */
     private fun createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(OLD_CHANNEL_ID) != null) manager.deleteNotificationChannel(OLD_CHANNEL_ID)
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_MIN,
             ).apply {
                 description = getString(R.string.notification_channel_description)
                 setShowBadge(false)
@@ -102,7 +108,10 @@ class MicForegroundService : Service() {
 
     companion object {
         private const val TAG = "Amber"
-        private const val CHANNEL_ID = "amethyst_ready"
+        private const val CHANNEL_ID = "amber_ready_quiet"
+
+        /** Until 0.34: the same notification at low importance, with an icon in the status bar. */
+        private const val OLD_CHANNEL_ID = "amethyst_ready"
         private const val NOTIFICATION_ID = 1001
 
         /** Must be called while the app is visible, or Android 14+ will refuse it. */

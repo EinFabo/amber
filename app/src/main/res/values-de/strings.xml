@@ -10,7 +10,7 @@
     <string name="notification_channel_name">Amber bereit</string>
     <string name="notification_channel_description">Hält das Mikrofon für die Diktier-Bubble bereit</string>
     <string name="notification_ready_title">Amber ist bereit</string>
-    <string name="notification_ready_text">Tippe auf die Bubble, um zu diktieren</string>
+    <string name="notification_ready_text">Hält das Mikrofon für die Bubble bereit</string>
 
     <string name="update_channel_name">Updates</string>
     <string name="update_channel_description">Wenn eine neue Version von Amber auf GitHub erschienen ist</string>

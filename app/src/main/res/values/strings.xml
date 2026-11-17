@@ -12,7 +12,7 @@
     <string name="notification_channel_name">Amber ready</string>
     <string name="notification_channel_description">Keeps the microphone available for the dictation bubble</string>
     <string name="notification_ready_title">Amber is ready</string>
-    <string name="notification_ready_text">Tap the bubble to dictate</string>
+    <string name="notification_ready_text">Keeps the microphone ready for the bubble</string>
 
     <string name="update_channel_name">Updates</string>
     <string name="update_channel_description">When a new version of Amber is out on GitHub</string>
