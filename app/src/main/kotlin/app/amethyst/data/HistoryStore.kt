@@ -112,7 +112,7 @@ class HistoryStore(private val context: Context) {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val KEYSTORE = "AndroidKeyStore"
         const val PREFIX = "amber.history.day."
         const val LEGACY_ALIAS = "amber.history"

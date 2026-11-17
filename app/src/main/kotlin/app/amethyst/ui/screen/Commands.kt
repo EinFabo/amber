@@ -70,10 +70,10 @@ fun VoiceCommandsScreen(
             "Where no text field is, one tap on the bubble is enough; in a text field, double-tap. The bubble " +
                 "shows without a text field only if you switch that on under Bubble (\u201CAlso without a text " +
                 "field, for voice commands\u201D).\n\n" +
-                "Amber reads nothing the screen shows except the field a text command changes - the one you " +
+                "Embersay reads nothing the screen shows except the field a text command changes - the one you " +
                 "started the command in, never a password field. To scroll, it looks only for what can scroll and, " +
                 "in the part it scrolls, where the items sit, to tell whether it moved. Settings pages only open: " +
-                "Amber never switches Wi-Fi or Bluetooth itself. It never taps buttons or confirms dialogs, and it " +
+                "Embersay never switches Wi-Fi or Bluetooth itself. It never taps buttons or confirms dialogs, and it " +
                 "deletes only the words you name - but a swipe does what your own swipe would do in that app: in a " +
                 "mail list it may archive a mail.\n\n" +
                 "Add a number for more - “zehnmal runter”, “swipe 5 times left” - up to 20. " +
@@ -82,7 +82,7 @@ fun VoiceCommandsScreen(
                 "WhatsApp” - and run in that order; the first that cannot be done stops the rest. Put “und” or " +
                 "“dann” between them: only text, media, volume and flashlight commands go without (“select all " +
                 "copy”). Among several, an app needs “öffne” or “open” and its name as installed; the same command " +
-                "twice runs once. “Alles markieren” is never followed by cut or paste in one go - Amber does not " +
+                "twice runs once. “Alles markieren” is never followed by cut or paste in one go - Embersay does not " +
                 "empty or replace a whole field at once.",
         )
 
@@ -123,14 +123,14 @@ fun VoiceCommandsConsent(onAgree: () -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         containerColor = AmberPalette.Surface,
         shape = AmberShapes.Card,
-        title = { Text("Let Amber act for you?", color = AmberPalette.Text) },
+        title = { Text("Let Embersay act for you?", color = AmberPalette.Text) },
         text = {
             Column(
                 Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Hint(
-                    "With voice commands on, Amber carries out what you say after a double-tap on the bubble: " +
+                    "With voice commands on, Embersay carries out what you say after a double-tap on the bubble: " +
                         "go back or home, show recent apps or quick settings, show or close notifications, lock the " +
                         "screen, take a screenshot, split the screen, show the power menu; open an app or a settings " +
                         "page (Wi-Fi, Bluetooth, sound, display, battery); scroll, page or swipe; play, pause, skip, " +

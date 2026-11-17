@@ -54,7 +54,7 @@ class UpdateNotifier(private val context: Context) {
             .build()
         // One id: a newer version replaces the notice of an older one.
         return runCatching { manager.notify(NOTIFICATION_ID, notification) }
-            .onFailure { Log.w("Amber", "update notification not posted: ${it.javaClass.simpleName}") }
+            .onFailure { Log.w("Embersay", "update notification not posted: ${it.javaClass.simpleName}") }
             .isSuccess
     }
 

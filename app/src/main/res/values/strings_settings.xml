@@ -14,7 +14,7 @@
     <string name="settings_diagnostics">Diagnostics</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_licenses">Licenses</string>
-    <string name="settings_licenses_summary">Apache 2.0, and what Amber is built from</string>
+    <string name="settings_licenses_summary">Apache 2.0, and what Embersay is built from</string>
     <string name="settings_introduction">Show the introduction again</string>
     <string name="settings_introduction_summary">The setup steps, with your choices</string>
     <string name="settings_group_per_app">Per app</string>
@@ -22,7 +22,7 @@
     <string name="settings_advanced">Advanced settings</string>
     <string name="settings_advanced_all">Every setting is shown</string>
     <string name="settings_appearance">Appearance</string>
-    <string name="settings_about">About Amber</string>
+    <string name="settings_about">About Embersay</string>
     <string name="about_group_dictations">Your dictations</string>
     <string name="theme_system">Like the phone</string>
     <string name="theme_light">Light</string>
@@ -38,7 +38,7 @@
     <string name="recording_auto_stop_note">Off: it runs until the next tap.</string>
     <string name="recording_auto_stop_note_android">Off: it runs until the next tap - except with Android\'s speech recognition, which always stops at the first pause.</string>
     <string name="own_words">Own words</string>
-    <string name="own_words_subtitle">Names and terms Amber should spell right</string>
+    <string name="own_words_subtitle">Names and terms Embersay should spell right</string>
     <string name="own_words_more">Whisper and the servers of OpenAI and Groq get the first few dozen as a hint; the cleanup gets all of them and keeps their spelling. Parakeet and Android\'s speech recognition cannot take them. The list stays on this phone; a server gets it only with a dictation.</string>
     <string name="own_words_field">Add a name or term</string>
     <string name="own_words_add">Add</string>
@@ -100,14 +100,14 @@
     <string name="bubble_size_large">Large</string>
     <string name="bubble_size_extra_large">Extra large</string>
     <string name="cancel">Cancel</string>
-    <string name="updates_what_it_asks">Checking asks GitHub which Amber release is the latest, and nothing else: no account, no ID, nothing about your dictations. GitHub sees your IP address, that Amber asks, and which version.</string>
-    <string name="updates_elsewhere">This Amber gets its updates from where you installed it. It never looks for them itself.</string>
+    <string name="updates_what_it_asks">Checking asks GitHub which Embersay release is the latest, and nothing else: no account, no ID, nothing about your dictations. GitHub sees your IP address, that Embersay asks, and which version.</string>
+    <string name="updates_elsewhere">This Embersay gets its updates from where you installed it. It never looks for them itself.</string>
     <string name="updates_this_version">This version</string>
     <string name="unknown">Unknown</string>
     <string name="updates_check">Check for updates</string>
     <string name="updates_check_summary">Once a day, on GitHub.</string>
     <string name="updates_status">Status</string>
-    <string name="updates_amber_version">Amber %1$s</string>
+    <string name="updates_amber_version">Embersay %1$s</string>
     <string name="updates_last_check">Last check</string>
     <string name="updates_checking">Checking…</string>
     <string name="updates_check_now">Check now</string>
@@ -135,7 +135,7 @@
         <item quantity="one">The last command</item>
         <item quantity="other">The last %d commands</item>
     </plurals>
-    <string name="diag_note">Tap one for its steps. Kept on this phone until Amber restarts. The entries are in English and a copy holds no dictated words, so they can be shared.</string>
+    <string name="diag_note">Tap one for its steps. Kept on this phone until Embersay restarts. The entries are in English and a copy holds no dictated words, so they can be shared.</string>
     <string name="copied">Copied</string>
     <string name="copy">Copy</string>
     <string name="diag_keyboard">Keyboard</string>

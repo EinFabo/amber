@@ -215,11 +215,11 @@ class Graph(app: Application) {
             moves.forEach { move -> secretStore.put(move.alias, move.key) }
             settingsStore.update { AmberAddress.movePathKeys(it).first }
             // Never the address or the key: only that it happened.
-            android.util.Log.i("Amber", "moved the key out of ${moves.size} Amber server address(es)")
+            android.util.Log.i("Embersay", "moved the key out of ${moves.size} Embersay server address(es)")
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w("Amber", "Amber server keys not moved: ${e.javaClass.simpleName}")
+            android.util.Log.w("Embersay", "Embersay server keys not moved: ${e.javaClass.simpleName}")
         }
     }
 
@@ -318,7 +318,7 @@ class Graph(app: Application) {
             try {
                 history.deleteAll()
             } catch (e: Exception) {
-                android.util.Log.w("Amber", "history not deleted: ${e.javaClass.simpleName}")
+                android.util.Log.w("Embersay", "history not deleted: ${e.javaClass.simpleName}")
             }
             historyChanges.update { it + 1 }
         }
@@ -368,11 +368,11 @@ class Graph(app: Application) {
             try {
                 memory.wipe()
             } catch (e: Exception) {
-                android.util.Log.w("Amber", "not everything dictated was forgotten: ${e.javaClass.simpleName}")
+                android.util.Log.w("Embersay", "not everything dictated was forgotten: ${e.javaClass.simpleName}")
             }
             stats.forgetApps()
             strategyStore.forget()
-            android.util.Log.i("Amber", "security mode on: what was kept is forgotten")
+            android.util.Log.i("Embersay", "security mode on: what was kept is forgotten")
         }
     }
 
@@ -386,9 +386,9 @@ class Graph(app: Application) {
         stats.forgetAppsIfNamed { before -> rememberRealApp(before) }
         appScope.launch(Dispatchers.IO) {
             try {
-                if (strategyStore.forgetIfAny()) android.util.Log.i("Amber", "security mode: insertion methods per app left over removed")
+                if (strategyStore.forgetIfAny()) android.util.Log.i("Embersay", "security mode: insertion methods per app left over removed")
             } catch (e: Exception) {
-                android.util.Log.w("Amber", "insertion methods per app not removed: ${e.javaClass.simpleName}")
+                android.util.Log.w("Embersay", "insertion methods per app not removed: ${e.javaClass.simpleName}")
             }
         }
     }
@@ -448,10 +448,10 @@ class Graph(app: Application) {
     fun warmUp() {
         appScope.launch(Dispatchers.IO) {
             runCatching { engineFactory }
-                .onFailure { android.util.Log.w("Amber", "warm-up of the engine factory failed: ${it.javaClass.simpleName}") }
+                .onFailure { android.util.Log.w("Embersay", "warm-up of the engine factory failed: ${it.javaClass.simpleName}") }
             if (loadedSettings.filterNotNull().first().commandsEnabled) {
                 runCatching { launcherList.appsBlocking() }
-                    .onFailure { android.util.Log.w("Amber", "warm-up of the launcher list failed: ${it.javaClass.simpleName}") }
+                    .onFailure { android.util.Log.w("Embersay", "warm-up of the launcher list failed: ${it.javaClass.simpleName}") }
             }
         }
     }
@@ -501,7 +501,7 @@ class Graph(app: Application) {
             if (!parakeetModels.isReady()) return
             appScope.launch(sherpaRuntime.dispatcher) {
                 runCatching { sherpaRuntime.ensureLoaded(parakeetModels.dir.path) }
-                    .onFailure { android.util.Log.w("Amber", "parakeet warm-up failed", it) }
+                    .onFailure { android.util.Log.w("Embersay", "parakeet warm-up failed", it) }
             }
             scheduleModelRelease()
             return
@@ -513,7 +513,7 @@ class Graph(app: Application) {
         // inherit that thread's priority.
         appScope.launch(whisperRuntime.dispatcher) {
             runCatching { whisperRuntime.ensureLoaded(whisperModels.fileFor(modelId).path) }
-                .onFailure { android.util.Log.w("Amber", "whisper warm-up failed", it) }
+                .onFailure { android.util.Log.w("Embersay", "whisper warm-up failed", it) }
         }
         scheduleModelRelease()
     }

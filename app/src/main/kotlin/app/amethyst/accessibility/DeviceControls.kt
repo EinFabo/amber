@@ -149,7 +149,7 @@ class DeviceControls(context: Context) {
 
     private companion object {
         const val NO_AUDIO = "Android's audio service is not available."
-        const val NO_TORCH = "This phone has no flashlight Amber can switch."
+        const val NO_TORCH = "This phone has no flashlight Embersay can switch."
         const val STATE_WAIT_MS = 300L
         const val STATE_POLL_MS = 20L
     }

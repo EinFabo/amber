@@ -44,7 +44,7 @@ object GithubReleases {
         url = LATEST_URL,
         headers = mapOf(
             "Accept" to "application/vnd.github+json",
-            "User-Agent" to if (installedVersion.isBlank()) "Amber" else "Amber/$installedVersion",
+            "User-Agent" to if (installedVersion.isBlank()) "Embersay" else "Embersay/$installedVersion",
         ),
         timeoutMs = TIMEOUT_MS,
     )

@@ -183,7 +183,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         scope.launch {
             graph.ownFieldFocused.collect { focused ->
                 val signal = focus.own(focused, ::currentFocusKind) ?: return@collect
-                Log.i(TAG, "field: Amber's own field ${if (focused) "focused" else "left"}")
+                Log.i(TAG, "field: Embersay's own field ${if (focused) "focused" else "left"}")
                 if (focused) bubble?.setCurrentApp(packageName)
                 updateTextFieldFocus(signal)
             }
@@ -295,7 +295,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             .setAction(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-        runCatching { startActivity(intent) }.onFailure { Log.w(TAG, "could not bring Amber back", it) }
+        runCatching { startActivity(intent) }.onFailure { Log.w(TAG, "could not bring Embersay back", it) }
     }
 
     /** Where the bubble is while it shows; a voice command's gesture keeps clear of it. */
@@ -548,7 +548,7 @@ class AmethystAccessibilityService : AccessibilityService() {
 
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val SYSTEM_UI = "com.android.systemui"
 
         /** Window id of a target known only through the input connection. */

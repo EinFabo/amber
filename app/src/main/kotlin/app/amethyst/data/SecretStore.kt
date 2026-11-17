@@ -102,7 +102,7 @@ class SecretStore(context: Context) {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val FILE = "amethyst_secrets"
         const val LEGACY_PLAIN_FILE = "amethyst_secrets_plain"
     }

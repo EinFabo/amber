@@ -106,7 +106,7 @@ class FirstRunSetup(
     }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
 
         /**
          * What is weighed to suggest a recognition: memory, room for models, the CPU, Android's

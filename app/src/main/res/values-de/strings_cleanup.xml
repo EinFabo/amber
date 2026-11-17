@@ -20,11 +20,11 @@
     <string name="cleanup_ready">bereit</string>
     <string name="cleanup_needs_key">Schlüssel fehlt</string>
     <string name="cleanup_add_server">Eigenen Server hinzufügen</string>
-    <string name="cleanup_add_server_note">Ein Amber PC, Ollama, LM Studio, OpenRouter …</string>
+    <string name="cleanup_add_server_note">Ein Embersay PC, Ollama, LM Studio, OpenRouter …</string>
     <string name="cleanup_sheet_tinfoil">Ein geschützter Server (Enklave): Der Text wird dort bereinigt und nie gespeichert.</string>
     <string name="cleanup_sheet_cloud">Der erkannte Text geht für die Bereinigung an %1$s.</string>
     <string name="cleanup_sheet_own">Dein eigener Server unter %1$s bereinigt den Text.</string>
-    <string name="cleanup_sheet_new_server">Ein Server, den du betreibst oder mietest. Amber fragt ihn nach seinen Modellen.</string>
+    <string name="cleanup_sheet_new_server">Ein Server, den du betreibst oder mietest. Embersay fragt ihn nach seinen Modellen.</string>
     <string name="cleanup_key_stored">API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_none">Kein API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_change">Ändern</string>
@@ -38,7 +38,7 @@
     <string name="cleanup_testing">Der Schlüssel wird geprüft …</string>
     <string name="cleanup_asking">Der Server wird nach seinen Modellen gefragt …</string>
     <string name="cleanup_use_anyway">Trotzdem nutzen</string>
-    <string name="cleanup_address_example">Zum Beispiel https://openrouter.ai/api/v1 - auch ein Amber PC, Ollama oder LM Studio in deinem eigenen Netz.</string>
+    <string name="cleanup_address_example">Zum Beispiel https://openrouter.ai/api/v1 - auch ein Embersay PC, Ollama oder LM Studio in deinem eigenen Netz.</string>
     <string name="cleanup_model_example">Der Name des Modells, wie der Server es nennt, zum Beispiel llama3.2.</string>
     <string name="cleanup_edit_server">Server bearbeiten</string>
     <string name="fallback_who">Wer einspringt</string>

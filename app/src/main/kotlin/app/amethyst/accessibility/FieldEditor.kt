@@ -384,7 +384,7 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
 
         /** Enough for twenty long words before the cursor. */
         const val TEXT_AROUND = 1_000

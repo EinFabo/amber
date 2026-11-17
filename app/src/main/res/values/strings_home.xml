@@ -6,8 +6,14 @@
     <string name="home_own_recognition">Own speech recognition</string>
     <string name="dismiss">Dismiss</string>
     <string name="installs_over">Installs over this one; your settings stay.</string>
-    <string name="other_ambers_title">%1$d Ambers are on</string>
-    <string name="other_ambers_two">Two Ambers are on</string>
+    <string name="other_ambers_title">%1$d bubbles are on</string>
+    <string name="other_ambers_two">Two bubbles are on</string>
+    <string name="old_amber_title">The old Amber app is still installed</string>
+    <string name="old_amber_summary">Uninstall it so only one bubble shows. Embersay is its new name.</string>
+    <string name="open_app_info_of">App info: %1$s</string>
+    <string name="variant_build">Embersay (%1$s)</string>
+    <string name="variant_old">Amber (old app)</string>
+    <string name="variant_old_build">Amber (old app, %1$s)</string>
     <string name="other_ambers_summary">%1$s Each shows a bubble and types into the same fields.</string>
     <string name="open_accessibility_settings">Open accessibility settings</string>
     <string name="home_no_dictations">No dictations yet</string>
@@ -23,7 +29,7 @@
     <string name="reliability_mic_service_note">Keeps the microphone ready in other apps.</string>
     <string name="start">Start</string>
     <string name="reliability_notifications">Notifications</string>
-    <string name="reliability_notifications_note">Only for the silent \"Amber is ready\" notice.</string>
+    <string name="reliability_notifications_note">Only for the silent \"Embersay is ready\" notice.</string>
     <string name="allow">Allow</string>
     <string name="reliability_battery">Unrestricted battery</string>
     <string name="reliability_battery_note">So the phone does not stop the service.</string>
@@ -42,7 +48,7 @@
     <string name="setup_title">Setup</string>
     <string name="setup_subtitle">Two steps, then the bubble works in every app.</string>
     <string name="setup_microphone">Microphone</string>
-    <string name="setup_microphone_note">Amber only records while you dictate.</string>
+    <string name="setup_microphone_note">Embersay only records while you dictate.</string>
     <string name="setup_accessibility">Accessibility service</string>
     <string name="setup_accessibility_tried">Not on yet. Switch on %1$s and allow it.</string>
     <string name="setup_accessibility_note">Shows the bubble and types the text into the active field.</string>

@@ -206,7 +206,7 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
     }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
 
         /**
          * Big cores do the work; using every core drags the little ones in and is slower on
@@ -270,10 +270,10 @@ private class Booster(context: Context) {
         if (session != null && tids == sessionTids) return session
         session?.close()
         session = runCatching { manager?.createHintSession(tids.toIntArray(), TARGET_NANOS) }
-            .onFailure { Log.w("Amber", "no performance hint session", it) }
+            .onFailure { Log.w("Embersay", "no performance hint session", it) }
             .getOrNull()
         sessionTids = tids
-        if (session == null) Log.i("Amber", "performance hints not supported on this device")
+        if (session == null) Log.i("Embersay", "performance hints not supported on this device")
         return session
     }
 

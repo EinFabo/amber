@@ -76,10 +76,10 @@ class DictationMemoryTest {
     }
 
     @Test
-    fun `Amber knows its own clip by its mark, or by the label it had before`() {
+    fun `the app knows its own clip by its mark, or by the label it had before the mark`() {
         assertTrue(OwnClip.isOurs("anything", marked = true))
-        assertTrue(OwnClip.isOurs(OwnClip.LABEL, marked = false))
-        assertTrue(OwnClip.isOurs(OwnClip.DIAGNOSTICS_LABEL, marked = false))
+        assertTrue(OwnClip.isOurs("Amber", marked = false))
+        assertTrue(OwnClip.isOurs("Amber diagnostics", marked = false))
         assertFalse(OwnClip.isOurs("Amber notes", marked = false))
         assertFalse(OwnClip.isOurs(null, marked = false))
     }

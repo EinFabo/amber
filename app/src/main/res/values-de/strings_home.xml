@@ -6,8 +6,14 @@
     <string name="home_own_recognition">Eigene Spracherkennung</string>
     <string name="dismiss">Ausblenden</string>
     <string name="installs_over">Wird über diese Version installiert; deine Einstellungen bleiben.</string>
-    <string name="other_ambers_title">%1$d Ambers sind an</string>
-    <string name="other_ambers_two">Zwei Ambers sind an</string>
+    <string name="other_ambers_title">%1$d Bubbles sind an</string>
+    <string name="other_ambers_two">Zwei Bubbles sind an</string>
+    <string name="old_amber_title">Die alte Amber-App ist noch installiert</string>
+    <string name="old_amber_summary">Deinstalliere sie, damit nur eine Bubble erscheint. Embersay ist ihr neuer Name.</string>
+    <string name="open_app_info_of">App-Info: %1$s</string>
+    <string name="variant_build">Embersay (%1$s)</string>
+    <string name="variant_old">Amber (alte App)</string>
+    <string name="variant_old_build">Amber (alte App, %1$s)</string>
     <string name="other_ambers_summary">%1$s Jedes zeigt eine Bubble und tippt in dieselben Felder.</string>
     <string name="open_accessibility_settings">Bedienungshilfen öffnen</string>
     <string name="home_no_dictations">Noch keine Diktate</string>
@@ -23,7 +29,7 @@
     <string name="reliability_mic_service_note">Hält das Mikrofon in anderen Apps bereit.</string>
     <string name="start">Starten</string>
     <string name="reliability_notifications">Benachrichtigungen</string>
-    <string name="reliability_notifications_note">Nur für den stillen Hinweis „Amber ist bereit“.</string>
+    <string name="reliability_notifications_note">Nur für den stillen Hinweis „Embersay ist bereit“.</string>
     <string name="allow">Erlauben</string>
     <string name="reliability_battery">Akku ohne Einschränkung</string>
     <string name="reliability_battery_note">Damit das Handy den Dienst nicht beendet.</string>
@@ -42,7 +48,7 @@
     <string name="setup_title">Einrichtung</string>
     <string name="setup_subtitle">Zwei Schritte, dann geht die Bubble in jeder App.</string>
     <string name="setup_microphone">Mikrofon</string>
-    <string name="setup_microphone_note">Amber nimmt nur auf, während du diktierst.</string>
+    <string name="setup_microphone_note">Embersay nimmt nur auf, während du diktierst.</string>
     <string name="setup_accessibility">Bedienungshilfe</string>
     <string name="setup_accessibility_tried">Noch nicht an. Schalte %1$s ein und erlaube es.</string>
     <string name="setup_accessibility_note">Zeigt die Bubble und tippt den Text in das aktive Feld.</string>

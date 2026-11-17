@@ -107,7 +107,7 @@ class MicForegroundService : Service() {
     }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
         private const val CHANNEL_ID = "amber_ready_quiet"
 
         /** Until 0.34: the same notification at low importance, with an icon in the status bar. */

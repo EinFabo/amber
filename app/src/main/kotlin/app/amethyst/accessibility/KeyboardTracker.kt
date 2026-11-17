@@ -188,7 +188,7 @@ class KeyboardTracker(
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val COALESCE_MS = 16L
         const val MAX_NODES = 80
         const val MAX_DEPTH = 6

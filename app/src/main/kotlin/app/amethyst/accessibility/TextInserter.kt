@@ -433,7 +433,7 @@ class TextInserter(
     class BoundInput(val editor: EditorInfo, val owner: String, val connection: InputMethod.AccessibilityInputConnection?)
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
         private const val MAX_NODES_SEARCHED = 1_500
 
         /**

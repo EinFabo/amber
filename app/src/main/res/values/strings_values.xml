@@ -63,7 +63,7 @@
     <string name="place_enclave">Verified enclave</string>
     <string name="place_cloud">Cloud</string>
 
-    <string name="updates_from_installer">From where you installed Amber</string>
+    <string name="updates_from_installer">From where you installed Embersay</string>
     <string name="updates_available">%1$s available</string>
     <string name="updates_daily">Checks GitHub once a day</string>
     <string name="last_check_not_yet">Not yet</string>
@@ -105,7 +105,7 @@
     <string name="download_running">Model downloading - %1$d %%</string>
     <string name="download_waiting_for_wifi">Waiting for Wi-Fi</string>
     <string name="download_retrying">Model download interrupted - it continues by itself</string>
-    <string name="download_at_start">%1$s. Amber is ready when it is done.</string>
+    <string name="download_at_start">%1$s. Embersay is ready when it is done.</string>
 
     <string name="other_ambers_one">%1$s is also on - switch one off.</string>
     <string name="other_ambers_many">%1$s and %2$s are also on - keep only one on.</string>
@@ -115,7 +115,7 @@
     <string name="machine_pc">the PC</string>
     <string name="machine_server">the server</string>
     <string name="quick_undo_last">Undo last</string>
-    <string name="quick_open_amber">Open Amber</string>
+    <string name="quick_open_amber">Open Embersay</string>
     <string name="quick_style_here">Style here</string>
     <string name="quick_next_style">Next style</string>
     <string name="quick_app_page">App page</string>

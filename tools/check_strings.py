@@ -153,7 +153,7 @@ SKIP = {"Commands.kt", "AmberIcons.kt"}
 SENTENCE = re.compile(r'"((?:[^"\\$]|\\.|\$\{[^}]*\}|\$\w+)*[A-Za-z]{2,}[ ,.:?!][^"]*)"')
 # One capitalized word ("Reset") is a label too - unless it is a name.
 WORD = re.compile(r'"([A-Z][a-z]+)"')
-NAMES = {"Amber", "Whisper", "Parakeet", "Tinfoil", "Groq", "Voxtral", "Android", "GitHub", "Apache", "Google"}
+NAMES = {"Embersay", "Amber", "Whisper", "Parakeet", "Tinfoil", "Groq", "Voxtral", "Android", "GitHub", "Apache", "Google"}
 for f in sorted(UI.rglob("*.kt")):
     if f.name in SKIP:
         continue

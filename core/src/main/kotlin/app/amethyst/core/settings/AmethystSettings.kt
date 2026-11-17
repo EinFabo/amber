@@ -710,6 +710,8 @@ data class UiSettings(
      * until then Amber was dark on every phone.
      */
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    /** Home's card asking to uninstall the old Amber was dismissed ([app.amethyst.core.onboarding.OtherAmbers.notice]). */
+    val oldAmberDismissed: Boolean = false,
 )
 
 /** Whether Amber's own screens are light or dark. The bubble and its quick menu keep their colours. */

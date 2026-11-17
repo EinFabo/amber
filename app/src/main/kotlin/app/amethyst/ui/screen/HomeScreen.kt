@@ -67,6 +67,7 @@ import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.SetupActions
+import app.amethyst.ui.Setup
 import app.amethyst.ui.SetupState
 import app.amethyst.ui.PendingModel
 import app.amethyst.ui.PendingModelNote
@@ -122,6 +123,8 @@ fun HomeScreen(
     /** A failed dictation's recording is kept ([app.amethyst.core.dictation.KeptDictation]): "Try again" under the failure. */
     canTryAgain: Boolean = false,
     onTryAgain: () -> Unit = {},
+    /** Home's card about the old Amber, dismissed: it stays away while that app's service is off. */
+    onDismissOldAmber: () -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -149,7 +152,14 @@ fun HomeScreen(
 
         if (historyOffer && setup.ready) HistoryOfferCard({ onHistoryOffer(true) }, { onHistoryOffer(false) })
 
-        if (setup.otherAmbers.isNotEmpty()) OtherAmbersCard(setup.otherAmbers, actions.openAccessibilityList)
+        val context = LocalContext.current
+        val others = remember(setup.oldAmbersInstalled, setup.otherAmbers, settings.ui.oldAmberDismissed) {
+            OtherAmbers.notice(context.packageName, setup.oldAmbersInstalled, setup.otherAmbers, settings.ui.oldAmberDismissed)
+        }
+        if (others.uninstall.isNotEmpty()) {
+            OldAmberCard(others.uninstall, { pkg -> Setup.openAppInfo(context, pkg) }, onDismissOldAmber)
+        }
+        if (others.alsoOn.isNotEmpty()) OtherAmbersCard(others.alsoOn, actions.openAccessibilityList)
 
         EngineGroup(settings, onOpenRecognition, onOpenCleanup)
 
@@ -364,7 +374,39 @@ private fun HistoryOfferCard(onTurnOn: () -> Unit, onNoThanks: () -> Unit) {
 }
 
 /**
- * Another Amber's service is on beside this one (the debug build, say): both show a bubble and
+ * The old Amber (app.amber, from before the rename to Embersay) is still installed: two apps,
+ * two bubbles once both services are on. Its app info has Uninstall - this app cannot remove
+ * another itself. Dismissed, it comes back only while the old app's service is on.
+ */
+@Composable
+private fun OldAmberCard(old: List<AmberVariant>, onOpenAppInfo: (String) -> Unit, onDismiss: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.old_amber_title),
+            summary = stringResource(R.string.old_amber_summary),
+            icon = AmberIcons.Info,
+            summaryMaxLines = 3,
+            trailing = null,
+            onClick = null,
+        )
+        // Usually one; with the old debug build too, one button each.
+        old.forEach { variant ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (variant == old.last()) GhostButton(stringResource(R.string.dismiss), onDismiss, color = AmberPalette.Muted)
+                PrimaryButton(Texts.uninstallOld(LocalContext.current, variant, named = old.size > 1), { onOpenAppInfo(variant.packageName) })
+            }
+        }
+    }
+}
+
+/**
+ * Another Embersay's service is on beside this one (the debug build, say): both show a bubble and
  * both react to the keyboard and the field, so things go wrong at random. Home and Diagnostics.
  */
 @Composable

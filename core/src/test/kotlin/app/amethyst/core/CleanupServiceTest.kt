@@ -139,7 +139,7 @@ class CleanupServiceTest {
         val setup = CleanupService.setup(local, plan, TEST_PHONE, keyGiven = true, random = { 7 })
         val after = CleanupServices.forEveryApp(local, setup)
         val engine = after.engines.single { it.id == "server-000007" }
-        assertEquals("Amber PC", engine.displayName)
+        assertEquals("Embersay PC", engine.displayName)
         assertEquals(amberPc.name, after.catalogFor(engine)?.name)
         assertEquals(CleanupChoice(engine.id, "qwen"), after.cleanup)
         assertEquals("192.168.1.20", engine.keyHost)

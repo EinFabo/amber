@@ -52,5 +52,5 @@
     <string name="catalog_tier_most_accurate">most accurate</string>
     <string name="catalog_tier_replaced">replaced</string>
     <string name="catalog_server_name">Server</string>
-    <string name="catalog_server_note">Groq, OpenAI, an Amber PC or Amber Server, or any server with /v1/audio/transcriptions. Add as many as you like.</string>
+    <string name="catalog_server_note">Groq, OpenAI, an Embersay PC or Embersay Server, or any server with /v1/audio/transcriptions. Add as many as you like.</string>
 </resources>

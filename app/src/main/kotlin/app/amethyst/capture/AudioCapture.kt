@@ -242,6 +242,6 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
     }
 }

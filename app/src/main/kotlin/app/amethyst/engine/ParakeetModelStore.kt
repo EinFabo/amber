@@ -160,7 +160,7 @@ class ParakeetModelStore(
         if (ParakeetModel.isComplete(dir)) ParakeetState.Ready(ParakeetModel.TOTAL_BYTES) else ParakeetState.Missing
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val SPACE_MARGIN_BYTES = 64L * 1024 * 1024
     }
 }

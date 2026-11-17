@@ -1011,7 +1011,7 @@ class BubbleController(
         (value * service.resources.displayMetrics.density).roundToInt()
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val HIDE_DELAY_MS = 400L
         const val APPEAR_SPARK_DELAY_MS = 100L
         const val KEYBOARD_GAP_DP = 12

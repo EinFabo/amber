@@ -177,6 +177,24 @@ open class Screenshots {
         )
     }
 
+    /** Not part of the listing set: the old Amber still installed beside Embersay, the debug build's service on too. */
+    @Test
+    fun homeOldAmber() = shoot("x-home-old-amber", AMBER) {
+        HomeScreen(
+            setup = ready.copy(
+                oldAmbersInstalled = listOf("app.amber"),
+                otherAmbers = listOf(app.amethyst.core.onboarding.AmberVariant("com.embersay.debug")),
+            ),
+            actions = actions, settings = settings,
+            dictationState = MutableStateFlow(DictationState.Idle), stats = stats, download = null,
+            onStartTest = {}, onStopTest = {}, onOpenRecognition = {}, onOpenCleanup = {}, onOpenStats = {},
+            onOpenActiveEngine = {}, onInstallLanguage = {}, onUseLocalWhisper = {},
+        )
+    }
+
+    @Test
+    fun homeOldAmberLight() = light(::homeOldAmber)
+
     /** Not part of the listing set: the cleanup's key was refused, said on top until a cleanup runs again. */
     @Test
     fun settingsAttentionCleanup() = shoot("x-settings-attention-cleanup", R.string.title_settings) {
@@ -1355,7 +1373,7 @@ open class Screenshots {
                         if (title != null) {
                             // Home goes by the app's name, every other page by its title in the phone's language.
                             val home = title == AMBER
-                            TopBar(title = if (home) "Amber" else stringResource(title), showBack = !home, showSettings = home, onBack = {}, onSettings = {})
+                            TopBar(title = if (home) "Embersay" else stringResource(title), showBack = !home, showSettings = home, onBack = {}, onSettings = {})
                         }
                         // Every drawn scene at rest, as with animations off: a looping one would never let the clock below run out.
                         androidx.compose.runtime.CompositionLocalProvider(LocalTimelineAt provides 1f) { content() }

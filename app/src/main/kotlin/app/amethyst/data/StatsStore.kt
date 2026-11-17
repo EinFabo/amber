@@ -68,14 +68,14 @@ class StatsStore(context: Context, private val scope: CoroutineScope, private va
             val stats = try {
                 ledger.all()
             } catch (e: Exception) {
-                android.util.Log.w("Amber", "statistics not read: ${e.javaClass.simpleName}")
+                android.util.Log.w("Embersay", "statistics not read: ${e.javaClass.simpleName}")
                 emptyList()
             }
             if (SecurityMode.namesApps(stats)) {
                 // What they show before the names go - the nudge toward a real app remembers its end.
                 before(stats)
                 rewriteWithoutApps()
-                android.util.Log.i("Amber", "security mode: app names left in the statistics removed")
+                android.util.Log.i("Embersay", "security mode: app names left in the statistics removed")
             }
         }
     }
@@ -84,7 +84,7 @@ class StatsStore(context: Context, private val scope: CoroutineScope, private va
         try {
             _all.value = ledger.rewrite(SecurityMode::withoutApps)
         } catch (e: Exception) {
-            android.util.Log.w("Amber", "statistics not written again: ${e.javaClass.simpleName}")
+            android.util.Log.w("Embersay", "statistics not written again: ${e.javaClass.simpleName}")
         }
     }
 }

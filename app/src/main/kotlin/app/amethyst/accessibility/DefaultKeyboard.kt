@@ -58,6 +58,6 @@ class DefaultKeyboard(private val resolver: ContentResolver) {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
     }
 }

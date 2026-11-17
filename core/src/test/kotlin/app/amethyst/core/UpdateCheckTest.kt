@@ -152,7 +152,7 @@ class GithubReleasesTest {
         val request = transport.requests.single()
         assertEquals("GET", request.method)
         assertEquals("https://api.github.com/repos/EinFabo/amber/releases/latest", request.url)
-        assertEquals(mapOf("Accept" to "application/vnd.github+json", "User-Agent" to "Amber/0.23.0"), request.headers)
+        assertEquals(mapOf("Accept" to "application/vnd.github+json", "User-Agent" to "Embersay/0.23.0"), request.headers)
         assertEquals(10_000L, request.timeoutMs)
         assertNull(request.body)
     }

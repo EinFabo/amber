@@ -1706,7 +1706,7 @@ class DictationController(
                 is Understanding.Understood -> {
                     val executor = graph.accessibilityService?.commands
                     if (executor == null) {
-                        CommandOutcome.Failed("Amber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
+                        CommandOutcome.Failed("Embersay's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
                     } else {
                         // A text command changes only the field it was started in, checked as a dictation's
                         // text is (EditTarget) - recognition took seconds, the user may be in another chat
@@ -2106,7 +2106,7 @@ class DictationController(
             PackageManager.PERMISSION_GRANTED
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val DONE_DISPLAY_MS = 1_200L
 
         /** Rough cost of loading a Whisper model that was not in memory, for the estimate. */

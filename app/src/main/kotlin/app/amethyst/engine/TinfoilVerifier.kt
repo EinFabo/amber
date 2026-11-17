@@ -182,7 +182,7 @@ class TinfoilVerifier(
     private fun formatTime(millis: Long): String = DATE.format(Instant.ofEpochMilli(millis))
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
         private const val SCHEMA_VERSION = 1
         private const val FETCH_TIMEOUT_S = 30L
         private const val MAX_DOCUMENT_BYTES = 32L shl 20

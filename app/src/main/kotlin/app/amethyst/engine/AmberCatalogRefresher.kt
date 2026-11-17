@@ -48,12 +48,12 @@ class AmberCatalogRefresher(
             try {
                 val outcome = AmberCatalog.fetch(transport, baseUrl, keyFor(engine))
                 // Never the address: it carries the server's key.
-                if (outcome is CatalogFetch.Failed) Log.i("Amber", "model list of ${engine.id}: ${outcome.detail}")
+                if (outcome is CatalogFetch.Failed) Log.i("Embersay", "model list of ${engine.id}: ${outcome.detail}")
                 update { AmberCatalogs.apply(it, engine.id, baseUrl, outcome) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w("Amber", "model list of ${engine.id} not stored", e)
+                Log.w("Embersay", "model list of ${engine.id} not stored", e)
             } finally {
                 throttle.finished(engine.id, baseUrl)
             }
@@ -66,14 +66,14 @@ class AmberCatalogRefresher(
      */
     fun compressionRefused(engineId: String, baseUrl: String) {
         // Never the address: it carries the server's key.
-        Log.i("Amber", "$engineId refused a compressed upload - WAV until its model list is fetched again")
+        Log.i("Embersay", "$engineId refused a compressed upload - WAV until its model list is fetched again")
         scope.launch(Dispatchers.IO) {
             try {
                 update { AmberCatalogs.compressionRefused(it, engineId, baseUrl) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w("Amber", "refused compression of $engineId not stored", e)
+                Log.w("Embersay", "refused compression of $engineId not stored", e)
             }
         }
     }

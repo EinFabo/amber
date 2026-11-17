@@ -235,7 +235,7 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
 
         /**
          * Whether this phone has a recognizer that keeps the voice on the device (Android 13+).

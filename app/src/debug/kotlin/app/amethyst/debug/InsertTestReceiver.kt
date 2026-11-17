@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
  * Sends a text through Amber's real insertion into whatever field has focus - so insertion can
  * be tested on a device without speaking:
  *
- *     adb shell am broadcast -a app.amber.debug.INSERT -n app.amber.debug/app.amethyst.debug.InsertTestReceiver \
+ *     adb shell am broadcast -a com.embersay.debug.INSERT -n com.embersay.debug/app.amethyst.debug.InsertTestReceiver \
  *         --es text 'Hallo Anna,\n\nbis morgen' --ez formatted true
  *
  * "\n" in the text becomes a line break; `formatted` marks it as a cleanup model's output.
@@ -26,7 +26,7 @@ class InsertTestReceiver : BroadcastReceiver() {
         val pending = goAsync()
         graph.appScope.launch {
             try {
-                Log.i("Amber", "debug insert test: ${text.length} chars, formatted=$formatted")
+                Log.i("Embersay", "debug insert test: ${text.length} chars, formatted=$formatted")
                 graph.dictation.deliverForTest(text, formatted)
             } finally {
                 pending.finish()

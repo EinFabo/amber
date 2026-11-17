@@ -136,7 +136,7 @@ fun DiagnosticsScreen(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
     /** The app and its version, at the top of a copy. */
-    appTitle: String = "Amber", // English: the app's name
+    appTitle: String = "Embersay", // English: the app's name
     initialFilter: DiagnosticsReport.Filter = DiagnosticsReport.Filter.ALL,
     /** The entries (by their time) shown open from the start - for the screenshots. */
     initiallyOpen: Set<Long> = emptySet(),

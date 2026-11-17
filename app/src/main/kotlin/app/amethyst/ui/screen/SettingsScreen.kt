@@ -192,7 +192,7 @@ fun SettingsScreen(
                     SettingsGroupKind.MAIN -> null
                     SettingsGroupKind.PER_APP -> stringResource(R.string.settings_group_per_app)
                     SettingsGroupKind.ADVANCED -> stringResource(R.string.settings_group_advanced)
-                    SettingsGroupKind.AMBER -> "Amber" // English: the app's name
+                    SettingsGroupKind.AMBER -> "Embersay" // English: the app's name
                 },
             ) {
                 group.items.forEachIndexed { i, item ->

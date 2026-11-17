@@ -106,7 +106,7 @@ class SherpaRuntime : TransducerRuntime {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
         const val SAMPLE_RATE = 16_000
     }
 }

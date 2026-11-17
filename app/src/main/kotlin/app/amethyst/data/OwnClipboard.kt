@@ -56,7 +56,7 @@ object OwnClipboard {
             val description = clipboard.primaryClipDescription ?: return false
             if (!OwnClip.isOurs(description.label, description.extras?.getBoolean(OwnClip.MARK, false) == true)) return false
             clipboard.clearPrimaryClip()
-            Log.i(TAG, "Amber's clip cleared from the clipboard")
+            Log.i(TAG, "Embersay's clip cleared from the clipboard")
             true
         } catch (e: Exception) {
             Log.w(TAG, "clipboard not cleared: ${e.javaClass.simpleName}")
@@ -66,5 +66,5 @@ object OwnClipboard {
 
     /** ClipDescription.EXTRA_IS_SENSITIVE (API 33); honoured by name on earlier versions too. */
     private const val SENSITIVE_EXTRA = "android.content.extra.IS_SENSITIVE"
-    private const val TAG = "Amber"
+    private const val TAG = "Embersay"
 }

@@ -360,7 +360,7 @@ class ModelDownloads(
     }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
 
         /** Stands for "still running" among a try's ends. */
         private val BUSY = Any()

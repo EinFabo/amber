@@ -54,7 +54,7 @@ class MicProxyActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val TAG = "Amber"
+        private const val TAG = "Embersay"
 
         /**
          * True from creation until the window is gone. While it is up, it - not the app the

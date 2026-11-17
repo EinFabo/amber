@@ -33,8 +33,10 @@ data class SetupState(
     val restrictedSettings: Boolean = false,
     /** Amber has sent the user to switch the service on, and it is still off. */
     val accessibilityTried: Boolean = false,
-    /** Other Ambers (the debug build, say) whose service is on beside this one's; empty while this one is off. */
+    /** Other builds (the debug one, the old Amber) whose service is on beside this one's; empty while this one is off. */
     val otherAmbers: List<AmberVariant> = emptyList(),
+    /** The old Amber's builds still installed ([OtherAmbers.OLD_PACKAGES]), whether their service is on or not. */
+    val oldAmbersInstalled: List<String> = emptyList(),
 ) {
     /** The two that are actually mandatory; the rest only improve reliability. */
     val ready: Boolean get() = microphoneGranted && accessibilityEnabled
@@ -58,8 +60,21 @@ object Setup {
             restrictedSettings = restrictedSettings(context),
             accessibilityTried = accessibilityTried && !accessibility,
             otherAmbers = others,
+            oldAmbersInstalled = OtherAmbers.OLD_PACKAGES.filter { isInstalled(context, it) },
         )
     }
+
+    /** Whether [pkg] is installed - visible to this app only as far as the manifest's <queries> names it. */
+    private fun isInstalled(context: Context, pkg: String): Boolean =
+        runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
+
+    /** Android's app info for [pkg], where it can be uninstalled; false if nothing opened. */
+    fun openAppInfo(context: Context, pkg: String): Boolean = runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }.isSuccess
 
     /** Read once: the install source does not change while the process lives. */
     @Volatile

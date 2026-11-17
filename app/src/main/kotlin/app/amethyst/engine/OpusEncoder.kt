@@ -149,7 +149,7 @@ class OpusEncoder(private val context: Context) : AudioEncoder {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
 
         /**
          * Amber's phone API recommends 24 kbit/s: under a tenth of 16 kHz WAV (256 kbit/s)

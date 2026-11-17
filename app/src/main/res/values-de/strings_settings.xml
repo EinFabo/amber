@@ -14,7 +14,7 @@
     <string name="settings_diagnostics">Diagnose</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_licenses">Lizenzen</string>
-    <string name="settings_licenses_summary">Apache 2.0, und woraus Amber gebaut ist</string>
+    <string name="settings_licenses_summary">Apache 2.0, und woraus Embersay gebaut ist</string>
     <string name="settings_introduction">Einführung noch einmal zeigen</string>
     <string name="settings_introduction_summary">Die Schritte der Einrichtung, mit deiner Auswahl</string>
     <string name="settings_group_per_app">Pro App</string>
@@ -22,7 +22,7 @@
     <string name="settings_advanced">Erweiterte Einstellungen</string>
     <string name="settings_advanced_all">Alle Einstellungen werden gezeigt</string>
     <string name="settings_appearance">Darstellung</string>
-    <string name="settings_about">Über Amber</string>
+    <string name="settings_about">Über Embersay</string>
     <string name="about_group_dictations">Deine Diktate</string>
     <string name="theme_system">Wie das Handy</string>
     <string name="theme_light">Hell</string>
@@ -38,7 +38,7 @@
     <string name="recording_auto_stop_note">Aus: Sie läuft bis zum nächsten Tippen.</string>
     <string name="recording_auto_stop_note_android">Aus: Sie läuft bis zum nächsten Tippen - außer mit Androids Spracherkennung, die immer bei der ersten Pause aufhört.</string>
     <string name="own_words">Eigene Wörter</string>
-    <string name="own_words_subtitle">Namen und Begriffe, die Amber richtig schreiben soll</string>
+    <string name="own_words_subtitle">Namen und Begriffe, die Embersay richtig schreiben soll</string>
     <string name="own_words_more">Whisper und die Server von OpenAI und Groq bekommen die ersten paar Dutzend als Hinweis; die Bereinigung bekommt alle und behält ihre Schreibweise. Parakeet und die Spracherkennung von Android können sie nicht nutzen. Die Liste bleibt auf dem Handy; ein Server bekommt sie nur mit einem Diktat.</string>
     <string name="own_words_field">Name oder Begriff</string>
     <string name="own_words_add">Hinzufügen</string>
@@ -100,14 +100,14 @@
     <string name="bubble_size_large">Groß</string>
     <string name="bubble_size_extra_large">Sehr groß</string>
     <string name="cancel">Abbrechen</string>
-    <string name="updates_what_it_asks">Die Prüfung fragt GitHub nur, welches Amber-Release das neueste ist: kein Konto, keine Kennung, nichts über deine Diktate. GitHub sieht deine IP-Adresse, dass Amber fragt, und welche Version.</string>
-    <string name="updates_elsewhere">Dieses Amber bekommt seine Updates von dort, wo du es installiert hast. Es sucht nie selbst danach.</string>
+    <string name="updates_what_it_asks">Die Prüfung fragt GitHub nur, welches Embersay-Release das neueste ist: kein Konto, keine Kennung, nichts über deine Diktate. GitHub sieht deine IP-Adresse, dass Embersay fragt, und welche Version.</string>
+    <string name="updates_elsewhere">Dieses Embersay bekommt seine Updates von dort, wo du es installiert hast. Es sucht nie selbst danach.</string>
     <string name="updates_this_version">Diese Version</string>
     <string name="unknown">Unbekannt</string>
     <string name="updates_check">Nach Updates suchen</string>
     <string name="updates_check_summary">Einmal am Tag, auf GitHub.</string>
     <string name="updates_status">Status</string>
-    <string name="updates_amber_version">Amber %1$s</string>
+    <string name="updates_amber_version">Embersay %1$s</string>
     <string name="updates_last_check">Letzte Prüfung</string>
     <string name="updates_checking">Wird geprüft …</string>
     <string name="updates_check_now">Jetzt prüfen</string>
@@ -135,7 +135,7 @@
         <item quantity="one">Der letzte Befehl</item>
         <item quantity="other">Die letzten %d Befehle</item>
     </plurals>
-    <string name="diag_note">Tippe einen an für seine Schritte. Bleibt auf diesem Handy, bis Amber neu startet. Die Einträge sind auf Englisch und eine Kopie enthält keine diktierten Wörter, damit man sie teilen kann.</string>
+    <string name="diag_note">Tippe einen an für seine Schritte. Bleibt auf diesem Handy, bis Embersay neu startet. Die Einträge sind auf Englisch und eine Kopie enthält keine diktierten Wörter, damit man sie teilen kann.</string>
     <string name="copied">Kopiert</string>
     <string name="copy">Kopieren</string>
     <string name="diag_keyboard">Tastatur</string>

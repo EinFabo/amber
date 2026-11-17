@@ -41,7 +41,7 @@ class RecordingSounds {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
 
         /** Of ToneGenerator.MAX_VOLUME (100): quiet, under the stream's own volume. */
         const val VOLUME = 40

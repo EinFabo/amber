@@ -427,7 +427,7 @@ private sealed interface Screen {
 @Composable
 private fun Screen.title(): String = when (this) {
     Screen.Onboarding -> ""
-    Screen.Home -> "Amber" // English: the app's name
+    Screen.Home -> "Embersay" // English: the app's name
     Screen.Settings -> stringResource(R.string.title_settings)
     is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
     is Screen.AppStyle -> stringResource(R.string.title_app)
@@ -745,6 +745,7 @@ private fun AmethystScreens(
                         onDismissUpdate = { notice ->
                             updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
                         },
+                        onDismissOldAmber = { updateSettings { it.copy(ui = it.ui.copy(oldAmberDismissed = true)) } },
                     )
 
                     Screen.Settings -> SettingsScreen(
@@ -871,7 +872,7 @@ private fun AmethystScreens(
                                         graph.memory.log.clear()
                                         graph.keyboardLog.value = emptyList()
                                     },
-                                    appTitle = "Amber $version".trim(), // English: the report's heading
+                                    appTitle = "Embersay $version".trim(), // English: the report's heading
                                     // The security mode never writes the clipboard.
                                     canCopy = SecurityMode.mayCopy(settings),
                                 )

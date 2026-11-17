@@ -375,9 +375,24 @@ object Texts {
     fun downloadAtStart(context: Context, download: ModelDownload): String =
         context.getString(R.string.download_at_start, download(context, download))
 
-    /** "Amber (debug) is also on - switch one off." - null when there is none. */
+    /** "Embersay (debug)", "Amber (old app)": another build on the phone, by name. */
+    fun variant(context: Context, variant: AmberVariant): String {
+        val build = variant.buildType
+        return when {
+            variant.old && build == null -> context.getString(R.string.variant_old)
+            variant.old -> context.getString(R.string.variant_old_build, build)
+            build == null -> context.getString(R.string.app_name)
+            else -> context.getString(R.string.variant_build, build)
+        }
+    }
+
+    /** The button to the old app's app info: "Open app info", or with its name when there are two. */
+    fun uninstallOld(context: Context, variant: AmberVariant, named: Boolean): String =
+        if (named) context.getString(R.string.open_app_info_of, variant(context, variant)) else context.getString(R.string.open_app_info)
+
+    /** "Embersay (debug) is also on - switch one off." - null when there is none. */
     fun otherAmbers(context: Context, others: List<AmberVariant>): String? {
-        val names = others.map { it.label }
+        val names = others.map { variant(context, it) }
         return when (names.size) {
             0 -> null
             1 -> context.getString(R.string.other_ambers_one, names[0])

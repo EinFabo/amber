@@ -60,6 +60,6 @@ class SettingsStore(private val context: Context) {
 
     private companion object {
         val KEY = stringPreferencesKey("settings_json")
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
     }
 }

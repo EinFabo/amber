@@ -82,8 +82,8 @@ class SetupTest {
     }
 
     @Test
-    fun `another Amber's service beside this one is noticed, and only while this one is on`() {
-        val other = if (app.packageName == "app.amber") "app.amber.debug" else "app.amber"
+    fun `another build's service beside this one is noticed, and only while this one is on`() {
+        val other = if (app.packageName == "com.embersay") "com.embersay.debug" else "com.embersay"
         val otherService = "$other/${AmethystAccessibilityService::class.java.name}"
         val resolver = app.contentResolver
 
@@ -94,5 +94,25 @@ class SetupTest {
         val state = Setup.snapshot(app)
         assertTrue(state.accessibilityEnabled)
         assertEquals(listOf(other), state.otherAmbers.map { it.packageName })
+    }
+
+    @Test
+    fun `the old Amber's service counts too`() {
+        val old = "app.amber/${AmethystAccessibilityService::class.java.name}"
+        Settings.Secure.putString(app.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "$service:$old")
+        assertEquals(listOf("app.amber"), Setup.snapshot(app).otherAmbers.map { it.packageName })
+    }
+
+    @Test
+    fun `the old Amber merely installed is seen, its app info opens`() {
+        assertTrue(Setup.snapshot(app).oldAmbersInstalled.isEmpty())
+        shadowOf(app.packageManager).installPackage(android.content.pm.PackageInfo().apply { packageName = "app.amber" })
+        assertEquals(listOf("app.amber"), Setup.snapshot(app).oldAmbersInstalled)
+
+        settingsAnswer(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", "app.amber", null)))
+        assertTrue(Setup.openAppInfo(app, "app.amber"))
+        val started = shadowOf(app).nextStartedActivity
+        assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, started.action)
+        assertEquals("package:app.amber", started.dataString)
     }
 }

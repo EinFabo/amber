@@ -37,12 +37,15 @@ data class AmberCatalog(
     /** Whether a recording may go up as Ogg Opus instead of WAV. */
     val takesOpus: Boolean get() = AUDIO_OPUS in audio
 
-    /** "Amber PC" or "Amber Server"; a service only a later Amber knows is plain "Amber". */
+    /**
+     * "Embersay PC" or "Embersay Server"; a service only a later one knows is plain "Embersay".
+     * Only the name shown: on the wire they still say `amber-pc` and `amber-server`.
+     */
     val name: String
         get() = when (service) {
-            SERVICE_PC -> "Amber PC"
-            SERVICE_SERVER -> "Amber Server"
-            else -> "Amber"
+            SERVICE_PC -> "Embersay PC"
+            SERVICE_SERVER -> "Embersay Server"
+            else -> "Embersay"
         }
 
     /** The machine that answers for a model it no longer lists: the PC, or the server. */

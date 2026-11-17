@@ -55,6 +55,6 @@ class MediaPause(context: Context) {
     }
 
     private companion object {
-        const val TAG = "Amber"
+        const val TAG = "Embersay"
     }
 }
