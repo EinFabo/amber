@@ -33,7 +33,8 @@
     <string name="home_paused">Pausiert. Tippen zum Senden.</string>
     <string name="home_listening">Hört zu. Tippen zum Stoppen.</string>
     <string name="home_writing">Schreibt …</string>
-    <string name="home_done">%1$d ms · %2$s</string>
+    <string name="home_done">Eingefügt</string>
+    <string name="home_done_clipboard">In der Zwischenablage</string>
     <string name="home_command">Befehl: %1$s</string>
     <string name="home_get_language_pack">Sprachpaket holen</string>
     <string name="home_use_whisper">Whisper auf dem Handy nutzen</string>
@@ -45,10 +46,6 @@
     <string name="setup_accessibility">Bedienungshilfe</string>
     <string name="setup_accessibility_tried">Noch nicht an. Schalte %1$s ein und erlaube es.</string>
     <string name="setup_accessibility_note">Zeigt die Bubble und tippt den Text in das aktive Feld.</string>
-    <string name="strategy_typed">direkt getippt</string>
-    <string name="strategy_set">ins Feld geschrieben</string>
-    <string name="strategy_pasted">eingefügt</string>
-    <string name="strategy_clipboard">in der Zwischenablage</string>
     <string name="stats_use">Statistik verwenden</string>
     <string name="stats_use_summary">Nur Zahlen und Zeiten, nie was du gesagt hast.</string>
     <string name="stats_use_more">Zahlen und Zeiten bleiben auf diesem Handy und werden nicht gesichert. Aus: Nichts Neues wird gezählt; was da ist, bleibt, bis du es löschst.</string>

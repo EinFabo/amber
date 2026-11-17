@@ -540,6 +540,8 @@ private fun AmethystScreens(
     val cleanupTrouble by graph.cleanupTrouble.open.collectAsStateWithLifecycle()
     val records by graph.memory.log.records.collectAsStateWithLifecycle()
     val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
+    // In the security mode nothing is kept, so Home offers no "Try again" there.
+    val canTryAgainHome = remember(keptChanges) { graph.memory.kept.hasRecording }
     val lastDictation by produceState<String?>(null, records, keptChanges) {
         while (true) {
             value = graph.memory.kept.lastDictation(records)?.text
@@ -718,6 +720,8 @@ private fun AmethystScreens(
                         onOpenHistory = { open(Screen.Page(SettingsPage.HISTORY)) },
                         historyOffer = HistoryOffer.shows(settings),
                         onHistoryOffer = { on -> updateSettings { if (on) HistoryOffer.accept(it) else HistoryOffer.decline(it) } },
+                        canTryAgain = canTryAgainHome,
+                        onTryAgain = { graph.dictation.tryAgain(inAmber = true) },
                         onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                         onStopTest = { graph.dictation.stop() },
                         onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

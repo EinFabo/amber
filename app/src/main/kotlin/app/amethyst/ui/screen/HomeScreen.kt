@@ -42,6 +42,7 @@ import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.settings.AmethystSettings
@@ -118,6 +119,9 @@ fun HomeScreen(
     historyOffer: Boolean = false,
     /** The offer answered: true "Turn on", false "No thanks" - either way for good. */
     onHistoryOffer: (Boolean) -> Unit = {},
+    /** A failed dictation's recording is kept ([app.amethyst.core.dictation.KeptDictation]): "Try again" under the failure. */
+    canTryAgain: Boolean = false,
+    onTryAgain: () -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -154,7 +158,17 @@ fun HomeScreen(
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.
-        OrbArea(dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine, nudge)
+        OrbArea(
+            dictationState, setup.ready, download, testField, onStartTest, onStopTest, onInstallLanguage, onUseLocalWhisper, onOpenActiveEngine, nudge,
+            onTryAgain = if (canTryAgain) {
+                {
+                    runCatching { testField.requestFocus() }
+                    onTryAgain()
+                }
+            } else {
+                null
+            },
+        )
 
         // What did not go in can be taken from here; what did, once more.
         if (lastDictation != null) LastDictationCard(lastDictation)
@@ -182,6 +196,7 @@ private fun OrbArea(
     onUseLocalWhisper: () -> Unit,
     onOpenActiveEngine: () -> Unit,
     nudge: app.amethyst.core.onboarding.RealAppNudge?,
+    onTryAgain: (() -> Unit)?,
 ) {
     val dictation by dictationState.collectAsStateWithLifecycle()
     val running = dictation !is DictationState.Idle &&
@@ -217,6 +232,7 @@ private fun OrbArea(
             onInstallLanguage = onInstallLanguage,
             onUseLocalWhisper = onUseLocalWhisper,
             onOpenActiveEngine = onOpenActiveEngine,
+            onTryAgain = onTryAgain,
         )
         // Hidden while a dictation runs: the line above says what happens then.
         if (nudge != null && !running) {
@@ -475,6 +491,7 @@ private fun StatusLine(
     onInstallLanguage: () -> Unit,
     onUseLocalWhisper: () -> Unit,
     onOpenActiveEngine: () -> Unit,
+    onTryAgain: (() -> Unit)?,
 ) {
     AnimatedContent(
         targetState = state,
@@ -496,7 +513,11 @@ private fun StatusLine(
                             ?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f }
                         ProgressLine(fraction, Modifier.padding(horizontal = 48.dp))
                     }
-                    else -> Hint(stringResource(R.string.home_tap_and_speak))
+                    else -> {
+                        Hint(stringResource(R.string.home_tap_and_speak))
+                        // The failure's line is gone after a few seconds; its recording stays a while longer.
+                        if (onTryAgain != null) GhostButton(stringResource(R.string.quick_try_again), onTryAgain)
+                    }
                 }
 
                 DictationState.Starting -> Hint(stringResource(R.string.home_opening_mic), AmberPalette.Text)
@@ -521,7 +542,8 @@ private fun StatusLine(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         TrustBadge(current.transcript.trustLevel)
-                        Hint(stringResource(R.string.home_done, current.transcript.latencyMs, current.strategy.label()))
+                        // The timing and the way in are for Diagnostics; here only where the text went.
+                        Hint(stringResource(if (current.strategy == InsertionStrategy.CLIPBOARD_ONLY) R.string.home_done_clipboard else R.string.home_done))
                     }
                 }
 
@@ -542,7 +564,8 @@ private fun StatusLine(
 
                         SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton(stringResource(R.string.home_download_model), onOpenActiveEngine)
 
-                        null -> Unit
+                        // The recording is kept: once more, as from the quick menu.
+                        null -> if (onTryAgain != null) PrimaryButton(stringResource(R.string.quick_try_again), onTryAgain)
                     }
                 }
             }
@@ -589,13 +612,3 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
         )
     }
 }
-
-@Composable
-private fun app.amethyst.core.insert.InsertionStrategy.label(): String = stringResource(
-    when (this) {
-        app.amethyst.core.insert.InsertionStrategy.COMMIT_TEXT -> R.string.strategy_typed
-        app.amethyst.core.insert.InsertionStrategy.SET_TEXT -> R.string.strategy_set
-        app.amethyst.core.insert.InsertionStrategy.PASTE -> R.string.strategy_pasted
-        app.amethyst.core.insert.InsertionStrategy.CLIPBOARD_ONLY -> R.string.strategy_clipboard
-    },
-)

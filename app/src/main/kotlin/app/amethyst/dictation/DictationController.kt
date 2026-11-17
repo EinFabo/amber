@@ -842,9 +842,10 @@ class DictationController(
             // the class only.
             if (DebugLog.enabled) Log.e(TAG, "dictation failed", e) else Log.e(TAG, "dictation failed: ${e::class.java.name}")
             fail(
-                say(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
-                // The message may be long and technical: the toast says where it is.
-                brief = say(R.string.toast_unexpected),
+                // The message may be long and technical: the screen and the toast say where it
+                // is, Diagnostics keep it.
+                say(R.string.toast_unexpected),
+                recordAs = english.getString(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
                 logAs = english.getString(R.string.dictation_unexpected, e::class.java.name),
                 details = listOf("unexpected ${e::class.java.name}"),
             )
@@ -1283,13 +1284,14 @@ class DictationController(
      * "Try again" from the quick menu: the kept recording of a dictation that failed is
      * recognized again with the speech recognition set now, and goes into the field in focus
      * now as a dictation would. False with nothing kept, or while a dictation runs.
+     * [inAmber]: from Home, for its test field, as the dictation that failed there was.
      */
-    fun tryAgain(forHistory: Boolean = false): Boolean {
+    fun tryAgain(forHistory: Boolean = false, inAmber: Boolean = false): Boolean {
         if (isRunning) return false
         val audio = kept.recording() ?: return false
         retryForHistory = forHistory
         takeStartTarget()
-        runInAmber = false
+        runInAmber = inAmber
         runPackage = targetApp()
         val routed = graph.engineFor(runPackage).engine
         // A model still downloading: said, and the recording stays kept.
@@ -2036,6 +2038,8 @@ class DictationController(
         record: Boolean = true,
         // Logcat never gets a heard command's words, which the message may quote.
         logAs: String = brief(english),
+        // What Diagnostics keep, when they are to know more than the screen says.
+        recordAs: String? = null,
         // For a command's Diagnostics: what went wrong before or around it, never logged.
         details: List<String> = emptyList(),
         // A dictation's words that were recognized but did not go in: kept in the record.
@@ -2046,7 +2050,7 @@ class DictationController(
         history: Boolean = true,
     ) {
         val message = words(context)
-        val logged = words(english)
+        val logged = recordAs ?: words(english)
         // A message may quote a server's answer or what was heard: logcat gets it without.
         Log.w(TAG, "dictation failed: ${Anonymize.line(logAs, listOf(text))}")
         if (record) {
