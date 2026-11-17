@@ -253,8 +253,11 @@ internal fun StepPage(
                 body()
             }
             MoreBelow(
+                // Only once a layout said the content goes on below: before the first one the
+                // scroll range is Int.MAX_VALUE, and the cue would flash on a step that fits.
                 // Not for the content's own space at its end.
-                shown = scroll.maxValue - scroll.value > with(density) { CONTENT_BOTTOM.roundToPx() },
+                shown = viewport > 0 && content > 0 && scroll.maxValue != Int.MAX_VALUE &&
+                    scroll.maxValue - scroll.value > with(density) { CONTENT_BOTTOM.roundToPx() },
                 scroll = scroll,
                 viewport = viewport,
                 modifier = Modifier.align(Alignment.BottomCenter),
