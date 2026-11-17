@@ -310,7 +310,7 @@ fun RadioRow(
             onClick = null,
             colors = RadioButtonDefaults.colors(
                 selectedColor = AmberPalette.Primary,
-                unselectedColor = AmberPalette.Outline,
+                unselectedColor = AmberPalette.Control,
             ),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

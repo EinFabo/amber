@@ -585,7 +585,7 @@ internal fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
                 colors = SliderDefaults.colors(
                     thumbColor = AmberPalette.Primary,
                     activeTrackColor = AmberPalette.Primary,
-                    inactiveTrackColor = AmberPalette.Outline,
+                    inactiveTrackColor = AmberPalette.Control,
                     activeTickColor = Color.Transparent,
                     inactiveTickColor = Color.Transparent,
                 ),

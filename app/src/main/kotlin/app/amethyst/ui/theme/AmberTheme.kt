@@ -37,7 +37,10 @@ data class AmberColors(
     val background: Color,
     val surface: Color,
     val elevated: Color,
+    /** For dividers and faint rings: it may barely show. */
     val outline: Color,
+    /** The outline of a control that is off - a radio not chosen: 3:1 on every ground (WCAG 1.4.11). */
+    val control: Color,
     /** Amber as text, icon and button: it reads on every ground, and [background] reads on it. */
     val primary: Color,
     /** Amber at low strength, for a selected row. */
@@ -55,6 +58,7 @@ data class AmberColors(
             surface = Color(0xFF161616),
             elevated = Color(0xFF1F1F1F),
             outline = Color(0xFF262626),
+            control = Color(0xFF747474),
             primary = Color(0xFFFFB020),
             deep = Color(0x33FFB020),
             text = Color(0xFFEDEDED),
@@ -75,6 +79,7 @@ data class AmberColors(
             surface = Color(0xFFFFFFFF),
             elevated = Color(0xFFEDE9E1),
             outline = Color(0xFFD9D3C8),
+            control = Color(0xFF807970),
             primary = Color(0xFF9A4D00),
             deep = Color(0x33FFB020),
             text = Color(0xFF1C1A17),
@@ -100,6 +105,9 @@ object AmberPalette {
     val Surface: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.surface
     val Elevated: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.elevated
     val Outline: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.outline
+
+    /** A control that is off: an empty radio, a switch's edge, a slider's open track. */
+    val Control: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.control
 
     /** Amber itself. Carries [Background] as its text, never [Text]. */
     val Primary: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.primary

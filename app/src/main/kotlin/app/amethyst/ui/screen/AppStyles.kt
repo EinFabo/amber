@@ -198,7 +198,7 @@ internal fun StepSlider(
             colors = SliderDefaults.colors(
                 thumbColor = AmberPalette.Primary,
                 activeTrackColor = AmberPalette.Primary,
-                inactiveTrackColor = AmberPalette.Outline,
+                inactiveTrackColor = AmberPalette.Control,
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent,
             ),

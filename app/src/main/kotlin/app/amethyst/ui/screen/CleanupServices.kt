@@ -238,7 +238,7 @@ private fun ServiceLine(row: ServiceRow, inUse: CleanupChoice?, onClick: () -> U
         RadioButton(
             selected = chosen != null,
             onClick = null,
-            colors = RadioButtonDefaults.colors(selectedColor = AmberPalette.Primary, unselectedColor = AmberPalette.Outline),
+            colors = RadioButtonDefaults.colors(selectedColor = AmberPalette.Primary, unselectedColor = AmberPalette.Control),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(row.name(), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)

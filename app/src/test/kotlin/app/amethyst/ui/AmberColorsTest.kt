@@ -47,6 +47,15 @@ class AmberColorsTest {
     }
 
     @Test
+    fun `a control that is off shows on every ground`() {
+        for ((theme, c) in themes) {
+            for (on in listOf("background" to c.background, "surface" to c.surface, "elevated" to c.elevated)) {
+                check("control", c.control, on.second.toArgb(), Contrast.AA_LARGE, theme, on.first)
+            }
+        }
+    }
+
+    @Test
     fun `the trust dots stand out from the page and the cards`() {
         for ((theme, c) in themes) {
             for (on in listOf("background" to c.background, "surface" to c.surface, "elevated" to c.elevated)) {

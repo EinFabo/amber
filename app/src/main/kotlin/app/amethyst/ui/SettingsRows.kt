@@ -302,7 +302,8 @@ internal fun AmberSwitch(checked: Boolean) {
             uncheckedThumbColor = AmberPalette.Muted,
             // Not the card's own colour: on the main switch's card the track vanished.
             uncheckedTrackColor = AmberPalette.Outline,
-            uncheckedBorderColor = Color.Transparent,
+            // The track alone barely shows on a card; its edge says there is a switch.
+            uncheckedBorderColor = AmberPalette.Control,
         ),
     )
 }
