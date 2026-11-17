@@ -136,6 +136,9 @@ fun EngineDetailScreen(
     // Typed or pasted here: only then does the key belong to the address now in the field. A key
     // given for another host stays there ([KeyBinding]) until it is entered again.
     var keyEdited by remember(config.id) { mutableStateOf(false) }
+    // Something typed, picked, saved or tested here: only then is a missing field an error in
+    // red. Before, a new server's page would open with errors for fields nobody had seen yet.
+    var touched by remember(config.id) { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
 
@@ -167,6 +170,7 @@ fun EngineDetailScreen(
     }
 
     fun persist() {
+        touched = true
         config.apiKeyAlias?.let { alias -> onSaveKey(alias, apiKey) }
         onSave(edited())
         keyEdited = false
@@ -201,10 +205,20 @@ fun EngineDetailScreen(
                 if (!cleanupOnly) Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
             } else {
                 // Listed while typing, so the user is never left guessing which field the
-                // engine is still waiting for.
-                shown.forEach { problem -> Hint(words(problem), AmberPalette.Error) }
+                // engine is still waiting for - in red once something was typed.
+                shown.forEach { problem -> Hint(words(problem), if (touched) AmberPalette.Error else AmberPalette.Muted) }
             }
-            if (!active && !cleanupOnly) PrimaryButton(stringResource(R.string.engine_use_active), onActivate)
+            // Not before it is complete: made active half filled in, the next dictation fails.
+            if (!active && !cleanupOnly) {
+                PrimaryButton(
+                    stringResource(R.string.engine_use_active),
+                    {
+                        persist()
+                        onActivate()
+                    },
+                    enabled = shown.isEmpty(),
+                )
+            }
         }
 
         when (config.kind) {
@@ -274,6 +288,7 @@ fun EngineDetailScreen(
                         ServerQuickPicks(
                             current = ServerProviders.forUrl(baseUrl.trim()),
                             onPick = { quick ->
+                                touched = true
                                 val pointed = Servers.pointAt(edited(), quick)
                                 baseUrl = pointed.baseUrl.orEmpty()
                                 modelId = pointed.modelId.orEmpty()
@@ -281,6 +296,7 @@ fun EngineDetailScreen(
                             },
                             // Back to nothing: an own address to type, no model of the service left.
                             onOwn = {
+                                touched = true
                                 baseUrl = ""
                                 modelId = ""
                                 onSave(edited())
@@ -289,6 +305,7 @@ fun EngineDetailScreen(
                         OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { typed ->
+                                touched = true
                                 // An Amber address with the key in it, or a pairing link: the two
                                 // go into their own fields, as with OpenAI.
                                 val split = AmberAddress.split(typed).takeIf { config.apiKeyAlias != null }
@@ -324,7 +341,10 @@ fun EngineDetailScreen(
                         } else {
                             OutlinedTextField(
                                 value = modelId,
-                                onValueChange = { modelId = it },
+                                onValueChange = {
+                                    touched = true
+                                    modelId = it
+                                },
                                 label = { Text(stringResource(R.string.engine_speech_model)) },
                                 placeholder = { Text("Systran/faster-whisper-large-v3") },
                                 singleLine = true,
@@ -340,6 +360,7 @@ fun EngineDetailScreen(
                         OutlinedTextField(
                             value = apiKey,
                             onValueChange = {
+                                touched = true
                                 apiKey = it
                                 keyEdited = true
                                 // A Groq or OpenAI key with no address yet: its service's address and model.
