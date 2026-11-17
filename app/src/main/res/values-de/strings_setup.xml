@@ -95,14 +95,14 @@
     <string name="ready_step_title">Amber bereithalten</string>
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
-    <string name="done_lead">Ändern kannst du alles in den Einstellungen, oben rechts auf dem Startbildschirm.</string>
+    <string name="done_lead">Ändern kannst du alles in den Einstellungen - über das Zahnrad oben rechts, wenn du Amber öffnest.</string>
     <string name="done_try">Ausprobieren</string>
     <string name="done_none">Keine</string>
     <string name="done_where_recognition">Einstellungen → Spracherkennung</string>
     <string name="done_where_cleanup">Einstellungen → Bereinigung</string>
     <string name="done_where_bubble">Einstellungen → Bubble</string>
     <string name="done_else">Alles andere</string>
-    <string name="done_else_value">Aufnahme, Text, Apps, Darstellung</string>
+    <string name="done_else_value">Apps und Darstellung; Aufnahme und Text unter „Erweiterte Einstellungen“</string>
     <string name="done_where_advanced">Einstellungen</string>
     <string name="done_download_note">Amber ist bereit, wenn es fertig ist; bis dahin sagt die Bubble Bescheid.</string>
     <string name="pending_downloading">Das Sprachmodell wird geladen - bis dahin wird Androids Spracherkennung verwendet.</string>

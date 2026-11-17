@@ -95,14 +95,14 @@
     <string name="ready_step_title">Keep Amber ready</string>
     <string name="ready_step_lead">Optional. Some phones cut the microphone off in the background otherwise.</string>
     <string name="done_title">All set</string>
-    <string name="done_lead">Change any of this in Settings, top right on the home screen.</string>
+    <string name="done_lead">Change any of this in Settings - the gear at the top right when you open Amber.</string>
     <string name="done_try">Try it</string>
     <string name="done_none">None</string>
     <string name="done_where_recognition">Settings → Speech recognition</string>
     <string name="done_where_cleanup">Settings → Cleanup</string>
     <string name="done_where_bubble">Settings → Bubble</string>
     <string name="done_else">Everything else</string>
-    <string name="done_else_value">Recording, text, apps, appearance</string>
+    <string name="done_else_value">Apps and appearance; recording and text under Advanced settings</string>
     <string name="done_where_advanced">Settings</string>
     <string name="done_download_note">Amber is ready when it is done; until then the bubble says so.</string>
     <string name="pending_downloading">Downloading the speech model - until then Android\'s speech recognition is used.</string>
