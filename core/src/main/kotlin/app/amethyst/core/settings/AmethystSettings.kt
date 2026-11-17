@@ -220,6 +220,8 @@ data class BubbleSettings(
      * ([app.amethyst.core.bubble.QuickMenuLayout.idle]).
      */
     val quickMenuIdle: List<String?>? = null,
+    /** How often the quick menu was opened, counted up to [app.amethyst.core.bubble.QuickMenuNames.FIRST_OPENS]. */
+    val quickMenuOpens: Int = 0,
 ) {
     companion object {
         /**

@@ -33,6 +33,7 @@ import app.amethyst.core.bubble.SafeArea
 import app.amethyst.core.bubble.Screen
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.dictation.BubbleTap
+import app.amethyst.core.bubble.QuickMenuNames
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.dictation.DictationState
 import kotlin.math.roundToInt
@@ -57,6 +58,8 @@ class BubbleController(
     private val onMoved: (side: BubbleSide, edgeY: Float) -> Unit,
     /** The bubble was dropped on the hide target while this app was in front. */
     private val onHideIn: (packageName: String) -> Unit,
+    /** The quick menu opened ([QuickMenuNames]: its first opens name every button). */
+    private val onMenuOpened: () -> Unit = {},
 ) {
 
     /**
@@ -791,8 +794,9 @@ class BubbleController(
                 .onFailure { Log.w(TAG, "could not resize the quick menu", it) }
         }
         menuView.side = side
-        menuView.open(fan, menuSlots)
+        menuView.open(fan, menuSlots, named = QuickMenuNames.allNamed(settings.quickMenuOpens))
         menuView.visibility = View.VISIBLE
+        onMenuOpened()
         view.animate().scaleX(MENU_BUBBLE_SCALE).scaleY(MENU_BUBBLE_SCALE).setDuration(MENU_SCALE_MS)
             .setInterpolator(OvershootInterpolator()).withEndAction(null).start()
         Log.i(TAG, "quick menu: ${menuSlots.joinToString { it?.let { slot -> slot.action.name + if (slot.enabled) "" else " (off)" } ?: "-" }}, tilt ${fan.tiltDeg.roundToInt()}")

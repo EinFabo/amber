@@ -25,6 +25,7 @@ import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldFocus
 import app.amethyst.core.bubble.FieldPresence
+import app.amethyst.core.bubble.QuickMenuNames
 import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
@@ -135,6 +136,14 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
             },
             onHideIn = ::hideBubbleIn,
+            onMenuOpened = {
+                graph.appScope.launch {
+                    graph.settingsStore.update { settings ->
+                        QuickMenuNames.afterOpen(settings.bubble.quickMenuOpens)
+                            ?.let { settings.copy(bubble = settings.bubble.copy(quickMenuOpens = it)) } ?: settings
+                    }
+                }
+            },
         )
 
         defaultKeyboard.start()
