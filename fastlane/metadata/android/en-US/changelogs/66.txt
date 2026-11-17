@@ -1,0 +1,6 @@
+- Amber is now Embersay, under a new app id: install it fresh - Home helps remove the old app
+- Home says where a dictation went, and a failed one can be tried again right there
+- Settings in plain words: seconds instead of ms, Privacy in one place, own words, sound and music pause without Advanced
+- The quick menu names its buttons for the first few opens
+- The ready notification leaves the status bar
+- Clearer choices: visible radio buttons, a new server's page without early errors

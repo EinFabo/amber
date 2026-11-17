@@ -1,0 +1,6 @@
+- Amber heißt jetzt Embersay, mit neuer App-ID: neu installieren - Home hilft, die alte App zu entfernen
+- Home sagt, wohin ein Diktat ging, und ein fehlgeschlagenes lässt sich dort nochmal versuchen
+- Einstellungen klarer: Sekunden statt ms, Privatsphäre an einer Stelle, eigene Wörter ohne Erweitert
+- Das Schnellmenü nennt seine Knöpfe bei den ersten Malen
+- Die Bereit-Benachrichtigung verschwindet aus der Statusleiste
+- Sichtbare Auswahlkreise, neue Server ohne frühe Fehlermeldungen

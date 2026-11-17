@@ -1,4 +1,3 @@
-- Amber is now Embersay, under a new app id: a fresh install - Home helps remove the old app
 - A small speech model first, so the first dictation works at once; Parakeet follows on Wi-Fi
 - Try again after a failed dictation; Copy last for text a field refused
 - Own words, spoken punctuation, "scratch that"
