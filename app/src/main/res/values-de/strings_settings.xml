@@ -93,6 +93,7 @@
     <string name="engine_stops_at_pause">Hört bei Pausen auf</string>
     <string name="engine_typically">Hier meist %1$s</string>
     <string name="open">Öffnen</string>
+    <string name="engine_open_named">%1$s öffnen</string>
     <string name="bubble_size">Größe</string>
     <string name="bubble_size_small">Klein</string>
     <string name="bubble_size_medium">Mittel</string>

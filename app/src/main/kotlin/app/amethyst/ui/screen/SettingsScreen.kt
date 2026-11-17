@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -33,12 +34,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
@@ -46,23 +51,23 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
-import app.amethyst.core.settings.SettingsAttention
-import app.amethyst.core.text.CleanupTrouble
-import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.RecognitionNote
 import app.amethyst.core.settings.RecognitionRows
+import app.amethyst.core.settings.SettingsAttention
 import app.amethyst.core.settings.SettingsGroupKind
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.ThemeMode
+import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.AmberSwitch
+import app.amethyst.ui.ChevronRight
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.LearnMore
@@ -559,8 +564,10 @@ private fun EngineRow(
     onOpen: () -> Unit,
     cleanupOnly: Boolean = false,
 ) {
+    val name = recognitionRowName(config)
+    val openLabel = stringResource(R.string.engine_open_named, name)
     RadioRow(
-        label = recognitionRowName(config),
+        label = name,
         // Name the first missing thing rather than a generic "not configured":
         // the user should not have to open the detail screen to find out. A server for the
         // cleanup only misses its speech model on purpose.
@@ -576,7 +583,18 @@ private fun EngineRow(
         onSelect = onSelect,
         noteColor = if (problems.isEmpty() || cleanupOnly) AmberPalette.Muted else AmberPalette.Error,
     ) {
-        GhostButton(stringResource(R.string.open), onOpen)
+        // The row chooses; the chevron opens its page - quiet, as on the Cleanup page, not an
+        // amber "Open" on every row.
+        Box(
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable(role = Role.Button, onClick = onOpen)
+                .semantics { contentDescription = openLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            ChevronRight()
+        }
     }
 }
 
