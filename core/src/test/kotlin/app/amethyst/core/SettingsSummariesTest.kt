@@ -248,4 +248,12 @@ class SettingsSummariesTest {
         assertEquals(Summary.OwnWords(0), SettingsSummaries.ownWords(settings))
         assertEquals(Summary.OwnWords(2), SettingsSummaries.ownWords(settings.copy(words = settings.words.copy(own = listOf("Anna", "Amber")))))
     }
+
+    @Test
+    fun `the privacy row names the security mode when it is on, the history otherwise`() {
+        val settings = AmethystSettings.defaults(TEST_PHONE)
+        assertEquals(Summary.Privacy(settings.privacy.history, secure = false), SettingsSummaries.privacy(settings))
+        val secure = settings.copy(privacy = settings.privacy.copy(securityMode = true))
+        assertEquals(true, (SettingsSummaries.privacy(secure) as Summary.Privacy).secure)
+    }
 }

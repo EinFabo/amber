@@ -28,6 +28,9 @@
     <string name="toast_screen_off_not_kept">Screen was off - not inserted, the security mode keeps no copy</string>
     <!-- The history of recent dictations, kept encrypted on the phone. -->
     <string name="settings_history">History</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="summary_privacy_secure">Security mode on</string>
+    <string name="summary_privacy_history">History: %1$s</string>
     <string name="history_keep">Keep dictations</string>
     <string name="history_keep_note">On this phone, never in a backup: the words and the app encrypted, the time not.</string>
     <string name="history_lock_note">Readable only while the phone is unlocked - that needs a screen lock (PIN, pattern or password).</string>

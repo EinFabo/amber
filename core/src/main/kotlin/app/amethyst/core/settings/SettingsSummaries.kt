@@ -75,6 +75,9 @@ sealed interface Summary {
     /** How long the history keeps a dictation; [secure]: off by the security mode. */
     data class History(val keep: app.amethyst.core.history.HistoryKeep, val secure: Boolean) : Summary
 
+    /** What is kept: the security mode when it is on ([secure]), otherwise how long the history keeps a dictation. */
+    data class Privacy(val keep: app.amethyst.core.history.HistoryKeep, val secure: Boolean) : Summary
+
     /** How many own words there are ([OwnWords]); none yet at 0. */
     data class OwnWords(val count: Int) : Summary
 
@@ -141,6 +144,8 @@ object SettingsSummaries {
     )
 
     fun history(settings: AmethystSettings): Summary = Summary.History(settings.privacy.history, settings.privacy.securityMode)
+
+    fun privacy(settings: AmethystSettings): Summary = Summary.Privacy(settings.privacy.history, settings.privacy.securityMode)
 
     fun commands(settings: AmethystSettings): Summary = when {
         !settings.commands.enabled -> Summary.Off

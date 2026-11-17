@@ -118,6 +118,7 @@ import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.OwnWordsScreen
+import app.amethyst.ui.screen.PrivacyScreen
 import app.amethyst.ui.screen.TextScreen
 import app.amethyst.ui.screen.UpdatesScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
@@ -819,6 +820,7 @@ private fun AmethystScreens(
                                 )
                             }
                             // Switched on, the graph forgets what is kept now.
+                            SettingsPage.PRIVACY -> PrivacyScreen(settings, onOpen = { page -> open(Screen.Page(page)) })
                             SettingsPage.SECURITY_MODE -> SecurityModeScreen(settings) { on ->
                                 updateSettings { it.copy(privacy = it.privacy.copy(securityMode = on)) }
                             }

@@ -197,6 +197,11 @@ object Texts {
                 .let { titles -> if (summary.more) getString(R.string.summary_titles_and_more, titles) else titles }
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
+            is Summary.Privacy -> if (summary.secure) {
+                getString(R.string.summary_privacy_secure)
+            } else {
+                getString(R.string.summary_privacy_history, historyKeep(this, summary.keep))
+            }
             is Summary.BubbleSize -> getString(
                 when (summary.size) {
                     Summary.BubbleSize.Size.SMALL -> R.string.bubble_size_small

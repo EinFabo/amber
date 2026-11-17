@@ -26,6 +26,9 @@
     <string name="toast_may_arrive_not_kept">Kommt evtl. noch - der Sicherheitsmodus behält keine Kopie</string>
     <string name="toast_screen_off_not_kept">Bildschirm war aus - nicht eingefügt, ohne Kopie (Sicherheitsmodus)</string>
     <string name="settings_history">Verlauf</string>
+    <string name="settings_privacy">Privatsphäre</string>
+    <string name="summary_privacy_secure">Sicherheitsmodus an</string>
+    <string name="summary_privacy_history">Verlauf: %1$s</string>
     <string name="history_keep">Diktate behalten</string>
     <string name="history_keep_note">Auf dem Handy, nie in einem Backup: Wörter und App verschlüsselt, die Uhrzeit nicht.</string>
     <string name="history_lock_note">Nur lesbar, solange das Handy entsperrt ist - dafür braucht es eine Displaysperre (PIN, Muster oder Passwort).</string>

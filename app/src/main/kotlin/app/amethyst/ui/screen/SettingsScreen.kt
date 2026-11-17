@@ -133,12 +133,9 @@ fun SettingsScreen(
             onOpen(SettingsPage.OWN_WORDS)
         }
         SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
-        SettingsItem.HISTORY -> NavRow(
-            stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
-        ) { onOpen(SettingsPage.HISTORY) }
-        SettingsItem.SECURITY_MODE -> NavRow(
-            stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Lock,
-        ) { onOpen(SettingsPage.SECURITY_MODE) }
+        SettingsItem.PRIVACY -> NavRow(
+            stringResource(R.string.settings_privacy), words(SettingsSummaries.privacy(settings)), icon = AmberIcons.Lock,
+        ) { onOpen(SettingsPage.PRIVACY) }
         SettingsItem.VOICE_COMMANDS -> NavRow(
             stringResource(R.string.settings_voice_commands), words(SettingsSummaries.commands(settings)), icon = AmberIcons.VoiceCommand,
             summaryColor = if (commandsWithoutBubble) AmberPalette.Primary else AmberPalette.Muted,
@@ -203,6 +200,25 @@ fun SettingsScreen(
     }
 
     if (choosingTheme) ThemeDialog(settings.ui.theme, onThemeChange) { choosingTheme = false }
+}
+
+/**
+ * What is kept of a dictation: the history of recent dictations, then the security mode that
+ * keeps nothing - one page, as turning the security mode on changes the history.
+ */
+@Composable
+fun PrivacyScreen(settings: AmethystSettings, onOpen: (SettingsPage) -> Unit, modifier: Modifier = Modifier) {
+    SubPage(modifier) {
+        SettingsGroup(label = null) {
+            NavRow(
+                stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
+            ) { onOpen(SettingsPage.HISTORY) }
+            RowDivider()
+            NavRow(
+                stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Lock,
+            ) { onOpen(SettingsPage.SECURITY_MODE) }
+        }
+    }
 }
 
 /** Light, dark, or as the phone is set. A choice shows at once, behind the dialog. */
