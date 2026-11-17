@@ -1,6 +1,29 @@
 package app.amethyst.ui.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import app.amethyst.ui.ExpandChevron
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -181,28 +204,61 @@ private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (
 /**
  * One step's page: a title - with [top] above it, for the one step that has a picture there -
  * a line under it, the step's own content scrolling if it must, and its buttons held at the
- * bottom where the thumb is.
+ * bottom where the thumb is. Content that goes on below the fold fades out over a button that
+ * shows more, so nothing is cut off without a sign (a small phone cut the welcome step's last
+ * point). A [stage] - a picture between the line and the content - gives up height first: it
+ * shrinks towards [stageHeights]' start before the page has to scroll.
  */
 @Composable
 internal fun StepPage(
     title: String,
     lead: String?,
     top: (@Composable ColumnScope.() -> Unit)? = null,
+    stage: (@Composable (height: Dp) -> Unit)? = null,
+    stageHeights: ClosedRange<Dp> = 0.dp..0.dp,
     buttons: @Composable ColumnScope.() -> Unit,
     body: @Composable ColumnScope.() -> Unit,
 ) {
+    val scroll = rememberScrollState()
+    val density = LocalDensity.current
+    // The visible height, the content's own and the stage's as last laid out: the rest of the
+    // page does not depend on the stage, so the stage's height follows from them in one step.
+    var viewport by remember { mutableIntStateOf(0) }
+    var content by remember { mutableIntStateOf(0) }
+    var stageLaidOut by remember { mutableIntStateOf(-1) }
+    val stageHeight = with(density) {
+        if (stage == null || viewport == 0 || stageLaidOut < 0) {
+            stageHeights.endInclusive
+        } else {
+            (viewport - (content - stageLaidOut)).toDp().coerceIn(stageHeights.start, stageHeights.endInclusive)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(top = 8.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            top?.invoke(this)
-            Text(title, style = MaterialTheme.typography.headlineMedium, color = AmberPalette.Text)
-            if (lead != null) Text(lead, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Muted)
-            body()
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { viewport = it.height }
+                    .verticalScroll(scroll)
+                    // The content's own height, not stretched to the screen.
+                    .wrapContentHeight(Alignment.Top)
+                    .onSizeChanged { content = it.height }
+                    .padding(top = 8.dp, bottom = CONTENT_BOTTOM),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                top?.invoke(this)
+                Text(title, style = MaterialTheme.typography.headlineMedium, color = AmberPalette.Text)
+                if (lead != null) Text(lead, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Muted)
+                if (stage != null) Box(Modifier.onSizeChanged { stageLaidOut = it.height }) { stage(stageHeight) }
+                body()
+            }
+            MoreBelow(
+                // Not for the content's own space at its end.
+                shown = scroll.maxValue - scroll.value > with(density) { CONTENT_BOTTOM.roundToPx() },
+                scroll = scroll,
+                viewport = viewport,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
         Column(
             Modifier
@@ -214,3 +270,40 @@ internal fun StepPage(
         )
     }
 }
+
+/**
+ * The sign that a step goes on below: the content fades into the page, and a small button
+ * over it scrolls on by most of a screen. Gone once the end is in view.
+ */
+@Composable
+private fun MoreBelow(shown: Boolean, scroll: ScrollState, viewport: Int, modifier: Modifier = Modifier) {
+    val scope = rememberCoroutineScope()
+    val label = stringResource(R.string.step_more)
+    AnimatedVisibility(shown, modifier, enter = fadeIn(tween(150)), exit = fadeOut(tween(150))) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(MORE_FADE)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, AmberPalette.Background))),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(AmberPalette.Elevated)
+                    .clickable(onClickLabel = label) { scope.launch { scroll.animateScrollBy(viewport * 0.7f) } }
+                    .semantics { contentDescription = label },
+                contentAlignment = Alignment.Center,
+            ) {
+                ExpandChevron(expanded = false, color = AmberPalette.Text)
+            }
+        }
+    }
+}
+
+/** The space under a step's content, before its buttons. */
+private val CONTENT_BOTTOM = 16.dp
+
+/** How tall the fade over content that goes on below is. */
+private val MORE_FADE = 48.dp

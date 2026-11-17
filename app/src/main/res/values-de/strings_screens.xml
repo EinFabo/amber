@@ -24,6 +24,7 @@
     <string name="start_test_dictation">Testdiktat starten</string>
     <string name="back">Zurück</string>
     <string name="step_of">Schritt %1$d von %2$d</string>
+    <string name="step_more">Mehr anzeigen</string>
     <string name="skip">Überspringen</string>
     <string name="accessibility_not_opened">Die Bedienungshilfen von Android haben sich nicht geöffnet. Du findest sie unter Einstellungen → Bedienungshilfen.</string>
     <string name="language_download_started">Download gestartet. Android meldet sich gleich.</string>

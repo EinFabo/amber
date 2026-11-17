@@ -56,7 +56,8 @@ private fun Point(title: String, text: String) {
 /**
  * What Amber is - shown once on a small stage ([WelcomeDemo]), then said in three points - and
  * the three ways on: the quick setup as the filled button, every choice
- * step by step, or none of it now - Home then shows what is still missing.
+ * step by step, or none of it now - Home then shows what is still missing. On a short screen
+ * the stage gets lower first, so the three points still fit.
  */
 @Composable
 internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
@@ -69,8 +70,9 @@ internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit
             GhostButton(stringResource(R.string.welcome_deep), { onPath(OnboardingPath.DEEP) })
             LaterButton(stringResource(R.string.welcome_skip), onSkipAll)
         },
+        stage = { height -> WelcomeDemo(height = height) },
+        stageHeights = WELCOME_STAGE_MIN..STAGE_HEIGHT,
     ) {
-        WelcomeDemo()
         Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))
         Point(stringResource(R.string.welcome_private), stringResource(R.string.welcome_private_note))
         Point(stringResource(R.string.welcome_only_dictating), stringResource(R.string.welcome_only_dictating_note))

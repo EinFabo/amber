@@ -860,12 +860,41 @@ open class Screenshots {
         settings: AmethystSettings = AmethystSettings.defaults(PHONE),
         content: OnboardingContent = content(),
         path: OnboardingPath = OnboardingPath.DEEP,
-    ) = shoot("x-onboarding-$name", null) {
+        bars: Bars = Bars(top = 28.dp),
+    ) = shoot("x-onboarding-$name", null, bars) {
         OnboardingScreen(step = step, settings = settings, setup = setup, actions = actions, content = content, onStep = {}, onFinish = {}, path = path)
     }
 
     @Test
     fun onboardingWelcome() = onboarding("1-welcome", OnboardingStep.WELCOME)
+
+    /**
+     * Not part of the listing set: a small phone - the Samsung Galaxy A20e, 360 × 780 dp at 320 dpi,
+     * whose status bar and three-button navigation take 72 dp of the 780. Its welcome step cut the
+     * third point (2026-11-16).
+     */
+    @Test
+    @Config(qualifiers = "+w360dp-h780dp-xhdpi")
+    fun onboardingWelcomeSmallPhone() = onboarding("1-welcome-a20e", OnboardingStep.WELCOME, bars = A20E)
+
+    /** Not part of the listing set: the other steps on the same small phone, as they open. */
+    @Test
+    @Config(qualifiers = "+w360dp-h780dp-xhdpi")
+    fun onboardingStepsSmallPhone() {
+        onboarding("2-accessibility-a20e", OnboardingStep.ACCESSIBILITY, bars = A20E)
+        onboarding("2-accessibility-waiting-a20e", OnboardingStep.ACCESSIBILITY, fresh.copy(accessibilityTried = true), bars = A20E)
+        onboarding("3-microphone-a20e", OnboardingStep.MICROPHONE, bars = A20E)
+        onboarding("4-engine-a20e", OnboardingStep.ENGINE, ready, bars = A20E)
+        onboarding("5-cleanup-a20e", OnboardingStep.CLEANUP, ready, parakeetActive, bars = A20E)
+        onboarding("6-styles-a20e", OnboardingStep.APP_STYLES, ready, parakeetActive, bars = A20E)
+        onboarding("7-bubble-a20e", OnboardingStep.BUBBLE, ready, parakeetActive, bars = A20E)
+        onboarding("7b-practice-a20e", OnboardingStep.PRACTICE, ready, parakeetActive, content(parakeet = parakeetReady), bars = A20E)
+        onboarding("8-reliability-a20e", OnboardingStep.RELIABILITY, fresh.copy(microphoneGranted = true, accessibilityEnabled = true), parakeetActive, bars = A20E)
+        onboarding(
+            "9-done-a20e", OnboardingStep.DONE, ready, parakeetActive,
+            content = content(download = app.amethyst.core.engine.ModelDownload.Running(520_000_000, 670_000_000)), bars = A20E,
+        )
+    }
 
     @Test
     fun onboardingAccessibility() = onboarding("2-accessibility", OnboardingStep.ACCESSIBILITY)
@@ -1313,13 +1342,16 @@ open class Screenshots {
         assertTrue(file.length() > 0)
     }
 
-    /** A page under its top bar: [title] as MainActivity gives it - a page's own ([SettingsPage.title]), a string, or [AMBER] for Home. */
-    private fun shoot(name: String, @StringRes title: Int?, content: @Composable () -> Unit) {
+    /**
+     * A page under its top bar: [title] as MainActivity gives it - a page's own ([SettingsPage.title]), a string, or [AMBER] for Home.
+     * [bars]: the room the status bar and the navigation take, top and bottom - a stand-in for the status bar alone unless given.
+     */
+    private fun shoot(name: String, @StringRes title: Int?, bars: Bars = Bars(top = 28.dp), content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
             AmberTheme(dark) {
                 AmberBackground {
-                    Column(Modifier.fillMaxSize().padding(top = 28.dp)) {
+                    Column(Modifier.fillMaxSize().padding(top = bars.top, bottom = bars.bottom)) {
                         if (title != null) {
                             // Home goes by the app's name, every other page by its title in the phone's language.
                             val home = title == AMBER
@@ -1333,6 +1365,12 @@ open class Screenshots {
         }
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
         val view = activity.window.decorView
+        // A few frames more: here a layout runs only when the window is drawn, and a page that
+        // fits itself to its height (StepPage's stage) needs one or two to settle.
+        repeat(3) {
+            view.draw(Canvas(Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
+        }
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
         val file = File(out, "$name$suffix.png")
@@ -1340,7 +1378,13 @@ open class Screenshots {
         assertTrue(file.length() > 0)
     }
 
+    /** The room the system bars take at the top and the bottom of the screen. */
+    private data class Bars(val top: androidx.compose.ui.unit.Dp, val bottom: androidx.compose.ui.unit.Dp = 0.dp)
+
     private companion object {
+        /** The Samsung Galaxy A20e's status bar and three-button navigation. */
+        private val A20E = Bars(top = 24.dp, bottom = 48.dp)
+
         /** Home's title: the app's name, which is no string resource. */
         const val AMBER = 0
 

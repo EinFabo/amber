@@ -18,11 +18,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.bubble.Fire
@@ -46,10 +48,11 @@ import kotlin.math.sin
  * bubble ticked.
  *
  * One [app.amethyst.ui.Timeline] drives all of it; every part below is drawn from the time
- * alone. No microphone is involved - the bubble's level is made up.
+ * alone. No microphone is involved - the bubble's level is made up. On a short screen the
+ * stage is lower than [STAGE_HEIGHT] ([height]) and everything on it is drawn smaller.
  */
 @Composable
-internal fun WelcomeDemo(modifier: Modifier = Modifier) {
+internal fun WelcomeDemo(modifier: Modifier = Modifier, height: Dp = STAGE_HEIGHT) {
     val time = rememberTimeline(DEMO_MS, plays = 2)
     val sentence = stringResource(R.string.welcome_demo_sentence)
     val style = MaterialTheme.typography.bodyMedium
@@ -67,20 +70,25 @@ internal fun WelcomeDemo(modifier: Modifier = Modifier) {
     Canvas(
         modifier
             .fillMaxWidth()
-            .height(STAGE_HEIGHT)
+            .height(height)
             .clip(AmberShapes.Card)
             .background(AmberPalette.Surface)
             .border(1.dp, AmberPalette.Outline, AmberShapes.Card)
             // The step's lead says the same in words.
             .clearAndSetSemantics {},
     ) {
-        drawDemo(time.ms, words, colors)
+        // Drawn as on the full stage, a little wider, then scaled down to this one.
+        val full = STAGE_HEIGHT.toPx()
+        val s = size.height / full
+        scale(s, s, pivot = Offset.Zero) { drawDemo(time.ms, words, colors, w = size.width / s, h = full) }
     }
 }
 
 private class DemoColors(val raised: Color, val line: Color, val key: Color, val text: Color, val amber: Color, val disc: Color, val spark: Color)
 
-private val STAGE_HEIGHT = 160.dp
+/** The stage's full height; [WELCOME_STAGE_MIN] is as low as it goes on a short screen. */
+internal val STAGE_HEIGHT = 160.dp
+internal val WELCOME_STAGE_MIN = 100.dp
 private const val DEMO_MS = 6_000
 
 // The demo's moments, in milliseconds from its start.
@@ -96,9 +104,8 @@ private const val WORK_FROM = 3_750f
 private const val TYPE_FROM = 4_100f
 private const val DONE_FROM = 5_300f
 
-private fun DrawScope.drawDemo(ms: Float, words: TextLayoutResult, c: DemoColors) {
-    val w = size.width
-    val h = size.height
+/** The scene on a stage [w] wide and [h] high. */
+private fun DrawScope.drawDemo(ms: Float, words: TextLayoutResult, c: DemoColors, w: Float, h: Float) {
     val edge = 12.dp.toPx()
     fun part(from: Float, to: Float) = ((ms - from) / (to - from)).coerceIn(0f, 1f)
 
