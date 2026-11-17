@@ -25,6 +25,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -427,7 +428,7 @@ private sealed interface Screen {
 @Composable
 private fun Screen.title(): String = when (this) {
     Screen.Onboarding -> ""
-    Screen.Home -> "Embersay" // English: the app's name
+    Screen.Home -> APP_NAME
     Screen.Settings -> stringResource(R.string.title_settings)
     is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
     is Screen.AppStyle -> stringResource(R.string.title_app)
@@ -641,6 +642,7 @@ private fun AmethystScreens(
                     title = screen.title(),
                     showBack = screen != Screen.Home,
                     showSettings = screen == Screen.Home,
+                    wordmark = screen == Screen.Home,
                     onBack = ::back,
                     onSettings = { open(Screen.Settings) },
                 )
@@ -1010,6 +1012,8 @@ internal fun TopBar(
     showSettings: Boolean,
     onBack: () -> Unit,
     onSettings: () -> Unit,
+    /** Home: the name as its mark ([Wordmark]) instead of plain text. */
+    wordmark: Boolean = false,
 ) {
     Row(
         Modifier
@@ -1019,12 +1023,16 @@ internal fun TopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (showBack) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph)
-        Text(
-            title,
-            style = MaterialTheme.typography.headlineMedium,
-            color = AmberPalette.Text,
-            modifier = Modifier.weight(1f),
-        )
+        if (wordmark) {
+            Box(Modifier.weight(1f)) { Wordmark() }
+        } else {
+            Text(
+                title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = AmberPalette.Text,
+                modifier = Modifier.weight(1f),
+            )
+        }
         if (showSettings) IconAction(onClick = onSettings, contentDescription = stringResource(R.string.title_settings), glyph = GearGlyph)
     }
 }

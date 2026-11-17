@@ -222,13 +222,16 @@ internal fun DrawScope.drawBurst(cx: Float, cy: Float, r: Float, w: Float, elaps
     }
 }
 
-/** The resting flame on its disc, for show only - nothing to tap, nothing moving. */
+/**
+ * The resting flame on its disc, for show only - nothing to tap, nothing moving. [disc]: the
+ * disc's share of [size] - the bubble's by default, 1 for the launcher icon's full disc ([Wordmark]).
+ */
 @Composable
-fun FlameMark(modifier: Modifier = Modifier, size: Dp = 88.dp) {
+fun FlameMark(modifier: Modifier = Modifier, size: Dp = 88.dp, disc: Float = Fire.DISC) {
     Canvas(modifier.size(size)) {
         val cx = this.size.width / 2
         val cy = this.size.height / 2
-        val r = this.size.width / 2 * Fire.DISC
+        val r = this.size.width / 2 * disc
         drawCircle(AmberPalette.Flame, radius = r, center = Offset(cx, cy))
         drawFlame(Color(Fire.INK), AmberPalette.Flame, cx, cy, r)
     }

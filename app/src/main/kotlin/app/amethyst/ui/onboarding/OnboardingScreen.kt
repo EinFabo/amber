@@ -70,6 +70,7 @@ import app.amethyst.ui.IconAction
 import app.amethyst.ui.PendingModel
 import app.amethyst.ui.SetupActions
 import app.amethyst.ui.SetupState
+import app.amethyst.ui.Wordmark
 import app.amethyst.ui.screen.CleanupAccess
 import app.amethyst.ui.theme.AmberPalette
 import kotlinx.coroutines.flow.Flow
@@ -107,6 +108,7 @@ fun OnboardingScreen(
     val next: () -> Unit = { nextFrom(step, settings) }
     Column(modifier.fillMaxSize()) {
         StepLine(
+            wordmark = step == OnboardingStep.WELCOME,
             position = Onboarding.position(step, settings, path),
             onBack = Onboarding.previous(step, settings, path)?.let { previous -> { onStep(previous) } },
             onSkip = next.takeIf { Onboarding.skippable(step) },
@@ -178,9 +180,26 @@ class OnboardingContent(
     val nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
 )
 
-/** "Step 4 of 10" between Back and Skip - no number on the welcome step, where the way is chosen. */
+/**
+ * "Step 4 of 10" between Back and Skip - no number on the welcome step, where the way is chosen:
+ * the app's name stands there instead ([wordmark]), in the room the line takes anyway, so a
+ * small phone loses nothing to it.
+ */
 @Composable
-private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (() -> Unit)?) {
+private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (() -> Unit)?, wordmark: Boolean = false) {
+    if (wordmark) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                // In line with the page's text below (20 dp), as tall as the line on the other steps.
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Wordmark(style = MaterialTheme.typography.titleLarge)
+        }
+        return
+    }
     Row(
         Modifier
             .fillMaxWidth()

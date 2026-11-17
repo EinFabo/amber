@@ -1373,7 +1373,7 @@ open class Screenshots {
                         if (title != null) {
                             // Home goes by the app's name, every other page by its title in the phone's language.
                             val home = title == AMBER
-                            TopBar(title = if (home) "Embersay" else stringResource(title), showBack = !home, showSettings = home, onBack = {}, onSettings = {})
+                            TopBar(title = if (home) APP_NAME else stringResource(title), showBack = !home, showSettings = home, wordmark = home, onBack = {}, onSettings = {})
                         }
                         // Every drawn scene at rest, as with animations off: a looping one would never let the clock below run out.
                         androidx.compose.runtime.CompositionLocalProvider(LocalTimelineAt provides 1f) { content() }

@@ -54,17 +54,16 @@ private fun Point(title: String, text: String) {
 }
 
 /**
- * What Amber is - shown once on a small stage ([WelcomeDemo]), then said in three points - and
- * the three ways on: the quick setup as the filled button, every choice
- * step by step, or none of it now - Home then shows what is still missing. On a short screen
+ * What the app is - under its name in the line on top ([StepLine]), shown once on a small
+ * stage ([WelcomeDemo]), then said in three points - and the three ways on: the quick setup as
+ * the filled button, every choice step by step, or none of it now - Home then shows what is still missing. On a short screen
  * the stage gets lower first, so the three points still fit.
  */
 @Composable
 internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
     StepPage(
         title = stringResource(R.string.welcome_title),
-        lead = stringResource(R.string.welcome_lead),
-        buttons = {
+        lead = stringResource(R.string.welcome_lead),        buttons = {
             Hint(stringResource(R.string.welcome_ways), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
             ContinueButton({ onPath(OnboardingPath.QUICK) }, stringResource(R.string.welcome_quick))
             GhostButton(stringResource(R.string.welcome_deep), { onPath(OnboardingPath.DEEP) })
