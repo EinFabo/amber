@@ -2,6 +2,56 @@
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
 
+## Polish review (2026-11-17)
+
+A read-only review of 0.34.0-rc4 for a store launch (polish, settings, everyday frustration;
+score 6.5/10). Built on the same day, not yet on a phone:
+- [x] Done step: "the gear at the top right when you open Amber", and "Everything else" names
+      what the simple view shows (apps, appearance; recording and text under Advanced).
+- [x] Home after a dictation: "Inserted" (or "On the clipboard") beside the badge, no ms and
+      no way of inserting; an unexpected failure shows the generic line, the exception goes
+      to Diagnostics only.
+- [x] "Try again" on Home under a failure and under "Tap and speak" while the recording is
+      kept (into the test field; nothing in the security mode).
+- [x] Radio rings that are not chosen and the edge of an off switch at 3:1 in both themes (a
+      new `control` colour, measured in AmberColorsTest).
+- [x] A new server's page: what is missing in grey until something is typed, then red; "Use
+      as active speech recognition" disabled until complete, and it saves first.
+- [x] The introduction's "Show more" only once the layout says the step goes on below.
+- [x] Own words as a row and page of its own in the main group; the start/stop sound and
+      pausing music on the Bubble page; Reliability said once (the row on top only where the
+      Reliability row is hidden).
+- [x] Glossary and spelling: "Android's speech recognition", "cleanup model", "Verified
+      enclave" everywhere, "Use Whisper on this phone", American spelling, "…" without a
+      space in English.
+- [x] Seconds instead of ms (settings, statistics, test results), the bubble size in words,
+      "Parakeet" without "TDT" (settings schema 16 renames the stored preset), no "Shortest
+      part" slider (schema 16 resets a value set there; the setting stays for tests). The
+      version 1 Whisper "de-DE" migration now only runs on version 1 settings.
+- [x] The ready notification on a new minimum-importance channel (no status bar icon; the old
+      channel is deleted), text "Keeps the microphone ready for the bubble".
+- [x] Quick menu: every button named for the first five opens (`QuickMenuNames`).
+- [x] History and Security mode as one "Privacy" row with both on its page.
+- [x] Groq's and OpenAI's pages: the address field and hint behind "Other address".
+- [x] The speech recognition list: a chevron instead of an amber "Open" on every row.
+- [ ] Not built from the review: one icon with three meanings (History, introduction, Try
+      again; Subject on licenses and history rows); the app page titled "App" and "Remove
+      Keep"; Groq's page still says "Settings complete." and has a Save button beside the
+      autosave; the Recording page's "Recognize while speaking" / "Recognize in parts" are
+      two names for one thing; the "Per app" header over a single row; the bubble size and
+      opacity values sit differently; the Cleanup page's privacy note in orange; the German
+      Reliability banner wraps; the skipped-introduction download note sits loose between
+      cards; History's failed-dictation card aligns its icon differently; "All set" while the
+      model still downloads; the quick menu's long `gesture_hold_note`; bare HTTP codes in
+      failure toasts and the developer wording of a test result ("The test clip contains no
+      speech ..."); the German "nahm das Mikrofon"; Home's cleanup row still names "Tinfoil
+      (Enclave)" above the "Verified enclave" badge; other model suffixes ("Voxtral Small
+      24B", "Whisper base"). Spoken punctuation stays on by default: "Punkt 2" was fixed in rc4.
+- To try on a phone: the notification is gone from the status bar after the update (and the
+  old channel from Android's list); Home's "Try again" after a failed test dictation; the
+  quick menu's names on a small screen and near the top or bottom edge (tilted fan); the
+  done step and Settings in German.
+
 ## Second test device: Samsung Galaxy A20e (2026-11-16, adb)
 
 SM-A202F, Android 11 (API 30), 2.8 GB RAM, Cortex-A53 (no dot product), 720x1560 at 320 dpi,
@@ -40,17 +90,20 @@ Samsung keyboard, German. Test build from amber (after rc4, with the tone on the
       field may announce an action (send) - then the text goes in as one line. Needs the log of
       one dictation in WhatsApp (the insertion line says the strategy) and a decision: a line
       break by SET_TEXT or by the input connection's own newline where Enter would send.
-- [ ] **The "?" lands behind the cursor** ("Hallo Anna Komma neue Zeile wie geht es dir
+- [x] **The "?" lands behind the cursor** - fixed in rc4 (Fabi's test 2026-11-16). Was:
+      ("Hallo Anna Komma neue Zeile wie geht es dir
       Fragezeichen" in WhatsApp): the text comes in, but the cursor stands before the final
       question mark instead of after it.
-- [ ] **"Streich das" takes back only itself**, not the sentence before it: "Ich komme um
+- [x] **"Streich das" takes back only itself** - fixed in rc4 (Fabi's test 2026-11-16). Was:
+      not the sentence before it: "Ich komme um
       drei. Streich das." and "Hallo Anna. Ich komme um drei. Streich das." both keep the
       sentence and drop only the phrase (probably the cleanup removing the phrase because
       Amber's own rule did not fire on Parakeet's text - needs the log).
-- [ ] **"Punkt 2" became ".2"**: spoken punctuation turned "Punkt" before a number written in
-      digits into a dot.
-- [ ] **The Text page reads badly**: the explanations in English and German "sound dumb",
-      too much text, AI-sounding. Research how setting descriptions should look per language
+- [x] **"Punkt 2" became ".2"** - fixed in rc4 (Fabi's test 2026-11-16). Was: spoken
+      punctuation turned "Punkt" before a number written in digits into a dot.
+- [ ] **Still open after rc4: the Text page reads badly** (the polish review of 2026-11-17
+      moved Own words off it and left its wording): the explanations in English and German
+      "sound dumb", too much text, AI-sounding. Research how setting descriptions should look per language
       (short, plain, not slop) and rewrite them.
 
 ## Polish, built (2026-11-15/16) - docs/plans/2026-11-15-polish-plan.md
