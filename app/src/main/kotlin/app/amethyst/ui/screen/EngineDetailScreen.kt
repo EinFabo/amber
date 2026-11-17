@@ -139,6 +139,8 @@ fun EngineDetailScreen(
     // Something typed, picked, saved or tested here: only then is a missing field an error in
     // red. Before, a new server's page would open with errors for fields nobody had seen yet.
     var touched by remember(config.id) { mutableStateOf(false) }
+    // At Groq's or OpenAI's own address the field stays folded until asked for.
+    var otherAddress by remember(config.id) { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember(config.id) { mutableStateOf<ConnectionTester.Result?>(null) }
 
@@ -289,6 +291,7 @@ fun EngineDetailScreen(
                             current = ServerProviders.forUrl(baseUrl.trim()),
                             onPick = { quick ->
                                 touched = true
+                                otherAddress = false
                                 val pointed = Servers.pointAt(edited(), quick)
                                 baseUrl = pointed.baseUrl.orEmpty()
                                 modelId = pointed.modelId.orEmpty()
@@ -302,10 +305,12 @@ fun EngineDetailScreen(
                                 onSave(edited())
                             },
                         )
-                        OutlinedTextField(
+                        // Typed into, the field stays, also once the text is a known address.
+                        if (otherAddress || !Servers.atKnownAddress(baseUrl)) OutlinedTextField(
                             value = baseUrl,
                             onValueChange = { typed ->
                                 touched = true
+                                otherAddress = true
                                 // An Amber address with the key in it, or a pairing link: the two
                                 // go into their own fields, as with OpenAI.
                                 val split = AmberAddress.split(typed).takeIf { config.apiKeyAlias != null }
@@ -325,7 +330,11 @@ fun EngineDetailScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Hint(stringResource(R.string.engine_address_hint))
+                        if (otherAddress || !Servers.atKnownAddress(baseUrl)) {
+                            Hint(stringResource(R.string.engine_address_hint))
+                        } else {
+                            GhostButton(stringResource(R.string.engine_other_address), { otherAddress = true })
+                        }
                         // Typed only while the server lists no speech model to pick, so an empty
                         // list never leaves the engine without one.
                         if (listed) {

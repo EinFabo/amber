@@ -10,6 +10,7 @@
     <string name="engine_whisper_languages">Die Sprachen, in denen du diktierst. Bei mehreren erkennt Whisper pro Diktat, welche gesprochen wurde. Eine einzelne wird erzwungen: Was in einer anderen Sprache gesagt wird, wird dann übersetzt.</string>
     <string name="engine_connection">Verbindung</string>
     <string name="engine_connection_subtitle">Alles mit /v1/audio/transcriptions - Speaches, LocalAI, der Server von whisper.cpp.</string>
+    <string name="engine_other_address">Andere Adresse</string>
     <string name="engine_address">Adresse</string>
     <string name="engine_address_hint">Zum Beispiel https://speech.example.com/v1 - mit oder ohne /v1. http:// nur für Server in deinem eigenen Netz. Eine Amber-PC-Adresse mit Schlüssel darin wird in Adresse und Schlüssel geteilt.</string>
     <string name="engine_models_below">%1$s - die Modelle stehen unten.</string>

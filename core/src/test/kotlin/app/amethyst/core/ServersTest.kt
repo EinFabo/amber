@@ -188,4 +188,14 @@ class ServersTest {
         assertEquals("my_box.lan", bound.keyHost)
         assertFalse(KeyBinding.allows(bound.copy(baseUrl = "https://elsewhere.example/v1")))
     }
+
+    @Test
+    fun `a known service's own address needs no field, any other does`() {
+        assertTrue(Servers.atKnownAddress(EnginePresets.GROQ.baseUrl))
+        assertTrue(Servers.atKnownAddress(" ${EnginePresets.OPENAI.baseUrl}/ "))
+        assertTrue(Servers.atKnownAddress(EnginePresets.GROQ.baseUrl!!.uppercase()))
+        assertFalse(Servers.atKnownAddress("https://proxy.example.com/groq/v1"))
+        assertFalse(Servers.atKnownAddress(""))
+        assertFalse(Servers.atKnownAddress(null))
+    }
 }

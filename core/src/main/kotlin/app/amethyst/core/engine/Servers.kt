@@ -82,6 +82,16 @@ object Servers {
     data class Quick(val provider: ServerProvider, val baseUrl: String, val modelId: String)
 
     /**
+     * Whether [baseUrl] is a known service's own address ([QUICK]) - give or take a trailing
+     * slash, spaces and capitals: its page needs no address field then, only the key and the
+     * model list, and shows the field on request ("Other address").
+     */
+    fun atKnownAddress(baseUrl: String?): Boolean {
+        val typed = baseUrl?.trim()?.trimEnd('/')?.lowercase()?.takeIf { it.isNotEmpty() } ?: return false
+        return QUICK.any { it.baseUrl.trimEnd('/').lowercase() == typed }
+    }
+
+    /**
      * The known service a pasted [key] belongs to, by its prefix - Groq's start with "gsk_",
      * OpenAI's in its own shapes ([isOpenAiKey]) - so a key alone fills in the address. Null for anything else.
      */
