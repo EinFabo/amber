@@ -584,7 +584,7 @@ internal fun BubbleSizeRow(sizeDp: Int, onChange: (Int) -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = AmberPalette.Text,
             )
-            Hint(stringResource(R.string.dp, shown))
+            Hint(words(SettingsSummaries.bubbleSize(shown)))
             Slider(
                 value = dragging,
                 onValueChange = { dragging = it },

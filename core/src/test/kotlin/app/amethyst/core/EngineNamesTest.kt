@@ -16,7 +16,7 @@ class EngineNamesTest {
 
     @Test
     fun `Parakeet goes by the name Settings gives it`() {
-        assertEquals(EngineName.Plain("Parakeet TDT"), EngineNames.of(EngineOption.PARAKEET))
+        assertEquals(EngineName.Plain("Parakeet"), EngineNames.of(EngineOption.PARAKEET))
         assertEquals(EngineName.Plain(SettingsSummaries.shortName(EnginePresets.LOCAL_PARAKEET.displayName)), EngineNames.of(EngineOption.PARAKEET))
     }
 

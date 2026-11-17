@@ -15,7 +15,7 @@ import app.amethyst.core.onboarding.EngineNames
 object RecognitionRows {
 
     /**
-     * The row's name: the introduction's where it has one ("Parakeet TDT", "Whisper small",
+     * The row's name: the introduction's where it has one ("Parakeet", "Whisper small",
      * Android's recognizer). A Whisper model the introduction does not offer is "Whisper";
      * any other goes by its own name, which the app shows without its bracketed note
      * ([EngineName.Own]: "Tinfoil", a server as its owner named it).

@@ -231,4 +231,21 @@ class SettingsSummariesTest {
         assertEquals(Summary.About("", Summary.About.Newer.Unknown), about("", ReleaseChannel.GITHUB, checked))
         assertEquals(Summary.About("0.33.0", Summary.About.Newer.Unknown), about("0.33.0", ReleaseChannel.GITHUB, checked.copy(latestVersion = "soon")))
     }
+
+    @Test
+    fun `the bubble's size is a word, the default medium`() {
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.SMALL), SettingsSummaries.bubbleSize(44))
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.SMALL), SettingsSummaries.bubbleSize(52))
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.MEDIUM), SettingsSummaries.bubbleSize(BubbleSettings().sizeDp))
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.MEDIUM), SettingsSummaries.bubbleSize(68))
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.LARGE), SettingsSummaries.bubbleSize(72))
+        assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.EXTRA_LARGE), SettingsSummaries.bubbleSize(96))
+    }
+
+    @Test
+    fun `the own words row counts them`() {
+        val settings = AmethystSettings.defaults(TEST_PHONE)
+        assertEquals(Summary.OwnWords(0), SettingsSummaries.ownWords(settings))
+        assertEquals(Summary.OwnWords(2), SettingsSummaries.ownWords(settings.copy(words = settings.words.copy(own = listOf("Anna", "Amber")))))
+    }
 }

@@ -79,8 +79,6 @@
     <string name="seconds">%1$d s</string>
     <string name="chunking">In Teilen erkennen</string>
     <string name="chunking_note">Nur Spracherkennung auf dem Handy</string>
-    <string name="chunking_shortest">Kürzester Teil</string>
-    <string name="chunking_default">Standard</string>
     <string name="styles_your_apps">Deine Apps</string>
     <string name="styles_note_cleanup">Jede App bekommt den Text in ihrem eigenen Stil.</string>
     <string name="styles_note_own">Nur Apps mit einem eigenen Modell werden bereinigt.</string>

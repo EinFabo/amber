@@ -21,7 +21,7 @@ class RecognitionRowsTest {
 
     @Test
     fun `a row's name leaves out where it runs`() {
-        assertEquals(EngineName.Plain("Parakeet TDT"), RecognitionRows.name(parakeet))
+        assertEquals(EngineName.Plain("Parakeet"), RecognitionRows.name(parakeet))
         assertEquals(EngineName.Plain("Whisper base"), RecognitionRows.name(whisper))
         assertEquals(EngineName.AndroidRecognizer, RecognitionRows.name(android))
     }

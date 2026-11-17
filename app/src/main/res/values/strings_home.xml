@@ -82,7 +82,6 @@
     <string name="place_phone">On this phone</string>
     <string name="place_verified_enclave">Verified enclave</string>
     <string name="place_server">Server</string>
-    <string name="duration_ms">%1$d ms</string>
     <string name="duration_s">%1$s s</string>
     <string name="duration_min_s">%1$d min %2$d s</string>
     <string name="duration_min">%1$d min</string>

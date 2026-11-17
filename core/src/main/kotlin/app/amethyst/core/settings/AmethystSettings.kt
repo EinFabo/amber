@@ -359,9 +359,15 @@ data class AmethystSettings(
          * defaults. Nor did the "Advanced settings" switch ([ui]): absent, it decodes to on
          * (settings from before it), and a new install starts with it off ([defaults]).
          * Nor did light and dark ([UiSettings.theme]): absent, it follows the phone.
+         * 16: Parakeet is called "Parakeet (local)", without the architecture's "TDT", and the
+         * shortest part of a dictation recognized in parts ([CaptureSettings.chunkMinMs]) is no
+         * longer on screen: a value set there goes back to each engine's own.
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 15
+        const val SCHEMA_VERSION = 16
+
+        /** Parakeet's name until schema 16, kept to recognize it in older settings. */
+        const val PARAKEET_NAME_BEFORE_16 = "Parakeet TDT (local)"
 
         /**
          * What the version 1 migration gives Whisper engines that version 1 had forced to
@@ -435,7 +441,9 @@ object SettingsCodec {
         }
         val migrated = settings.copy(
             activeEngineId = active,
-            capture = if (settings.schemaVersion < 13) migrateCapture(settings.capture) else settings.capture,
+            capture = (if (settings.schemaVersion < 13) migrateCapture(settings.capture) else settings.capture)
+                // Version 16: the shortest part has no slider any more, so nothing keeps it set.
+                .let { if (settings.schemaVersion < 16) it.copy(chunkMinMs = null) else it },
             cleanup = cleanup,
             fallback = fallback,
             // Version 8: whoever had settings before the introduction existed has set Amber up.
@@ -448,7 +456,8 @@ object SettingsCodec {
             privacy = if (settings.schemaVersion < 15) HistoryOffer.forEarlierInstall(settings.privacy) else settings.privacy,
             engines = kept.map { engine ->
                 when {
-                    engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
+                    // Only version 1 forced it; a "de-DE" chosen since stays.
+                    settings.schemaVersion < 2 && engine.kind == EngineKind.WHISPER_CPP && engine.languageTag == "de-DE" ->
                         engine.copy(languageTag = AmethystSettings.V1_WHISPER_LANGUAGES)
                     // Version 3: Tinfoil's per-model hosts (*.inf.tinfoil.sh) no longer resolve.
                     engine.baseUrl?.contains(".inf.tinfoil.sh") == true ->
@@ -458,6 +467,14 @@ object SettingsCodec {
                     .copy(cleanupModel = null)
                     // Version 12: a stored key belongs to the address it was used with so far.
                     .let { if (settings.schemaVersion < 12) KeyBinding.bindIfUnbound(it) else it }
+                    // Version 16: Parakeet's new name, unless it was given another one.
+                    .let {
+                        if (it.id == EnginePresets.LOCAL_PARAKEET.id && it.displayName == AmethystSettings.PARAKEET_NAME_BEFORE_16) {
+                            it.copy(displayName = EnginePresets.LOCAL_PARAKEET.displayName)
+                        } else {
+                            it
+                        }
+                    }
             },
             schemaVersion = AmethystSettings.SCHEMA_VERSION,
         )

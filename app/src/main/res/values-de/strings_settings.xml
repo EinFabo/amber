@@ -94,7 +94,10 @@
     <string name="engine_typically">Hier meist %1$s</string>
     <string name="open">Öffnen</string>
     <string name="bubble_size">Größe</string>
-    <string name="dp">%1$d dp</string>
+    <string name="bubble_size_small">Klein</string>
+    <string name="bubble_size_medium">Mittel</string>
+    <string name="bubble_size_large">Groß</string>
+    <string name="bubble_size_extra_large">Sehr groß</string>
     <string name="cancel">Abbrechen</string>
     <string name="updates_what_it_asks">Die Prüfung fragt GitHub nur, welches Amber-Release das neueste ist: kein Konto, keine Kennung, nichts über deine Diktate. GitHub sieht deine IP-Adresse, dass Amber fragt, und welche Version.</string>
     <string name="updates_elsewhere">Dieses Amber bekommt seine Updates von dort, wo du es installiert hast. Es sucht nie selbst danach.</string>

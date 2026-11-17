@@ -79,8 +79,6 @@
     <string name="seconds">%1$d s</string>
     <string name="chunking">Recognize in parts</string>
     <string name="chunking_note">Speech recognition on the phone only</string>
-    <string name="chunking_shortest">Shortest part</string>
-    <string name="chunking_default">default</string>
     <string name="styles_your_apps">Your apps</string>
     <string name="styles_note_cleanup">Each app gets the text in its own style.</string>
     <string name="styles_note_own">Only apps with a model of their own are tidied.</string>

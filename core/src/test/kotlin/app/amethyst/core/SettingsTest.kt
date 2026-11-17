@@ -267,6 +267,30 @@ class CaptureTimeoutTest {
     }
 
     @Test
+    fun `a de-DE chosen after version 1 stays`() {
+        val whisper = EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER, "de-DE")
+        val old = AmethystSettings(engines = listOf(whisper), schemaVersion = 15)
+        assertEquals("de-DE", SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE).engines.single().languageTag)
+    }
+
+    @Test
+    fun `schema 16 drops Parakeet's TDT and the shortest part`() {
+        val parakeet = EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET).copy(displayName = "Parakeet TDT (local)")
+        val renamed = parakeet.copy(id = "local-parakeet-2", displayName = "Parakeet TDT (local)")
+        val old = AmethystSettings(engines = listOf(parakeet), capture = CaptureSettings(chunkMinMs = 6_000), schemaVersion = 15)
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
+        assertEquals("Parakeet (local)", migrated.engines.single().displayName)
+        assertNull(migrated.capture.chunkMinMs)
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+        // Only the preset's own entry; and a name the user gave stays.
+        val other = AmethystSettings(engines = listOf(renamed, parakeet.copy(displayName = "Mine")), schemaVersion = 15)
+        assertEquals(listOf("Parakeet TDT (local)", "Mine"), SettingsCodec.decode(SettingsCodec.encode(other), TEST_PHONE).engines.map { it.displayName })
+        // From 16 on the shortest part is left as it is.
+        val current = AmethystSettings(capture = CaptureSettings(chunkMinMs = 6_000))
+        assertEquals(6_000, SettingsCodec.decode(SettingsCodec.encode(current), TEST_PHONE).capture.chunkMinMs)
+    }
+
+    @Test
     fun `a language the user set on whisper survives the migration`() {
         val whisper = EngineConfig.fromPreset(EnginePresets.LOCAL_WHISPER, "fr")
         val old = AmethystSettings(engines = listOf(whisper), schemaVersion = 1)

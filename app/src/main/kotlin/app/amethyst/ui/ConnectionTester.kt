@@ -36,6 +36,9 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
         data class Failed(val message: String) : Result
     }
 
+    /** "0.8" or "0,8": the answer's time in seconds, as the phone writes numbers. */
+    private fun seconds(ms: Long): String = String.format(Texts.locale(context), "%.1f", ms / 1000.0)
+
     suspend fun test(config: EngineConfig): Result {
         if (!Servers.recognizes(config)) return testCleanup(config)
         val engine = graph.engineFactory.create(config).getOrElse { error ->
@@ -61,8 +64,8 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
             outcome.fold(
                 onSuccess = { transcript ->
                     val heard = transcript.text.take(40)
-                    val answer = transcript.servedBy?.let { context.getString(R.string.test_answer_via, transcript.latencyMs, heard, it) }
-                        ?: context.getString(R.string.test_answer, transcript.latencyMs, heard)
+                    val answer = transcript.servedBy?.let { context.getString(R.string.test_answer_via, seconds(transcript.latencyMs), heard, it) }
+                        ?: context.getString(R.string.test_answer, seconds(transcript.latencyMs), heard)
                     Result.Ok(withEnclave(answer))
                 },
                 onFailure = { error ->
@@ -114,7 +117,7 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
                     ?: context.getString(R.string.test_cleanup_failed),
             )
         return cleanup.clean(TextCleanup.TEST_DICTATION).fold(
-            onSuccess = { Result.Ok(context.getString(R.string.test_cleanup_works, it.latencyMs, it.text)) },
+            onSuccess = { Result.Ok(context.getString(R.string.test_cleanup_works, seconds(it.latencyMs), it.text)) },
             onFailure = { Result.Failed(Texts.failure(context, it)) },
         )
     }

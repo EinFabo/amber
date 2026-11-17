@@ -197,6 +197,14 @@ object Texts {
                 .let { titles -> if (summary.more) getString(R.string.summary_titles_and_more, titles) else titles }
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
+            is Summary.BubbleSize -> getString(
+                when (summary.size) {
+                    Summary.BubbleSize.Size.SMALL -> R.string.bubble_size_small
+                    Summary.BubbleSize.Size.MEDIUM -> R.string.bubble_size_medium
+                    Summary.BubbleSize.Size.LARGE -> R.string.bubble_size_large
+                    Summary.BubbleSize.Size.EXTRA_LARGE -> R.string.bubble_size_extra_large
+                },
+            )
             is Summary.OwnWords -> if (summary.count == 0) getString(R.string.summary_apps_none) else count(R.plurals.summary_words, summary.count)
             is Summary.Theme -> theme(this, summary.mode)
             is Summary.History -> if (summary.secure) getString(R.string.history_off_secure) else historyKeep(this, summary.keep)
@@ -296,7 +304,7 @@ object Texts {
 
     /**
      * A speech recognition in a list that says where it runs beside it ([RecognitionRows.name]):
-     * "Parakeet TDT", "Tinfoil" - the name without the place.
+     * "Parakeet", "Tinfoil" - the name without the place.
      */
     fun recognitionRowName(context: Context, engine: EngineConfig): String = when (val name = RecognitionRows.name(engine)) {
         is EngineName.Own -> engineShortName(context, name.engine)

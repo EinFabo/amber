@@ -78,6 +78,11 @@ sealed interface Summary {
     /** How many own words there are ([OwnWords]); none yet at 0. */
     data class OwnWords(val count: Int) : Summary
 
+    /** The bubble's size in a word, not in dp ([SettingsSummaries.bubbleSize]). */
+    data class BubbleSize(val size: Size) : Summary {
+        enum class Size { SMALL, MEDIUM, LARGE, EXTRA_LARGE }
+    }
+
     /** A folded server on a model list: "3 models". */
     data class Models(val count: Int) : Summary
 
@@ -121,6 +126,19 @@ object SettingsSummaries {
     fun onOff(on: Boolean): Summary = if (on) Summary.On else Summary.Off
 
     fun ownWords(settings: AmethystSettings): Summary = Summary.OwnWords(settings.words.own.size)
+
+    /**
+     * The bubble's size slider (44 to 96 dp) in words: up to 52 small, up to 68 medium - the
+     * default 56 among them - up to 84 large, then extra large. The preview beside it shows it.
+     */
+    fun bubbleSize(sizeDp: Int): Summary = Summary.BubbleSize(
+        when {
+            sizeDp <= 52 -> Summary.BubbleSize.Size.SMALL
+            sizeDp <= 68 -> Summary.BubbleSize.Size.MEDIUM
+            sizeDp <= 84 -> Summary.BubbleSize.Size.LARGE
+            else -> Summary.BubbleSize.Size.EXTRA_LARGE
+        },
+    )
 
     fun history(settings: AmethystSettings): Summary = Summary.History(settings.privacy.history, settings.privacy.securityMode)
 

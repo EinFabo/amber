@@ -9,7 +9,7 @@ import app.amethyst.core.settings.SettingsSummaries
 /**
  * One name per engine in the introduction: the engine step's card, its "Other options" list and
  * the summary at the end all say the same. Parakeet goes by the name Settings gives it
- * ("Parakeet TDT"; its "(local)" is what the trust badge beside it says). The Whisper sizes keep
+ * ("Parakeet"; its "(local)" is what the trust badge beside it says). The Whisper sizes keep
  * their own names - Settings has one name for all of them - and Android's recognizer stays that,
  * since on a phone without on-device recognition it is not "on device".
  */

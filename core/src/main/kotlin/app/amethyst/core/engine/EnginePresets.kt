@@ -108,7 +108,7 @@ object EnginePresets {
 
     val LOCAL_PARAKEET = EnginePreset(
         id = "local-parakeet",
-        displayName = "Parakeet TDT (local)",
+        displayName = "Parakeet (local)",
         kind = EngineKind.LOCAL_SHERPA,
         trustLevel = TrustLevel.ON_DEVICE,
         modelId = "parakeet-tdt-0.6b-v3-int8",

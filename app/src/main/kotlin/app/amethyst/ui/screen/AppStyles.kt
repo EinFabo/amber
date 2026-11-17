@@ -63,7 +63,7 @@ fun RecordingLimits(
     val capture = settings.capture
     StepSlider(
         label = stringResource(R.string.limits_silence),
-        valueText = stringResource(R.string.duration_ms, capture.silenceTimeoutMs),
+        valueText = formatSeconds(capture.silenceTimeoutMs.toLong()),
         value = capture.silenceTimeoutMs,
         range = 500..2_500,
         step = 100,
@@ -72,7 +72,7 @@ fun RecordingLimits(
     )
     StepSlider(
         label = stringResource(R.string.limits_longest),
-        valueText = stringResource(R.string.seconds, capture.maxDurationMs / 1000),
+        valueText = formatLength(capture.maxDurationMs / 1000),
         value = capture.maxDurationMs / 1000,
         range = 30..300,
         step = 30,
@@ -80,7 +80,10 @@ fun RecordingLimits(
     )
 }
 
-/** Recognizing longer dictations in parts while the user still speaks. */
+/**
+ * Recognizing longer dictations in parts while the user still speaks. How short a part may be
+ * is each engine's own ([CaptureSettings.chunkMinMs] stays for tests): nobody can judge it.
+ */
 @Composable
 fun ChunkingSettings(
     settings: AmethystSettings,
@@ -92,17 +95,6 @@ fun ChunkingSettings(
         description = stringResource(R.string.chunking_note),
         checked = capture.chunking,
         onChange = { on -> onUpdateSettings { it.copy(capture = it.capture.copy(chunking = on)) } },
-    )
-    StepSlider(
-        label = stringResource(R.string.chunking_shortest),
-        valueText = capture.chunkMinMs?.let { stringResource(R.string.seconds, it / 1000) } ?: stringResource(R.string.chunking_default),
-        value = (capture.chunkMinMs ?: 0) / 1000,
-        range = 0..30,
-        step = 2,
-        enabled = capture.chunking,
-        onChange = { s ->
-            onUpdateSettings { it.copy(capture = it.capture.copy(chunkMinMs = if (s == 0) null else s * 1000)) }
-        },
     )
 }
 

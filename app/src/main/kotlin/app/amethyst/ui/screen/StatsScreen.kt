@@ -196,12 +196,19 @@ private const val MAX_APPS = 5
 /** "1,234" or "1.234", as the phone writes numbers. */
 internal fun formatCount(n: Int): String = "%,d".format(Locale.getDefault(), n)
 
-/** "800 ms", "1.2 s" (or "1,2 s"), "2 min 5 s"; a no-break space keeps number and unit together. */
+/** "0.8 s", "1.2 s" (or "1,2 s"), "2 min 5 s"; a no-break space keeps number and unit together. */
 @Composable
 internal fun formatSeconds(ms: Long): String = when {
-    ms < 1_000 -> stringResource(R.string.duration_ms, ms.toInt())
     ms < 60_000 -> stringResource(R.string.duration_s, "%.1f".format(Locale.getDefault(), ms / 1000.0))
     else -> stringResource(R.string.duration_min_s, (ms / 60_000).toInt(), (ms / 1000 % 60).toInt())
+}.replace(' ', '\u00A0')
+
+/** A length in whole seconds: "30 s", "5 min", "1 min 30 s". */
+@Composable
+internal fun formatLength(seconds: Int): String = when {
+    seconds < 60 -> stringResource(R.string.seconds, seconds)
+    seconds % 60 == 0 -> stringResource(R.string.duration_min, seconds / 60)
+    else -> stringResource(R.string.duration_min_s, seconds / 60, seconds % 60)
 }.replace(' ', '\u00A0')
 
 @Composable
