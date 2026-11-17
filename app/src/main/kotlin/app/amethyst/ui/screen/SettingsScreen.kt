@@ -134,7 +134,7 @@ fun SettingsScreen(
             summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RECOGNITION) }
         SettingsItem.CLEANUP -> NavRow(stringResource(R.string.settings_cleanup), words(SettingsSummaries.cleanup(settings)), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
-        SettingsItem.OWN_WORDS -> NavRow(stringResource(R.string.own_words), words(SettingsSummaries.ownWords(settings)), icon = AmberIcons.TextFields) {
+        SettingsItem.OWN_WORDS -> NavRow(stringResource(R.string.own_words), words(SettingsSummaries.ownWords(settings)), icon = AmberIcons.Keyboard) {
             onOpen(SettingsPage.OWN_WORDS)
         }
         SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
