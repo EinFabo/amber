@@ -13,18 +13,24 @@ Samsung keyboard, German. Test build from amber (after rc4, with the tone on the
       Decide: try Parakeet on a 3 GB phone (it needs no dot product; measure memory and speed
       on this A20e), or say it plainly and ask before using a recognition that leaves the
       phone.
-- [ ] **No bubble in Amber's own fields below Android 13.** The practice step's field and
+- [x] **No bubble in Amber's own fields below Android 13** - fixed 2026-11-17 (Compose sets no input type on its node, so every Compose field below 13 counted as none; `TextFieldKind.ofNode`, `FieldFocus`, Amber's own fields report themselves); on the A20e Home's test field gets the bubble. Was: The practice step's field and
       Home's test field are Compose fields; on Android 11 they send no focus event, so the
       service never sees them (no "field" line in the log) - the practice step cannot be done.
       In Samsung Messages the bubble comes with the keyboard as it should. Fix: Amber's own
       activity tells the service directly when its field has focus.
-- [ ] **The welcome step cuts its third point on a small screen** ("Nur während du
+- [x] **The welcome step cuts its third point on a small screen** - fixed 2026-11-17 (the demo stage shrinks first; steps that do not fit show a "Show more" cue). Was: ("Nur während du
       diktierst" is not visible at 360x780 dp).
 - Fine: Samsung keyboard measured (settled at 860 of 1560), the bubble above it; insertion
   into Samsung Messages by SET_TEXT with spoken punctuation and a real line break ("Hallo
   Anna,\nwie geht es dir?"); "Punkt 2" and "drei Komma fünf" stay words. (The adb insertion
   hook skips "streich das" - it starts after that step - so that was not tested here.)
 - A Samsung preinstall (DT Ignite) crashes in the background; not Amber.
+- [ ] "Whisper lokal (FUTO)" is offered under "Add speech recognition" on the A20e although
+      its CPU cannot run Whisper (no dot product) - hide or explain it there. And the rows
+      still say "(lokal)", which the glossary does not use.
+- Not a fault: the service reconnecting every few seconds during a test was the test tool -
+  `uiautomator dump` suspends accessibility services while it reads the screen.
+- [ ] Parakeet on the A20e: not measured yet - the phone has no Wi-Fi in reach (2026-11-17).
 
 ## Fabi's test of 0.34.0-rc3 (2026-11-16, Pixel 9a, Parakeet with Tinfoil's cleanup)
 
