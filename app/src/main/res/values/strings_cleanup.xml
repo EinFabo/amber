@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="cleanup_who">Who tidies the text</string>
-    <string name="cleanup_who_subtitle">A chat model tidies the text before it is typed.</string>
+    <string name="cleanup_who_subtitle">A cleanup model tidies the text before it goes in.</string>
     <string name="cleanup_who_more">It fixes punctuation, filler words and mis-hearings, and writes in each app\'s style. If the cleanup fails or changes too much, the dictation goes in as recognized.</string>
     <string name="cleanup_off_note">Text goes in as recognized</string>
     <string name="cleanup_addition">Your addition</string>
@@ -14,13 +14,13 @@
     <string name="cleanup_prompt_note">Shown for the As spoken style. Each app\'s style and own instruction take their place at the end, the dictation\'s language is named when it is known, and %1$d worked examples follow before the dictation. The prompt is sent in English.</string>
     <string name="cleanup_set_up_first">Set up first</string>
     <string name="cleanup_no_model">%1$s offers no cleanup model right now.</string>
-    <string name="cleanup_leaves_phone">The recognized text leaves the phone for the cleanup - your recording does not. Dictations are labelled with where the text went.</string>
-    <string name="cleanup_chat_model">Chat model</string>
+    <string name="cleanup_leaves_phone">The recognized text leaves the phone for the cleanup - your recording does not. Dictations are labeled with where the text went.</string>
+    <string name="cleanup_chat_model">Cleanup model</string>
     <string name="cleanup_claude_not_a_key">Claude keys start with sk-ant-.</string>
     <string name="cleanup_ready">ready</string>
     <string name="cleanup_needs_key">needs a key</string>
     <string name="cleanup_add_server">Add own server</string>
-    <string name="cleanup_add_server_note">An Amber PC, Ollama, LM Studio, OpenRouter …</string>
+    <string name="cleanup_add_server_note">An Amber PC, Ollama, LM Studio, OpenRouter…</string>
     <string name="cleanup_sheet_tinfoil">A protected server (enclave): the text is tidied there and never stored.</string>
     <string name="cleanup_sheet_cloud">The recognized text is sent to %1$s for the cleanup.</string>
     <string name="cleanup_sheet_own">Your own server at %1$s tidies the text.</string>
@@ -35,8 +35,8 @@
     <string name="cleanup_switch_to">Switch to %1$s</string>
     <string name="cleanup_ask_again">Ask for its models again</string>
     <string name="cleanup_connect">Connect</string>
-    <string name="cleanup_testing">Testing the key …</string>
-    <string name="cleanup_asking">Asking the server for its models …</string>
+    <string name="cleanup_testing">Testing the key…</string>
+    <string name="cleanup_asking">Asking the server for its models…</string>
     <string name="cleanup_use_anyway">Use anyway</string>
     <string name="cleanup_address_example">For example https://openrouter.ai/api/v1 - an Amber PC, Ollama or LM Studio in your own network works too.</string>
     <string name="cleanup_model_example">The model\'s name as the server knows it, for example llama3.2.</string>
@@ -105,7 +105,7 @@
     <string name="styles_cleanup_off">cleanup off</string>
     <string name="add">Add</string>
     <string name="apps_search">Search apps</string>
-    <string name="apps_loading">Loading apps …</string>
+    <string name="apps_loading">Loading apps…</string>
     <string name="apps_no_match">No app matches “%1$s”.</string>
     <string name="apps_all_added">Every app is added already.</string>
     <string name="apps_where_you_dictate">Where you dictate</string>

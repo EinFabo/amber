@@ -10,7 +10,7 @@
     <string name="test_model_runs">The model runs. The test clip contains no speech, so no text came back, but it did compute.</string>
     <string name="test_connection_works">The connection works. The test clip contains no speech, so no text came back.</string>
     <string name="trust_on_device">On this phone</string>
-    <string name="trust_enclave_verified">Enclave verified</string>
+    <string name="trust_enclave_verified">Verified enclave</string>
     <string name="trust_cloud">Cloud</string>
     <string name="trust_place_on_device">Your voice never leaves the phone.</string>
     <string name="trust_place_enclave">Sent only after the enclave\'s code is verified.</string>

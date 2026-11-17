@@ -92,7 +92,7 @@ object EnginePresets {
         displayName = "Android (on device)",
         kind = EngineKind.ANDROID_ON_DEVICE,
         trustLevel = TrustLevel.ON_DEVICE,
-        note = "Uses the system recognizer. No download, no key - " +
+        note = "Uses Android's speech recognition. No download, no key - " +
             "quality depends on the manufacturer. It always stops at the first pause.",
     )
 
@@ -136,7 +136,7 @@ object EnginePresets {
         needsApiKey = true,
         requireEnclave = true,
         note = "Confidential computing in an enclave. Shows " +
-            "\"Enclave verified\" only once the attestation is confirmed.",
+            "\"Verified enclave\" only once the attestation is confirmed.",
     )
 
     /**

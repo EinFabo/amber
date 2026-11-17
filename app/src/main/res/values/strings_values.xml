@@ -44,7 +44,7 @@
         <item quantity="one">Last %d dictation</item>
         <item quantity="other">Last %d dictations</item>
     </plurals>
-    <string name="summary_titles_and_more">%1$s …</string>
+    <string name="summary_titles_and_more">%1$s…</string>
     <string name="summary_reliability_open">Reliability: %1$s</string>
     <plurals name="summary_words">
         <item quantity="one">%d word</item>
@@ -60,7 +60,7 @@
     <string name="summary_version_newer">Version %1$s · %2$s available</string>
 
     <string name="place_on_device">On this phone</string>
-    <string name="place_enclave">Enclave</string>
+    <string name="place_enclave">Verified enclave</string>
     <string name="place_cloud">Cloud</string>
 
     <string name="updates_from_installer">From where you installed Amber</string>
@@ -87,7 +87,7 @@
         <item quantity="other">%d days ago</item>
     </plurals>
 
-    <string name="engine_name_android">Android\'s recognizer</string>
+    <string name="engine_name_android">Android\'s speech recognition</string>
     <string name="engine_name_server">A server with your own key</string>
 
     <string name="quick_insert_again">Insert again</string>

@@ -72,7 +72,7 @@
     <string name="mic_not_allowed">Not allowed yet. If Android no longer asks, allow it in Amber\'s app info under Permissions → Microphone.</string>
     <string name="open_app_settings">Open app settings</string>
     <string name="cleanup_step_title">Tidy the text?</string>
-    <string name="cleanup_step_lead">A chat model can fix punctuation, filler words and mis-hearings before the text is typed.</string>
+    <string name="cleanup_step_lead">A cleanup model can fix punctuation, filler words and mishearings before the text goes in.</string>
     <string name="cleanup_step_no_answer">No answer. Check the address and the key - or type the model\'s name to set it up anyway.</string>
     <string name="cleanup_step_type_model">The server lists no models. Type the model\'s name.</string>
     <string name="cleanup_step_search">Search models</string>
@@ -128,7 +128,7 @@
     <string name="practice_lead">The real bubble, above the keyboard. Each try ticks off when Amber sees it.</string>
     <string name="practice_switch_on">Switch it on</string>
     <string name="practice_show_bubble">Show the bubble</string>
-    <string name="practice_field">Your words land here …</string>
+    <string name="practice_field">Your words land here…</string>
     <string name="practice_no_service">No bubble yet: Amber\'s accessibility service is off. Switch it on, or skip this for now.</string>
     <string name="practice_bubble_off">No bubble: it is switched off in Settings → Bubble.</string>
     <string name="practice_all_done">All three done - that is all the bubble needs.</string>
@@ -151,7 +151,7 @@
     <string name="practice_no_bubble">No bubble yet.</string>
     <string name="engine_step_title">How Amber hears you</string>
     <string name="engine_step_lead">Pick what turns your voice into text. You can change it any time in Settings → Speech recognition.</string>
-    <string name="engine_step_use_android">Use Android\'s recognizer</string>
+    <string name="engine_step_use_android">Use Android\'s speech recognition</string>
     <string name="engine_step_use_it">Use it</string>
     <string name="engine_step_download_mobile">Download now - %1$s of mobile data</string>
     <string name="engine_step_wait_wifi">Wait for Wi-Fi</string>

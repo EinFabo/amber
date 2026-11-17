@@ -58,7 +58,7 @@
     <string name="summary_version_newer">Version %1$s · %2$s verfügbar</string>
 
     <string name="place_on_device">Auf dem Handy</string>
-    <string name="place_enclave">Enklave</string>
+    <string name="place_enclave">Geprüfte Enklave</string>
     <string name="place_cloud">Cloud</string>
 
     <string name="updates_from_installer">Von dort, wo du Amber installiert hast</string>

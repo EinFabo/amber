@@ -37,15 +37,15 @@
     <string name="problem_cleanup_unreadable">Die Antwort der Bereinigung konnte nicht gelesen werden.</string>
     <string name="problem_cleanup_cut_off">Die Bereinigung wurde abgeschnitten; der ursprüngliche Text bleibt.</string>
     <string name="problem_cleanup_changed_too_much">Die Bereinigung hat zu viel geändert; der ursprüngliche Text bleibt.</string>
-    <string name="problem_no_system_recognizer">Keine System-Spracherkennung - wähl in den Einstellungen eine andere.</string>
+    <string name="problem_no_system_recognizer">Keine Android-Spracherkennung - wähl in den Einstellungen eine andere.</string>
     <string name="problem_language_not_installed">Diese Sprache ist nicht offline installiert.</string>
     <string name="problem_microphone_unreadable">Das Mikrofon konnte nicht gelesen werden.</string>
     <string name="problem_microphone_taken">Eine andere App nutzt das Mikrofon - versuch es, wenn es frei ist.</string>
     <string name="problem_microphone_permission_missing">Die Mikrofon-Berechtigung fehlt.</string>
-    <string name="problem_recognizer_offline">Die System-Spracherkennung kam nicht ins Internet.</string>
+    <string name="problem_recognizer_offline">Die Spracherkennung von Android kam nicht ins Internet.</string>
     <string name="problem_no_speech_heard">Keine Sprache gehört.</string>
     <string name="problem_recognizer_busy">Die Spracherkennung ist beschäftigt.</string>
-    <string name="problem_recognizer_crashed">Die System-Spracherkennung ist abgestürzt.</string>
+    <string name="problem_recognizer_crashed">Die Spracherkennung von Android ist abgestürzt.</string>
     <string name="problem_recognition_failed">Die Erkennung ist fehlgeschlagen.</string>
 
     <string name="issue_no_model_selected">Kein Modell ausgewählt.</string>

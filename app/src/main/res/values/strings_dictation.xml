@@ -9,7 +9,7 @@
     <string name="dictation_scratched">Scratched - nothing inserted</string>
     <string name="dictation_copied">Last dictation copied.</string>
     <string name="dictation_no_engine">No speech recognition chosen - pick one in Settings</string>
-    <string name="dictation_timed_out">Timed out - the dictation was cancelled.</string>
+    <string name="dictation_timed_out">Timed out - the dictation was canceled.</string>
     <string name="dictation_unexpected">Unexpected error: %1$s</string>
     <string name="dictation_too_short">Too short - please speak a little longer.</string>
     <string name="dictation_nothing_heard">Nothing heard - try again a little closer to the phone.</string>
@@ -43,7 +43,7 @@
     <string name="toast_timed_out_try_again">Timed out - hold the bubble, Try again</string>
     <string name="quick_too_late">Too late - the dictation has moved on.</string>
     <string name="quick_done_inserted">Last dictation inserted.</string>
-    <string name="quick_done_cancelled">Dictation cancelled.</string>
+    <string name="quick_done_cancelled">Dictation canceled.</string>
     <string name="quick_done_no_cleanup">Sending without the cleanup.</string>
     <string name="quick_done_start_over">Recording again from the start.</string>
     <string name="quick_done_as_recognized">Keeping the text as recognized.</string>

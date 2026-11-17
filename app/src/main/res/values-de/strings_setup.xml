@@ -72,7 +72,7 @@
     <string name="mic_not_allowed">Noch nicht erlaubt. Wenn Android nicht mehr fragt, erlaube es in der App-Info von Amber unter Berechtigungen → Mikrofon.</string>
     <string name="open_app_settings">App-Einstellungen öffnen</string>
     <string name="cleanup_step_title">Den Text bereinigen?</string>
-    <string name="cleanup_step_lead">Ein Chat-Modell kann Satzzeichen, Füllwörter und Verhörer korrigieren, bevor der Text getippt wird.</string>
+    <string name="cleanup_step_lead">Ein Modell kann Satzzeichen, Füllwörter und Verhörer korrigieren, bevor der Text eingefügt wird.</string>
     <string name="cleanup_step_no_answer">Keine Antwort. Prüfe Adresse und Schlüssel - oder gib den Namen des Modells ein, um ihn trotzdem einzurichten.</string>
     <string name="cleanup_step_type_model">Der Server nennt keine Modelle. Gib den Namen des Modells ein.</string>
     <string name="cleanup_step_search">Modelle suchen</string>

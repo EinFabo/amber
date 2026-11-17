@@ -4,8 +4,8 @@
     <string name="engine_complete">Settings complete.</string>
     <string name="engine_use_active">Use as active speech recognition</string>
     <string name="engine_configuration">Configuration</string>
-    <string name="engine_android_note">Uses the system recognizer. Which languages are available offline is up to the system settings.</string>
-    <string name="engine_android_cloud">This phone has no on-device recognizer: the system one may send your voice to its servers, and such dictations are marked as cloud. Parakeet or Whisper stay on the phone.</string>
+    <string name="engine_android_note">Uses Android\'s speech recognition. Which languages work offline depends on the phone\'s settings.</string>
+    <string name="engine_android_cloud">Android\'s speech recognition does not run on this phone itself: it may send your voice to its servers, and such dictations are marked as cloud. Parakeet or Whisper stay on the phone.</string>
     <string name="engine_languages">Languages</string>
     <string name="engine_whisper_languages">The languages you dictate in. With several, Whisper detects per dictation which one was spoken. A single one is forced: anything said in another language is then translated.</string>
     <string name="engine_connection">Connection</string>
@@ -47,7 +47,7 @@
     <string name="model_pick_file">Pick own file</string>
     <string name="model_pick_file_hint">Already downloaded from FUTO? Pick the .bin file, it is recognized and checked.</string>
     <string name="download">Download</string>
-    <string name="model_busy">%1$s … %2$s</string>
+    <string name="model_busy">%1$s… %2$s</string>
     <string name="model_in_use">In use</string>
     <string name="use">Use</string>
     <string name="delete">Delete</string>
@@ -57,14 +57,14 @@
     <string name="model_title">Model</string>
     <string name="parakeet_subtitle">%1$s · %2$d MB · runs on this phone</string>
     <string name="parakeet_missing">A one-time download; Wi-Fi recommended. While you dictate it holds about 700 MB of memory, freed again after three idle minutes.</string>
-    <string name="parakeet_busy">Downloading … %1$d of %2$d MB</string>
+    <string name="parakeet_busy">Downloading… %1$d of %2$d MB</string>
     <string name="parakeet_ready">Downloaded and checked.</string>
     <string name="model_recommended">Recommended · %1$s</string>
     <string name="model_recommended_only">Recommended</string>
     <string name="whisper_none_picked">None picked: Whisper guesses among all languages.</string>
     <string name="enclave_title">Enclave verification</string>
     <string name="enclave_subtitle">Recordings only go to a verified enclave, over a connection bound to its verified key. Otherwise nothing is sent.</string>
-    <string name="enclave_verifying">Verifying …</string>
+    <string name="enclave_verifying">Verifying…</string>
     <string name="enclave_verify">Verify now</string>
     <string name="enclave_history">History</string>
     <string name="proof_status">Status</string>

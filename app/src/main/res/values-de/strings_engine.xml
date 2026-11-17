@@ -4,8 +4,8 @@
     <string name="engine_complete">Einstellungen vollständig.</string>
     <string name="engine_use_active">Als aktive Spracherkennung nutzen</string>
     <string name="engine_configuration">Einrichtung</string>
-    <string name="engine_android_note">Nutzt die Spracherkennung des Systems. Welche Sprachen ohne Internet gehen, legen die Systemeinstellungen fest.</string>
-    <string name="engine_android_cloud">Dieses Handy hat keine Spracherkennung, die auf dem Gerät läuft: Die des Systems schickt deine Stimme vielleicht an ihre Server, und solche Diktate werden als Cloud markiert. Parakeet oder Whisper bleiben auf dem Handy.</string>
+    <string name="engine_android_note">Nutzt die Spracherkennung von Android. Welche Sprachen ohne Internet gehen, legen die Einstellungen des Handys fest.</string>
+    <string name="engine_android_cloud">Die Spracherkennung von Android arbeitet auf diesem Handy nicht ohne Internet: Sie schickt deine Stimme vielleicht an ihre Server, und solche Diktate werden als Cloud markiert. Parakeet oder Whisper bleiben auf dem Handy.</string>
     <string name="engine_languages">Sprachen</string>
     <string name="engine_whisper_languages">Die Sprachen, in denen du diktierst. Bei mehreren erkennt Whisper pro Diktat, welche gesprochen wurde. Eine einzelne wird erzwungen: Was in einer anderen Sprache gesagt wird, wird dann übersetzt.</string>
     <string name="engine_connection">Verbindung</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="cleanup_who">Wer den Text bereinigt</string>
-    <string name="cleanup_who_subtitle">Ein Chat-Modell bereinigt den Text, bevor er getippt wird.</string>
+    <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor er eingefügt wird.</string>
     <string name="cleanup_who_more">Es korrigiert Satzzeichen, Füllwörter und Verhörer und schreibt im Stil jeder App. Wenn die Bereinigung fehlschlägt oder zu viel ändert, geht das Diktat so hinein, wie es erkannt wurde.</string>
     <string name="cleanup_off_note">Der Text geht so hinein, wie er erkannt wurde</string>
     <string name="cleanup_addition">Dein Zusatz</string>
@@ -15,7 +15,7 @@
     <string name="cleanup_set_up_first">Erst einrichten</string>
     <string name="cleanup_no_model">%1$s bietet gerade kein Modell für die Bereinigung an.</string>
     <string name="cleanup_leaves_phone">Der erkannte Text verlässt für die Bereinigung das Handy - deine Aufnahme nicht. Diktate werden damit gekennzeichnet, wohin der Text ging.</string>
-    <string name="cleanup_chat_model">Chat-Modell</string>
+    <string name="cleanup_chat_model">Modell für die Bereinigung</string>
     <string name="cleanup_claude_not_a_key">Claude-Schlüssel beginnen mit sk-ant-.</string>
     <string name="cleanup_ready">bereit</string>
     <string name="cleanup_needs_key">Schlüssel fehlt</string>

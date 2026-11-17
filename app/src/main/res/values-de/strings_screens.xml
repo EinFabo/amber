@@ -9,7 +9,7 @@
     <string name="test_model_runs">Das Modell läuft. Der Testclip enthält keine Sprache, also kam kein Text zurück, aber es hat gerechnet.</string>
     <string name="test_connection_works">Die Verbindung steht. Der Testclip enthält keine Sprache, also kam kein Text zurück.</string>
     <string name="trust_on_device">Auf dem Handy</string>
-    <string name="trust_enclave_verified">Enklave geprüft</string>
+    <string name="trust_enclave_verified">Geprüfte Enklave</string>
     <string name="trust_cloud">Cloud</string>
     <string name="trust_place_on_device">Deine Stimme verlässt nie das Handy.</string>
     <string name="trust_place_enclave">Wird erst gesendet, wenn der Code der Enklave geprüft ist.</string>
