@@ -106,7 +106,7 @@ object AmberPalette {
     val Elevated: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.elevated
     val Outline: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.outline
 
-    /** A control that is off: an empty radio, a switch's edge, a slider's open track. */
+    /** A control that is off: an empty radio, the edge of a switch. */
     val Control: Color @Composable @ReadOnlyComposable get() = LocalAmberColors.current.control
 
     /** Amber itself. Carries [Background] as its text, never [Text]. */
