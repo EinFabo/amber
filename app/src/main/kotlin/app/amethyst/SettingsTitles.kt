@@ -12,6 +12,7 @@ object SettingsTitles {
             SettingsItem.RECOGNITION, SettingsItem.APP_RECOGNITION -> R.string.settings_recognition
             SettingsItem.CLEANUP, SettingsItem.CLEANUP_INSTRUCTION -> R.string.settings_cleanup
             SettingsItem.BUBBLE, SettingsItem.QUICK_MENU -> R.string.settings_bubble
+            SettingsItem.OWN_WORDS -> R.string.own_words
             SettingsItem.HISTORY -> R.string.settings_history
             SettingsItem.SECURITY_MODE -> R.string.settings_security_mode
             SettingsItem.VOICE_COMMANDS -> R.string.settings_voice_commands

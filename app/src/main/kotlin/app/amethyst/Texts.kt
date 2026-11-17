@@ -197,6 +197,7 @@ object Texts {
                 .let { titles -> if (summary.more) getString(R.string.summary_titles_and_more, titles) else titles }
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
+            is Summary.OwnWords -> if (summary.count == 0) getString(R.string.summary_apps_none) else count(R.plurals.summary_words, summary.count)
             is Summary.Theme -> theme(this, summary.mode)
             is Summary.History -> if (summary.secure) getString(R.string.history_off_secure) else historyKeep(this, summary.keep)
             is Summary.About -> when (val newer = summary.newer) {

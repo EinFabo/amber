@@ -7,6 +7,7 @@ import app.amethyst.R
 enum class SettingsPage {
     RECOGNITION,
     CLEANUP,
+    OWN_WORDS,
     BUBBLE,
     HISTORY,
     SECURITY_MODE,
@@ -29,6 +30,7 @@ enum class SettingsPage {
 fun SettingsPage.title(): Int = when (this) {
     SettingsPage.RECOGNITION -> R.string.settings_recognition
     SettingsPage.CLEANUP -> R.string.settings_cleanup
+    SettingsPage.OWN_WORDS -> R.string.own_words
     SettingsPage.BUBBLE -> R.string.settings_bubble
     SettingsPage.HISTORY -> R.string.settings_history
     SettingsPage.SECURITY_MODE -> R.string.settings_security_mode

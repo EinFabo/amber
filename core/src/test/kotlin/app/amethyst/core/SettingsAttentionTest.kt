@@ -37,6 +37,14 @@ class SettingsAttentionTest {
     }
 
     @Test
+    fun `where the Reliability row shows, the row on top says what comes next instead`() {
+        val open = listOf(ReliabilityItem.BATTERY)
+        assertNull(SettingsAttention.of(open, ReleaseChannel.OTHER, UpdateSettings(), "0.32.0", reliabilityRow = true))
+        assertEquals(Attention.Update("0.33.0"), SettingsAttention.of(open, ReleaseChannel.GITHUB, found, "0.32.0", reliabilityRow = true))
+        assertEquals(Attention.Reliability(open), SettingsAttention.of(open, ReleaseChannel.GITHUB, found, "0.32.0", reliabilityRow = false))
+    }
+
+    @Test
     fun `an open reliability thing is said, whatever the build`() {
         val open = listOf(ReliabilityItem.NOTIFICATIONS, ReliabilityItem.BATTERY)
         for (channel in listOf(ReleaseChannel.GITHUB, ReleaseChannel.OTHER, null)) {

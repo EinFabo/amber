@@ -75,6 +75,9 @@ sealed interface Summary {
     /** How long the history keeps a dictation; [secure]: off by the security mode. */
     data class History(val keep: app.amethyst.core.history.HistoryKeep, val secure: Boolean) : Summary
 
+    /** How many own words there are ([OwnWords]); none yet at 0. */
+    data class OwnWords(val count: Int) : Summary
+
     /** A folded server on a model list: "3 models". */
     data class Models(val count: Int) : Summary
 
@@ -116,6 +119,8 @@ object SettingsSummaries {
     }
 
     fun onOff(on: Boolean): Summary = if (on) Summary.On else Summary.Off
+
+    fun ownWords(settings: AmethystSettings): Summary = Summary.OwnWords(settings.words.own.size)
 
     fun history(settings: AmethystSettings): Summary = Summary.History(settings.privacy.history, settings.privacy.securityMode)
 

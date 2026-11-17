@@ -171,7 +171,6 @@
     <string name="quick_menu_swap_note">Choosing one in use swaps the two places.</string>
     <string name="quick_menu_fixed">While you dictate, the menu stays fixed: Cancel, No cleanup, Start over, Pause.</string>
     <string name="quick_menu_reset">Reset to default</string>
-    <string name="recording_microphone">Microphone</string>
     <string name="recording_sounds">Sound at start and stop</string>
     <string name="recording_sounds_note">A short, quiet tone when the microphone is open and when the recording ends.</string>
     <string name="recording_pause_media">Pause music while dictating</string>

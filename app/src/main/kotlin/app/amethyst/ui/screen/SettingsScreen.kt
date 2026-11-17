@@ -112,8 +112,12 @@ fun SettingsScreen(
     val reliabilityOpen = reliability.size
     // Only while a cleanup still uses the one that failed.
     val trouble = cleanupTrouble?.takeIf { CleanupTrouble.stillApplies(it, settings) }
-    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, trouble)
     val advanced = settings.ui.advanced
+    // Said once: in the advanced view the Reliability row says what is open itself.
+    val attention = SettingsAttention.of(
+        reliability, releaseChannel, settings.updates, version, trouble,
+        reliabilityRow = SettingsLayout.shows(SettingsItem.RELIABILITY, advanced),
+    )
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
     var choosingTheme by remember { mutableStateOf(false) }
@@ -125,6 +129,9 @@ fun SettingsScreen(
             summaryColor = if (engine == null) AmberPalette.Error else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RECOGNITION) }
         SettingsItem.CLEANUP -> NavRow(stringResource(R.string.settings_cleanup), words(SettingsSummaries.cleanup(settings)), icon = AmberIcons.AutoFix) { onOpen(SettingsPage.CLEANUP) }
+        SettingsItem.OWN_WORDS -> NavRow(stringResource(R.string.own_words), words(SettingsSummaries.ownWords(settings)), icon = AmberIcons.TextFields) {
+            onOpen(SettingsPage.OWN_WORDS)
+        }
         SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
         SettingsItem.HISTORY -> NavRow(
             stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
@@ -322,7 +329,10 @@ fun RecognitionScreen(
     }
 }
 
-/** When a recording ends, how long it may get, and recognizing while you speak. What becomes of the words is [TextScreen]'s. */
+/**
+ * When a recording ends, how long it may get, and recognizing while you speak. What becomes of
+ * the words is [TextScreen]'s; the tones and pausing music are on the Bubble page.
+ */
 @Composable
 fun RecordingScreen(
     settings: AmethystSettings,
@@ -349,20 +359,6 @@ fun RecordingScreen(
             learnMore = stringResource(R.string.recording_while_speaking_more),
         ) {
             ChunkingSettings(settings, onUpdateSettings)
-        }
-        SectionCard(title = stringResource(R.string.recording_microphone)) {
-            ToggleRow(
-                label = stringResource(R.string.recording_sounds),
-                description = stringResource(R.string.recording_sounds_note),
-                checked = settings.feedback.sounds,
-                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
-            )
-            ToggleRow(
-                label = stringResource(R.string.recording_pause_media),
-                description = stringResource(R.string.recording_pause_media_note),
-                checked = settings.feedback.pauseMedia,
-                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(pauseMedia = value)) } },
-            )
         }
     }
 }
@@ -432,6 +428,19 @@ fun BubbleScreen(
                 onChange = { value ->
                     onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
                 },
+            )
+            // Next to the vibration, where people look for them - not behind the advanced switch.
+            ToggleRow(
+                label = stringResource(R.string.recording_sounds),
+                description = stringResource(R.string.recording_sounds_note),
+                checked = settings.feedback.sounds,
+                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.recording_pause_media),
+                description = stringResource(R.string.recording_pause_media_note),
+                checked = settings.feedback.pauseMedia,
+                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(pauseMedia = value)) } },
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

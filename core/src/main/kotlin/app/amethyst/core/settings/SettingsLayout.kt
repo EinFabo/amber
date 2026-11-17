@@ -11,6 +11,9 @@ enum class SettingsGroupKind { MAIN, PER_APP, ADVANCED, AMBER }
 enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
     RECOGNITION(simple = true, SettingsGroupKind.MAIN),
     CLEANUP(simple = true, SettingsGroupKind.MAIN),
+
+    /** The names and terms to spell right ([OwnWords]): what people look for first, so not behind the switch. */
+    OWN_WORDS(simple = true, SettingsGroupKind.MAIN),
     BUBBLE(simple = true, SettingsGroupKind.MAIN),
 
     /** The recent dictations, kept encrypted for a while ([app.amethyst.core.history.DictationHistory]). */
@@ -53,7 +56,7 @@ data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<Settin
 
 /**
  * Which settings show: in the simple view (a new install's) only the few most people need -
- * how speech is recognized, whether it is cleaned up, the bubble, the history, the security mode and the app styles, then how
+ * how speech is recognized, whether it is cleaned up, the own words, the bubble, the history, the security mode and the app styles, then how
  * Amber looks and the page about it; with [UiSettings.advanced] every one. Voice commands only ever with [Features.VOICE_COMMANDS].
  */
 object SettingsLayout {

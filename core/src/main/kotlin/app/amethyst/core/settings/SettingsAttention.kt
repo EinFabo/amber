@@ -23,7 +23,8 @@ sealed interface Attention {
 /**
  * Whether something in the settings needs a look. The Settings page says so in one row on top,
  * in the simple view and the advanced one - a page that only the advanced view shows would
- * otherwise keep it out of sight. Nothing open: no row.
+ * otherwise keep it out of sight. Nothing open: no row. What a row of the page already says
+ * in sight is not said twice.
  */
 object SettingsAttention {
 
@@ -41,6 +42,8 @@ object SettingsAttention {
      * run ([cleanup], until one succeeds again): the text goes in as heard meanwhile. A release counts as Home's
      * card does ([UpdatePolicy.forHome]): not on a build that gets its updates elsewhere, not
      * while the check is off, not a version the user dismissed. [channel] is null until known.
+     * [reliabilityRow]: the Reliability row shows (the advanced view) and says what is open
+     * itself, so the row on top goes to what comes next.
      */
     fun of(
         reliabilityOpen: List<ReliabilityItem>,
@@ -48,8 +51,9 @@ object SettingsAttention {
         updates: UpdateSettings,
         installed: String,
         cleanup: CleanupTrouble.Open? = null,
+        reliabilityRow: Boolean = false,
     ): Attention? = when {
-        reliabilityOpen.isNotEmpty() -> Attention.Reliability(reliabilityOpen)
+        reliabilityOpen.isNotEmpty() && !reliabilityRow -> Attention.Reliability(reliabilityOpen)
         cleanup != null -> Attention.Cleanup(cleanup)
         else -> channel?.let { UpdatePolicy.forHome(it, updates, installed) }?.let { Attention.Update(it.version) }
     }

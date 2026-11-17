@@ -171,7 +171,6 @@
     <string name="quick_menu_swap_note">Wählst du eine belegte, tauschen die beiden Plätze.</string>
     <string name="quick_menu_fixed">Während du diktierst, bleibt das Menü fest: Abbrechen, Ohne Bereinigung, Neu anfangen, Pause.</string>
     <string name="quick_menu_reset">Auf Standard zurücksetzen</string>
-    <string name="recording_microphone">Mikrofon</string>
     <string name="recording_sounds">Ton bei Start und Stopp</string>
     <string name="recording_sounds_note">Ein kurzer, leiser Ton, wenn das Mikrofon offen ist und wenn die Aufnahme endet.</string>
     <string name="recording_pause_media">Musik beim Diktieren pausieren</string>

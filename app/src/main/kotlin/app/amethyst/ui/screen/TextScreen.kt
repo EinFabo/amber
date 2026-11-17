@@ -39,10 +39,10 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /**
- * Everything that changes the text by rules, in the order it happens to a dictation: the user's
- * own words the recognition is told about, then its words and commas, then how it arrives at
- * the cursor - and what is done when it cannot be typed there. The Recording page holds what is
- * about the recording, the Cleanup page the language model.
+ * Everything that changes the text by rules, in the order it happens to a dictation: its words
+ * and commas, then how it arrives at the cursor - and what is done when it cannot be typed
+ * there. The Recording page holds what is about the recording, the Cleanup page the language
+ * model, and the own words have a page of their own ([OwnWordsScreen]).
  */
 @Composable
 fun TextScreen(
@@ -51,9 +51,6 @@ fun TextScreen(
     modifier: Modifier = Modifier,
 ) {
     SubPage(modifier) {
-        OwnWordsCard(settings.words.own) { words ->
-            onUpdateSettings { it.copy(words = it.words.copy(own = words)) }
-        }
         SectionCard(
             title = stringResource(R.string.text_words),
             learnMore = stringResource(R.string.text_words_more),
@@ -122,6 +119,20 @@ fun TextScreen(
                     if (!secure) onUpdateSettings { it.copy(insertion = it.insertion.copy(allowClipboard = value)) }
                 },
             )
+        }
+    }
+}
+
+/** The own words, a row of the main settings group: names and terms the recognition and the cleanup are told. */
+@Composable
+fun OwnWordsScreen(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SubPage(modifier) {
+        OwnWordsCard(settings.words.own) { words ->
+            onUpdateSettings { it.copy(words = it.words.copy(own = words)) }
         }
     }
 }

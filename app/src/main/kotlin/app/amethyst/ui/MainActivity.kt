@@ -117,6 +117,7 @@ import app.amethyst.ui.screen.ReliabilityScreen
 import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
+import app.amethyst.ui.screen.OwnWordsScreen
 import app.amethyst.ui.screen.TextScreen
 import app.amethyst.ui.screen.UpdatesScreen
 import app.amethyst.ui.screen.VoiceCommandsScreen
@@ -773,6 +774,7 @@ private fun AmethystScreens(
                             SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
                             SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                             SettingsPage.INSERTING -> TextScreen(settings, ::updateSettings)
+                            SettingsPage.OWN_WORDS -> OwnWordsScreen(settings, ::updateSettings)
                             SettingsPage.APP_STYLES -> AppStylesScreen(
                                 settings, ::updateSettings,
                                 apps = apps,

@@ -44,6 +44,10 @@
     </plurals>
     <string name="summary_titles_and_more">%1$s …</string>
     <string name="summary_reliability_open">Zuverlässigkeit: %1$s</string>
+    <plurals name="summary_words">
+        <item quantity="one">%d Wort</item>
+        <item quantity="other">%d Wörter</item>
+    </plurals>
     <plurals name="summary_models">
         <item quantity="one">%d Modell</item>
         <item quantity="other">%d Modelle</item>
