@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -187,30 +188,33 @@ class MainActivity : ComponentActivity() {
             val theme = graph.loadedSettings.collectAsStateWithLifecycle().value?.ui?.theme ?: remembered
             val dark = (theme ?: ThemeMode.SYSTEM).dark(isSystemInDarkTheme())
             LaunchedEffect(theme, dark) { applyTheme(theme, dark) }
+            // Amber's own fields tell the accessibility service of their focus (reportsOwnField).
             AmberTheme(dark) {
-                AmethystRoot(
-                    graph = graph,
-                    appPage = appPageRequest.collectAsStateWithLifecycle().value,
-                    onAppPageOpened = { appPageRequest.value = null },
-                    onInstallLanguage = { tag -> installLanguage(tag) },
-                    setup = setupState.collectAsStateWithLifecycle().value,
-                    actions = SetupActions(
-                        requestMicrophone = ::askForMicrophone,
-                        requestNotifications = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                        },
-                        openAccessibility = ::openAccessibility,
-                        openAccessibilityList = ::openAccessibilityList,
-                        openAppInfo = { Setup.openAppSettings(this) },
-                        openBattery = ::openBattery,
-                        startMicService = {
-                            MicForegroundService.start(this)
-                            refreshSetup()
-                        },
-                    ),
-                )
+                CompositionLocalProvider(LocalOwnField provides graph.ownFieldFocused) {
+                    AmethystRoot(
+                        graph = graph,
+                        appPage = appPageRequest.collectAsStateWithLifecycle().value,
+                        onAppPageOpened = { appPageRequest.value = null },
+                        onInstallLanguage = { tag -> installLanguage(tag) },
+                        setup = setupState.collectAsStateWithLifecycle().value,
+                        actions = SetupActions(
+                            requestMicrophone = ::askForMicrophone,
+                            requestNotifications = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            },
+                            openAccessibility = ::openAccessibility,
+                            openAccessibilityList = ::openAccessibilityList,
+                            openAppInfo = { Setup.openAppSettings(this) },
+                            openBattery = ::openBattery,
+                            startMicService = {
+                                MicForegroundService.start(this)
+                                refreshSetup()
+                            },
+                        ),
+                    )
+                }
             }
         }
     }

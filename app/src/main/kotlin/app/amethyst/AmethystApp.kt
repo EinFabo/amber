@@ -233,6 +233,14 @@ class Graph(app: Application) {
     val keyboardLog = MutableStateFlow<List<String>>(emptyList())
 
     /**
+     * One of Amber's own text fields has focus while its screen is in front
+     * ([app.amethyst.ui.reportsOwnField]). Below Android 13 the service has no other way to
+     * learn of it: a Compose field gives Android no focused node to name. The activity and the
+     * service share this process, so the screen tells the service here.
+     */
+    val ownFieldFocused = MutableStateFlow(false)
+
+    /**
      * Everything Amber holds of what was dictated, and the one call that forgets it all
      * ([DictationMemory.wipe]): the records Diagnostics shows ([DictationMemory.log]), a failed
      * dictation's recording for "Try again" and the last dictation for Home and the quick menu

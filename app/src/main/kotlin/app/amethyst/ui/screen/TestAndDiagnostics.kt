@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.amethyst.R
 import app.amethyst.ui.ShowsDictatedText
+import app.amethyst.ui.reportsOwnField
 import app.amethyst.Texts
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
@@ -95,8 +96,10 @@ fun TestFieldCard(focusRequester: FocusRequester, modifier: Modifier = Modifier)
             shape = AmberShapes.Card,
             textStyle = MaterialTheme.typography.bodyLarge,
             colors = fieldColors(container = Color.Transparent),
+            // The bubble comes for it below Android 13 too, where Android names no field for it.
             modifier = Modifier
                 .fillMaxWidth()
+                .reportsOwnField()
                 .focusRequester(focusRequester),
         )
     }

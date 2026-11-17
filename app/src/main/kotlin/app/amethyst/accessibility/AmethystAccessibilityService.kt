@@ -23,6 +23,7 @@ import app.amethyst.bubble.BubbleController
 import app.amethyst.DebugLog
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
+import app.amethyst.core.bubble.FieldFocus
 import app.amethyst.core.bubble.FieldPresence
 import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
@@ -169,6 +170,15 @@ class AmethystAccessibilityService : AccessibilityService() {
         scope.launch {
             graph.dictation.state.collect { state -> bubble?.render(state) }
         }
+        // Amber's own fields, from its screen: below Android 13 the only word of them.
+        scope.launch {
+            graph.ownFieldFocused.collect { focused ->
+                val signal = focus.own(focused, ::currentFocusKind) ?: return@collect
+                Log.i(TAG, "field: Amber's own field ${if (focused) "focused" else "left"}")
+                if (focused) bubble?.setCurrentApp(packageName)
+                updateTextFieldFocus(signal)
+            }
+        }
         scope.launch {
             graph.dictation.state
                 .map { it is DictationState.Starting || it is DictationState.Listening || it is DictationState.Transcribing }
@@ -220,14 +230,19 @@ class AmethystAccessibilityService : AccessibilityService() {
                     }
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
-                // went away, so look at what has input focus now.
-                if (!tracksInputDirectly) updateTextFieldFocus(currentFocusKind(), fresh = false)
+                // went away, so look at what has input focus now - not for the keyboard's own
+                // window, which moves no focus ([FieldFocus.windowChanged]).
+                focus.windowChanged(fromKeyboard, ::currentFocusKind)?.let(::updateTextFieldFocus)
             }
 
-            AccessibilityEvent.TYPE_VIEW_FOCUSED -> if (!tracksInputDirectly) {
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> if (focus.watchesFocus) {
                 val kind = kindOf(event.source)
-                if (kind != TextFieldKind.NONE) event.packageName?.toString()?.let { bubble?.setCurrentApp(it) }
-                updateTextFieldFocus(kind, fresh = kind != TextFieldKind.NONE)
+                val pkg = event.packageName?.toString()
+                if (kind != TextFieldKind.NONE) {
+                    Log.i(TAG, "field: focus in ${DebugLog.redact(pkg)}, $kind")
+                    pkg?.let { bubble?.setCurrentApp(it) }
+                }
+                focus.focusEvent(kind, inOwnApp = pkg == packageName)?.let(::updateTextFieldFocus)
             }
 
             // Each one costs a getWindows() call; only the bubble needs the keyboard's edge,
@@ -355,8 +370,9 @@ class AmethystAccessibilityService : AccessibilityService() {
     private fun currentFocusKind(): TextFieldKind =
         runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)
 
+    /** A Compose field reports no input type, only that it is editable ([TextFieldKind.ofNode]). */
     private fun kindOf(node: AccessibilityNodeInfo?): TextFieldKind =
-        if (node?.isEditable != true) TextFieldKind.NONE else TextFieldKind.of(node.inputType, node.isPassword)
+        if (node == null) TextFieldKind.NONE else TextFieldKind.ofNode(node.isEditable, node.inputType, node.isPassword)
 
     /**
      * From Android 13 the service's input method hears when a field starts and stops taking
@@ -370,11 +386,14 @@ class AmethystAccessibilityService : AccessibilityService() {
     /** Whether a field is there to dictate into: it takes text and its keyboard has not closed. */
     private val presence = FieldPresence()
 
-    /** [fresh]: another field than before took input - not a restart of the input in the same one. */
-    private fun updateTextFieldFocus(focusedKind: TextFieldKind, fresh: Boolean) {
-        val kind = if (inputKind != TextFieldKind.NONE) inputKind else focusedKind
-        val another = fresh && kind != TextFieldKind.NONE && presence.kind != TextFieldKind.NONE
-        presence.field(kind, fresh)
+    /** Which field takes text, from the input method, focus events and Amber's own screen. */
+    private val focus = FieldFocus(inputMethodTells = tracksInputDirectly)
+
+    /** [FieldFocus.Signal.fresh]: another field than before took input - not a restart of the input in the same one. */
+    private fun updateTextFieldFocus(signal: FieldFocus.Signal) {
+        val kind = signal.kind
+        val another = signal.fresh && kind != TextFieldKind.NONE && presence.kind != TextFieldKind.NONE
+        presence.field(kind, signal.fresh)
         // Any field, a PIN pad too: its keyboard is just as much in the way. Right away, not
         // on the next window event, and before the bubble is told about the field: a bubble
         // whose place is where the keyboard opens is put off the keys first and appears
@@ -420,7 +439,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
             // The field's own app: the surest answer to "where is the user typing".
             if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
-            updateTextFieldFocus(TextFieldKind.NONE, fresh = !restarting)
+            updateTextFieldFocus(focus.inputStarted(inputKind, restarting))
         }
 
         override fun onFinishInput() {
@@ -428,7 +447,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             Log.i(TAG, "field: input finished")
             inputKind = TextFieldKind.NONE
             inputIsPassword = false
-            updateTextFieldFocus(TextFieldKind.NONE, fresh = false)
+            updateTextFieldFocus(focus.inputFinished())
         }
     }
 

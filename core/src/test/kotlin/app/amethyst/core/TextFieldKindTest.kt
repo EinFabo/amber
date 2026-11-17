@@ -50,4 +50,24 @@ class TextFieldKindTest {
         assertEquals(TextFieldKind.NONE, TextFieldKind.of(0))
         assertTrue(TextFieldKind.of(0x7).wantsDictation)
     }
+
+    @Test
+    fun `an editable node without an input type is a Compose field and takes dictation`() {
+        // Compose marks its fields editable but never reports an input type (seen on Android 11).
+        assertEquals(TextFieldKind.TEXT, TextFieldKind.ofNode(editable = true, inputType = 0, isPassword = false))
+        assertEquals(TextFieldKind.SECRET, TextFieldKind.ofNode(editable = true, inputType = 0, isPassword = true))
+    }
+
+    @Test
+    fun `a node that is not editable takes no text, whatever its input type says`() {
+        assertEquals(TextFieldKind.NONE, TextFieldKind.ofNode(editable = false, inputType = text, isPassword = false))
+        assertEquals(TextFieldKind.NONE, TextFieldKind.ofNode(editable = false, inputType = 0, isPassword = true))
+    }
+
+    @Test
+    fun `an editable node with an input type is read as before`() {
+        assertEquals(TextFieldKind.TEXT, TextFieldKind.ofNode(editable = true, inputType = multiLine, isPassword = false))
+        assertEquals(TextFieldKind.SECRET, TextFieldKind.ofNode(editable = true, inputType = password, isPassword = false))
+        assertEquals(TextFieldKind.NUMERIC, TextFieldKind.ofNode(editable = true, inputType = phone, isPassword = false))
+    }
 }

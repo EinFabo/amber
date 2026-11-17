@@ -56,5 +56,20 @@ enum class TextFieldKind {
                 else -> TEXT
             }
         }
+
+        /**
+         * The kind of an accessibility node's field. A node that is not [editable] takes no
+         * text. An editable one without an input type is a Compose field: Compose (up to 1.7 at
+         * least) marks its text fields editable and passwords as such, but never reports an
+         * input type - read with [of], every Compose field below Android 13 was "none", and
+         * the bubble never came for it. A View EditText without an input type is not editable,
+         * so it cannot be mistaken for one.
+         */
+        fun ofNode(editable: Boolean, inputType: Int, isPassword: Boolean): TextFieldKind = when {
+            !editable -> NONE
+            isPassword -> SECRET
+            inputType == TYPE_NULL -> TEXT
+            else -> of(inputType)
+        }
     }
 }
