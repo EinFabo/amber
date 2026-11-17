@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Amber's release APK and has it signed on a signing host: the unsigned APK goes there
+# Builds Embersay's release APK and has it signed on a signing host: the unsigned APK goes there
 # over ssh, is signed with apksigner as it is (AGP has aligned it; aligning it again could move
 # bytes, see below), comes back and is checked against the expected key's fingerprint. The key
 # and its passwords never leave that host. Which key signs is set by SIGN_PROPERTIES;
@@ -10,18 +10,18 @@
 #   SIGN_HOST         ssh target of the signing host, e.g. user@host (required)
 #   SIGN_PROPERTIES   keystore.properties on that host with storeFile, storePassword,
 #                     keyAlias and keyPassword (required)
-#   SIGN_DIR          scratch directory on that host (default: amber/sign)
+#   SIGN_DIR          scratch directory on that host (default: embersay/sign)
 #   SIGN_BUILD_TOOLS  Android build-tools directory on that host (default: Android/Sdk/build-tools)
 #   SIGN_CERT_SHA256  expected signer fingerprint, SHA-256 of the certificate as 64 lowercase
 #                     hex characters (required; the GitHub release key's is in README.md)
 #   SIGN_OUTPUT       file name of the signed APK in the project root, ending in .apk
-#                     (default: amber-release.apk)
+#                     (default: embersay-release.apk)
 # Paths on the signing host are absolute or relative to its home directory (~/ allowed). Its
 # newest build-tools must be 35.0.0 or later (apksigner --alignment-preserved).
 #
 # A run with the GitHub release key sets its own properties, fingerprint and output, e.g.
 #   SIGN_PROPERTIES=<its keystore.properties> SIGN_CERT_SHA256=<its fingerprint> \
-#     SIGN_OUTPUT=amber-github.apk tools/sign-release.sh
+#     SIGN_OUTPUT=embersay-github.apk tools/sign-release.sh
 #
 # Run it from a normal clone (not a linked worktree) with nothing changed and the submodules at
 # their pinned commits; it refuses otherwise, and when anything asks for the adb test hook
@@ -65,9 +65,9 @@ if ! [[ "$SIGN_CERT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "SIGN_CERT_SHA256 must be the certificate's SHA-256 as 64 lowercase hex characters" >&2
   exit 1
 fi
-SIGN_DIR="${SIGN_DIR:-amber/sign}"
+SIGN_DIR="${SIGN_DIR:-embersay/sign}"
 SIGN_BUILD_TOOLS="${SIGN_BUILD_TOOLS:-Android/Sdk/build-tools}"
-SIGN_OUTPUT="${SIGN_OUTPUT:-amber-release.apk}"
+SIGN_OUTPUT="${SIGN_OUTPUT:-embersay-release.apk}"
 # A plain file name in the project root, and an .apk so .gitignore keeps it out of commits.
 if ! [[ "$SIGN_OUTPUT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.apk$ ]]; then
   echo "SIGN_OUTPUT must be a file name ending in .apk, without a directory (got '$SIGN_OUTPUT')" >&2
@@ -171,9 +171,9 @@ PY
 # the dex files.
 MANIFEST=$("$BT/aapt2" dump xmltree --file AndroidManifest.xml "$UNSIGNED") \
   || { echo "cannot read the unsigned APK's manifest (aapt2) - not signing" >&2; exit 1; }
-if grep -qE 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST"; then
+if grep -qE '(app\.amethyst|com\.embersay)\.debug\.' <<<"$MANIFEST"; then
   echo "the unsigned APK's manifest has the adb test hook - not signing:" >&2
-  grep -E 'app\.(amethyst|amber)\.debug\.' <<<"$MANIFEST" >&2
+  grep -E '(app\.amethyst|com\.embersay)\.debug\.' <<<"$MANIFEST" >&2
   exit 1
 fi
 python3 -I - "$UNSIGNED" <<'PY' || exit 1

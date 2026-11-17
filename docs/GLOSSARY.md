@@ -1,4 +1,4 @@
-# Amber - glossary
+# Embersay - glossary
 
 The words the app uses, in English and German. Approved by Fabi on 2026-11-07 (roadmap P4).
 Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The German text says
@@ -6,6 +6,8 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 
 | Thing | English | German | Not |
 |---|---|---|---|
+| The app's name (from 2026-11-17, decided by Fabi; before: Amber). No article in German, no genitive "Embersays": "die Bubble von Embersay". Its own PC and server programs are shown as Embersay PC and Embersay Server | Embersay | Embersay | Amber, Ember Say, EmberSay |
+| The app before the rename, still on some phones (Home asks to uninstall it) | the old Amber app, Amber (old app) | die alte Amber-App, Amber (alte App) | |
 | What turns speech into text | speech recognition | Spracherkennung | engine, STT, backend |
 | The file or service model a recognition or cleanup runs | model | Modell | |
 | Tidying the recognized text with a language model | cleanup, clean up | Bereinigung, bereinigen | polish, post-processing |
@@ -40,11 +42,11 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | | clipboard | Zwischenablage | |
 | Wireless network | Wi-Fi | WLAN | |
 | The settings pages | Diagnostics, Statistics, Reliability | Diagnose, Statistik, Zuverlässigkeit | |
-| The page with what is about the app rather than a setting (not yet approved) | About Amber | Über Amber | Info, Imprint |
+| The page with what is about the app rather than a setting (not yet approved) | About Embersay | Über Embersay | Info, Imprint |
 | Light or dark (added with P8, not yet approved) | Appearance: Like the phone, Light, Dark | Darstellung: Wie das Handy, Hell, Dunkel | theme, mode, system default |
 | Hidden for now (`Features.VOICE_COMMANDS`) | voice commands | Sprachbefehle | |
 
-Names stay as they are: Amber, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI, Android.
+Names stay as they are: Embersay, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI, Android.
 
 ## What stays English
 

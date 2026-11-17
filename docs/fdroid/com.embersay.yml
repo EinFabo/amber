@@ -15,7 +15,7 @@ Changelog: https://github.com/EinFabo/amber/releases
 
 RepoType: git
 Repo: https://github.com/EinFabo/amber.git
-Binaries: https://github.com/EinFabo/amber/releases/download/v%v/amber-%v.apk
+Binaries: https://github.com/EinFabo/amber/releases/download/v%v/embersay-%v.apk
 
 Builds:
   - versionName: 0.33.0

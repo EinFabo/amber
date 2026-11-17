@@ -1,13 +1,13 @@
-Amber is voice dictation that writes into <b>any</b> app. Tap into a text field, a small amber bubble appears; tap it, speak, tap again - the text lands at the cursor. No keyboard switch, no clipboard.
+Embersay is voice dictation that writes into <b>any</b> app. Tap into a text field, a small amber bubble appears; tap it, speak, tap again - the text lands at the cursor. No keyboard switch, no clipboard.
 
 <b>You decide where your voice goes</b>
 Every dictation shows where it was recognized:
 <ul>
-<li><b>On this phone</b> - Parakeet TDT (25 European languages), Whisper (FUTO models or large-v3-turbo) or Android's own recognizer. Nothing leaves the phone.</li>
-<li><b>Verified enclave</b> - Tinfoil: Amber checks the server's hardware attestation before anything is sent, and sends nothing if the check fails.</li>
-<li><b>Cloud</b> - Groq, OpenAI, or your own server (Amber PC, Speaches, LocalAI, whisper.cpp) with your own API key.</li>
+<li><b>On this phone</b> - Parakeet (25 European languages), Whisper (FUTO models or large-v3-turbo) or Android's speech recognition. Nothing leaves the phone.</li>
+<li><b>Verified enclave</b> - Tinfoil: Embersay checks the server's hardware attestation before anything is sent, and sends nothing if the check fails.</li>
+<li><b>Cloud</b> - Groq, OpenAI, or your own server (Embersay PC, Speaches, LocalAI, whisper.cpp) with your own API key.</li>
 </ul>
-Amber never claims more privacy than it can prove, and never detours your voice to a less private place. If a server cannot be reached, a downloaded local model recognizes the recording instead of losing it.
+Embersay never claims more privacy than it can prove, and never detours your voice to a less private place. If a server cannot be reached, a downloaded local model recognizes the recording instead of losing it.
 
 <b>Features</b>
 <ul>
@@ -20,7 +20,7 @@ Amber never claims more privacy than it can prove, and never detours your voice 
 </ul>
 
 <b>Permissions</b>
-Amber needs the microphone and its accessibility service: the service finds the text field, shows the bubble and types the text. It does not need "display over other apps". Speech models are downloaded inside the app when you choose one.
+Embersay needs the microphone and its accessibility service: the service finds the text field, shows the bubble and types the text. It does not need "display over other apps". Speech models are downloaded inside the app when you choose one.
 
 <b>Network services</b>
 Groq, OpenAI, Anthropic (Claude) and Tinfoil are third-party services; they are used only when you set them up with your own key and choose them. Speech models for the phone are downloaded when you choose one, from Hugging Face and keyboard.futo.org.

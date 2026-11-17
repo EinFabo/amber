@@ -1,6 +1,34 @@
-# Amber - open items
+# Embersay - open items
 
-As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom.
+As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom. The app
+was called Amber until 2026-11-17; the sections below that are dated before then say Amber.
+
+## Renamed to Embersay (2026-11-17)
+
+Fabi's decision: the app is **Embersay**, application id **`com.embersay`** (debug
+`com.embersay.debug`), before any store release - a clean break, a fresh install. The code
+keeps its namespace `app.amethyst` and its internal names (`AmberPalette`, `OtherAmbers`,
+settings keys, keystore aliases); the wire protocol to Fabi's PC and server programs stays
+(`amber`, `amber-pc`, `amber-server`, `amber_cleanup`), only their names on screen are
+"Embersay PC" and "Embersay Server".
+- [x] Every text in English and German, the launcher label, the accessibility service, the
+      notifications, the store listing (`fastlane/`), README, privacy policy, glossary,
+      the F-Droid draft (`docs/fdroid/com.embersay.yml`), `tools/sign-release.sh`'s defaults.
+- [x] Home and the introduction's welcome show the name as its mark: the flame on its disc,
+      "Ember" in the theme's colour and "say" in the text's (`Wordmark`).
+- [x] The old Amber on the same phone (`app.amber`, `app.amber.debug`): its service on beside
+      Embersay's counts as another bubble ("Amber (old app)"), and while it is merely installed
+      Home asks to uninstall it, with its app info a tap away; dismissed, the card comes back
+      only while the old app's service is on (`OtherAmbers.notice`).
+- [ ] Try on a phone with the old Amber installed: the card, its app info, the card gone after
+      the uninstall; both services on - one card, not two.
+- [ ] The GitHub repository's name (`EinFabo/amber`; the update check and the docs still name
+      it - GitHub redirects after a rename).
+- [ ] The Windows app and the server still call themselves Amber (their own names, the
+      `app.amber.pc` folder); the phone shows them as Embersay PC and Embersay Server.
+- [ ] A new entry for Embersay in Fabi's store (the old one is `app.amber`).
+- [ ] Register the domain embersay.com (the id reads as it).
+- [ ] A trademark check for "Embersay".
 
 ## Polish review (2026-11-17)
 
@@ -208,9 +236,9 @@ Built:
       listing names Anthropic and the model hosts.
 
 Open - Fabi's decisions:
-- [ ] **Name and id before F-Droid.** F-Droid lists another "Amber"
+- [x] **Name and id before F-Droid.** F-Droid lists another "Amber"
       (`com.greenart7c3.nostrsigner`); `app.amber` reads as the domain amber.app. After
-      inclusion the id is fixed.
+      inclusion the id is fixed. Done 2026-11-17: Embersay, `com.embersay` (see the top).
 - [ ] **The microphone service runs all day** (started at every resume, sticky, never
       stopped) so the bubble may record from the background on Android 14+. Play's
       foreground-service declaration wants "only for as long as necessary" - a review risk.

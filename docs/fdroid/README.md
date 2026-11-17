@@ -1,6 +1,6 @@
 # F-Droid recipe
 
-`app.amber.yml` is the draft for fdroiddata (`metadata/app.amber.yml`). Do not submit it yet.
+`com.embersay.yml` is the draft for fdroiddata (`metadata/com.embersay.yml`). Do not submit it yet.
 
 ## Before the merge request (checked against F-Droid's docs and fdroiddata, 2026-11-14)
 
@@ -20,15 +20,20 @@
 - **Tracking.** F-Droid ships the GitHub-signed APK, which checks GitHub for updates. From the
   release after 0.33.0 an install made by an app store never checks
   (`ReleaseChannel.installedBy`); 0.33.0 itself still would, so name a later release here.
-- **Name and id.** F-Droid lists another "Amber" (`com.greenart7c3.nostrsigner`); `app.amber`
-  reads as the domain amber.app, which is not ours. After inclusion the id is fixed.
+- **Name and id: done (2026-11-17).** F-Droid lists another "Amber"
+  (`com.greenart7c3.nostrsigner`), and `app.amber` read as the domain amber.app, which is not
+  ours. Fabi renamed the app to Embersay, id `com.embersay`, before any store release; after
+  inclusion the id is fixed. Still open: the domain embersay.com (the id reads as it), and the
+  GitHub repository's name (`EinFabo/amber` in the URLs below until it moves - GitHub redirects).
 - **IzzyOnDroid** is no route: its inclusion policy rejects apps made with generative AI tools.
 
 ## The Builds entry
 
 The `Builds` entry names the latest release from the from-source build (0.33.0 / versionCode
-61 / `commit: v0.33.0`), whose APK is on GitHub as `amber-0.33.0.apk` (the `Binaries:` line
-points there; F-Droid compares it with its own build and ships our signature). With every
+61 / `commit: v0.33.0`), whose APK is on GitHub as `amber-0.33.0.apk`. That release is still
+`app.amber`: the first release as `com.embersay` replaces the entry, and its APK is
+`embersay-<version>.apk`, which the `Binaries:` line already names (F-Droid compares it with
+its own build and ships our signature). With every
 release, move `versionName`, `versionCode`, `commit`, `CurrentVersion` and
 `CurrentVersionCode` along. Releases up to v0.31.0 fetched prebuilt binaries and can never be
 named here.
@@ -54,13 +59,13 @@ named here.
 python3 -m venv /tmp/fdv && /tmp/fdv/bin/pip install fdroidserver
 ```
 
-`fdroid lint` needs an fdroiddata-like layout: a directory with `metadata/app.amber.yml`, a
+`fdroid lint` needs an fdroiddata-like layout: a directory with `metadata/com.embersay.yml`, a
 `config.yml`, and fdroiddata's `config/categories.yml` and `config/antiFeatures.yml` (plus the
 icons they name; any PNG will do for lint).
 
 ```bash
-mkdir -p lintdir/metadata && cp docs/fdroid/app.amber.yml lintdir/metadata/
-cd lintdir && /tmp/fdv/bin/fdroid lint app.amber
+mkdir -p lintdir/metadata && cp docs/fdroid/com.embersay.yml lintdir/metadata/
+cd lintdir && /tmp/fdv/bin/fdroid lint com.embersay
 ```
 
 For `fdroid scanner`, point `Repo:` at a local clone of the branch, `commit:` at its HEAD, and
@@ -68,11 +73,12 @@ For `fdroid scanner`, point `Repo:` at a local clone of the branch, `commit:` at
 clone must be local paths (or have network). The scanner runs the recipe's `prebuild` only, so
 it does not build the AAR.
 
-Last run (2026-11-10, fdroidserver 2.4.5): `fdroid lint` clean; `fdroid scanner` 0 problems.
+Last run (2026-11-10, fdroidserver 2.4.5, still as `app.amber`): `fdroid lint` clean;
+`fdroid scanner` 0 problems.
 
 ## Scanner hits and how they are handled
 
-The submodule hits are in code Amber neither builds nor ships; each is a `scandelete` in the
+The submodule hits are in code Embersay neither builds nor ships; each is a `scandelete` in the
 recipe. The Tinfoil AAR is not in git at all (`app/libs/*.aar` is gitignored): the recipe builds
 it in `build:`, after the scan, so the scanner never sees it and there is nothing to delete.
 
@@ -85,7 +91,7 @@ it in `build:`, after the scan, so the scanner never sees it and there is nothin
 
 ## For the merge request template
 
-- Application ID `app.amber`, license Apache-2.0, built from source including the speech
+- Application ID `com.embersay`, license Apache-2.0, built from source including the speech
   runtimes and the Tinfoil verifier; no prebuilt binaries.
 - Anti-feature `NonFreeNet`: Groq, OpenAI and Tinfoil, optional, user's own key.
 - Not before 2027-01-27 (F-Droid's three-month rule; first commit 2026-10-27).

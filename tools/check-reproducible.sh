@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks that Amber's release APK is reproducible: clones a commit twice, into two fresh
+# Checks that Embersay's release APK is reproducible: clones a commit twice, into two fresh
 # directories whose paths differ in length (so an absolute path that leaks into the build
 # shows up), builds the unsigned release APK in each and compares the two byte for byte.
 #
@@ -29,7 +29,7 @@ COMMIT="$(git -C "$ROOT" rev-parse --verify --quiet "$REF^{commit}")" \
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/sdk}}"
 [ -d "$ANDROID_HOME" ] || { echo "no Android SDK at $ANDROID_HOME - set ANDROID_HOME" >&2; exit 2; }
 
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/amber-repro.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/embersay-repro.XXXXXX")"
 if [ "${KEEP:-}" = 1 ]; then
   trap 'echo "kept: $WORK"' EXIT
 else
