@@ -1,0 +1,6 @@
+- Settings without the Advanced switch: every page is always there, own words and hidden apps are easy to find
+- Clearer texts in English and German, no more "Learn more" folds
+- The cleanup keeps every language: Spanish or French is no longer translated
+- The quick menu works in apps of a work profile or private space
+- The clipboard steps in when an app won't take the text (now on by default)
+- The quick menu no longer labels every button

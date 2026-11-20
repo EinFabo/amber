@@ -1,0 +1,6 @@
+- Einstellungen ohne „Erweitert“: Jede Seite ist immer da, eigene Wörter und ausgeblendete Apps leicht zu finden
+- Klarere Texte auf Deutsch und Englisch, keine „Mehr erfahren“-Abschnitte mehr
+- Die Bereinigung behält jede Sprache: Spanisch oder Französisch wird nicht mehr übersetzt
+- Das Schnellmenü geht auch in Apps im Arbeitsprofil oder privaten Bereich
+- Nimmt eine App den Text nicht an, hilft die Zwischenablage (jetzt standardmäßig an)
+- Das Schnellmenü beschriftet nicht mehr jeden Knopf
