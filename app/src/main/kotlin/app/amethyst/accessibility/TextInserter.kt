@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import app.amethyst.DebugLog
 import app.amethyst.R
+import app.amethyst.apps.Launcher
 import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.insert.Clipboard
@@ -84,7 +85,12 @@ class TextInserter(
         val outcome = engine.insert(target, text, options, allowClipboard, expectedPackage)
 
         val refused = outcome.refused
-        lastTrace = if (refused != null) "$trace → refused: ${refused.describe()}" else "$trace → ${outcome.strategy.name}" +
+        // An app in a work profile or the private space: a write that fails there is a lead -
+        // also when no field was found at all, so the app the words were for is asked too.
+        val profile = (target?.packageName ?: expectedPackage)
+            ?.takeUnless { it == service.packageName || Launcher.inOwnProfile(service, it) }
+            ?.let { "[app in another profile] " }.orEmpty()
+        lastTrace = profile + if (refused != null) "$trace → refused: ${refused.describe()}" else "$trace → ${outcome.strategy.name}" +
             when {
                 outcome.uncertain -> " (typed, never showed up in the field)"
                 // The app left the cursor elsewhere, e.g. before a final "?" ([InsertionEngine]).

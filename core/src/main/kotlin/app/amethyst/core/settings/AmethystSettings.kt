@@ -220,8 +220,6 @@ data class BubbleSettings(
      * ([app.amethyst.core.bubble.QuickMenuLayout.idle]).
      */
     val quickMenuIdle: List<String?>? = null,
-    /** How often the quick menu was opened, counted up to [app.amethyst.core.bubble.QuickMenuNames.FIRST_OPENS]. */
-    val quickMenuOpens: Int = 0,
 ) {
     companion object {
         /**
@@ -242,11 +240,13 @@ data class InsertionSettings(
     val gluePunctuation: Boolean = true,
     val rememberStrategyPerApp: Boolean = true,
     /**
-     * Off by default: text goes straight into the field, and a dictation that cannot be
-     * inserted is reported rather than parked on the clipboard. On allows pasting and the
-     * copy-as-last-resort, at the price of every such dictation landing in clipboard history.
+     * On by default (since schema 17): where an app does not take the text directly, it is
+     * pasted, or left on the clipboard as a last resort - at the price of such a dictation
+     * landing in clipboard history. Off keeps the clipboard untouched; a dictation that cannot
+     * be inserted is then only reported. The security mode keeps it off either way
+     * ([app.amethyst.core.privacy.SecurityMode.mayUseClipboard]).
      */
-    val allowClipboard: Boolean = false,
+    val allowClipboard: Boolean = true,
 ) {
     fun toSpliceOptions(): SpliceOptions = SpliceOptions(
         autoSpace = autoSpace,
@@ -293,7 +293,7 @@ data class AmethystSettings(
      * [app.amethyst.core.update.UpdatePolicy]. Absent in older settings, which check by default.
      */
     val updates: UpdateSettings = UpdateSettings(),
-    /** How the app itself looks: the simple or the advanced settings. */
+    /** How the app itself looks. */
     val ui: UiSettings = UiSettings(),
     /** What a recording does around itself: a tone, music paused. Absent in older settings: all off. */
     val feedback: FeedbackSettings = FeedbackSettings(),
@@ -364,9 +364,11 @@ data class AmethystSettings(
          * 16: Parakeet is called "Parakeet (local)", without the architecture's "TDT", and the
          * shortest part of a dictation recognized in parts ([CaptureSettings.chunkMinMs]) is no
          * longer on screen: a value set there goes back to each engine's own.
+         * 17: using the clipboard when an app does not take the text directly is on by default,
+         * and switched on for every install from before (Fabi, 2026-11-19).
          * See [SettingsCodec.migrate].
          */
-        const val SCHEMA_VERSION = 16
+        const val SCHEMA_VERSION = 17
 
         /** Parakeet's name until schema 16, kept to recognize it in older settings. */
         const val PARAKEET_NAME_BEFORE_16 = "Parakeet TDT (local)"
@@ -392,8 +394,6 @@ data class AmethystSettings(
             ),
             // None until the first run has seen which apps are on the phone; see [AppProfiles.defaultsFor].
             profiles = emptyList(),
-            // A new install sees the few settings most people need; see [SettingsLayout].
-            ui = UiSettings(advanced = false),
         )
     }
 }
@@ -456,6 +456,8 @@ object SettingsCodec {
                 .let { if (settings.schemaVersion < 14) migrateBubblePlace(it) else it },
             // Version 15: the history starts off for an install from before it, offered on Home.
             privacy = if (settings.schemaVersion < 15) HistoryOffer.forEarlierInstall(settings.privacy) else settings.privacy,
+            // Version 17: the clipboard as a fallback is on, for earlier installs too.
+            insertion = if (settings.schemaVersion < 17) settings.insertion.copy(allowClipboard = true) else settings.insertion,
             engines = kept.map { engine ->
                 when {
                     // Only version 1 forced it; a "de-DE" chosen since stays.
@@ -699,12 +701,6 @@ data class PrivacySettings(
 /** How the app itself looks. */
 @Serializable
 data class UiSettings(
-    /**
-     * Show every setting, not only the simple ones ([SettingsLayout]). The default, on, is what
-     * settings from before this switch decode to - their users keep seeing what they set up;
-     * a new install starts with it off ([AmethystSettings.defaults]).
-     */
-    val advanced: Boolean = true,
     /**
      * Light or dark. The default follows the phone, also for settings from before the choice:
      * until then Amber was dark on every phone.

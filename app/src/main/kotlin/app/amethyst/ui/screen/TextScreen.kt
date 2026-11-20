@@ -29,20 +29,22 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.OwnWordsReach
 import app.amethyst.core.text.OwnWords
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.ToggleRow
+import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /**
- * Everything that changes the text by rules, in the order it happens to a dictation: its words
- * and commas, then how it arrives at the cursor - and what is done when it cannot be typed
- * there. The Recording page holds what is about the recording, the Cleanup page the language
- * model, and the own words have a page of their own ([OwnWordsScreen]).
+ * Everything that changes the text by fixed rules on the phone, in the order it happens to a
+ * dictation: its words and commas, then how it arrives at the cursor - and what is done when it
+ * cannot be inserted there. The Recording page holds what is about the recording, the Cleanup
+ * page the language model, the own words a page of their own ([OwnWordsScreen]).
  */
 @Composable
 fun TextScreen(
@@ -51,9 +53,10 @@ fun TextScreen(
     modifier: Modifier = Modifier,
 ) {
     SubPage(modifier) {
+        // Cleanup and these rules both change the text; which is which, said once on top.
+        Hint(stringResource(R.string.text_page_lead))
         SectionCard(
             title = stringResource(R.string.text_words),
-            learnMore = stringResource(R.string.text_words_more),
         ) {
             ToggleRow(
                 label = stringResource(R.string.text_fillers),
@@ -83,7 +86,6 @@ fun TextScreen(
         SectionCard(
             title = stringResource(R.string.text_inserting),
             subtitle = stringResource(R.string.inserting_subtitle),
-            learnMore = stringResource(R.string.inserting_more),
         ) {
             ToggleRow(
                 label = stringResource(R.string.inserting_spaces),
@@ -134,6 +136,11 @@ fun OwnWordsScreen(
         OwnWordsCard(settings.words.own) { words ->
             onUpdateSettings { it.copy(words = it.words.copy(own = words)) }
         }
+        // Said only while it matters: the active recognition cannot take the list.
+        val active = settings.activeEngine
+        if (active != null && !OwnWordsReach.recognitionTakes(active.kind)) {
+            Hint(stringResource(R.string.own_words_not_used, recognitionRowName(active)), AmberPalette.Primary)
+        }
     }
 }
 
@@ -154,7 +161,6 @@ private fun OwnWordsCard(words: List<String>, onChange: (List<String>) -> Unit) 
     SectionCard(
         title = stringResource(R.string.own_words),
         subtitle = stringResource(R.string.own_words_subtitle),
-        learnMore = stringResource(R.string.own_words_more),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(

@@ -185,6 +185,11 @@ object Texts {
                 val who = summary.engine?.let { engineShortName(this, it) } ?: getString(R.string.summary_fallback_automatic)
                 if (summary.prepared) getString(R.string.summary_prepared, who) else who
             }
+            is Summary.Bubble -> listOfNotNull(
+                getString(if (summary.onlyWithField) R.string.summary_bubble_field else R.string.summary_bubble_always),
+                summary.hidden.takeIf { it > 0 }?.let { count(R.plurals.summary_bubble_hidden, it) },
+            ).joinToString(" · ")
+            is Summary.OwnWords -> if (summary.count == 0) getString(R.string.summary_apps_none) else count(R.plurals.summary_words, summary.count)
             is Summary.StopsAfter -> getString(R.string.summary_stops_after, decimal(this, summary.seconds))
             Summary.RunsUntilTap -> getString(R.string.summary_runs_until_tap)
             is Summary.Text -> summary.first.joinToString(", ") { textPart(this, it) }
@@ -193,8 +198,6 @@ object Texts {
                 .ifEmpty { getString(R.string.summary_as_recognized) }
             is Summary.Reliability -> if (summary.open == 0) getString(R.string.summary_all_set) else count(R.plurals.summary_things_open, summary.open)
             is Summary.Diagnostics -> if (summary.count == 0) getString(R.string.summary_nothing_dictated) else count(R.plurals.summary_last_dictations, summary.count)
-            is Summary.MoreSettings -> summary.first.joinToString(", ") { SettingsTitles.of(this, it) }
-                .let { titles -> if (summary.more) getString(R.string.summary_titles_and_more, titles) else titles }
             is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
             is Summary.Privacy -> if (summary.secure) {
@@ -210,7 +213,6 @@ object Texts {
                     Summary.BubbleSize.Size.EXTRA_LARGE -> R.string.bubble_size_extra_large
                 },
             )
-            is Summary.OwnWords -> if (summary.count == 0) getString(R.string.summary_apps_none) else count(R.plurals.summary_words, summary.count)
             is Summary.Theme -> theme(this, summary.mode)
             is Summary.History -> if (summary.secure) getString(R.string.history_off_secure) else historyKeep(this, summary.keep)
             is Summary.About -> when (val newer = summary.newer) {

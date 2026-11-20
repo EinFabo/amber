@@ -256,6 +256,65 @@ class CleanupGuardTest {
         assertTrue(CleanupGuard.hasCorrectionMarker(heard))
         assertEquals(Verdict.OK, verdict(heard, "Lass uns doch heute um 4 Uhr am Bahnhof treffen."))
     }
+
+    // --- Other languages ------------------------------------------------------------------
+
+    @Test
+    fun `a Chinese or Japanese reply that dropped a filler keeps its words`() {
+        // A clause without spaces used to be one word: without "嗯" it was none of the dictation's.
+        assertEquals(Verdict.OK, verdict("我明天嗯要去北京然后回家", "我明天要去北京，然后回家。", language = "zh"))
+        assertEquals(Verdict.OK, verdict("えーと明日は十時に会社に行きます", "明日は十時に会社に行きます。", language = "ja"))
+        assertEquals(Verdict.OK, verdict("えーと明日は十時に会社に行きます", "明日は十時に会社に行きます。"))
+        assertEquals(Verdict.OK, verdict("ไปกินข้าวกันไหมครับ", "ไปกินข้าวกันไหมครับ"))
+        // An answer in the same script is still mostly other words.
+        assertEquals(Verdict.OWN_WORDS, verdict("我明天要去北京开会", "北京是中国的首都，有很多名胜古迹。", language = "zh"))
+    }
+
+    @Test
+    fun `a question mark in any script counts`() {
+        assertEquals(Verdict.OK, verdict("你知道商店几点开门吗？", "你知道商店几点开门吗？", language = "zh"))
+        assertEquals(Verdict.OK, verdict("你知道商店几点开门吗?", "你知道商店几点开门吗？", language = "zh"))
+        assertEquals(Verdict.QUESTION, verdict("你知道商店几点开门吗？", "商店九点开门。", language = "zh"))
+        assertEquals(Verdict.OK, verdict("هل تعرف متى يفتح المحل؟", "هل تعرف متى يفتح المحل؟", language = "ar"))
+        assertEquals(Verdict.QUESTION, verdict("هل تعرف متى يفتح المحل؟", "هل تعرف متى يفتح المحل.", language = "ar"))
+        // Greek asks with ";".
+        assertEquals(Verdict.OK, verdict("ξέρεις τι ώρα ανοίγει το μαγαζί;", "Ξέρεις τι ώρα ανοίγει το μαγαζί;", language = "el"))
+        assertEquals(Verdict.QUESTION, verdict("ξέρεις τι ώρα ανοίγει το μαγαζί;", "Ξέρεις τι ώρα ανοίγει το μαγαζί.", language = "el"))
+        // Spanish opens with ¿ and closes with ?.
+        assertEquals(Verdict.OK, verdict("sabes a qué hora abre la tienda?", "¿Sabes a qué hora abre la tienda?", language = "es"))
+    }
+
+    @Test
+    fun `a translation into another script is caught in any language`() {
+        assertEquals(Verdict.LANGUAGE, verdict("автобус уходит в восемь", "The bus leaves at eight.", language = "ru"))
+        assertEquals(Verdict.LANGUAGE, verdict("الاجتماع غدا ملغى", "The meeting tomorrow is cancelled.", language = "ar"))
+        assertEquals(Verdict.LANGUAGE, verdict("明天下午的会议取消了", "Meeting cancelled.", language = "zh"))
+        assertEquals(Verdict.LANGUAGE, verdict("I think we should go there", "Я думаю, нам стоит пойти туда."))
+        // A name in another script is no translation.
+        assertEquals(Verdict.OK, verdict("ich treffe heute 李明 im büro", "Ich treffe heute 李明 im Büro."))
+    }
+
+    @Test
+    fun `in other languages a number word may come back in digits, and digits must stay`() {
+        assertEquals(Verdict.OK, verdict("nos vemos a las tres en la oficina", "Nos vemos a las 3 en la oficina.", language = "es"))
+        assertEquals(Verdict.OK, verdict("on se voit à trois heures", "On se voit à 3 heures.", language = "fr"))
+        assertEquals(Verdict.OK, verdict("明天三点开会", "明天3点开会。", language = "zh"))
+        // Nobody named the language, and the words lean neither way.
+        assertEquals(Verdict.OK, verdict("nos vemos a las tres en la oficina", "Nos vemos a las 3 en la oficina."))
+        // A number with no word gone for it is added.
+        assertEquals(Verdict.NUMBER_ADDED, verdict("nos vemos en la oficina", "Nos vemos en la oficina 3.", language = "es"))
+        // Digits dropped or changed are rejected in any language.
+        assertEquals(Verdict.NUMBER_DROPPED, verdict("nos vemos a las 3 en la oficina", "Nos vemos en la oficina.", language = "es"))
+        assertEquals(Verdict.NUMBER_DROPPED, verdict("明天3点开会", "明天开会。", language = "zh"))
+        // German and English stay strict: the guard reads their number words.
+        assertEquals(Verdict.NUMBER_ADDED, verdict("wir treffen uns um drei", "Wir treffen uns um 4.", language = "de"))
+    }
+
+    @Test
+    fun `a Chinese self-correction may drop the number taken back`() {
+        assertEquals(Verdict.OK, verdict("公交车7点走不对8点走", "公交车8点走。", language = "zh"))
+        assertEquals(Verdict.OK, verdict("el autobús sale a las 7 no espera a las 8", "El autobús sale a las 8.", language = "es"))
+    }
 }
 
 /** About five minutes of German as spoken, and the same tidied - for the long path's tests. */

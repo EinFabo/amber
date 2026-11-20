@@ -16,6 +16,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import app.amethyst.apps.Launcher
 import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
@@ -25,7 +26,6 @@ import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldFocus
 import app.amethyst.core.bubble.FieldPresence
-import app.amethyst.core.bubble.QuickMenuNames
 import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
@@ -136,14 +136,6 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
             },
             onHideIn = ::hideBubbleIn,
-            onMenuOpened = {
-                graph.appScope.launch {
-                    graph.settingsStore.update { settings ->
-                        QuickMenuNames.afterOpen(settings.bubble.quickMenuOpens)
-                            ?.let { settings.copy(bubble = settings.bubble.copy(quickMenuOpens = it)) } ?: settings
-                    }
-                }
-            },
         )
 
         defaultKeyboard.start()
@@ -235,7 +227,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                     val ownOverlay = pkg == packageName && event.className?.toString() != MainActivity::class.java.name
                     if (pkg != SYSTEM_UI && !fromKeyboard && !ownOverlay) {
                         appInFront = pkg
-                        bubble?.setCurrentApp(pkg)
+                        inFront(pkg)
                     }
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
@@ -249,7 +241,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                 val pkg = event.packageName?.toString()
                 if (kind != TextFieldKind.NONE) {
                     Log.i(TAG, "field: focus in ${DebugLog.redact(pkg)}, $kind")
-                    pkg?.let { bubble?.setCurrentApp(it) }
+                    pkg?.let(::inFront)
                 }
                 focus.focusEvent(kind, inOwnApp = pkg == packageName)?.let(::updateTextFieldFocus)
             }
@@ -261,6 +253,16 @@ class AmethystAccessibilityService : AccessibilityService() {
                 keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
             }
         }
+    }
+
+    /**
+     * [pkg] is the app the user is in: the bubble follows it, and it counts as an app for the
+     * quick menu even where the package manager does not know it - an app in another profile
+     * ([app.amethyst.core.apps.AppsSeenInFront]).
+     */
+    private fun inFront(pkg: String) {
+        if (pkg != packageName) graph.appsSeenInFront.add(pkg)
+        bubble?.setCurrentApp(pkg)
     }
 
     /** Whether a window change of these kinds can be a keyboard coming, going or resizing; 0 says nothing. */
@@ -447,7 +449,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                 Log.i(TAG, "field: input started in ${DebugLog.redact(attribute.packageName?.toString())}, $inputKind${if (restarting) ", restarting" else ""}")
             }
             // The field's own app: the surest answer to "where is the user typing".
-            if (inputKind != TextFieldKind.NONE) attribute.packageName?.let { bubble?.setCurrentApp(it) }
+            if (inputKind != TextFieldKind.NONE) attribute.packageName?.let(::inFront)
             updateTextFieldFocus(focus.inputStarted(inputKind, restarting))
         }
 
@@ -472,7 +474,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                 it.copy(bubble = it.bubble.copy(hiddenIn = (it.bubble.hiddenIn + pkg).distinct()))
             }
         }
-        val name = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager) }.getOrNull() ?: pkg
+        val name = Launcher.label(this, pkg) ?: pkg
         Toast.makeText(this, getString(R.string.bubble_hidden_in, name), Toast.LENGTH_LONG).show()
     }
 

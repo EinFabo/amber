@@ -23,8 +23,7 @@ import app.amethyst.core.bubble.QuickSlot
  * fly out of the bubble to the places of [QuickMenuGeometry.Fan], each with its glyph
  * ([MenuGlyphs]) in amber on the raised surface. The lit one grows into an amber pill toward
  * the middle of the screen with its name in it, the others step back. An empty slot is a
- * faint dashed ring, a disabled one is dimmed. For the first opens ([app.amethyst.core.bubble.QuickMenuNames]) every
- * button also has its name beside it, until the finger lights one.
+ * faint dashed ring, a disabled one is dimmed.
  *
  * Every frame is computed from [clock], so a still picture of any moment can be drawn.
  */
@@ -55,9 +54,6 @@ class QuickMenuView(context: Context) : View(context) {
     private var closedAt: Long? = null
     private var chosen: Int? = null
 
-    /** Every button's name beside it, not only the lit one's. */
-    private var named = false
-
     /** How far each button had come out when the menu began to close. */
     private val outAtClose = FloatArray(QuickMenuGeometry.SLOTS) { 1f }
     private val heat = Array(QuickMenuGeometry.SLOTS) { Tween() }
@@ -83,21 +79,14 @@ class QuickMenuView(context: Context) : View(context) {
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14f, resources.displayMetrics)
         typeface = Typeface.create(Typeface.DEFAULT, 600, false)
     }
-    private val name = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, resources.displayMetrics)
-        typeface = Typeface.create(Typeface.DEFAULT, 500, false)
-    }
-    private val chip = Paint(Paint.ANTI_ALIAS_FLAG)
     private val box = RectF()
-    private val nameBox = RectF()
     private val outEase = OvershootInterpolator(1.6f)
     private val backEase = PathInterpolator(0.5f, 0f, 0.8f, 0.4f)
 
-    /** Opens the menu for [slots] around the bubble, laid out as [fan]; [named]: every button with its name. */
-    fun open(fan: QuickMenuGeometry.Fan, slots: List<QuickSlot?>, named: Boolean = false) {
+    /** Opens the menu for [slots] around the bubble, laid out as [fan]. */
+    fun open(fan: QuickMenuGeometry.Fan, slots: List<QuickSlot?>) {
         this.fan = fan
         this.slots = slots
-        this.named = named
         openedAt = clock()
         closedAt = null
         chosen = null
@@ -182,8 +171,6 @@ class QuickMenuView(context: Context) : View(context) {
                 canvas.drawCircle(x, y, orbRadius - empty.strokeWidth, empty)
             } else {
                 drawOrb(canvas, slot, x, y, h, alpha)
-                // Its name beside it, giving way to the pill's own as it grows.
-                if (named) drawName(canvas, slot, x, y, alpha * (1f - h))
             }
             canvas.restore()
         }
@@ -230,27 +217,6 @@ class QuickMenuView(context: Context) : View(context) {
             canvas.restore()
         }
         if (layer != null) canvas.restoreToCount(layer)
-    }
-
-    /**
-     * A button's name on a small dark chip beside it, toward the middle of the screen - where its
-     * pill would grow. The fan's half circle keeps the chips clear of the other buttons.
-     */
-    private fun drawName(canvas: Canvas, slot: QuickSlot, x: Float, y: Float, alpha: Float) {
-        if (alpha <= 0.004f) return
-        val label = Texts.quickAction(context, slot.action)
-        val w = name.measureText(label) + 2 * NAME_PAD * density
-        val h = NAME_HEIGHT * density
-        val gap = NAME_GAP * density
-        var left = if (side == BubbleSide.RIGHT) x - orbRadius - gap - w else x + orbRadius + gap
-        left = left.coerceIn(EDGE * density, (width - w - EDGE * density).coerceAtLeast(EDGE * density))
-        nameBox.set(left, y - h / 2, left + w, y + h / 2)
-        chip.color = RAISED
-        chip.alpha = (NAME_CHIP_ALPHA * alpha).toInt()
-        canvas.drawRoundRect(nameBox, h / 2, h / 2, chip)
-        name.color = if (slot.enabled) NAME_INK else MUTED
-        name.alpha = (255 * alpha).toInt()
-        canvas.drawText(label, left + NAME_PAD * density, y - (name.ascent() + name.descent()) / 2, name)
     }
 
     /** How far button [i] has flown out at [now]: 0 in the bubble, 1 in place, a little more on the overshoot. */
@@ -320,13 +286,6 @@ class QuickMenuView(context: Context) : View(context) {
         /** Room in the pill: beyond the name, and between the name and the glyph. */
         private const val PAD_OUTER = 14f
         private const val PAD_INNER = 4f
-
-        /** A name beside its button: the chip's height, its padding, its distance from the button. */
-        private const val NAME_HEIGHT = 26f
-        private const val NAME_PAD = 9f
-        private const val NAME_GAP = 6f
-        private const val NAME_CHIP_ALPHA = 235f
-        private const val NAME_INK = 0xFFEDEDED.toInt()
 
         /** The pill keeps this far from the screen's sides. */
         private const val EDGE = 6f

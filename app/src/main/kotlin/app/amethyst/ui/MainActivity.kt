@@ -106,19 +106,19 @@ import app.amethyst.ui.screen.CleanupAccess
 import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.DiagnosticsScreen
 import app.amethyst.ui.screen.EngineDetailScreen
-import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.LicensesScreen
 import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
+import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.HistoryScreen
+import app.amethyst.ui.screen.OwnWordsScreen
 import app.amethyst.ui.screen.RecordingScreen
 import app.amethyst.ui.screen.SecurityModeScreen
 import app.amethyst.ui.screen.ReliabilityScreen
 import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
-import app.amethyst.ui.screen.OwnWordsScreen
 import app.amethyst.ui.screen.PrivacyScreen
 import app.amethyst.ui.screen.TextScreen
 import app.amethyst.ui.screen.UpdatesScreen
@@ -425,13 +425,19 @@ private sealed interface Screen {
     data class AppStyle(val packageName: String) : Screen
 }
 
+/**
+ * The title over a screen: the name on the row that led there - an app's page is titled with
+ * the app, a speech recognition's with its name.
+ */
 @Composable
-private fun Screen.title(): String = when (this) {
+private fun Screen.title(settings: AmethystSettings, apps: AppSource): String = when (this) {
     Screen.Onboarding -> ""
     Screen.Home -> APP_NAME
     Screen.Settings -> stringResource(R.string.title_settings)
-    is Screen.EngineDetail -> stringResource(R.string.settings_recognition)
-    is Screen.AppStyle -> stringResource(R.string.title_app)
+    is Screen.EngineDetail -> settings.engines.firstOrNull { it.id == engineId }?.let { recognitionRowName(it) }
+        ?: stringResource(R.string.settings_recognition)
+    is Screen.AppStyle -> AppProfiles.forPackage(settings.profiles, packageName)?.label
+        ?: remember(packageName) { apps.label(packageName) }
     is Screen.Page -> stringResource(page.title())
 }
 
@@ -639,7 +645,7 @@ private fun AmethystScreens(
             // The introduction draws its own line: where you are, Back and Skip.
             if (screen != Screen.Onboarding) {
                 TopBar(
-                    title = screen.title(),
+                    title = screen.title(settings, apps),
                     showBack = screen != Screen.Home,
                     showSettings = screen == Screen.Home,
                     wordmark = screen == Screen.Home,
@@ -755,7 +761,6 @@ private fun AmethystScreens(
                         setup = setup,
                         version = build?.version.orEmpty(),
                         releaseChannel = build?.channel,
-                        onAdvancedChange = { on -> updateSettings { it.copy(ui = it.ui.copy(advanced = on)) } },
                         onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
                         onOpen = { page -> open(Screen.Page(page)) },
                         cleanupTrouble = cleanupTrouble,
@@ -773,22 +778,25 @@ private fun AmethystScreens(
                                 medianWaitMs = stats.medianWaitMs,
                                 onUpdateSettings = ::updateSettings,
                                 onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
+                                onOpenFallback = { open(Screen.Page(SettingsPage.FALLBACK)) },
                             )
                             SettingsPage.CLEANUP -> CleanupScreen(settings = settings, access = cleanupAccess)
                             SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
+                            SettingsPage.OWN_WORDS -> OwnWordsScreen(settings, ::updateSettings)
                             SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
                             SettingsPage.INSERTING -> TextScreen(settings, ::updateSettings)
-                            SettingsPage.OWN_WORDS -> OwnWordsScreen(settings, ::updateSettings)
                             SettingsPage.APP_STYLES -> AppStylesScreen(
                                 settings, ::updateSettings,
                                 apps = apps,
                                 usage = appUsage,
                                 onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
+                                onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
                             )
                             SettingsPage.BUBBLE -> BubbleScreen(
                                 settings, ::updateSettings,
                                 onOpenQuickMenu = { open(Screen.Page(SettingsPage.QUICK_MENU)) },
-                                onOpenApps = { open(Screen.Page(SettingsPage.APP_STYLES)) },
+                                apps = apps,
+                                usage = appUsage,
                             )
                             SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
                             SettingsPage.HISTORY -> {

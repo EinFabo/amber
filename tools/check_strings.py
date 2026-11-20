@@ -1,6 +1,7 @@
 """Checks the app's texts: English (values/) and German (values-de/) hold the same strings
-with the same placeholders, toasts fit in two lines, and the Compose screens carry no English
-sentence of their own.
+with the same placeholders, toasts fit in two lines, the Compose screens carry no English
+sentence of their own, no text uses " - " as a dash, and no German text a word the glossary
+rules out.
 
 Usage: python3 -I tools/check_strings.py
 
@@ -181,9 +182,41 @@ for f in sorted(UI.rglob("*.kt")):
                 continue
             errors.append(f"{f.relative_to(root)}:{i}: English text in code: \"{text[:60]}\"")
 
+# The wording rules of docs/GLOSSARY.md that a script can see.
+# A spaced hyphen used as a dash: split the sentence or use a colon instead (one of the
+# clearest signs of machine-written text). The hidden voice commands' texts stay as they are.
+DASH_ALLOWED = {"bubble_everywhere_commands_note", "disclosure_app_note_commands", "disclosure_commands_note", "disclosure_text_note_commands"}
+for lang, texts in (("values", en), ("values-de", de)):
+    for name, forms in texts.items():
+        if name in DASH_ALLOWED:
+            continue
+        for text in forms.values():
+            if " - " in text:
+                errors.append(f"{lang}: {name} uses \" - \" as a dash: \"{text[:60]}\"")
+
+# German words the glossary's "Not (DE)" column rules out. An entry with a remark in
+# brackets depends on its sense and is left to the reader; "Einrichtung" is right for the
+# setup on Home, wrong elsewhere, so the script cannot tell either.
+banned = set()
+for line in (root / "docs/GLOSSARY.md").read_text(encoding="utf-8").splitlines():
+    cols = [c.strip() for c in line.strip().strip("|").split("|")]
+    if not line.startswith("|") or len(cols) < 5 or cols[0] in ("Thing", "") or set(cols[0]) <= set("-"):
+        continue
+    for word in cols[4].split(","):
+        word = word.strip()
+        if word and "(" not in word and word != "Einrichtung":
+            banned.add(word)
+for name, forms in de.items():
+    if name in DASH_ALLOWED:
+        continue
+    for text in forms.values():
+        for word in sorted(banned):
+            if re.search(r"(?<![\w-])" + re.escape(word) + r"(?![\w-])", text):
+                errors.append(f"values-de: {name} uses \"{word}\" (GLOSSARY.md, Not (DE)): \"{text[:60]}\"")
+
 if errors:
     print(f"{len(errors)} PROBLEM(S):")
     for e in errors:
         print("  -", e)
     sys.exit(1)
-print(f"OK: {len(en)} texts in English and German with the same placeholders; toasts within {TOAST_LIMIT} characters; no English sentence in the screens.")
+print(f"OK: {len(en)} texts in English and German with the same placeholders; toasts within {TOAST_LIMIT} characters; no English sentence in the screens; no dash chains, no ruled-out German words.")

@@ -14,8 +14,6 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.InsertionSettings
-import app.amethyst.core.settings.SettingsItem
-import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
 import app.amethyst.core.settings.UpdateSettings
@@ -112,6 +110,23 @@ class SettingsSummariesTest {
     }
 
     @Test
+    fun `the own words row counts them`() {
+        val settings = AmethystSettings.defaults(TEST_PHONE)
+        assertEquals(Summary.OwnWords(0), SettingsSummaries.ownWords(settings))
+        assertEquals(Summary.OwnWords(2), SettingsSummaries.ownWords(settings.copy(words = settings.words.copy(own = listOf("Anna", "Amber")))))
+    }
+
+    @Test
+    fun `the bubble row says where it shows and how many apps it stays out of`() {
+        assertEquals(Summary.Off, SettingsSummaries.bubble(BubbleSettings(enabled = false)))
+        assertEquals(Summary.Bubble(onlyWithField = true, hidden = 0), SettingsSummaries.bubble(BubbleSettings()))
+        assertEquals(
+            Summary.Bubble(onlyWithField = false, hidden = 2),
+            SettingsSummaries.bubble(BubbleSettings(onlyWithTextField = false, hiddenIn = listOf("a", "b", "a"))),
+        )
+    }
+
+    @Test
     fun `recording says when it stops`() {
         assertEquals(Summary.StopsAfter(0.9), SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)))
         assertEquals(Summary.StopsAfter(1.5), SettingsSummaries.recording(CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 1_500)))
@@ -122,7 +137,7 @@ class SettingsSummariesTest {
 
     @Test
     fun `text names the first things done to it, in the page's order, and says there are more`() {
-        // A new install: both word rules and the three for inserting.
+        // A new install: both word rules, the three for inserting and the clipboard.
         assertEquals(
             Summary.Text(listOf(Summary.Text.Part.FILLERS, Summary.Text.Part.COMMAS, Summary.Text.Part.SPACES), more = true),
             SettingsSummaries.text(CaptureSettings(), InsertionSettings()),
@@ -137,7 +152,7 @@ class SettingsSummariesTest {
     fun `text with a few things on names them all`() {
         assertEquals(
             Summary.Text(listOf(Summary.Text.Part.SPACES, Summary.Text.Part.CAPITALS, Summary.Text.Part.PUNCTUATION), more = false),
-            SettingsSummaries.text(noWordRules, InsertionSettings()),
+            SettingsSummaries.text(noWordRules, InsertionSettings(allowClipboard = false)),
         )
         assertEquals(
             Summary.Text(listOf(Summary.Text.Part.FILLERS, Summary.Text.Part.CLIPBOARD), more = false),
@@ -152,7 +167,7 @@ class SettingsSummariesTest {
     fun `text with every rule off goes in as recognized`() {
         assertEquals(
             Summary.Text(emptyList(), more = false),
-            SettingsSummaries.text(noWordRules, InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false)),
+            SettingsSummaries.text(noWordRules, InsertionSettings(autoSpace = false, autoCapitalize = false, gluePunctuation = false, allowClipboard = false)),
         )
     }
 
@@ -160,30 +175,6 @@ class SettingsSummariesTest {
     fun `the word rules are the text row's, not the recording row's`() {
         val silent = CaptureSettings(autoStopOnSilence = true, silenceTimeoutMs = 900)
         assertEquals(SettingsSummaries.recording(silent), SettingsSummaries.recording(silent.copy(stripFillers = false, germanCommas = false)))
-    }
-
-    @Test
-    fun `the folded advanced row names what needs a look before how much it holds`() {
-        val hidden = SettingsLayout.hiddenRows(voiceCommands = false)
-        assertEquals(
-            Summary.MoreSettings(listOf(SettingsItem.FALLBACK, SettingsItem.RECORDING, SettingsItem.INSERTING), more = true),
-            SettingsSummaries.advanced(hidden, reliabilityOpen = 0),
-        )
-        assertEquals(Summary.ReliabilityOpen(1), SettingsSummaries.advanced(hidden, reliabilityOpen = 1))
-    }
-
-    @Test
-    fun `the folded advanced row names the first rows it holds, as the switch would show them`() {
-        // With the voice commands, their row comes first: it is the first one the switch adds.
-        assertEquals(
-            Summary.MoreSettings(listOf(SettingsItem.VOICE_COMMANDS, SettingsItem.FALLBACK, SettingsItem.RECORDING), more = true),
-            SettingsSummaries.advanced(SettingsLayout.hiddenRows(voiceCommands = true), reliabilityOpen = 0),
-        )
-        // A few rows are all named, and nothing says there is more.
-        val few = listOf(SettingsItem.RECORDING, SettingsItem.RELIABILITY)
-        assertEquals(Summary.MoreSettings(few, more = false), SettingsSummaries.advanced(few, reliabilityOpen = 0))
-        val three = listOf(SettingsItem.RECORDING, SettingsItem.INSERTING, SettingsItem.RELIABILITY)
-        assertEquals(Summary.MoreSettings(three, more = false), SettingsSummaries.advanced(three, reliabilityOpen = 0))
     }
 
     @Test
@@ -240,13 +231,6 @@ class SettingsSummariesTest {
         assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.MEDIUM), SettingsSummaries.bubbleSize(68))
         assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.LARGE), SettingsSummaries.bubbleSize(72))
         assertEquals(Summary.BubbleSize(Summary.BubbleSize.Size.EXTRA_LARGE), SettingsSummaries.bubbleSize(96))
-    }
-
-    @Test
-    fun `the own words row counts them`() {
-        val settings = AmethystSettings.defaults(TEST_PHONE)
-        assertEquals(Summary.OwnWords(0), SettingsSummaries.ownWords(settings))
-        assertEquals(Summary.OwnWords(2), SettingsSummaries.ownWords(settings.copy(words = settings.words.copy(own = listOf("Anna", "Amber")))))
     }
 
     @Test

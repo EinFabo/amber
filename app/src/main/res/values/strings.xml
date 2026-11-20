@@ -7,7 +7,7 @@
          them. With them back, the part on what the service does and reads for a command
          returns here (the text before roadmap P3, in git history); the matching rows in
          SetupPieces come back with the flag. -->
-    <string name="accessibility_description">Embersay uses this service to show the dictation bubble and to type your dictation into the field you are writing in. For that it reads which app is in front and whether a text field has focus (to show or hide the bubble), where the keyboard is (to keep the bubble off its keys), and - only when inserting a dictation - the text already in that field, so the new words fit in at the cursor. None of this is sent anywhere. On this phone Embersay keeps which app you dictated in, with word counts and timings, for your statistics, and your dictations - their text, app and time - for 24 hours unless you change it or switch on the security mode; their text and app are encrypted and can be read only while the phone is unlocked, which needs a screen lock. Only your recording goes to the speech recognition you chose, and with cleanup its text to the cleanup you chose. Right after you switch on something Embersay sent you to Android\'s settings for - this service, or battery use without limits - it brings Embersay back to the front. Beyond that it never taps, swipes or acts for you.</string>
+    <string name="accessibility_description">Embersay uses this service to show the dictation bubble and to insert your dictation into the field you\'re writing in. For that, it reads which app is open and whether a text field is selected (to show or hide the bubble), where the keyboard is (to keep the bubble clear of the keys), and, only while inserting a dictation, the text already in that field, so the new words fit in at the cursor. None of this is sent anywhere. On this phone, Embersay keeps which apps you dictated in, with word counts and timings, for your statistics. It also keeps your dictations (their text, app and time) for 24 hours, unless you change this or turn on security mode. Their text and app are encrypted and can only be read while the phone is unlocked, which needs a screen lock. Only your recording goes to the speech recognition you chose, and with cleanup on, its text goes to the cleanup you chose. Right after you turn on something in Android\'s settings that Embersay sent you to (this service, or unrestricted battery use), the service brings Embersay back to the front. Beyond that, it never taps, swipes or acts for you.</string>
 
     <string name="notification_channel_name">Embersay ready</string>
     <string name="notification_channel_description">Keeps the microphone available for the dictation bubble</string>
@@ -19,6 +19,6 @@
     <string name="update_available_title">Embersay %1$s is available</string>
     <string name="update_available_text">Tap to open the release page on GitHub</string>
 
-    <string name="clipboard_fallback">Text is on the clipboard - please paste it</string>
-    <string name="clipboard_after_lost_commit">The text may not have arrived - it is on the clipboard, paste it if it is missing</string>
+    <string name="clipboard_fallback">The text is on the clipboard. Paste it.</string>
+    <string name="clipboard_after_lost_commit">The text may not have been inserted. If it\'s missing, paste it from the clipboard.</string>
 </resources>

@@ -6,6 +6,7 @@ import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
+import app.amethyst.core.apps.AppsSeenInFront
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.dictation.DictationMemory
@@ -187,6 +188,9 @@ class Graph(app: Application) {
 
     /** The launcher's apps for voice commands and the app pickers, read once until a package changes. */
     val launcherList = LauncherList(app)
+
+    /** The apps the accessibility service saw in front: an app in another profile counts as one ([app.amethyst.apps.Launcher.installed]). */
+    val appsSeenInFront = AppsSeenInFront()
 
     /** What a new install is given without being asked, and the recognition that waits for its model. */
     val firstRun = FirstRunSetup(app, appScope, settingsStore, loadedSettings, { modelDownloads }, launcherList)

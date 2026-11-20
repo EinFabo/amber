@@ -73,8 +73,8 @@ private val TextStart = Inset + TileSize + Inset
 
 /**
  * One group of a page: an optional small [label] and one-line [note] over a rounded surface
- * holding the rows. Rows sit edge to edge on it, separated by [RowDivider]. [learnMore] folds a
- * longer explanation in below.
+ * holding the rows. Rows sit edge to edge on it, separated by [RowDivider]. No fold with a
+ * longer explanation: what a group needs said fits its note; the rest is not said.
  */
 @Composable
 fun SettingsGroup(
@@ -82,7 +82,6 @@ fun SettingsGroup(
     modifier: Modifier = Modifier,
     note: String? = null,
     noteColor: Color = AmberPalette.Muted,
-    learnMore: String? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -103,7 +102,6 @@ fun SettingsGroup(
                 .background(AmberPalette.Surface),
             content = content,
         )
-        if (learnMore != null) LearnMore(learnMore)
     }
 }
 
@@ -116,11 +114,10 @@ fun SectionCard(
     title: String?,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    learnMore: String? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    SettingsGroup(title, modifier, note = subtitle, learnMore = learnMore, trailing = trailing) {
+    SettingsGroup(title, modifier, note = subtitle, trailing = trailing) {
         Column(
             Modifier.padding(Inset),
             verticalArrangement = Arrangement.spacedBy(16.dp),

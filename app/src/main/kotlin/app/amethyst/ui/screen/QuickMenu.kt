@@ -42,7 +42,7 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 
 /**
- * Settings -> Bubble -> Quick menu (advanced settings only): the four places of the idle menu,
+ * Settings -> Bubble -> Quick menu: the four places of the idle menu,
  * top to bottom as the fan shows them on both edges, each with its glyph and name. A tap picks
  * what goes there; one already in another place swaps with it ([QuickMenuLayout.choose]).
  * Listening and working stay fixed, and the page says so.

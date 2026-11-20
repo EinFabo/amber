@@ -154,9 +154,7 @@ class QuickActionRunner(
         return opened
     }
 
-    private fun labelOf(app: String): String = runCatching {
-        service.packageManager.getApplicationInfo(app, 0).loadLabel(service.packageManager).toString()
-    }.getOrNull() ?: app
+    private fun labelOf(app: String): String = Launcher.label(service, app) ?: app
 
     private fun toast(message: String) {
         main.post { Toast.makeText(service, message, Toast.LENGTH_SHORT).show() }

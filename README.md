@@ -165,9 +165,9 @@ cross-platform toolkits - sometimes while reporting success. Hence:
 3. **PASTE** - clipboard + `ACTION_PASTE`, also verified.
 4. **CLIPBOARD_ONLY** - copy and tell you.
 
-Steps 3 and 4 only run with the "Clipboard as a fallback" setting (default: off). Otherwise
-the clipboard stays untouched, and a dictation no field accepts is kept word for word in the
-diagnostics.
+Steps 3 and 4 only run with the "Use the clipboard if needed" setting (default: on; always off
+in the security mode). Switched off, the clipboard stays untouched, and a dictation no field
+accepts is kept word for word in the diagnostics.
 
 What worked in which app is remembered. You see one stumble per app, never a recurring one.
 

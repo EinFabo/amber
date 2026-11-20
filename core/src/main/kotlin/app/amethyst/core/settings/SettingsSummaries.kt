@@ -1,7 +1,7 @@
 package app.amethyst.core.settings
 
-import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
+import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.update.AppVersion
 import app.amethyst.core.update.ReleaseChannel
@@ -35,6 +35,7 @@ sealed interface Summary {
      */
     data class AppCleanupModel(val own: Boolean, val model: String?) : Summary
 
+
     /** A fallback for a recognition on the phone, which no server can fail. */
     data object NotNeeded : Summary
 
@@ -60,13 +61,7 @@ sealed interface Summary {
     /** The last [count] dictations; nothing dictated yet at 0. */
     data class Diagnostics(val count: Int) : Summary
 
-    /**
-     * The folded "Advanced" row: what it holds - the [first] few rows by their titles, and
-     * whether there are [more] ("When the server fails, Recording, Inserting ...")...
-     */
-    data class MoreSettings(val first: List<SettingsItem>, val more: Boolean) : Summary
-
-    /** ...or what in it needs a look. */
+    /** The row on top of the Settings page: [open] things on the Reliability page need a look. */
     data class ReliabilityOpen(val open: Int) : Summary
 
     /** Light, dark, or as the phone is set. */
@@ -77,6 +72,12 @@ sealed interface Summary {
 
     /** What is kept: the security mode when it is on ([secure]), otherwise how long the history keeps a dictation. */
     data class Privacy(val keep: app.amethyst.core.history.HistoryKeep, val secure: Boolean) : Summary
+
+    /**
+     * The bubble when it is on: whether it shows [onlyWithField] or always, and in how many apps
+     * it is [hidden] (none: not said).
+     */
+    data class Bubble(val onlyWithField: Boolean, val hidden: Int) : Summary
 
     /** How many own words there are ([OwnWords]); none yet at 0. */
     data class OwnWords(val count: Int) : Summary
@@ -129,6 +130,10 @@ object SettingsSummaries {
     fun onOff(on: Boolean): Summary = if (on) Summary.On else Summary.Off
 
     fun ownWords(settings: AmethystSettings): Summary = Summary.OwnWords(settings.words.own.size)
+
+    /** Off, or where it shows and how many apps it stays out of - "On" alone said nothing: it nearly always is. */
+    fun bubble(bubble: BubbleSettings): Summary =
+        if (!bubble.enabled) Summary.Off else Summary.Bubble(bubble.onlyWithTextField, bubble.hiddenIn.distinct().size)
 
     /**
      * The bubble's size slider (44 to 96 dp) in words: up to 52 small, up to 68 medium - the
@@ -212,17 +217,6 @@ object SettingsSummaries {
     fun reliability(open: Int): Summary = Summary.Reliability(open)
 
     fun diagnostics(count: Int): Summary = Summary.Diagnostics(count)
-
-    /** [hidden]: the rows the switch would show ([SettingsLayout.hiddenRows]), so the two never differ. */
-    fun advanced(hidden: List<SettingsItem>, reliabilityOpen: Int): Summary =
-        if (reliabilityOpen > 0) {
-            Summary.ReliabilityOpen(reliabilityOpen)
-        } else {
-            Summary.MoreSettings(hidden.take(ADVANCED_TITLES), more = hidden.size > ADVANCED_TITLES)
-        }
-
-    /** How many titles the folded "Advanced settings" row names: what fits a line on a phone. */
-    const val ADVANCED_TITLES = 3
 
     fun models(count: Int): Summary = Summary.Models(count)
 

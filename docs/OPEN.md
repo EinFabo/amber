@@ -27,8 +27,14 @@ settings keys, keystore aliases); the wire protocol to Fabi's PC and server prog
 - [ ] The Windows app and the server still call themselves Amber (their own names, the
       `app.amber.pc` folder); the phone shows them as Embersay PC and Embersay Server.
 - [ ] A new entry for Embersay in Fabi's store (the old one is `app.amber`).
-- [ ] Register the domain embersay.com (the id reads as it).
-- [ ] A trademark check for "Embersay".
+- [ ] Register the domain embersay.com (the id reads as it). Checked 2026-11-18 by RDAP and
+      DNS: embersay.com, .app, .de, .io and .org are all free.
+- [ ] A trademark check for "Embersay". First look 2026-11-18: no mark, product, app or
+      GitHub repository of that name (USPTO via a mirror: none; Play, App Store, web: none).
+      EUIPO, TMview, DPMA and WIPO could not be queried by script - search them by hand
+      (classes 9 and 42). "Ember" alone is crowded in class 9 (Ember.js, the Ember mug,
+      Logitech), so nobody owns it outright; risk rough, low to moderate. An EU mark costs
+      EUR 900 for classes 9 and 42, a German one EUR 290 for up to three classes.
 
 ## Polish review (2026-11-17)
 
@@ -80,6 +86,146 @@ score 6.5/10). Built on the same day, not yet on a phone:
   quick menu's names on a small screen and near the top or bottom edge (tilted fan); the
   done step and Settings in German.
 
+## Texts, 2026-11-18 (built, not yet on a phone)
+
+- [x] The Text page in plain words: short notes without a full stop, the rest in "More" as
+      short paragraphs; "No space before punctuation", "Use the clipboard if needed". The
+      rules for describing a setting are in `docs/GLOSSARY.md` ("How a setting is described").
+- [x] One name for one thing: the Recording page's card is "Long dictations", its switch
+      "Recognize while speaking" (also on an app's page).
+- [x] The introduction's quick menu note in three short sentences; test results "The model
+      works." / "The connection works." without the test clip; "Eine andere App braucht das
+      Mikrofon"; failure messages say what happened before the code ("„Groq“ lehnt ab (Code 403)").
+- [ ] Still open from the review: Groq's "Settings complete." beside a Save button and
+      autosave, "All set" while the model downloads, Home's "Tinfoil (Enclave)" over the
+      "Verified enclave" badge, model suffixes, "App" / "Remove Keep", the German Reliability
+      banner, and the layout points (one icon with three meanings, alignment, orange note).
+
+## Fixes looked at, not built (2026-11-18)
+
+- **"neue Zeile" in WhatsApp.** `TextInserter.enterMakesNewLine` lets a line break through
+  only where the bound editor is multi-line and Enter has no action (or IME_FLAG_NO_ENTER_ACTION);
+  below that `InsertionEngine` makes the dictation one line (`TranscriptNormalizer.oneLine`).
+  WhatsApp's field is multi-line but likely announces "send". Proposed: a spoken "new line" is
+  the user asking for one - every multi-line field takes it, the Enter action only matters to a
+  keyboard's Enter key, which Embersay never presses (commitText of "\n" does not send);
+  single-line fields stay one line. Plus a diagnostics line when a dictation was made one line,
+  and why. Needs: `dumpsys input_method` with WhatsApp's field focused to confirm.
+- **A20e Quick setup.** `EngineAdvice.recommend` falls back to ANDROID when no local model
+  fits, without looking at `PhoneFacts.androidOnDevice` - and the Settings list shows Android's
+  preset with an "on this phone" badge from the static `EnginePresets.ANDROID_ON_DEVICE.trustLevel`.
+  Proposed: where Android's recognition is not on the phone, Quick setup does not pick it
+  silently but asks (or opens the speech recognition step), and the welcome promise is only
+  made where it holds. Before that, measure Parakeet on the A20e: the model can go over by
+  `adb push` into the debug build (`run-as`), no Wi-Fi at the phone needed.
+- **"Whisper local (FUTO)" on a CPU without dot product.** `SettingsScreen.PresetDialog`
+  lists `EnginePresets.offered` unfiltered. Proposed: leave it out where
+  `WhisperNative.cpuSupported()` is false (or show it disabled with "This phone's processor
+  cannot run Whisper"); rename "(local)" in the catalog names per the glossary ("on this phone"
+  is the badge's job, so just "Whisper" / "Parakeet").
+
+## GrapheneOS, apps in another profile (2026-11-19)
+
+Fabi on a GrapheneOS phone with WhatsApp, Signal and Claude in another profile than Embersay:
+nothing was inserted there (on stock Android it is), and the quick menu's "Style here", "App
+page" and "Cleanup off" were grey.
+- [x] The grey buttons: `Launcher.installed` asked the package manager, which only knows
+      Embersay's own profile, so an app in a work profile or the private space was "not
+      installed". Now an app the accessibility service saw in front counts
+      (`AppsSeenInFront`), and `LauncherApps` is asked across the profiles Android shows;
+      names and icons come from there too (badged). Checked 2026-11-19 on the Pixel 9a
+      (Android 17) with a work profile (`pm create-user --profileOf 0 --managed`) and Fully
+      Kiosk installed only there: "Style here" and "App page" lit, the style window opened
+      with the app's name and its badged icon; the menu without name chips.
+- [x] "Use the clipboard if needed" is on by default, also for earlier installs (schema 17);
+      the security mode keeps it off.
+- [x] The quick menu's names beside every button for the first five opens are gone (Fabi:
+      "sieht schlecht aus"); a name shows in the pill the finger is on.
+- [ ] **Not inserted in another profile: not reproduced.** On the Pixel's work profile
+      (Contacts, and Fully Kiosk installed only there) `InsertTestReceiver` went in by
+      COMMIT_TEXT both times; the trace now starts with "[app in another profile]". So a work
+      profile alone is not it. Left: GrapheneOS's private space or a second user, the real
+      dictation path (start checks, not only the write), WhatsApp/Signal/Claude themselves.
+      Next: a diagnostics report from the GrapheneOS phone after a failed dictation.
+- [ ] An app in a private space Android hides from Embersay has no name or icon (the package
+      shows); the window title could give the name.
+- [ ] Quick menu: letting go on a grey button only buzzes. Say why in a short toast ("Only in
+      another app", "No dictation yet", "Tap into a text field first", "No cleanup set up")
+      - a reason per slot from `QuickActions`.
+
+## Settings review (2026-11-19)
+
+Fabi: the settings are hard to find your way in. The full review is in a page from 2026-11-19
+(inventory of every setting, a "where would you look" test, a new order).
+- [x] Statistics moved from About to Privacy, beside the history (Fabi agreed).
+- [ ] Built on the branch `settings-order` (2026-11-20), for Fabi to try: no "Advanced
+      settings" switch, every page always shown (Settings: Speech recognition, Cleanup, Text,
+      Recording, Bubble, Privacy; Apps; Reliability, Appearance, About). Text takes Own words on
+      top; Recording takes the start/stop sound and "Pause music" from Bubble; "When the server
+      fails" sits at the bottom of Speech recognition (only for a server recognition); the
+      Bubble page by purpose: where it shows, the hidden apps listed right there (Show, Add
+      app), look with position, quick menu always shown, vibrate. The Cleanup page's own
+      addition and an app's own speech recognition are always shown. No "More" folds: the pages
+      stayed short enough. Not yet on a phone.
+- [ ] Maybe later: a search icon in the settings' top bar - only if the new order still
+      leaves Fabi searching.
+
+## Text, help and the cleanup prompt (2026-11-20, branch `settings-order`, debug build on the Pixel)
+
+After a research round (settings UX, Learn more, English and German copy, the prompt):
+- [x] The cleanup prompt works for any language: the recognizer's language first, the words
+      decide only between German and English, nothing named when unsure (Spanish and French
+      were read as German before and could be translated); `LanguagePacks` for 16 languages
+      (typography, correction cues, form of address, examples); the guard knows ？ ؟, compares
+      Chinese/Japanese/Thai by characters, catches a change of script; fence tags stripped.
+- [x] No "Learn more" folds in the settings: what is needed is in a note, a hint shows only
+      where it applies (the own words while Parakeet or Android recognizes), the Apps page
+      links to the cleanup instead of saying where it is.
+- [x] Settings: Own words a row of its own again; "When the server fails" one row opening its
+      page; sound, vibration and music together on Recording; app and engine pages titled by
+      name; the Bubble row says where it shows and how many apps hide it.
+- [x] About 420 English and 340 German texts rewritten (no " - " dashes, contractions, one
+      name per thing, errors say what to do; German: einfügen not tippen, Modell not
+      Sprachmodell, herunterladen, „Spracherkennung von Android“); GLOSSARY.md has a "Not (DE)"
+      column; `tools/check_strings.py` now fails on " - " and on ruled-out German words.
+- [ ] Left: negation and number words are checked for German and English only; the catalog's
+      prices could say "per dictation"; "Recognize while speaking" (Recording) and "Prepare on
+      the phone while you speak" (fallback) are two names for close ideas; a tap on a
+      recognition row switches it at once (an undo would be kinder); Diagnostics under About.
+
+## Google Play: what is missing (research 2026-11-18; Fabi has a developer account)
+
+No hard blocker - Wispr Flow is on Play with the same design (accessibility service that is not
+a tool, a bubble, text into other apps). Biggest first:
+- [ ] **The microphone service runs all day** (see "Before a store launch"): Play's foreground
+      service rule wants it running only for the task. Start it with a dictation, stop after;
+      test on Android 14+ (background starts are limited).
+- [ ] **Accessibility declaration** in the Console as a non-tool (no `isAccessibilityTool`);
+      the in-app disclosure with "Agree and open" exists. Needs a **video**: disclosure,
+      consent, a dictation into another app.
+- [ ] **Foreground service declaration** for the microphone type, with a description and a
+      **video** - after the item above.
+- [ ] `MicProxyActivity` (invisible activity that gets the microphone when the service is
+      refused): could look like working around background limits - keep it out of the video,
+      or leave it out of a Play build. Unverified how review treats it.
+- [ ] **Closed test, 12 testers for 14 days** - only for a personal account created after
+      2023-11-13 (Fabi: when was it made?).
+- [ ] **Data safety form**: voice recordings and text sent to the service the user picks
+      (Groq, OpenAI, Tinfoil, own server), ephemeral, not shared; encrypted in transit (except
+      http to an own server at home); no account, no ads.
+- [ ] App content: reviewer steps (works without a key), content rating, target audience 18+,
+      ads no, trader status; AI content policy looks out of scope (a productivity feature).
+- [ ] **App bundle**: `bundleRelease`, an upload key, Play App Signing - Play installs and
+      GitHub/F-Droid installs then cannot update each other (unless the store key goes to Play).
+- [ ] Android developer verification: `com.embersay` registered, the GitHub key too.
+- [ ] **Privacy policy** at a public URL with an e-mail contact, linked in About; it says it
+      applies "as published at GitHub" - extend to Play.
+- [ ] **Listing assets**: a feature graphic 1024x500 (missing); screenshots are 1080x2340
+      (over Play's 2:1) and RGBA - crop and flatten; the 512 icon must be a full square.
+- Already fine: targetSdk 36; the native libraries are 16 KB aligned (checked in the release
+  APK); the GitHub update check is off for Play installs and never installs anything itself;
+  no overlay or install-packages permission.
+
 ## Second test device: Samsung Galaxy A20e (2026-11-16, adb)
 
 SM-A202F, Android 11 (API 30), 2.8 GB RAM, Cortex-A53 (no dot product), 720x1560 at 320 dpi,
@@ -129,7 +275,7 @@ Samsung keyboard, German. Test build from amber (after rc4, with the tone on the
       Amber's own rule did not fire on Parakeet's text - needs the log).
 - [x] **"Punkt 2" became ".2"** - fixed in rc4 (Fabi's test 2026-11-16). Was: spoken
       punctuation turned "Punkt" before a number written in digits into a dot.
-- [ ] **Still open after rc4: the Text page reads badly** (the polish review of 2026-11-17
+- [x] **Rewritten 2026-11-18, not yet on a phone - the Text page read badly** (the polish review of 2026-11-17
       moved Own words off it and left its wording): the explanations in English and German
       "sound dumb", too much text, AI-sounding. Research how setting descriptions should look per language
       (short, plain, not slop) and rewrite them.

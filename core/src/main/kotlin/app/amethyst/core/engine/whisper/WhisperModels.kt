@@ -109,9 +109,9 @@ object WhisperModels {
         url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         sizeBytes = 574_041_195L,
         sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-        note = "The previous large model: always works through a full 30 s, so even a short " +
+        note = "The previous large model. It always works through a full 30 s, so even a short " +
             "dictation waits several seconds. The tuned large-v3-turbo above is as accurate " +
-            "and about three times faster - switch and delete this one.",
+            "and about three times faster. Switch to it and delete this one.",
         tier = "replaced",
         shortContext = false,
     )

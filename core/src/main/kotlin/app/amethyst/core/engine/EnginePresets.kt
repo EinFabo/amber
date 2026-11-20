@@ -92,8 +92,8 @@ object EnginePresets {
         displayName = "Android (on device)",
         kind = EngineKind.ANDROID_ON_DEVICE,
         trustLevel = TrustLevel.ON_DEVICE,
-        note = "Uses Android's speech recognition. No download, no key - " +
-            "quality depends on the manufacturer. It always stops at the first pause.",
+        note = "Uses Android's speech recognition. No download or key needed. " +
+            "Quality depends on the phone maker. It always stops at the first pause.",
     )
 
     val LOCAL_WHISPER = EnginePreset(
@@ -112,9 +112,9 @@ object EnginePresets {
         kind = EngineKind.LOCAL_SHERPA,
         trustLevel = TrustLevel.ON_DEVICE,
         modelId = "parakeet-tdt-0.6b-v3-int8",
-        note = "Close to Whisper large-v3 accuracy, but fast on a phone: it reads the whole " +
-            "recording at once instead of in 30 s windows. 25 European languages, detected by " +
-            "itself, with punctuation. One-time 670 MB download, ~700 MB memory while in use.",
+        note = "Nearly as accurate as Whisper large-v3, and fast on a phone. " +
+            "25 European languages, detected automatically, with punctuation. " +
+            "One-time 670 MB download, about 700 MB of memory while you dictate.",
     )
 
     /**
@@ -135,8 +135,8 @@ object EnginePresets {
         modelId = "voxtral-small-24b",
         needsApiKey = true,
         requireEnclave = true,
-        note = "Confidential computing in an enclave. Shows " +
-            "\"Verified enclave\" only once the attestation is confirmed.",
+        note = "Runs on a protected server (enclave). Shows " +
+            "“Verified enclave” only after the server has been checked.",
     )
 
     /**
@@ -206,8 +206,8 @@ object EnginePresets {
         displayName = "Own server",
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD,
-        note = "Speaches, faster-whisper-server, LocalAI or whisper.cpp's server - anything " +
-            "with /v1/audio/transcriptions. http:// works for addresses in your own network.",
+        note = "Any server with /v1/audio/transcriptions, such as Speaches, faster-whisper-server, " +
+            "LocalAI or whisper.cpp's server. http:// works only in your own network.",
     )
 
     val GROQ = EnginePreset(

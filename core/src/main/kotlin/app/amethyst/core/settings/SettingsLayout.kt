@@ -1,101 +1,69 @@
 package app.amethyst.core.settings
 
 /** The groups of the Settings page, top to bottom. */
-enum class SettingsGroupKind { MAIN, PER_APP, ADVANCED, AMBER }
+enum class SettingsGroupKind { MAIN, PER_APP, AMBER }
 
 /**
- * Everything the "Advanced settings" switch shows or hides: the rows of the Settings page, in
- * their order ([group] set), and parts of a page ([group] null). [simple]: shown without the
- * switch too.
+ * The rows of the Settings page, in their order. Every page is always there - nothing hides
+ * behind a switch (Fabi, 2026-11-19: "ich suche oft nach Settings"); what is rarely needed sits
+ * further down on its own page.
  */
-enum class SettingsItem(val simple: Boolean, val group: SettingsGroupKind?) {
-    RECOGNITION(simple = true, SettingsGroupKind.MAIN),
-    CLEANUP(simple = true, SettingsGroupKind.MAIN),
+enum class SettingsItem(val group: SettingsGroupKind) {
+    RECOGNITION(SettingsGroupKind.MAIN),
+    CLEANUP(SettingsGroupKind.MAIN),
 
-    /** The names and terms to spell right ([OwnWords]): what people look for first, so not behind the switch. */
-    OWN_WORDS(simple = true, SettingsGroupKind.MAIN),
-    BUBBLE(simple = true, SettingsGroupKind.MAIN),
+    /**
+     * The names and terms to spell right ([app.amethyst.core.text.OwnWords]): a list people come
+     * back to, so a row of its own (as Wispr Flow's Dictionary, Superwhisper's Vocabulary).
+     */
+    OWN_WORDS(SettingsGroupKind.MAIN),
+
+    /** The Text page: what changes the text by fixed rules - its words and commas, and how it is inserted. */
+    INSERTING(SettingsGroupKind.MAIN),
+
+    /** When a recording ends, the tones and pausing music while it runs, long dictations. */
+    RECORDING(SettingsGroupKind.MAIN),
+    BUBBLE(SettingsGroupKind.MAIN),
 
     /**
      * What is kept of a dictation, in one row: the history of recent dictations
-     * ([app.amethyst.core.history.DictationHistory]) and the security mode that keeps nothing -
-     * one page, as turning the security mode on changes the history.
+     * ([app.amethyst.core.history.DictationHistory]), the statistics, and the security mode that
+     * keeps nothing - one page, as turning the security mode on changes the history.
      */
-    PRIVACY(simple = true, SettingsGroupKind.MAIN),
-    VOICE_COMMANDS(simple = false, SettingsGroupKind.MAIN),
+    PRIVACY(SettingsGroupKind.MAIN),
+    VOICE_COMMANDS(SettingsGroupKind.MAIN),
 
     /** The Apps page: each app's style, and whether the bubble is hidden in it ([AppRows]). */
-    APP_STYLES(simple = true, SettingsGroupKind.PER_APP),
-    FALLBACK(simple = false, SettingsGroupKind.ADVANCED),
-    RECORDING(simple = false, SettingsGroupKind.ADVANCED),
+    APP_STYLES(SettingsGroupKind.PER_APP),
 
-    /** The Text page: what changes the text by rules - its words and commas, and how it is inserted. */
-    INSERTING(simple = false, SettingsGroupKind.ADVANCED),
-    RELIABILITY(simple = false, SettingsGroupKind.ADVANCED),
+    /** What keeps Android from cutting the microphone off: done once, then rarely looked at. */
+    RELIABILITY(SettingsGroupKind.AMBER),
+
     /** Light or dark: how Amber looks, for everyone. */
-    APPEARANCE(simple = true, SettingsGroupKind.AMBER),
+    APPEARANCE(SettingsGroupKind.AMBER),
 
     /**
-     * The page with what is about Amber rather than a setting, so always there: its version and
-     * updates, the statistics and diagnostics to look at, the licenses, the way back into the
-     * introduction. None of them is a row of the Settings page, or hidden by the switch.
+     * The page with what is about Amber rather than a setting: its version and updates, the
+     * diagnostics to look at, the licenses, the way back into the introduction.
      */
-    ABOUT(simple = true, SettingsGroupKind.AMBER),
-
-    /** On the Cleanup page: the own addition for every app and the system prompt to read. */
-    CLEANUP_INSTRUCTION(simple = false, group = null),
-
-    /** On an app's page: the speech recognition of its own (roadmap: per-app recognition is advanced). */
-    APP_RECOGNITION(simple = false, group = null),
-
-    /** On the Bubble page: the quick menu put together by hand. Who only dictates keeps it as it is. */
-    QUICK_MENU(simple = false, group = null),
+    ABOUT(SettingsGroupKind.AMBER),
 }
 
 /** A group of the Settings page with the rows it shows; see [SettingsLayout.groups]. */
 data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<SettingsItem>)
 
-/**
- * Which settings show: in the simple view (a new install's) only the few most people need -
- * how speech is recognized, whether it is cleaned up, the own words, the bubble, privacy (the history and the security mode) and the app styles, then how
- * Amber looks and the page about it; with [UiSettings.advanced] every one. Voice commands only ever with [Features.VOICE_COMMANDS].
- */
+/** Which rows the Settings page shows: all of them, voice commands only ever with [Features.VOICE_COMMANDS]. */
 object SettingsLayout {
 
-    fun shows(item: SettingsItem, advanced: Boolean, voiceCommands: Boolean = Features.VOICE_COMMANDS): Boolean = when {
-        item == SettingsItem.VOICE_COMMANDS && !voiceCommands -> false
-        else -> item.simple || advanced
-    }
+    fun shows(item: SettingsItem, voiceCommands: Boolean = Features.VOICE_COMMANDS): Boolean =
+        item != SettingsItem.VOICE_COMMANDS || voiceCommands
 
     /** The groups with at least one row to show, in page order. */
-    fun groups(advanced: Boolean, voiceCommands: Boolean = Features.VOICE_COMMANDS): List<SettingsGroupRows> =
+    fun groups(voiceCommands: Boolean = Features.VOICE_COMMANDS): List<SettingsGroupRows> =
         SettingsGroupKind.entries.mapNotNull { kind ->
             SettingsItem.entries
-                .filter { it.group == kind && shows(it, advanced, voiceCommands) }
+                .filter { it.group == kind && shows(it, voiceCommands) }
                 .takeIf { it.isNotEmpty() }
                 ?.let { SettingsGroupRows(kind, it) }
         }
-
-    /**
-     * The speech recognition section on [profile]'s page: with the advanced settings, and in the
-     * simple view too while the app has one of its own - what is in effect is never out of sight.
-     */
-    fun showsAppRecognition(profile: AppProfile, advanced: Boolean): Boolean =
-        shows(SettingsItem.APP_RECOGNITION, advanced) || profile.appEngine.mode != AppEngineMode.DEFAULT
-
-    /**
-     * The quick menu's row on the Bubble page: with the advanced settings, and in the simple view
-     * too while a menu of one's own is in use - it can always be seen and reset.
-     */
-    fun showsQuickMenu(bubble: BubbleSettings, advanced: Boolean): Boolean =
-        shows(SettingsItem.QUICK_MENU, advanced) || bubble.quickMenuIdle != null
-
-    /**
-     * The rows of the Settings page only the advanced view shows, in page order - what the
-     * folded "Advanced settings" row says it holds ([SettingsSummaries.advanced]).
-     */
-    fun hiddenRows(voiceCommands: Boolean = Features.VOICE_COMMANDS): List<SettingsItem> {
-        val simple = groups(advanced = false, voiceCommands).flatMap { it.items }.toSet()
-        return groups(advanced = true, voiceCommands).flatMap { it.items }.filterNot { it in simple }
-    }
 }

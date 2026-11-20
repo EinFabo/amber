@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's own screens. -->
 <resources>
-    <string name="test_runs_on_phone">Runs on the phone - no connection test needed.</string>
+    <string name="test_runs_on_phone">Runs on this phone. No connection test needed.</string>
     <string name="test_enclave_verified">Enclave verified: %1$s.</string>
-    <string name="test_answer">Answer after %1$s s: “%2$s”.</string>
-    <string name="test_cleanup_works">The cleanup works: “%2$s” after %1$s s.</string>
-    <string name="test_cleanup_failed">The cleanup could not be set up.</string>
-    <string name="test_answer_via">Answer after %1$s s (via %3$s): “%2$s”.</string>
-    <string name="test_model_runs">The model runs. The test clip contains no speech, so no text came back, but it did compute.</string>
-    <string name="test_connection_works">The connection works. The test clip contains no speech, so no text came back.</string>
+    <string name="test_answer">Answer in %1$s s: “%2$s”</string>
+    <string name="test_cleanup_works">The cleanup works (%1$s s): “%2$s”</string>
+    <string name="test_cleanup_failed">Couldn\'t set up the cleanup.</string>
+    <string name="test_answer_via">Answer in %1$s s via %3$s: “%2$s”</string>
+    <string name="test_model_runs">The model works.</string>
+    <string name="test_connection_works">The connection works.</string>
     <string name="trust_on_device">On this phone</string>
     <string name="trust_enclave_verified">Verified enclave</string>
     <string name="trust_cloud">Cloud</string>
-    <string name="trust_place_on_device">Your voice never leaves the phone.</string>
-    <string name="trust_place_enclave">Sent only after the enclave\'s code is verified.</string>
-    <string name="trust_place_cloud">Sent to a server, no further guarantee.</string>
-    <string name="trust_went_on_device">The recording never left the phone.</string>
-    <string name="trust_went_enclave">The recording went to an enclave whose attestation was verified.</string>
-    <string name="trust_went_cloud">The recording went to a server, no further guarantee.</string>
+    <string name="trust_place_on_device">Your voice stays on this phone.</string>
+    <string name="trust_place_enclave">Sent only after the protected server\'s code is checked.</string>
+    <string name="trust_place_cloud">Sent to a server without extra privacy guarantees.</string>
+    <string name="trust_went_on_device">The recording stayed on this phone.</string>
+    <string name="trust_went_enclave">The recording went to a protected server whose code was checked.</string>
+    <string name="trust_went_cloud">The recording went to a server without extra privacy guarantees.</string>
     <string name="learn_more">Learn more</string>
     <string name="expanded">Expanded</string>
     <string name="collapsed">Collapsed</string>
@@ -27,12 +27,11 @@
     <string name="step_of">Step %1$d of %2$d</string>
     <string name="step_more">Show more</string>
     <string name="skip">Skip</string>
-    <string name="accessibility_not_opened">Android\'s accessibility settings did not open. Find them under Settings → Accessibility.</string>
-    <string name="language_download_started">Download started. Android will report back shortly.</string>
+    <string name="accessibility_not_opened">Android\'s accessibility settings didn\'t open. Find them under Settings → Accessibility.</string>
+    <string name="language_download_started">Download started. Android will confirm it shortly.</string>
     <string name="language_download_by_hand">Download the language under Speech recognition → Offline speech recognition.</string>
     <string name="title_settings">Settings</string>
-    <string name="title_app">App</string>
     <string name="no_browser">No browser found to open %1$s</string>
     <string name="style_here_done">Done</string>
-    <string name="style_here_no_cleanup">No cleanup runs in %1$s, so the style is not applied yet - the text goes in as recognized.</string>
+    <string name="style_here_no_cleanup">No cleanup runs in %1$s, so the style has no effect. The text is inserted as recognized.</string>
 </resources>

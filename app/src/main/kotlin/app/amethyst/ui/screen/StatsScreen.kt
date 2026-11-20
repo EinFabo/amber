@@ -26,7 +26,6 @@ import app.amethyst.ui.DangerAction
 import app.amethyst.ui.DayBars
 import app.amethyst.ui.Figure
 import app.amethyst.ui.Hint
-import app.amethyst.ui.LearnMore
 import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.ShareBar
@@ -62,7 +61,6 @@ fun StatsScreen(
             checked = settings.stats.keep,
             onChange = { on -> onUpdateSettings { it.copy(stats = it.stats.copy(keep = on)) } },
         )
-        LearnMore(stringResource(R.string.stats_use_more))
 
         if (stats == null || stats.isEmpty) {
             SectionCard(title = null) {

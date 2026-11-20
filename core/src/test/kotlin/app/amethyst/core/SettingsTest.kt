@@ -10,6 +10,7 @@ import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.settings.BubbleSettings
 import app.amethyst.core.settings.CaptureSettings
 import app.amethyst.core.settings.FallbackMode
+import app.amethyst.core.settings.InsertionSettings
 import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.AmethystSettings
@@ -288,6 +289,18 @@ class CaptureTimeoutTest {
         // From 16 on the shortest part is left as it is.
         val current = AmethystSettings(capture = CaptureSettings(chunkMinMs = 6_000))
         assertEquals(6_000, SettingsCodec.decode(SettingsCodec.encode(current), TEST_PHONE).capture.chunkMinMs)
+    }
+
+    @Test
+    fun `schema 17 switches the clipboard on, new installs start with it on`() {
+        assertTrue(AmethystSettings.defaults(TEST_PHONE).insertion.allowClipboard)
+        val old = AmethystSettings(insertion = InsertionSettings(allowClipboard = false), schemaVersion = 16)
+        val migrated = SettingsCodec.decode(SettingsCodec.encode(old), TEST_PHONE)
+        assertTrue(migrated.insertion.allowClipboard)
+        assertEquals(AmethystSettings.SCHEMA_VERSION, migrated.schemaVersion)
+        // Switched off from 17 on, it stays off.
+        val chosen = AmethystSettings(insertion = InsertionSettings(allowClipboard = false))
+        assertFalse(SettingsCodec.decode(SettingsCodec.encode(chosen), TEST_PHONE).insertion.allowClipboard)
     }
 
     @Test

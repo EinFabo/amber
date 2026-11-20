@@ -17,9 +17,8 @@ import app.amethyst.ui.words
 
 /**
  * What is about Amber rather than a setting: its version and the way to a newer one, what it
- * counted and recorded of the dictations (to look at - their pages hold the one or two switches
- * that go with them), the licenses, and the introduction once more. The same in the simple and
- * the advanced view: nothing here is a setting the switch could hide.
+ * recorded of the dictations for finding faults (the diagnostics), the licenses, and the
+ * introduction once more. The statistics are under Privacy, beside the history.
  */
 @Composable
 fun AboutScreen(
@@ -47,12 +46,9 @@ fun AboutScreen(
                 summaryMaxLines = 2,
             ) { onOpen(SettingsPage.UPDATES) }
         }
-        SettingsGroup(stringResource(R.string.about_group_dictations)) {
-            NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
-            RowDivider()
-            NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
-        }
         SettingsGroup(label = null) {
+            NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
+            RowDivider()
             NavRow(
                 stringResource(R.string.settings_licenses), stringResource(R.string.settings_licenses_summary), icon = AmberIcons.Subject, summaryMaxLines = 2,
             ) { onOpen(SettingsPage.LICENSES) }

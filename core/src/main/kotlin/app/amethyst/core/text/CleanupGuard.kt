@@ -8,8 +8,10 @@ import app.amethyst.core.settings.WritingStyle
  * dictation is typed as recognized, and the [Verdict]'s reason goes into the diagnostics.
  *
  * Rules, not a model, and each one cheap: the length band, the share of the dictation's own
- * words, the language, the negations and the numbers, a question mark, a preamble, the line
- * breaks. A spoken self-correction ("um drei, nee, um vier") rightly drops a number or a
+ * words, the language and the script, the negations and the numbers, a question mark, a
+ * preamble, the line breaks. Words of a script written without spaces (Chinese, Japanese,
+ * Thai) count character by character; the negation and number words are German and English,
+ * and in other languages only numbers in digits are checked. A spoken self-correction ("um drei, nee, um vier") rightly drops a number or a
  * negation - but only one said before the correction marker, in the part taken back. What
  * comes after the last marker is kept, so its negations and numbers must survive; the
  * "added" checks never relax.
@@ -51,12 +53,13 @@ object CleanupGuard {
     ): Verdict {
         if (cleaned.isBlank()) return Verdict.EMPTY
         // A question that comes back without its question mark was answered, not tidied.
-        if ('?' in original && '?' !in cleaned) return Verdict.QUESTION
+        val greek = hasGreek(original)
+        if (asks(original, greek) && !asks(cleaned, greek)) return Verdict.QUESTION
         // Spoken line breaks are the user's; a tidy-up keeps them.
         if (cleaned.count { it == '\n' } < original.count { it == '\n' }) return Verdict.LINE_BREAKS
         val correction = correction(original)
         if (!lengthFits(original, cleaned, style, corrected = correction != null)) return Verdict.LENGTH
-        if (languageChanged(original, cleaned, language)) return Verdict.LANGUAGE
+        if (languageChanged(original, cleaned, language) || scriptChanged(original, cleaned)) return Verdict.LANGUAGE
         if (hasPreamble(original, cleaned)) return Verdict.PREAMBLE
         if (!ownWordsFit(original, cleaned, style, ownInstruction)) return Verdict.OWN_WORDS
         val negationsBefore = negations(original)
@@ -67,7 +70,12 @@ object CleanupGuard {
         if (negationsAfter < negationsBefore && negationsAfter < negations(kept)) return Verdict.NEGATION_DROPPED
         val before = numberGroups(original)
         val after = numberGroups(cleaned)
-        if (after.any { !it.foundIn(before) }) return Verdict.NUMBER_ADDED
+        val added = after.count { !it.foundIn(before) }
+        // Number words the guard cannot read ("tres", "三") may rightly come back as digits:
+        // each then took a word of the dictation with it.
+        if (added > 0 && (numberWordsKnown(original, language) || added > lostWords(original, cleaned))) {
+            return Verdict.NUMBER_ADDED
+        }
         if (numberGroups(kept).any { !it.foundIn(after) }) return Verdict.NUMBER_DROPPED
         return Verdict.OK
     }
@@ -125,12 +133,74 @@ object CleanupGuard {
     }
 
     /**
+     * A translation into another script: most of the dictation's letters in one script
+     * (Cyrillic, Greek, Arabic, Devanagari, Chinese and Japanese, Hangul, Latin...) and few of
+     * the reply's. Catches what the German and English words cannot tell, in any language.
+     */
+    private fun scriptChanged(original: String, cleaned: String): Boolean {
+        val before = scripts(original)
+        val total = before.values.sum()
+        val (main, count) = before.maxByOrNull { it.value } ?: return false
+        if (total < MIN_SCRIPT_LETTERS || count < total * MAIN_SCRIPT_SHARE) return false
+        val after = scripts(cleaned)
+        val afterTotal = after.values.sum()
+        return afterTotal > 0 && (after[main] ?: 0) < afterTotal * KEPT_SCRIPT_SHARE
+    }
+
+    private const val MIN_SCRIPT_LETTERS = 3
+    private const val MAIN_SCRIPT_SHARE = 0.6
+    private const val KEPT_SCRIPT_SHARE = 0.3
+
+    /** Letters by script; Chinese characters and Japanese kana count as one. */
+    private fun scripts(text: String): Map<String, Int> {
+        val counts = HashMap<String, Int>()
+        text.codePoints().forEach { cp ->
+            if (!Character.isLetter(cp)) return@forEach
+            val script = when (val s = Character.UnicodeScript.of(cp)) {
+                Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA -> "CJK"
+                else -> s.name
+            }
+            counts[script] = (counts[script] ?: 0) + 1
+        }
+        return counts
+    }
+
+    private fun hasGreek(text: String): Boolean =
+        text.codePoints().anyMatch { Character.UnicodeScript.of(it) == Character.UnicodeScript.GREEK }
+
+    /** A question mark in any script: "?", the full-width "？", the Arabic "؟" - and in Greek ";". */
+    private fun asks(text: String, greek: Boolean): Boolean =
+        text.any { it in QUESTION_MARKS || (greek && (it == ';' || it == '\u037E')) }
+
+    private const val QUESTION_MARKS = "?？؟"
+
+    /**
+     * Whether the guard reads the dictation's number words: German and English, named so or
+     * leaning so by the words ([LanguageGuess.leaning]). In any other language only digits are
+     * numbers to it.
+     */
+    private fun numberWordsKnown(original: String, language: String?): Boolean {
+        val base = LanguageGuess.baseOf(language)
+        return if (base != null) base == "de" || base == "en" else LanguageGuess.leaning(original) != null
+    }
+
+    /** How many of the dictation's words (not counting numbers in digits) the reply no longer has. */
+    private fun lostWords(original: String, cleaned: String): Int {
+        val left = words(cleaned).groupingBy { it }.eachCount().toMutableMap()
+        return words(original).filterNot { word -> word.any(Char::isDigit) }.count { word ->
+            val n = left[word] ?: 0
+            if (n > 0) left[word] = n - 1
+            n == 0
+        }
+    }
+
+    /**
      * "Here is the cleaned text:" - a lead before a colon, early in the reply, that is mostly
      * words the dictation did not have. "Einkaufsliste:" is the dictation's own.
      */
     private fun hasPreamble(original: String, cleaned: String): Boolean {
         // Not the colon of a time ("15:30").
-        val colon = Regex("""(?<!\d):|:(?!\d)""").find(cleaned)?.range?.first?.takeIf { it <= 60 } ?: return false
+        val colon = Regex("""(?<!\d)[:：]|[:：](?!\d)""").find(cleaned)?.range?.first?.takeIf { it <= 60 } ?: return false
         val lead = words(cleaned.substring(0, colon))
         val source = words(original).toSet()
         val foreign = lead.count { it !in source }
@@ -146,7 +216,13 @@ object CleanupGuard {
         // "stop": how Whisper often writes a spoken "stopp".
         "nee", "nö", "stopp", "stop", "ich meine", "ich mein", "besser gesagt", "korrektur",
         "quatsch", "no wait", "wait no", "i mean", "scratch that", "oder besser", "oder vielmehr",
+        // The same in other languages, only as unmistakable phrases.
+        "no espera", "mejor dicho", "non attends", "je veux dire", "no aspetta", "não espera", "quer dizer",
+        "nee wacht", "ik bedoel", "nie czekaj", "нет стоп", "όχι στάσου", "नहीं रुको", "لا انتظر",
     ).map(::phrase)
+
+    /** And in scripts written without spaces, where a phrase has letters on both sides. */
+    private val UNSPACED_CORRECTIONS = listOf("不对", "我是说", "じゃなくて", "間違えた").map { Regex(Regex.escape(it)) }
 
     /**
      * Everyday words that take something back only when they stand alone, set off before more
@@ -166,7 +242,7 @@ object CleanupGuard {
 
     /** Where in [lower] the speaker takes something back. */
     private fun markers(lower: String): Sequence<IntRange> {
-        val phrases = CORRECTION_PHRASES.asSequence().flatMap { it.findAll(lower) }.map { it.range }
+        val phrases = (CORRECTION_PHRASES + UNSPACED_CORRECTIONS).asSequence().flatMap { it.findAll(lower) }.map { it.range }
         val interjections = INTERJECTIONS.asSequence().flatMap { it.findAll(lower) }.map { it.range }
             .filter { SET_OFF.containsMatchIn(lower.substring(it.last + 1)) }
         // "Nein, ich habe keine Zeit." answers; "um drei, nein, um vier" and "... Nein, mit ..." correct.
@@ -416,12 +492,41 @@ object CleanupGuard {
                 Token(
                     raw = piece,
                     word = word,
-                    endsSentence = last && piece.trimEnd('"', '“', '”', '»', '«', ')').lastOrNull()?.let { it in ".!?" } == true,
-                    endsClause = last && piece.lastOrNull()?.let { it in ",;:" } == true,
+                    endsSentence = last && piece.trimEnd('"', '“', '”', '»', '«', ')').lastOrNull()?.let { it in ".!?。！？؟" } == true,
+                    endsClause = last && piece.lastOrNull()?.let { it in ",;:，、；：،" } == true,
                 )
             }
         }
 
-    private fun words(text: String): List<String> =
-        text.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }.map { it.lowercase() }
+    /**
+     * The words of [text], lower case. A vowel sign is part of its word (Hindi, Thai); a script
+     * written without spaces gives a word per character - else a whole Chinese clause is one
+     * word, and dropping a filler from it leaves the reply none of the dictation's words.
+     */
+    private fun words(text: String): List<String> {
+        val out = mutableListOf<String>()
+        WORD.findAll(text.lowercase()).forEach { match ->
+            val run = StringBuilder()
+            match.value.codePoints().forEach { cp ->
+                if (unspaced(cp)) {
+                    if (run.isNotEmpty()) out += run.toString().also { run.clear() }
+                    out += String(Character.toChars(cp))
+                } else {
+                    run.appendCodePoint(cp)
+                }
+            }
+            if (run.isNotEmpty()) out += run.toString()
+        }
+        return out
+    }
+
+    private val WORD = Regex("""[\p{L}\p{M}\p{N}]+""")
+
+    private fun unspaced(cp: Int): Boolean = when (Character.UnicodeScript.of(cp)) {
+        Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA,
+        Character.UnicodeScript.THAI, Character.UnicodeScript.LAO, Character.UnicodeScript.KHMER,
+        Character.UnicodeScript.MYANMAR,
+        -> true
+        else -> false
+    }
 }

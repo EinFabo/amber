@@ -20,10 +20,7 @@
     <string name="summary_default_model">Standard: %1$s</string>
     <string name="summary_default_off">Standard: aus</string>
     <string name="summary_own_model">Eigenes Modell: %1$s</string>
-    <string name="summary_not_needed">Nicht nötig</string>
-    <string name="summary_fallback_automatic">Parakeet, dann Whisper</string>
-    <string name="summary_prepared">%1$s · vorbereitet</string>
-    <string name="summary_stops_after">Stoppt nach %1$s s Stille</string>
+    <string name="summary_stops_after">Stoppt nach %1$s&#160;s Stille</string>
     <string name="summary_runs_until_tap">Läuft, bis du tippst</string>
     <string name="summary_as_recognized">Wie erkannt</string>
     <string name="text_part_fillers">Füllwörter</string>
@@ -100,16 +97,16 @@
     <string name="quick_pause">Pause</string>
     <string name="quick_resume">Weiter</string>
 
-    <string name="download_running">Modell wird geladen - %1$d %%</string>
+    <string name="download_running">Modell wird heruntergeladen (%1$d&#160;%%)</string>
     <string name="download_waiting_for_wifi">Wartet auf WLAN</string>
-    <string name="download_retrying">Modell-Download unterbrochen - er geht von selbst weiter</string>
+    <string name="download_retrying">Download unterbrochen, er läuft von selbst weiter</string>
     <string name="download_at_start">%1$s. Embersay ist bereit, sobald es fertig ist.</string>
 
-    <string name="other_ambers_one">%1$s ist auch an - schalte eins aus.</string>
-    <string name="other_ambers_many">%1$s und %2$s sind auch an - lass nur eins an.</string>
+    <string name="other_ambers_one">%1$s ist auch an. Lass nur eine Bubble an.</string>
+    <string name="other_ambers_many">%1$s und %2$s sind auch an. Lass nur eine Bubble an.</string>
 
-    <string name="not_offered_by_pc">Der PC bietet es nicht mehr an - er nimmt stattdessen sein Standardmodell</string>
-    <string name="not_offered_by_server">Der Server bietet es nicht mehr an - er nimmt stattdessen sein Standardmodell</string>
+    <string name="not_offered_by_pc">Der PC bietet es nicht mehr an und nimmt stattdessen sein Standardmodell</string>
+    <string name="not_offered_by_server">Der Server bietet es nicht mehr an und nimmt stattdessen sein Standardmodell</string>
     <string name="machine_pc">der PC</string>
     <string name="machine_server">der Server</string>
     <string name="quick_undo_last">Letztes rückgängig</string>
@@ -118,4 +115,13 @@
     <string name="quick_next_style">Nächster Stil</string>
     <string name="quick_app_page">App-Seite</string>
     <string name="quick_cleanup_here">Bereinigung hier</string>
+    <string name="summary_not_needed">Nicht nötig</string>
+    <string name="summary_fallback_automatic">Parakeet, dann Whisper</string>
+    <string name="summary_prepared">%1$s · vorbereitet</string>
+    <string name="summary_bubble_field">Nur mit Textfeld</string>
+    <string name="summary_bubble_always">Immer sichtbar</string>
+    <plurals name="summary_bubble_hidden">
+        <item quantity="one">in %d App ausgeblendet</item>
+        <item quantity="other">in %d Apps ausgeblendet</item>
+    </plurals>
 </resources>

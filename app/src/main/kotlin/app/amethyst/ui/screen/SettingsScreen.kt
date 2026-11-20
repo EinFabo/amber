@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -36,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +54,7 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.RecognitionNote
 import app.amethyst.core.settings.RecognitionRows
 import app.amethyst.core.settings.SettingsAttention
+import app.amethyst.core.settings.AppRows
 import app.amethyst.core.settings.SettingsGroupKind
 import app.amethyst.core.settings.SettingsItem
 import app.amethyst.core.settings.SettingsLayout
@@ -66,11 +65,11 @@ import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
-import app.amethyst.ui.AmberSwitch
 import app.amethyst.ui.ChevronRight
+import app.amethyst.ui.AppIcon
+import app.amethyst.ui.AppSource
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
-import app.amethyst.ui.LearnMore
 import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.PageGutter
@@ -91,11 +90,10 @@ import app.amethyst.ui.words
 import kotlin.math.roundToInt
 
 /**
- * Amber's settings in groups: the most used, the per-app styles, the advanced ones and Amber
- * itself - how it looks, and one row to what is about it rather than a setting ([AboutScreen]).
- * Which rows show is [SettingsLayout]'s table: a new install sees the simple ones, the
- * "Advanced settings" switch shows the rest. Each row is an icon, its name and its state in a
- * few words; the page behind it explains.
+ * Amber's settings in groups: the most used, the per-app styles, and Amber itself - what keeps
+ * it running, how it looks, and one row to what is about it rather than a setting
+ * ([AboutScreen]). Every row is always there ([SettingsLayout]); each is an icon, its name and
+ * its state in a few words, and the page behind it explains.
  */
 @Composable
 fun SettingsScreen(
@@ -104,7 +102,6 @@ fun SettingsScreen(
     version: String,
     /** Which build this is - only the GitHub build checks for updates itself; null until known. */
     releaseChannel: ReleaseChannel?,
-    onAdvancedChange: (Boolean) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onOpen: (SettingsPage) -> Unit,
     modifier: Modifier = Modifier,
@@ -117,12 +114,8 @@ fun SettingsScreen(
     val reliabilityOpen = reliability.size
     // Only while a cleanup still uses the one that failed.
     val trouble = cleanupTrouble?.takeIf { CleanupTrouble.stillApplies(it, settings) }
-    val advanced = settings.ui.advanced
-    // Said once: in the advanced view the Reliability row says what is open itself.
-    val attention = SettingsAttention.of(
-        reliability, releaseChannel, settings.updates, version, trouble,
-        reliabilityRow = SettingsLayout.shows(SettingsItem.RELIABILITY, advanced),
-    )
+    // The Reliability row is at the bottom, out of sight: what is open there is said on top too.
+    val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, trouble)
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
     var choosingTheme by remember { mutableStateOf(false) }
@@ -137,7 +130,10 @@ fun SettingsScreen(
         SettingsItem.OWN_WORDS -> NavRow(stringResource(R.string.own_words), words(SettingsSummaries.ownWords(settings)), icon = AmberIcons.Keyboard) {
             onOpen(SettingsPage.OWN_WORDS)
         }
-        SettingsItem.BUBBLE -> NavRow(stringResource(R.string.settings_bubble), words(SettingsSummaries.onOff(settings.bubble.enabled)), icon = AmberIcons.Bubble) { onOpen(SettingsPage.BUBBLE) }
+        // Where it shows and the apps it stays out of: a line and a half in German.
+        SettingsItem.BUBBLE -> NavRow(
+            stringResource(R.string.settings_bubble), words(SettingsSummaries.bubble(settings.bubble)), icon = AmberIcons.Bubble, summaryMaxLines = 2,
+        ) { onOpen(SettingsPage.BUBBLE) }
         SettingsItem.PRIVACY -> NavRow(
             stringResource(R.string.settings_privacy), words(SettingsSummaries.privacy(settings)), icon = AmberIcons.Lock,
         ) { onOpen(SettingsPage.PRIVACY) }
@@ -147,9 +143,6 @@ fun SettingsScreen(
         ) { onOpen(SettingsPage.COMMANDS) }
         SettingsItem.APP_STYLES -> NavRow(stringResource(R.string.settings_apps), words(SettingsSummaries.apps(settings.profiles, settings.bubble.hiddenIn)), icon = AmberIcons.Apps) {
             onOpen(SettingsPage.APP_STYLES)
-        }
-        SettingsItem.FALLBACK -> NavRow(stringResource(R.string.settings_fallback), words(SettingsSummaries.fallback(settings, trust)), icon = AmberIcons.CloudOff) {
-            onOpen(SettingsPage.FALLBACK)
         }
         SettingsItem.RECORDING -> NavRow(stringResource(R.string.settings_recording), words(SettingsSummaries.recording(settings.capture)), icon = AmberIcons.GraphicEq) { onOpen(SettingsPage.RECORDING) }
         SettingsItem.INSERTING -> NavRow(stringResource(R.string.settings_text), words(SettingsSummaries.text(settings.capture, settings.insertion)), icon = AmberIcons.TextFields) {
@@ -171,27 +164,16 @@ fun SettingsScreen(
             // A debug build's version and a newer one beside it are more than a line.
             summaryMaxLines = 2,
         ) { onOpen(SettingsPage.ABOUT) }
-        // Parts of the Cleanup page, an app's page and the Bubble page, never rows here.
-        SettingsItem.CLEANUP_INSTRUCTION, SettingsItem.APP_RECOGNITION, SettingsItem.QUICK_MENU -> Unit
     }
 
     SubPage(modifier) {
         // What needs a look, before everything else and in both views; nothing open, no row.
         attention?.let { AttentionRow(it, onOpen) }
-        var switchShown = false
-        // The row on top says what is open, so the switch only says what it holds.
-        val advancedSwitch: @Composable () -> Unit = { AdvancedSwitch(advanced, reliabilityOpen = 0, onAdvancedChange) }
-        SettingsLayout.groups(advanced).forEach { group ->
-            // The switch sits right above what it shows, or where that would be.
-            if (!switchShown && group.kind >= SettingsGroupKind.ADVANCED) {
-                advancedSwitch()
-                switchShown = true
-            }
+        SettingsLayout.groups().forEach { group ->
             SettingsGroup(
                 label = when (group.kind) {
                     SettingsGroupKind.MAIN -> null
                     SettingsGroupKind.PER_APP -> stringResource(R.string.settings_group_per_app)
-                    SettingsGroupKind.ADVANCED -> stringResource(R.string.settings_group_advanced)
                     SettingsGroupKind.AMBER -> "Embersay" // English: the app's name
                 },
             ) {
@@ -201,15 +183,15 @@ fun SettingsScreen(
                 }
             }
         }
-        if (!switchShown) advancedSwitch()
     }
 
     if (choosingTheme) ThemeDialog(settings.ui.theme, onThemeChange) { choosingTheme = false }
 }
 
 /**
- * What is kept of a dictation: the history of recent dictations, then the security mode that
- * keeps nothing - one page, as turning the security mode on changes the history.
+ * What is kept of a dictation: the history of recent dictations, the statistics (counts and
+ * timings, never the words), then the security mode that keeps nothing - one page, as turning
+ * the security mode on changes the history.
  */
 @Composable
 fun PrivacyScreen(settings: AmethystSettings, onOpen: (SettingsPage) -> Unit, modifier: Modifier = Modifier) {
@@ -218,6 +200,8 @@ fun PrivacyScreen(settings: AmethystSettings, onOpen: (SettingsPage) -> Unit, mo
             NavRow(
                 stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
             ) { onOpen(SettingsPage.HISTORY) }
+            RowDivider()
+            NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
             RowDivider()
             NavRow(
                 stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Lock,
@@ -251,28 +235,6 @@ internal fun ThemeDialog(current: ThemeMode, onChange: (ThemeMode) -> Unit, onDi
 }
 
 /**
- * The one switch between the simple and the full settings. Off, it names the first rows it
- * holds - or, first, what Reliability would flag, which is then out of sight.
- */
-@Composable
-private fun AdvancedSwitch(advanced: Boolean, reliabilityOpen: Int, onChange: (Boolean) -> Unit) {
-    val flagged = !advanced && reliabilityOpen > 0
-    SettingsGroup(label = null) {
-        NavRow(
-            stringResource(R.string.settings_advanced),
-            if (advanced) stringResource(R.string.settings_advanced_all) else words(SettingsSummaries.advanced(SettingsLayout.hiddenRows(), reliabilityOpen)),
-            Modifier.toggleable(value = advanced, role = Role.Switch, onValueChange = onChange),
-            icon = AmberIcons.Tune,
-            summaryColor = if (flagged) AmberPalette.Primary else AmberPalette.Muted,
-            // The titles it holds, which the switch beside them leaves little room for.
-            summaryMaxLines = 2,
-            trailing = { AmberSwitch(advanced) },
-            onClick = null,
-        )
-    }
-}
-
-/**
  * Who turns the voice into text: the engines, grouped by where they send your voice, each with
  * the wait measured here. The row picks the active one; its button opens the details. Cleanup
  * and the fallback have their own pages.
@@ -284,6 +246,8 @@ fun RecognitionScreen(
     medianWaitMs: Map<String, Long>,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onOpenEngine: (String) -> Unit,
+    /** To the page of who steps in when the server fails ([FallbackScreen]). */
+    onOpenFallback: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showPresets by remember { mutableStateOf(false) }
@@ -328,6 +292,20 @@ fun RecognitionScreen(
         SettingsGroup(label = null) {
             NavRow(stringResource(R.string.recognition_add), summary = null, icon = AmberIcons.Add, trailing = null) { showPresets = true }
         }
+        // What happens when the server fails belongs to who recognizes: one row at the bottom,
+        // its choices on a page of their own - not a second list of the same names here. Only
+        // for a server: a recognition on the phone has none to fail.
+        val active = settings.activeEngine
+        if (active != null && active.trustLevelForDisplay() != TrustLevel.ON_DEVICE) {
+            SettingsGroup(label = null) {
+                NavRow(
+                    stringResource(R.string.settings_fallback),
+                    words(SettingsSummaries.fallback(settings, active.trustLevelForDisplay())),
+                    icon = AmberIcons.CloudOff,
+                    onClick = onOpenFallback,
+                )
+            }
+        }
     }
 
     if (showPresets) {
@@ -351,8 +329,8 @@ fun RecognitionScreen(
 }
 
 /**
- * When a recording ends, how long it may get, and recognizing while you speak. What becomes of
- * the words is [TextScreen]'s; the tones and pausing music are on the Bubble page.
+ * When a recording ends and how long it may get, sound and vibration around it (a tone, a buzz,
+ * music paused), and recognizing while you speak. What becomes of the words is [TextScreen]'s.
  */
 @Composable
 fun RecordingScreen(
@@ -375,25 +353,55 @@ fun RecordingScreen(
             )
             RecordingLimits(settings, onUpdateSettings)
         }
+        // Together, as Android has "Sound & vibration": the tone, the buzz, the music paused.
+        SectionCard(title = stringResource(R.string.recording_during)) {
+            ToggleRow(
+                label = stringResource(R.string.bubble_vibrate),
+                description = stringResource(R.string.bubble_vibrate_note),
+                checked = settings.bubble.haptics,
+                onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.recording_sounds),
+                description = stringResource(R.string.recording_sounds_note),
+                checked = settings.feedback.sounds,
+                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
+            )
+            ToggleRow(
+                label = stringResource(R.string.recording_pause_media),
+                description = stringResource(R.string.recording_pause_media_note),
+                checked = settings.feedback.pauseMedia,
+                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(pauseMedia = value)) } },
+            )
+        }
         SectionCard(
             title = stringResource(R.string.recording_while_speaking),
-            learnMore = stringResource(R.string.recording_while_speaking_more),
         ) {
             ChunkingSettings(settings, onUpdateSettings)
         }
     }
 }
 
+/**
+ * The bubble, by what people come here for: where it shows (a field, everywhere, the apps it
+ * stays out of - listed right here), how it looks, and what its quick menu offers. Sound and
+ * vibration are the Recording page's: they go with any dictation.
+ */
 @Composable
 fun BubbleScreen(
     settings: AmethystSettings,
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     onOpenQuickMenu: () -> Unit,
-    /** To the Apps page, where the bubble is hidden app by app. */
-    onOpenApps: () -> Unit,
+    /** The installed apps, for the hidden ones' names and icons and for hiding it in one more. */
+    apps: AppSource,
+    usage: Map<String, Int>,
     modifier: Modifier = Modifier,
 ) {
     val bubble = settings.bubble
+    var picking by remember { mutableStateOf(false) }
+    fun shown(packageName: String, shown: Boolean) =
+        onUpdateSettings { it.copy(bubble = AppRows.withBubble(it.bubble, packageName, shown)) }
+
     SubPage(modifier) {
         MainSwitch(
             label = stringResource(R.string.bubble_use),
@@ -401,27 +409,8 @@ fun BubbleScreen(
             checked = bubble.enabled,
             onChange = { value -> onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = value)) } },
         )
-        LearnMore(stringResource(R.string.bubble_use_more))
 
-        SectionCard(title = stringResource(R.string.bubble_look)) {
-            BubbleSizeRow(
-                sizeDp = bubble.sizeDp,
-                onChange = { value ->
-                    onUpdateSettings { it.copy(bubble = it.bubble.copy(sizeDp = value)) }
-                },
-            )
-            StepSlider(
-                label = stringResource(R.string.bubble_opacity),
-                valueText = stringResource(R.string.percent, (bubble.restingOpacity * 100).roundToInt()),
-                value = (bubble.restingOpacity * 100).roundToInt(),
-                range = 20..100,
-                step = 10,
-                onChange = { percent -> onUpdateSettings { it.copy(bubble = it.bubble.copy(restingOpacity = percent / 100f)) } },
-            )
-            BubbleOpacityPreview(bubble.restingOpacity)
-        }
-
-        SectionCard(title = stringResource(R.string.bubble_behavior)) {
+        SectionCard(title = stringResource(R.string.bubble_where)) {
             ToggleRow(
                 label = stringResource(R.string.bubble_only_field),
                 description = stringResource(R.string.bubble_only_field_note),
@@ -442,27 +431,44 @@ fun BubbleScreen(
                     },
                 )
             }
-            ToggleRow(
-                label = stringResource(R.string.bubble_vibrate),
-                description = stringResource(R.string.bubble_vibrate_note),
-                checked = bubble.haptics,
+        }
+
+        // The apps it stays out of, here where people look for them; each app's page says it too.
+        SettingsGroup(stringResource(R.string.bubble_hidden_group), note = stringResource(R.string.bubble_hidden_note)) {
+            val hidden = bubble.hiddenIn.distinct()
+            if (hidden.isEmpty()) {
+                NavRow(stringResource(R.string.bubble_none_hidden), summary = null, icon = AmberIcons.Apps, trailing = null, onClick = null)
+            }
+            hidden.forEach { packageName ->
+                NavRow(
+                    apps.label(packageName),
+                    summary = null,
+                    leading = { AppIcon(packageName, apps) },
+                    trailing = { GhostButton(stringResource(R.string.bubble_hidden_show), { shown(packageName, true) }) },
+                    onClick = null,
+                )
+                RowDivider()
+            }
+            if (hidden.isEmpty()) RowDivider()
+            NavRow(stringResource(R.string.styles_add_app), summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
+        }
+
+        SectionCard(title = stringResource(R.string.bubble_look)) {
+            BubbleSizeRow(
+                sizeDp = bubble.sizeDp,
                 onChange = { value ->
-                    onUpdateSettings { it.copy(bubble = it.bubble.copy(haptics = value)) }
+                    onUpdateSettings { it.copy(bubble = it.bubble.copy(sizeDp = value)) }
                 },
             )
-            // Next to the vibration, where people look for them - not behind the advanced switch.
-            ToggleRow(
-                label = stringResource(R.string.recording_sounds),
-                description = stringResource(R.string.recording_sounds_note),
-                checked = settings.feedback.sounds,
-                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(sounds = value)) } },
+            StepSlider(
+                label = stringResource(R.string.bubble_opacity),
+                valueText = stringResource(R.string.percent, (bubble.restingOpacity * 100).roundToInt()),
+                value = (bubble.restingOpacity * 100).roundToInt(),
+                range = 20..100,
+                step = 10,
+                onChange = { percent -> onUpdateSettings { it.copy(bubble = it.bubble.copy(restingOpacity = percent / 100f)) } },
             )
-            ToggleRow(
-                label = stringResource(R.string.recording_pause_media),
-                description = stringResource(R.string.recording_pause_media_note),
-                checked = settings.feedback.pauseMedia,
-                onChange = { value -> onUpdateSettings { it.copy(feedback = it.feedback.copy(pauseMedia = value)) } },
-            )
+            BubbleOpacityPreview(bubble.restingOpacity)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(stringResource(R.string.bubble_position), style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
@@ -476,29 +482,28 @@ fun BubbleScreen(
             }
         }
 
-        // Put together by hand: advanced, so who only dictates keeps the menu as it is - but a
-        // menu of one's own stays in reach after the switch goes off.
-        if (SettingsLayout.showsQuickMenu(bubble, settings.ui.advanced)) {
-            SettingsGroup(label = null) {
-                NavRow(
-                    stringResource(R.string.settings_quick_menu),
-                    quickMenuSummary(QuickMenuLayout.idle(bubble.quickMenuIdle)),
-                    icon = AmberIcons.Apps,
-                    onClick = onOpenQuickMenu,
-                )
-            }
-        }
-
-        // Where the bubble stays away is said app by app, on the Apps page.
-        SettingsGroup(stringResource(R.string.bubble_hidden_group), note = stringResource(R.string.bubble_hidden_note)) {
-            val hidden = bubble.hiddenIn.distinct().size
+        SettingsGroup(label = null) {
             NavRow(
-                if (hidden == 0) stringResource(R.string.bubble_none_hidden) else pluralStringResource(R.plurals.summary_apps, hidden, hidden),
-                stringResource(R.string.bubble_hidden_where),
+                stringResource(R.string.settings_quick_menu),
+                quickMenuSummary(QuickMenuLayout.idle(bubble.quickMenuIdle)),
                 icon = AmberIcons.Apps,
-                onClick = onOpenApps,
+                onClick = onOpenQuickMenu,
             )
         }
+    }
+
+    if (picking) {
+        AppPickerDialog(
+            title = stringResource(R.string.apps_which_app),
+            existing = bubble.hiddenIn.toSet(),
+            apps = apps,
+            usage = usage,
+            onDismiss = { picking = false },
+            onPick = { app ->
+                picking = false
+                shown(app.packageName, false)
+            },
+        )
     }
 }
 
@@ -534,7 +539,6 @@ fun ReliabilityScreen(setup: SetupState, actions: SetupActions, modifier: Modifi
         SectionCard(
             title = null,
             subtitle = stringResource(R.string.reliability_subtitle),
-            learnMore = stringResource(R.string.reliability_more),
         ) {
             ReliabilityRows(setup, actions)
         }

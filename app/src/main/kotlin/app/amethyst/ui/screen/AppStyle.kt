@@ -38,7 +38,6 @@ import app.amethyst.core.settings.AppProfile
 import app.amethyst.core.settings.AppRows
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.InstructionDraft
-import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
@@ -69,7 +68,7 @@ private const val INSTRUCTION_SAVE_MS = 600L
 
 /**
  * One app's page: whether the bubble shows there, how the text reads (style, own instruction),
- * with the advanced settings who hears it - the speech recognition for every app or one of its
+ * who hears it - the speech recognition for every app or one of its
  * own ([EngineRouting]) - and who tidies it: the cleanup for every app, none, or a model of its
  * own (a chat app may keep small slips, a notes app gets the best model). The cleanup is one
  * row that says which; tapped, it unfolds the choice.
@@ -137,9 +136,7 @@ fun AppStyleScreen(
             StyleAndInstruction(profile, ::edit, chips = false)
         }
 
-        if (SettingsLayout.showsAppRecognition(profile, settings.ui.advanced)) {
-            RecognitionChoices(profile, settings, routing, hasKeyFor, modelReady) { own -> edit { it.copy(appEngine = own) } }
-        }
+        RecognitionChoices(profile, settings, routing, hasKeyFor, modelReady) { own -> edit { it.copy(appEngine = own) } }
 
         val ownChoice = own.choice.takeIf { own.mode == AppCleanupMode.MODEL }
         // Its own model chosen but not set up: what is used instead.

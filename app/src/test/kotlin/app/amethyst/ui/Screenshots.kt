@@ -40,8 +40,8 @@ import app.amethyst.ui.screen.AppPickerDialog
 import app.amethyst.ui.screen.AppStylesScreen
 import app.amethyst.ui.screen.BubbleScreen
 import app.amethyst.ui.screen.EngineDetailScreen
-import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.FallbackScreen
+import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.SettingsPage
@@ -203,7 +203,7 @@ open class Screenshots {
             // Shown only while a cleanup still uses the one that failed.
             settings = settings.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(cleanup = choice),
             setup = ready, version = "0.34.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
             cleanupTrouble = app.amethyst.core.text.CleanupTrouble.Open(app.amethyst.core.text.CleanupTrouble.Cause.KEY_REFUSED, "Groq", choice),
         )
     }
@@ -222,7 +222,7 @@ open class Screenshots {
     fun engines() = shoot("4-engines", SettingsPage.RECOGNITION.title()) {
         RecognitionScreen(
             settings = settings, hasKeyFor = { true }, medianWaitMs = stats.medianWaitMs,
-            onUpdateSettings = {}, onOpenEngine = {},
+            onUpdateSettings = {}, onOpenEngine = {}, onOpenFallback = {},
         )
     }
 
@@ -230,7 +230,7 @@ open class Screenshots {
     fun settingsList() = shoot("5-settings", R.string.title_settings) {
         SettingsScreen(
             settings = settings, setup = ready, version = "0.12.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -320,15 +320,15 @@ open class Screenshots {
     @Test
     fun homeHistoryOfferLight() = light(::homeHistoryOffer)
 
-    /** Not part of the listing set: the whole settings list in one picture, "Advanced settings" on. */
+    /** Not part of the listing set: the whole settings list in one picture. */
     @Test
     @Config(qualifiers = "+h1160dp")
     fun settingsTall() = shoot("x-settings-tall", R.string.title_settings) {
         SettingsScreen(
-            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id, ui = app.amethyst.core.settings.UiSettings(advanced = true)),
+            settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id),
             setup = ready.copy(batteryUnrestricted = false),
             version = "0.20.0", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -338,7 +338,7 @@ open class Screenshots {
         SettingsScreen(
             settings = settings.copy(updates = app.amethyst.core.settings.UpdateSettings(latestVersion = "0.33.0")),
             setup = ready, version = "0.32.0", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -348,7 +348,7 @@ open class Screenshots {
         SettingsScreen(
             settings = settings, setup = ready.copy(notificationsGranted = false, batteryUnrestricted = false),
             version = "0.32.0", releaseChannel = ReleaseChannel.OTHER,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -359,7 +359,7 @@ open class Screenshots {
                 activeEngineId = EnginePresets.TINFOIL.id,
                 cleanup = app.amethyst.core.settings.CleanupChoice(EnginePresets.TINFOIL.id, "deepseek-v4-1-flash"),
             ),
-            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {},
+            onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {}, onOpenCleanup = {},
         )
     }
 
@@ -375,7 +375,7 @@ open class Screenshots {
     @Test
     @Config(qualifiers = "+h900dp")
     fun apps() = shoot("x-apps", SettingsPage.APP_STYLES.title()) {
-        AppStylesScreen(settings = appsMixed, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {})
+        AppStylesScreen(settings = appsMixed, onUpdateSettings = {}, apps = FakeApps, usage = emptyMap(), onOpenApp = {}, onOpenCleanup = {})
     }
 
     @Test
@@ -386,21 +386,23 @@ open class Screenshots {
     fun bubbleSettings() = shoot("7-bubble", SettingsPage.BUBBLE.title()) {
         BubbleScreen(
             settings = settings.copy(bubble = settings.bubble.copy(restingOpacity = 0.6f, hiddenIn = listOf("com.whatsapp"))),
-            onUpdateSettings = {}, onOpenQuickMenu = {}, onOpenApps = {},
+            onUpdateSettings = {}, onOpenQuickMenu = {}, apps = FakeApps, usage = emptyMap(),
         )
     }
 
     /** A quick menu put together by hand: Open Amber on top, an empty place, the style actions. */
     private val ownMenu = settings.copy(
-        ui = app.amethyst.core.settings.UiSettings(advanced = true),
         bubble = settings.bubble.copy(quickMenuIdle = listOf("open_amber", null, "style_here", "next_style")),
     )
 
-    /** Not part of the listing set: the Bubble page with the advanced settings, leading to the quick menu. */
+    /** Not part of the listing set: the whole Bubble page with a menu of one's own and two hidden apps. */
     @Test
-    @Config(qualifiers = "+h1100dp")
-    fun bubbleSettingsAdvanced() = shoot("x-bubble-advanced", SettingsPage.BUBBLE.title()) {
-        BubbleScreen(settings = ownMenu, onUpdateSettings = {}, onOpenQuickMenu = {}, onOpenApps = {})
+    @Config(qualifiers = "+h1300dp")
+    fun bubbleSettingsTall() = shoot("x-bubble-tall", SettingsPage.BUBBLE.title()) {
+        BubbleScreen(
+            settings = ownMenu.copy(bubble = ownMenu.bubble.copy(hiddenIn = listOf(GAME, "com.whatsapp"))),
+            onUpdateSettings = {}, onOpenQuickMenu = {}, apps = FakeApps, usage = emptyMap(),
+        )
     }
 
     /** Not part of the listing set: the quick menu editor. */
@@ -628,12 +630,12 @@ open class Screenshots {
 
     /** Not part of the listing set: one app's page with a cleanup model of its own. */
     @Test
-    fun appStyle() = shoot("x-app-style", R.string.title_app) { KeepStyle() }
+    fun appStyle() = shoot("x-app-style", null, titleText = keep.label) { KeepStyle() }
 
     /** Not part of the listing set: the same page in one picture, down to removing the app - the cleanup folded to its row. */
     @Test
     @Config(qualifiers = "+h1100dp")
-    fun appStyleTall() = shoot("x-app-style-tall", R.string.title_app) { KeepStyle() }
+    fun appStyleTall() = shoot("x-app-style-tall", null, titleText = keep.label) { KeepStyle() }
 
     @Test
     @Config(qualifiers = "+h1100dp")
@@ -642,7 +644,7 @@ open class Screenshots {
     /** Not part of the listing set: the same page with the cleanup's choice unfolded, its own model's services under it. */
     @Test
     @Config(qualifiers = "+h1700dp")
-    fun appStyleCleanupOpen() = shoot("x-app-style-cleanup-open", R.string.title_app) { KeepStyle(cleanupOpen = true) }
+    fun appStyleCleanupOpen() = shoot("x-app-style-cleanup-open", null, titleText = keep.label) { KeepStyle(cleanupOpen = true) }
 
     /**
      * Not part of the listing set: the page of an app listed for its hidden bubble only - no
@@ -650,7 +652,7 @@ open class Screenshots {
      */
     @Test
     @Config(qualifiers = "+h1100dp")
-    fun appHiddenOnly() = shoot("x-app-hidden-only", R.string.title_app) {
+    fun appHiddenOnly() = shoot("x-app-hidden-only", null, titleText = FakeApps.label(GAME)) {
         app.amethyst.ui.screen.AppStyleScreen(
             profile = app.amethyst.core.settings.AppProfile(GAME, FakeApps.label(GAME)),
             settings = settings.copy(profiles = emptyList(), bubble = settings.bubble.copy(hiddenIn = listOf(GAME))),
@@ -795,7 +797,7 @@ open class Screenshots {
     fun settingsPipeline() = shoot("x-settings-pipeline", R.string.title_settings) {
         SettingsScreen(
             settings = pipeline.copy(activeEngineId = EnginePresets.TINFOIL.id), setup = ready, version = "0.17.1",
-            releaseChannel = ReleaseChannel.OTHER, onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            releaseChannel = ReleaseChannel.OTHER, onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -1272,7 +1274,7 @@ open class Screenshots {
     fun settingsUpToDate() = shoot("x-settings-up-to-date", R.string.title_settings) {
         SettingsScreen(
             settings = settings.copy(updates = updateSeen), setup = ready, version = "0.24.0-debug", releaseChannel = ReleaseChannel.GITHUB,
-            onAdvancedChange = {}, onThemeChange = {}, onOpen = {},
+            onThemeChange = {}, onOpen = {},
         )
     }
 
@@ -1364,13 +1366,16 @@ open class Screenshots {
      * A page under its top bar: [title] as MainActivity gives it - a page's own ([SettingsPage.title]), a string, or [AMBER] for Home.
      * [bars]: the room the status bar and the navigation take, top and bottom - a stand-in for the status bar alone unless given.
      */
-    private fun shoot(name: String, @StringRes title: Int?, bars: Bars = Bars(top = 28.dp), content: @Composable () -> Unit) {
+    /** [titleText]: a title that is no string resource - an app's page goes by the app's name. */
+    private fun shoot(name: String, @StringRes title: Int?, bars: Bars = Bars(top = 28.dp), titleText: String? = null, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
             AmberTheme(dark) {
                 AmberBackground {
                     Column(Modifier.fillMaxSize().padding(top = bars.top, bottom = bars.bottom)) {
-                        if (title != null) {
+                        if (titleText != null) {
+                            TopBar(title = titleText, showBack = true, showSettings = false, wordmark = false, onBack = {}, onSettings = {})
+                        } else if (title != null) {
                             // Home goes by the app's name, every other page by its title in the phone's language.
                             val home = title == AMBER
                             TopBar(title = if (home) APP_NAME else stringResource(title), showBack = !home, showSettings = home, wordmark = home, onBack = {}, onSettings = {})

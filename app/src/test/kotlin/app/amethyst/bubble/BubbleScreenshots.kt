@@ -59,15 +59,6 @@ class BubbleScreenshots {
     fun menuIdle() = shoot("menu-1-idle", idle)
 
     @Test
-    fun menuIdleNamed() = shoot("menu-1b-idle-named", idle, named = true)
-
-    @Test
-    fun menuIdleNamedLeft() = shoot("menu-1c-idle-named-left", idle, side = BubbleSide.LEFT, named = true)
-
-    @Test
-    fun menuIdleNamedHot() = shoot("menu-1d-idle-named-copy-lit", idle, lit = 1, named = true)
-
-    @Test
     fun menuIdleHot() = shoot("menu-2-idle-copy-lit", idle, lit = 1)
 
     @Test
@@ -169,7 +160,6 @@ class BubbleScreenshots {
         keyboardTop: Int? = null,
         centreY: Float = height * 0.72f,
         idleLayout: List<QuickMenuItem?> = QuickMenuLayout.DEFAULT_IDLE,
-        named: Boolean = false,
     ) {
         val slots = QuickActions.slots(context, idleLayout)
         val cx = if (side == BubbleSide.RIGHT) width - bubble / 2f else bubble / 2f
@@ -181,7 +171,7 @@ class BubbleScreenshots {
         val menu = QuickMenuView(this.context).apply { clock = { now } }
         layout(menu, width, height)
         menu.side = side
-        menu.open(fan, slots, named)
+        menu.open(fan, slots)
         now += 1_000
         menu.lit = lit
         now += 1_000

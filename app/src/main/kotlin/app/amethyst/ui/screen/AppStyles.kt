@@ -110,6 +110,8 @@ fun AppStylesScreen(
     apps: AppSource,
     usage: Map<String, Int>,
     onOpenApp: (String) -> Unit,
+    /** To the Cleanup page, while none is chosen: styles need one. */
+    onOpenCleanup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var picking by remember { mutableStateOf(false) }
@@ -126,12 +128,12 @@ fun AppStylesScreen(
                 else -> stringResource(R.string.styles_note_none)
             },
             noteColor = if (styled) AmberPalette.Muted else AmberPalette.Primary,
-            learnMore = when {
-                settings.cleanup != null -> stringResource(R.string.styles_more_cleanup)
-                ownModels -> stringResource(R.string.styles_more_own)
-                else -> stringResource(R.string.styles_more_none)
-            },
         ) {
+            // Styles need a cleanup: a way to one, rather than a sentence saying where it is.
+            if (settings.cleanup == null) {
+                NavRow(stringResource(R.string.styles_choose_cleanup), summary = null, icon = AmberIcons.AutoFix, onClick = onOpenCleanup)
+                RowDivider()
+            }
             rows.forEach { row ->
                 NavRow(
                     row.profile?.label ?: apps.label(row.packageName),

@@ -232,7 +232,7 @@ internal fun DoneStep(
             Modifier.rowIn(rows, 3),
         )
         Chosen(
-            stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_advanced),
+            stringResource(R.string.done_else), stringResource(R.string.done_else_value), stringResource(R.string.done_where_settings),
             Modifier.rowIn(rows, 4),
         )
         if (download != null && pending == null) {

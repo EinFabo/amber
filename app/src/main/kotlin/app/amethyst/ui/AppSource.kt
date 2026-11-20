@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.LruCache
 import app.amethyst.AmethystApp
 import app.amethyst.apps.InstalledApp
+import app.amethyst.apps.Launcher
 import app.amethyst.apps.LauncherList
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -42,20 +43,18 @@ class AndroidAppSource(
     private val launcher: LauncherList = AmethystApp.graph(context).launcherList,
 ) : AppSource {
 
-    private val packages = context.packageManager
+    private val context = context.applicationContext
     private val icons = LruCache<String, ImageBitmap>(ICONS_KEPT)
 
     override suspend fun all(): List<InstalledApp> = launcher.apps()
 
-    override fun label(packageName: String): String = runCatching {
-        packages.getApplicationInfo(packageName, 0).loadLabel(packages).toString()
-    }.getOrDefault(packageName)
+    override fun label(packageName: String): String = Launcher.label(context, packageName) ?: packageName
 
     override fun cachedIcon(packageName: String): ImageBitmap? = icons.get(packageName)
 
     override suspend fun icon(packageName: String, sizePx: Int): ImageBitmap? =
         icons.get(packageName) ?: withContext(Dispatchers.IO) {
-            runCatching { packages.getApplicationIcon(packageName).toBitmap(sizePx, sizePx).asImageBitmap() }.getOrNull()
+            runCatching { Launcher.icon(context, packageName)?.toBitmap(sizePx, sizePx)?.asImageBitmap() }.getOrNull()
         }?.also { icons.put(packageName, it) }
 
     private companion object {

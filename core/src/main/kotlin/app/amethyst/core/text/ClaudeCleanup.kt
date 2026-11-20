@@ -99,13 +99,13 @@ class ClaudeCleanup(
         put("model", model)
         // As long as the dictation and a little more; with thinking left on, room for it too,
         // or a short dictation comes back cut off.
-        put("max_tokens", text.length / 2 + 256 + if (thinkingOff == null) THINKING_HEADROOM else 0)
+        put("max_tokens", ChatCleanup.replyTokens(text) + if (thinkingOff == null) THINKING_HEADROOM else 0)
         put("system", ChatCleanup.systemPrompt(style, instruction, generalInstruction, language, ownWords))
         thinkingOff?.let { type -> put("thinking", buildJsonObject { put("type", type) }) }
         put(
             "messages",
             buildJsonArray {
-                ChatCleanup.EXAMPLES.forEach { (spoken, tidied) ->
+                ChatCleanup.examples(language).forEach { (spoken, tidied) ->
                     add(turn("user", ChatCleanup.fenced(spoken)))
                     add(turn("assistant", tidied))
                 }

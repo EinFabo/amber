@@ -16,16 +16,13 @@
         <item quantity="other">%d styles</item>
     </plurals>
     <plurals name="summary_hidden">
-        <item quantity="one">%d hidden</item>
-        <item quantity="other">%d hidden</item>
+        <item quantity="one">bubble hidden in %d app</item>
+        <item quantity="other">bubble hidden in %d apps</item>
     </plurals>
     <string name="summary_default_model">Default: %1$s</string>
     <string name="summary_default_off">Default: off</string>
-    <string name="summary_own_model">Own model: %1$s</string>
-    <string name="summary_not_needed">Not needed</string>
-    <string name="summary_fallback_automatic">Parakeet, then Whisper</string>
-    <string name="summary_prepared">%1$s · prepared</string>
-    <string name="summary_stops_after">Stops after %1$s s silence</string>
+    <string name="summary_own_model">Own cleanup model: %1$s</string>
+    <string name="summary_stops_after">Stops after %1$s s of silence</string>
     <string name="summary_runs_until_tap">Runs until you tap</string>
     <string name="summary_as_recognized">As recognized</string>
     <string name="text_part_fillers">filler words</string>
@@ -36,8 +33,8 @@
     <string name="text_part_clipboard">clipboard</string>
     <string name="summary_all_set">All set</string>
     <plurals name="summary_things_open">
-        <item quantity="one">%d thing open</item>
-        <item quantity="other">%d things open</item>
+        <item quantity="one">%d step left</item>
+        <item quantity="other">%d steps left</item>
     </plurals>
     <string name="summary_nothing_dictated">Nothing dictated yet</string>
     <plurals name="summary_last_dictations">
@@ -68,9 +65,9 @@
     <string name="updates_daily">Checks GitHub once a day</string>
     <string name="last_check_not_yet">Not yet</string>
     <string name="last_check_failed">Failed %1$s</string>
-    <string name="last_check_offline">No connection %1$s</string>
-    <string name="last_check_retry_hour">%1$s · retried within an hour</string>
-    <string name="last_check_retry_day">%1$s · retried within a day</string>
+    <string name="last_check_offline">No connection · %1$s</string>
+    <string name="last_check_retry_hour">%1$s · tries again within an hour</string>
+    <string name="last_check_retry_day">%1$s · tries again within a day</string>
     <string name="last_check_up_to_date">%1$s · up to date</string>
     <string name="last_check_found">%1$s · %2$s available</string>
     <string name="ago_just_now">just now</string>
@@ -102,16 +99,16 @@
     <string name="quick_pause">Pause</string>
     <string name="quick_resume">Resume</string>
 
-    <string name="download_running">Model downloading - %1$d %%</string>
+    <string name="download_running">Downloading model (%1$d %%)</string>
     <string name="download_waiting_for_wifi">Waiting for Wi-Fi</string>
-    <string name="download_retrying">Model download interrupted - it continues by itself</string>
-    <string name="download_at_start">%1$s. Embersay is ready when it is done.</string>
+    <string name="download_retrying">Download interrupted, resumes automatically</string>
+    <string name="download_at_start">%1$s. Embersay is ready once it\'s done.</string>
 
-    <string name="other_ambers_one">%1$s is also on - switch one off.</string>
-    <string name="other_ambers_many">%1$s and %2$s are also on - keep only one on.</string>
+    <string name="other_ambers_one">%1$s is also on. Turn one of them off.</string>
+    <string name="other_ambers_many">%1$s and %2$s are also on. Keep only one on.</string>
 
-    <string name="not_offered_by_pc">Not offered by the PC any more - it uses its default instead</string>
-    <string name="not_offered_by_server">Not offered by the server any more - it uses its default instead</string>
+    <string name="not_offered_by_pc">No longer offered by the PC. It uses its default instead.</string>
+    <string name="not_offered_by_server">No longer offered by the server. It uses its default instead.</string>
     <string name="machine_pc">the PC</string>
     <string name="machine_server">the server</string>
     <string name="quick_undo_last">Undo last</string>
@@ -120,4 +117,13 @@
     <string name="quick_next_style">Next style</string>
     <string name="quick_app_page">App page</string>
     <string name="quick_cleanup_here">Cleanup here</string>
+    <string name="summary_not_needed">Not needed</string>
+    <string name="summary_fallback_automatic">Parakeet, then Whisper</string>
+    <string name="summary_prepared">%1$s · ready in advance</string>
+    <string name="summary_bubble_field">Only with a text field</string>
+    <string name="summary_bubble_always">Always on screen</string>
+    <plurals name="summary_bubble_hidden">
+        <item quantity="one">hidden in %d app</item>
+        <item quantity="other">hidden in %d apps</item>
+    </plurals>
 </resources>

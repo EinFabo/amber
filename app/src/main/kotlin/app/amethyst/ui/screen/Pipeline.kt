@@ -38,8 +38,6 @@ import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
-import app.amethyst.core.settings.SettingsItem
-import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.ExpandChevron
@@ -81,7 +79,6 @@ fun CleanupScreen(
         SectionCard(
             title = stringResource(R.string.cleanup_who),
             subtitle = stringResource(R.string.cleanup_who_subtitle),
-            learnMore = stringResource(R.string.cleanup_who_more),
         ) {
             RadioRow(
                 stringResource(R.string.off),
@@ -92,7 +89,7 @@ fun CleanupScreen(
             CleanupServiceList(settings, access, services, inUse = current, sheet = sheet, write = CleanupServices::forEveryApp)
             CleanupLeavesPhoneHint(settings.activeEngine?.trustLevelForDisplay(), row?.engine?.trustLevelForDisplay())
         }
-        if (SettingsLayout.shows(SettingsItem.CLEANUP_INSTRUCTION, settings.ui.advanced)) CleanupInstructionCard(settings, access.onUpdateSettings)
+        CleanupInstructionCard(settings, access.onUpdateSettings)
     }
 }
 
@@ -119,7 +116,6 @@ private fun CleanupInstructionCard(
     SectionCard(
         title = stringResource(R.string.cleanup_addition),
         subtitle = stringResource(R.string.cleanup_addition_subtitle),
-        learnMore = stringResource(R.string.cleanup_addition_more),
     ) {
         OutlinedTextField(
             value = addition,
@@ -188,7 +184,9 @@ internal fun CleanupLeavesPhoneHint(recognition: TrustLevel?, cleanup: TrustLeve
 
 /**
  * Who takes a recording the engine's server could not: the best model on the phone, nobody,
- * or an engine the user picks - only ever one at least as private as the recognition.
+ * or an engine the user picks - only ever one at least as private as the recognition. Reached
+ * from a row at the bottom of the Speech recognition page, only where the recognition is not on
+ * the phone itself: there is no server to fail then.
  */
 @Composable
 fun FallbackScreen(
@@ -196,58 +194,60 @@ fun FallbackScreen(
     onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    SubPage(modifier) { FallbackSections(settings, onUpdateSettings) }
+}
+
+@Composable
+private fun FallbackSections(
+    settings: AmethystSettings,
+    onUpdateSettings: ((AmethystSettings) -> AmethystSettings) -> Unit,
+) {
     val primary = settings.activeEngine
+    if (primary?.runsOnPhone() == true) return
     val fallback = settings.fallback
     // Who steps in changes; whether it prepares stays the user's.
     fun choose(choice: FallbackSettings) = onUpdateSettings { it.copy(fallback = choice.copy(prepare = it.fallback.prepare)) }
 
-    SubPage(modifier) {
-        SectionCard(
-            title = stringResource(R.string.fallback_who),
-            subtitle = stringResource(R.string.fallback_who_subtitle),
-            learnMore = stringResource(R.string.fallback_who_more),
-        ) {
-            if (primary != null && primary.runsOnPhone()) {
-                Hint(stringResource(R.string.fallback_runs_on_phone, engineName(primary)), AmberPalette.Primary)
-            }
+    SectionCard(
+        title = stringResource(R.string.fallback_who),
+        subtitle = stringResource(R.string.fallback_who_subtitle),
+    ) {
+        RadioRow(
+            stringResource(R.string.fallback_automatic), stringResource(R.string.fallback_automatic_note),
+            selected = fallback.mode == FallbackMode.AUTOMATIC,
+            onSelect = { choose(FallbackSettings(FallbackMode.AUTOMATIC)) },
+        )
+        RadioRow(
+            stringResource(R.string.off), stringResource(R.string.fallback_off_note),
+            selected = fallback.mode == FallbackMode.OFF,
+            onSelect = { choose(FallbackSettings(FallbackMode.OFF)) },
+        )
+        val choices = primary?.let { Fallback.choices(Servers.recognizers(settings), it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
+        choices.forEach { engine ->
             RadioRow(
-                stringResource(R.string.fallback_automatic), stringResource(R.string.fallback_automatic_note),
-                selected = fallback.mode == FallbackMode.AUTOMATIC,
-                onSelect = { choose(FallbackSettings(FallbackMode.AUTOMATIC)) },
+                recognitionRowName(engine),
+                engine.trustLevelForDisplay().badgeLabel(),
+                selected = fallback.mode == FallbackMode.ENGINE && fallback.engineId == engine.id,
+                onSelect = { choose(FallbackSettings(FallbackMode.ENGINE, engine.id)) },
             )
-            RadioRow(
-                stringResource(R.string.off), stringResource(R.string.fallback_off_note),
-                selected = fallback.mode == FallbackMode.OFF,
-                onSelect = { choose(FallbackSettings(FallbackMode.OFF)) },
-            )
-            val choices = primary?.let { Fallback.choices(Servers.recognizers(settings), it) { engine -> engine.trustLevelForDisplay() } }.orEmpty()
-            choices.forEach { engine ->
-                RadioRow(
-                    recognitionRowName(engine),
-                    engine.trustLevelForDisplay().badgeLabel(),
-                    selected = fallback.mode == FallbackMode.ENGINE && fallback.engineId == engine.id,
-                    onSelect = { choose(FallbackSettings(FallbackMode.ENGINE, engine.id)) },
-                )
-            }
-            val chosen = fallback.engineId?.let { id -> settings.engines.firstOrNull { it.id == id } }
-            if (fallback.mode == FallbackMode.ENGINE && primary != null && chosen != null && chosen !in choices) {
-                Hint(stringResource(R.string.fallback_less_private, engineName(chosen), engineName(primary)), AmberPalette.Primary)
-            }
         }
-        if (ReadyFallback.preparable(fallback, settings.engines) && (primary == null || !primary.runsOnPhone())) {
-            SectionCard(
-                title = stringResource(R.string.fallback_ready),
-                subtitle = stringResource(R.string.fallback_ready_subtitle),
-                learnMore = stringResource(R.string.fallback_ready_more),
-            ) {
-                ToggleRow(
-                    stringResource(R.string.fallback_prepare),
-                    stringResource(R.string.fallback_prepare_note),
-                    checked = fallback.prepare,
-                    onChange = { on -> onUpdateSettings { it.copy(fallback = it.fallback.copy(prepare = on)) } },
-                )
-                if (fallback.prepare) Hint(stringResource(R.string.fallback_prepare_on))
-            }
+        val chosen = fallback.engineId?.let { id -> settings.engines.firstOrNull { it.id == id } }
+        if (fallback.mode == FallbackMode.ENGINE && primary != null && chosen != null && chosen !in choices) {
+            Hint(stringResource(R.string.fallback_less_private, engineName(chosen), engineName(primary)), AmberPalette.Primary)
+        }
+    }
+    if (ReadyFallback.preparable(fallback, settings.engines)) {
+        SectionCard(
+            title = stringResource(R.string.fallback_ready),
+            subtitle = stringResource(R.string.fallback_ready_subtitle),
+        ) {
+            ToggleRow(
+                stringResource(R.string.fallback_prepare),
+                stringResource(R.string.fallback_prepare_note),
+                checked = fallback.prepare,
+                onChange = { on -> onUpdateSettings { it.copy(fallback = it.fallback.copy(prepare = on)) } },
+            )
+            if (fallback.prepare) Hint(stringResource(R.string.fallback_prepare_on))
         }
     }
 }

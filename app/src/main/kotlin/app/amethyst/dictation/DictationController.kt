@@ -1602,8 +1602,9 @@ class DictationController(
         val key = cleanupKey(choice)
         val chars = transcript.text.length.toLong()
         wait?.plan(WaitProgress.Step.CLEANUP to graph.recognitionEstimate.expectedMs(key, chars, CLEANUP_RATE, CLEANUP_OVERHEAD_MS))
-        // Named in the prompt and checked in the reply: what the words clearly are, else what
-        // the engine detected, else the one language it was set to.
+        // Named in the prompt and checked in the reply: what the engine detected or the one
+        // language it was set to, any language; between German and English the words decide.
+        // Unsure, none is named - a wrong name gets a translation ([LanguageGuess.forDictation]).
         val language = LanguageGuess.forDictation(
             transcript.text,
             transcript.detectedLanguage,
@@ -1830,10 +1831,11 @@ class DictationController(
         val cleaned = TranscriptNormalizer.normalize(
             transcript.text,
             settings.normalizeOptions(),
-            // The words first, as for the cleanup: a recognizer that detects the language itself
-            // (Parakeet) is otherwise named by the phone's - English on a phone set to English
-            // alone, where German "Komma" stayed a word and "um" went as an English filler.
-            language = LanguageGuess.forDictation(
+            // As for the cleanup, between German and English the words first: a recognizer that
+            // detects the language itself (Parakeet) is otherwise named by the phone's - English
+            // on a phone set to English alone, where German "Komma" stayed a word and "um" went
+            // as an English filler. Any other language keeps German and English rules off.
+            language = LanguageGuess.forNormalizer(
                 transcript.text,
                 transcript.detectedLanguage,
                 settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
