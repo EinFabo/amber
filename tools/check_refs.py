@@ -72,6 +72,9 @@ for f in res.rglob('*.xml'):
             res_ids[m.group(1)].add(m.group(2))
     else:
         res_ids[kind].add(f.stem)
+# Raw resources are any file, named without their extension (R.raw.privacy_policy).
+for f in res.glob('raw*/*'):
+    res_ids['raw'].add(f.name.split('.')[0])
 
 for p in kt:
     # android.R.* is the framework's (android.R.id.copy), never one of the app's resources.

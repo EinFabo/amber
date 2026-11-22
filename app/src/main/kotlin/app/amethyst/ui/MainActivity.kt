@@ -105,6 +105,7 @@ import app.amethyst.ui.screen.DiagnosticsScreen
 import app.amethyst.ui.screen.EngineDetailScreen
 import app.amethyst.ui.screen.HomeScreen
 import app.amethyst.ui.screen.LicensesScreen
+import app.amethyst.ui.screen.PrivacyPolicyScreen
 import app.amethyst.ui.screen.QuickMenuScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.FallbackScreen
@@ -816,6 +817,7 @@ private fun AmethystScreens(
                             )
                             SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
                             SettingsPage.LICENSES -> LicensesScreen()
+                            SettingsPage.PRIVACY_POLICY -> PrivacyPolicyScreen(onOpenUrl = ::openUrl)
                             SettingsPage.UPDATES -> {
                                 val checking by graph.updates.checking.collectAsStateWithLifecycle()
                                 // "3 hours ago" moves on while the page is open.

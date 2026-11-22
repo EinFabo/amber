@@ -26,6 +26,7 @@ import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.KnownApps
 import app.amethyst.ui.AppIcon
+import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.PendingModel
 import app.amethyst.ui.PendingModelNote
@@ -42,6 +43,7 @@ import app.amethyst.ui.screen.ReliabilityRows
 import app.amethyst.ui.screen.cleanupSummary
 import app.amethyst.ui.screen.label
 import app.amethyst.ui.screen.rememberServiceRows
+import app.amethyst.ui.screen.mayGoToMaker
 import app.amethyst.ui.screen.trustLevelForDisplay
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.words
@@ -184,7 +186,9 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
  * The bubble finishing over the title ([DoneOrb]), then, row after row, what was chosen - or,
  * on the quick way, decided for this phone - and where to change it;
  * "Try it" leads to the flame on Home. A recognition whose model is still on its way is named
- * with one line on what happens until then ([PendingModelNote]).
+ * with one line on what happens until then ([PendingModelNote]). Android's recognition where it
+ * may send the voice to its maker - what the quick setup picks where no model fits - is said
+ * under its row, with the way to another ([onOpenRecognition]).
  */
 @Composable
 internal fun DoneStep(
@@ -192,6 +196,7 @@ internal fun DoneStep(
     download: ModelDownload?,
     pending: PendingModel?,
     nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
+    onOpenRecognition: () -> Unit = {},
     onFinish: () -> Unit,
 ) {
     val rows = rememberRowsIn(6)
@@ -221,6 +226,12 @@ internal fun DoneStep(
             Modifier.rowIn(rows, 0),
         )
         if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1), progress = true)
+        else if (settings.activeEngine.mayGoToMaker()) {
+            Column(Modifier.rowIn(rows, 1), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Hint(stringResource(R.string.done_android_leaves), AmberPalette.Primary)
+                GhostButton(stringResource(R.string.done_choose_another), onOpenRecognition)
+            }
+        }
         Chosen(
             stringResource(R.string.settings_cleanup), settings.cleanupSummary() ?: stringResource(R.string.off), stringResource(R.string.done_where_cleanup),
             Modifier.rowIn(rows, 2),

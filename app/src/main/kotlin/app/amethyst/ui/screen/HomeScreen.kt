@@ -277,7 +277,10 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
         NavRow(
             // The badge under it says where it runs; the name need not.
             title = active?.let { recognitionRowName(it) } ?: stringResource(R.string.home_no_engine),
-            summary = null,
+            // Android's recognition where it may send the voice to its maker - the quick setup
+            // picks it where no model fits: said, not only badged, with the way to another a tap away.
+            summary = if (active.mayGoToMaker()) stringResource(R.string.home_android_leaves) else null,
+            summaryMaxLines = 2,
             icon = AmberIcons.Mic,
             titleColor = if (active == null) AmberPalette.Error else AmberPalette.Text,
             below = active?.let { { TrustBadge(it.trustLevelForDisplay()) } },

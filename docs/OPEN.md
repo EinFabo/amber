@@ -3,6 +3,28 @@
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom. The app
 was called Amber until 2026-11-17; the sections below that are dated before then say Amber.
 
+## Store review 2026-11-22
+
+The fixes of `docs/plans/2026-11-22-store-review.md`, built on the branch `store-review`.
+Open for Fabi:
+- [ ] **Controller and contact e-mail in the privacy policy.** `docs/PRIVACY.md` and the
+      in-app copies (`app/src/main/res/raw/privacy_policy.txt`, `raw-de/privacy_policy.txt`)
+      say "[Controller (name and postal address) and contact e-mail: to be added before
+      publishing]" - the app shows that line in red. Replace it in all three with the name,
+      postal address and an e-mail address (Play wants a contact in the policy).
+- [ ] **The policy's web address.** Once the policy is on your domain, set
+      `PrivacyPolicy.PRIVACY_URL` (`core/.../privacy/PrivacyPolicy.kt`, https only): the policy
+      page in About then offers "Open on the web". The same address goes into the Console.
+- Built (item 18, 19, 20, 21, 23), to try on a phone: About → Privacy policy in English and
+  German; the accessibility step and Home's consent dialog (a new "Inserts your dictation" row,
+  the line under it only about what the service reads); the microphone step's line on where the
+  recording goes; on the A20e (no on-device recognizer) the welcome step's second point, the
+  done step's note with "Choose another", Home's recognition row, and the "Cloud" badge on
+  Android's speech recognition under "Add speech recognition".
+- Note for item 22: `docs/PRIVACY.md` and both raw texts say a shared Diagnostics report "names
+  the app each dictation went into" - true until the report replaces the names; change that
+  line in all three with it.
+
 ## Renamed to Embersay (2026-11-17)
 
 Fabi's decision: the app is **Embersay**, application id **`com.embersay`** (debug
@@ -118,6 +140,10 @@ score 6.5/10). Built on the same day, not yet on a phone:
   silently but asks (or opens the speech recognition step), and the welcome promise is only
   made where it holds. Before that, measure Parakeet on the A20e: the model can go over by
   `adb push` into the debug build (`run-as`), no Wi-Fi at the phone needed.
+  Partly built 2026-11-22 (store review item 23): the welcome promise only where it holds
+  (`EngineAdvice.keepsVoiceOnPhone`), the done step and Home say it (`EngineTrust.androidMaySend`),
+  the "Add speech recognition" badge follows the phone (`EngineTrust.forPreset`). Quick setup
+  still picks Android's recognition there without asking.
 - **"Whisper local (FUTO)" on a CPU without dot product.** `SettingsScreen.PresetDialog`
   lists `EnginePresets.offered` unfiltered. Proposed: leave it out where
   `WhisperNative.cpuSupported()` is false (or show it disabled with "This phone's processor
@@ -247,8 +273,9 @@ a tool, a bubble, text into other apps). Biggest first:
 - [ ] **App bundle**: `bundleRelease`, an upload key, Play App Signing - Play installs and
       GitHub/F-Droid installs then cannot update each other (unless the store key goes to Play).
 - [ ] Android developer verification: `com.embersay` registered, the GitHub key too.
-- [ ] **Privacy policy** at a public URL with an e-mail contact, linked in About; it says it
-      applies "as published at GitHub" - extend to Play.
+- [ ] **Privacy policy** at a public URL with an e-mail contact. In the app since 2026-11-22
+      (About → Privacy policy, store review item 18) and extended to Play and the website; the
+      contact and the URL are Fabi's (see "Store review 2026-11-22").
 - [ ] **Listing assets**: a feature graphic 1024x500 (missing); screenshots are 1080x2340
       (over Play's 2:1) and RGBA - crop and flatten; the 512 icon must be a full square.
 - Already fine: targetSdk 36; the native libraries are 16 KB aligned (checked in the release
@@ -265,7 +292,10 @@ Samsung keyboard, German. Test build from amber (after rc4, with the tone on the
       stays on this phone unless you pick a server", and the done step says nothing about it.
       Decide: try Parakeet on a 3 GB phone (it needs no dot product; measure memory and speed
       on this A20e), or say it plainly and ask before using a recognition that leaves the
-      phone.
+      phone. Said plainly since 2026-11-22 (store review item 23): the welcome step makes no
+      "stays on this phone" promise here, the done step and Home say Android's recognition may
+      send the voice to its maker, with the way to another, and "Add speech recognition" badges
+      it "Cloud". Measuring Parakeet on 3 GB is still open.
 - [x] **No bubble in Amber's own fields below Android 13** - fixed 2026-11-17 (Compose sets no input type on its node, so every Compose field below 13 counted as none; `TextFieldKind.ofNode`, `FieldFocus`, Amber's own fields report themselves); on the A20e Home's test field gets the bubble. Was: The practice step's field and
       Home's test field are Compose fields; on Android 11 they send no focus event, so the
       service never sees them (no "field" line in the log) - the practice step cannot be done.

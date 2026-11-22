@@ -59,6 +59,7 @@ import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
+import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.KeyBinding
@@ -742,6 +743,14 @@ internal fun ModelPicker(
 /** Where this engine sends the voice; see [EngineTrust.forDisplay]. */
 internal fun EngineConfig.trustLevelForDisplay(): TrustLevel =
     EngineTrust.forDisplay(this, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
+
+/** Where a preset not yet added would send the voice; see [EngineTrust.forPreset]. */
+internal fun EnginePreset.trustLevelForDisplay(): TrustLevel =
+    EngineTrust.forPreset(this, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
+
+/** Android's recognition on a phone that may send the voice to its maker; see [EngineTrust.androidMaySend]. */
+internal fun EngineConfig?.mayGoToMaker(): Boolean =
+    EngineTrust.androidMaySend(this, onDeviceSpeech = AndroidOnDeviceEngine.onDeviceSpeech)
 
 /**
  * The debug view of Tinfoil's attestation: verify on demand, see exactly what was proven, and

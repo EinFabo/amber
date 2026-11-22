@@ -69,4 +69,20 @@ class EngineAdviceTest {
         )
         assertFalse(advice.recommended in advice.others)
     }
+
+    @Test
+    fun `the quick setup keeps the voice on the phone where a model fits`() {
+        assertTrue(EngineAdvice.keepsVoiceOnPhone(phone(8_000, 4_000, onDevice = false)))
+        assertTrue(EngineAdvice.keepsVoiceOnPhone(phone(2_000, 500, onDevice = false)))
+    }
+
+    @Test
+    fun `android's recognition keeps it there only where it recognizes on the phone`() {
+        // The A20e: no dot product for Whisper, under 6 GB for Parakeet, Android 11 without an
+        // on-device recognizer - the quick setup's pick may send the voice to Google.
+        val a20e = phone(2_800, 20_000, whisperCpu = false, onDevice = false)
+        assertEquals(EngineOption.ANDROID, EngineAdvice.recommend(a20e).recommended)
+        assertFalse(EngineAdvice.keepsVoiceOnPhone(a20e))
+        assertTrue(EngineAdvice.keepsVoiceOnPhone(a20e.copy(androidOnDevice = true)))
+    }
 }

@@ -687,7 +687,8 @@ private fun PresetDialog(
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = AmberPalette.Text,
                                 )
-                                TrustBadge(preset.trustLevel)
+                                // Android's follows the phone, as in the list of added ones.
+                                TrustBadge(preset.trustLevelForDisplay())
                             }
                             if (preset.note.isNotBlank()) Hint(catalog(preset.note))
                         }

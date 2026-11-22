@@ -12,13 +12,15 @@
     <string name="disclosure_text">Der Text im Feld</string>
     <string name="disclosure_text_note">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen</string>
     <string name="disclosure_text_note_commands">Nur beim Einfügen eines Diktats, damit die neuen Wörter am Cursor passen - und, mit Sprachbefehlen, für einen Befehl, der dieses Feld bearbeitet.</string>
+    <string name="disclosure_insert">Fügt dein Diktat ein</string>
+    <string name="disclosure_insert_note">In das Feld, in dem du schreibst. Nimmt das Feld es nicht direkt an, über die Zwischenablage</string>
     <string name="disclosure_back">Bringt dich zurück zu Embersay</string>
     <string name="disclosure_back_note">Nachdem du diesen Dienst oder die Akkunutzung ohne Einschränkung in den Android-Einstellungen eingeschaltet hast</string>
     <string name="disclosure_commands">Mit Sprachbefehlen</string>
     <string name="disclosure_commands_note">Es liest deine App-Liste, welche Teile des Bildschirms scrollen können und wo die Einträge in dem stehen, den es scrollt - um zu sehen, ob er sich bewegt hat, nie was sie zeigen -, die Lautstärke und ob die Taschenlampe an ist.</string>
     <string name="disclosure_acts">Handelt nach dem Befehl, den du gesprochen hast</string>
     <string name="disclosure_acts_note">Nur nach diesem: zurück, Startbildschirm, letzte Apps, Schnelleinstellungen, Benachrichtigungen, Sperren, Screenshot, geteilter Bildschirm, Ein/Aus-Menü; eine App oder Einstellungsseite öffnen; scrollen, blättern, wischen; Medientasten und Lautstärke; die Taschenlampe; das Feld bearbeiten, in dem du den Befehl begonnen hast, nie ein Passwortfeld. Es tippt nie auf Knöpfe und bestätigt nie Dialoge; ein Wischen tut, was dein eigenes Wischen in dieser App täte.</string>
-    <string name="disclosure_nothing_stored">Nichts davon sendet Embersay irgendwohin. Auf dem Handy merkt es sich für deine Statistik, in welcher App du diktiert hast, und behält deine Diktate 24&#160;Stunden, die Wörter verschlüsselt. Nur deine Aufnahme geht an die Spracherkennung, die du gewählt hast. Mit Bereinigung geht ihr Text an die Bereinigung, die du gewählt hast.</string>
+    <string name="disclosure_nothing_stored">Nichts davon sendet Embersay irgendwohin, und Passwortfelder liest es nie. In welchen Apps du diktierst, bleibt auf dem Handy, für deine Statistik und deinen Verlauf.</string>
     <string name="full_text">Ganzer Text</string>
     <string name="switch_on_note">Tippe in den Android-Einstellungen auf %1$s, schalte es ein und erlaube es. Embersay kommt danach von selbst hierher zurück.</string>
     <string name="restricted_note">Android sperrt den Schalter manchmal bei Apps, die nicht aus einem App-Store kommen. Dann findest du hier, wie du die Sperre aufhebst.</string>
@@ -57,6 +59,8 @@
     <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist.</string>
     <string name="welcome_private">Privat von Anfang an</string>
     <string name="welcome_private_note">Deine Stimme bleibt auf diesem Handy, außer du wählst einen Server.</string>
+    <string name="welcome_android">Du entscheidest, wohin deine Stimme geht</string>
+    <string name="welcome_android_note">Hier ist es die Spracherkennung von Android, die sie an ihren Hersteller senden kann</string>
     <string name="welcome_only_dictating">Nur während du diktierst</string>
     <string name="welcome_only_dictating_note">Sonst ist das Mikrofon aus.</string>
     <string name="access_title">Lass Embersay für dich schreiben</string>
@@ -67,6 +71,7 @@
     <string name="access_done">An. Die Bubble kann jetzt in jeder App erscheinen.</string>
     <string name="mic_title">Mikrofon erlauben</string>
     <string name="mic_lead">Embersay nimmt nur auf, während du diktierst. Die Bubble leuchtet, solange sie zuhört.</string>
+    <string name="mic_where">Deine Aufnahme geht nur an die Spracherkennung, die du nutzt. Mit Bereinigung geht der erkannte Text an die Bereinigung, die du gewählt hast. Deine Diktate bleiben 24&#160;Stunden verschlüsselt auf dem Handy; das kannst du unter Einstellungen → Verlauf ändern.</string>
     <string name="continue_without">Ohne weiter</string>
     <string name="mic_allowed">Erlaubt.</string>
     <string name="mic_not_allowed">Noch nicht erlaubt. Wenn Android nicht mehr fragt, erlaube es in der App-Info von Embersay unter Berechtigungen → Mikrofon.</string>
@@ -96,6 +101,8 @@
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
     <string name="done_lead">Alles lässt sich in den Einstellungen ändern. Du findest sie über das Zahnrad oben rechts in Embersay.</string>
+    <string name="done_android_leaves">Die Spracherkennung von Android kann deine Stimme an ihren Hersteller senden (auf den meisten Handys Google). Unter Einstellungen → Spracherkennung kannst du eine andere wählen.</string>
+    <string name="done_choose_another">Andere wählen</string>
     <string name="done_try">Ausprobieren</string>
     <string name="done_none">Keine</string>
     <string name="done_where_recognition">Einstellungen → Spracherkennung</string>

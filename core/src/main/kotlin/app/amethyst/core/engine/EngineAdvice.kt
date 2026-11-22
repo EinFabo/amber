@@ -58,6 +58,14 @@ object EngineAdvice {
         return Advice(recommended, others)
     }
 
+    /**
+     * Whether what the quick setup picks here keeps the voice on the phone: any model does;
+     * Android's recognition, picked where none fits, only where it recognizes on the phone. The
+     * welcome step promises "stays on this phone" only then.
+     */
+    fun keepsVoiceOnPhone(phone: PhoneFacts): Boolean =
+        recommend(phone).recommended != EngineOption.ANDROID || phone.androidOnDevice
+
     fun fits(option: EngineOption, phone: PhoneFacts): Boolean {
         val room = option.downloadBytes / 1_000_000 + STORAGE_MARGIN_MB <= phone.freeStorageMb
         val ramGb = nominalRamGb(phone.totalRamMb)

@@ -15,6 +15,10 @@
     <string name="settings_updates">Updates</string>
     <string name="settings_licenses">Lizenzen</string>
     <string name="settings_licenses_summary">Apache 2.0 und woraus Embersay besteht</string>
+    <string name="settings_privacy_policy">Datenschutzerklärung</string>
+    <string name="settings_privacy_policy_summary">Was Embersay mit deiner Stimme und deinem Text tut</string>
+    <string name="privacy_policy_web">Im Web öffnen</string>
+    <string name="privacy_policy_unreadable">Die Datenschutzerklärung ließ sich nicht lesen. Du findest sie auch unter github.com/EinFabo/amber in docs/PRIVACY.md.</string>
     <string name="settings_introduction">Einführung noch einmal zeigen</string>
     <string name="settings_introduction_summary">Die Schritte der Einführung, mit deiner Auswahl</string>
     <string name="settings_group_per_app">Pro App</string>

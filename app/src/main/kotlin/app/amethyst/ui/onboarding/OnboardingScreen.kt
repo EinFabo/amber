@@ -130,7 +130,7 @@ fun OnboardingScreen(
         ) { current ->
             val onward: () -> Unit = { nextFrom(current, settings) }
             when (current) {
-                OnboardingStep.WELCOME -> WelcomeStep(onPath, onSkipAll)
+                OnboardingStep.WELCOME -> WelcomeStep(content.phone, onPath, onSkipAll)
                 OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, onward)
                 OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, onward)
                 OnboardingStep.ENGINE -> EngineStep(settings, content, onward)
@@ -139,7 +139,7 @@ fun OnboardingScreen(
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
                 OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
-                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, content.nudge, onFinish)
+                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, content.nudge, content.onOpenRecognition, onFinish)
             }
         }
     }

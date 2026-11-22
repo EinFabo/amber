@@ -15,9 +15,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.core.engine.EngineAdvice
+import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.ui.AccessibilityDisclosure
 import app.amethyst.ui.FullDisclosure
@@ -46,8 +49,8 @@ internal fun LaterButton(label: String, onClick: () -> Unit) {
 
 /** A short point: a few words, a line under them. */
 @Composable
-private fun Point(title: String, text: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun Point(title: String, text: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge, color = AmberPalette.Text)
         Hint(text)
     }
@@ -58,9 +61,14 @@ private fun Point(title: String, text: String) {
  * stage ([WelcomeDemo]), then said in three points - and the three ways on: the quick setup as
  * the filled button, every choice step by step, or none of it now - Home then shows what is still missing. On a short screen
  * the stage gets lower first, so the three points still fit.
+ *
+ * "Your voice stays on this phone" is promised only where the quick setup's pick keeps it there
+ * ([EngineAdvice.keepsVoiceOnPhone]); where it is Android's recognition without an on-device
+ * recognizer, the point says that instead. Until the [phone]'s facts are read - a moment, off
+ * the main thread - the point keeps its room but shows nothing, so no promise flashes up.
  */
 @Composable
-internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
+internal fun WelcomeStep(phone: PhoneFacts?, onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
     StepPage(
         title = stringResource(R.string.welcome_title),
         lead = stringResource(R.string.welcome_lead),        buttons = {
@@ -73,7 +81,12 @@ internal fun WelcomeStep(onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit
         stageHeights = WELCOME_STAGE_MIN..STAGE_HEIGHT,
     ) {
         Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))
-        Point(stringResource(R.string.welcome_private), stringResource(R.string.welcome_private_note))
+        val keeps = phone?.let(EngineAdvice::keepsVoiceOnPhone) ?: true
+        Point(
+            stringResource(if (keeps) R.string.welcome_private else R.string.welcome_android),
+            stringResource(if (keeps) R.string.welcome_private_note else R.string.welcome_android_note),
+            Modifier.alpha(if (phone == null) 0f else 1f),
+        )
         Point(stringResource(R.string.welcome_only_dictating), stringResource(R.string.welcome_only_dictating_note))
     }
 }
@@ -203,6 +216,10 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
             Hint(stringResource(R.string.mic_not_allowed), AmberPalette.Primary)
             GhostButton(stringResource(R.string.open_app_settings), actions.openAppInfo)
         }
+        // Where the recording and its text go, and what is kept of them: said here, with the
+        // microphone, rather than on the accessibility step, whose disclosure Play wants to be
+        // about the service alone.
+        Hint(stringResource(R.string.mic_where))
     }
 }
 

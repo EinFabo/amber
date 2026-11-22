@@ -23,6 +23,7 @@ enum class SettingsPage {
     DIAGNOSTICS,
     UPDATES,
     LICENSES,
+    PRIVACY_POLICY,
     ABOUT,
 }
 
@@ -47,5 +48,6 @@ fun SettingsPage.title(): Int = when (this) {
     SettingsPage.DIAGNOSTICS -> R.string.settings_diagnostics
     SettingsPage.UPDATES -> R.string.settings_updates
     SettingsPage.LICENSES -> R.string.settings_licenses
+    SettingsPage.PRIVACY_POLICY -> R.string.settings_privacy_policy
     SettingsPage.ABOUT -> R.string.settings_about
 }

@@ -1,5 +1,5 @@
 """Checks the app's texts: English (values/) and German (values-de/) hold the same strings
-with the same placeholders, toasts fit in two lines, the Compose screens carry no English
+with the same placeholders, the raw texts (raw/, raw-de/) come in both languages, toasts fit in two lines, the Compose screens carry no English
 sentence of their own, no text uses " - " as a dash, and no German text a word the glossary
 rules out.
 
@@ -135,6 +135,27 @@ for lang, texts in (("values", en), ("values-de", de)):
             text = shown(texts[name][""].replace("%1$s", texts[reason][""].rstrip(".")))
             if len(text) > COMPOSED_LIMIT:
                 errors.append(f"{lang}: {name} with {reason} is a toast of {len(text)} characters, more than {COMPOSED_LIMIT}")
+
+# Raw texts (the privacy policy): each English file has a German one, with as many headings, so
+# a section added to one is not missing from the other - and a line still to be filled in (in
+# square brackets) is in both or neither.
+for f in sorted((res / "raw").glob("*.txt")):
+    de_file = res / "raw-de" / f.name
+    if not de_file.exists():
+        errors.append(f"raw-de: missing {f.name}")
+        continue
+    def outline(path):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return (sum(1 for l in lines if l.startswith("## ")),
+                sum(1 for l in lines if l.strip().startswith("[") and l.strip().endswith("]")))
+    (en_heads, en_missing), (de_heads, de_missing) = outline(f), outline(de_file)
+    if en_heads != de_heads:
+        errors.append(f"raw/{f.name}: {en_heads} headings in English, {de_heads} in German")
+    if en_missing != de_missing:
+        errors.append(f"raw/{f.name}: {en_missing} lines to fill in in English, {de_missing} in German")
+for f in sorted((res / "raw-de").glob("*.txt")):
+    if not (res / "raw" / f.name).exists():
+        errors.append(f"raw-de/{f.name} is not in raw (left over?)")
 
 # The catalog's English texts are looked up by their exact text in :core (Texts.catalog): each
 # must still be there, or that name or note silently stays English.

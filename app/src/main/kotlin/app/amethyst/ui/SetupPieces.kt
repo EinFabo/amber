@@ -73,6 +73,8 @@ private fun DisclosureRows() {
         stringResource(if (commands) R.string.disclosure_text_note_commands else R.string.disclosure_text_note),
     )
     RowDivider()
+    Fact(AmberIcons.Add, stringResource(R.string.disclosure_insert), stringResource(R.string.disclosure_insert_note))
+    RowDivider()
     Fact(
         AmberIcons.Replay,
         stringResource(R.string.disclosure_back),
@@ -103,6 +105,11 @@ private fun Fact(icon: ImageVector, title: String, detail: String) {
     NavRow(title, detail, icon = icon, summaryMaxLines = Int.MAX_VALUE, trailing = null, onClick = null)
 }
 
+/**
+ * What becomes of what the service reads - and nothing else: Play wants the accessibility
+ * disclosure kept apart from any other data disclosure, so the recording, the cleanup and the
+ * history are said on the microphone step ([R.string.mic_where]), not here.
+ */
 @Composable
 private fun NothingStoredLine() {
     GroupFootnote(

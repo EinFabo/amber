@@ -65,4 +65,30 @@ class EngineTrustTest {
         assertFalse(EngineTrust.unencrypted(own.copy(baseUrl = "https://nas.ts.net/v1")))
         assertFalse(EngineTrust.unencrypted(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET)))
     }
+
+    @Test
+    fun `android's preset is labelled on this phone only where the phone recognizes on the phone`() {
+        assertEquals(TrustLevel.ON_DEVICE, EngineTrust.forPreset(EnginePresets.ANDROID_ON_DEVICE, onDeviceSpeech = true))
+        assertEquals(TrustLevel.CLOUD, EngineTrust.forPreset(EnginePresets.ANDROID_ON_DEVICE, onDeviceSpeech = false))
+    }
+
+    @Test
+    fun `other presets keep their own label`() {
+        for (onDevice in listOf(true, false)) {
+            assertEquals(TrustLevel.ON_DEVICE, EngineTrust.forPreset(EnginePresets.LOCAL_PARAKEET, onDevice))
+            assertEquals(TrustLevel.ON_DEVICE, EngineTrust.forPreset(EnginePresets.LOCAL_WHISPER, onDevice))
+            assertEquals(EnginePresets.TINFOIL.trustLevel, EngineTrust.forPreset(EnginePresets.TINFOIL, onDevice))
+            assertEquals(TrustLevel.CLOUD, EngineTrust.forPreset(EnginePresets.GROQ, onDevice))
+        }
+    }
+
+    @Test
+    fun `android's recognition may send the voice to its maker only without an on-device recognizer`() {
+        val android = EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE)
+        assertTrue(EngineTrust.androidMaySend(android, onDeviceSpeech = false))
+        assertFalse(EngineTrust.androidMaySend(android, onDeviceSpeech = true))
+        assertFalse(EngineTrust.androidMaySend(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET), onDeviceSpeech = false))
+        assertFalse(EngineTrust.androidMaySend(EngineConfig.fromPreset(EnginePresets.GROQ), onDeviceSpeech = false))
+        assertFalse(EngineTrust.androidMaySend(null, onDeviceSpeech = false))
+    }
 }

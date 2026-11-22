@@ -20,6 +20,25 @@ object EngineTrust {
     }
 
     /**
+     * The label of a preset not yet added (Settings' "Add speech recognition"), by the same rule
+     * as [forDisplay]: Android's recognition is "on this phone" only where the phone has an
+     * on-device recognizer, whatever its preset says.
+     */
+    fun forPreset(preset: EnginePreset, onDeviceSpeech: Boolean): TrustLevel = when (preset.kind) {
+        EngineKind.ANDROID_ON_DEVICE -> if (onDeviceSpeech) TrustLevel.ON_DEVICE else TrustLevel.CLOUD
+        else -> preset.trustLevel
+    }
+
+    /**
+     * Android's recognition as [config] on a phone without an on-device recognizer: it may send
+     * the voice to its maker (Google's, on most phones). The quick setup picks it where no model
+     * fits ([EngineAdvice.keepsVoiceOnPhone]), so the last step of the introduction and Home say
+     * so, with a way to choose another.
+     */
+    fun androidMaySend(config: EngineConfig?, onDeviceSpeech: Boolean): Boolean =
+        config?.kind == EngineKind.ANDROID_ON_DEVICE && !onDeviceSpeech
+
+    /**
      * A server reached over plain http: readable and changeable by anyone on the network. It is
      * only allowed for private addresses, but a private address is private to one network -
      * on another Wi-Fi with the same range, someone else may answer.

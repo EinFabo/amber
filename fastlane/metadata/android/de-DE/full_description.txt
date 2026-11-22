@@ -1,9 +1,10 @@
-Embersay ist Diktieren, das in <b>jede</b> App schreibt. Tippe in ein Textfeld, eine kleine bernsteinfarbene Bubble erscheint; tippe sie an, sprich, tippe nochmal - der Text landet am Cursor. Kein Tastaturwechsel, keine Zwischenablage.
+Embersay ist Diktieren, das in <b>jede</b> App schreibt. Tippe in ein Textfeld, eine kleine bernsteinfarbene Bubble erscheint; tippe sie an, sprich, tippe nochmal - der Text landet am Cursor. Ohne die Tastatur zu wechseln.
 
 <b>Du entscheidest, wohin deine Stimme geht</b>
 Jedes Diktat zeigt, wo es erkannt wurde:
 <ul>
-<li><b>Auf dem Handy</b> - Parakeet (25 europäische Sprachen), Whisper (FUTO-Modelle oder large-v3-turbo) oder die Spracherkennung von Android. Nichts verlässt das Handy.</li>
+<li><b>Auf dem Handy</b> - Parakeet (25 europäische Sprachen) oder Whisper (FUTO-Modelle oder large-v3-turbo). Nichts verlässt das Handy.</li>
+<li><b>Spracherkennung von Android</b> - ohne Download. Embersay bittet sie, auf dem Handy zu bleiben, aber wo das Handy Sprache nicht selbst erkennen kann, kann sie deine Stimme an ihren Hersteller senden (auf den meisten Handys Google), und Embersay sagt das.</li>
 <li><b>Geprüfte Enklave</b> - Tinfoil: Embersay prüft die Hardware-Bestätigung des Servers, bevor etwas gesendet wird, und sendet nichts, wenn die Prüfung fehlschlägt.</li>
 <li><b>Cloud</b> - Groq, OpenAI oder dein eigener Server (Embersay PC, Speaches, LocalAI, whisper.cpp) mit deinem eigenen API-Schlüssel.</li>
 </ul>
@@ -15,14 +16,15 @@ Embersay behauptet nie mehr Privatsphäre, als es belegen kann, und leitet deine
 <li>Auf Wunsch Bereinigung des Textes (Satzzeichen, Füllwörter) mit einem Stil pro App: locker im Chat, förmlich in der Mail</li>
 <li>Spracherkennung pro App: ein Server für Notizen, das Handy für Chats</li>
 <li>Ein Schnellmenü per langem Druck auf die Bubble: nochmal einfügen, kopieren, abbrechen, wie gesprochen senden</li>
+<li>Nimmt eine App den Text nicht direkt an, fügt Embersay ihn über die Zwischenablage ein (lässt sich ausschalten)</li>
 <li>Statistik nur auf dem Handy gezählt - Wörter, Apps, gesparte Zeit - nie dein Text oder deine Aufnahme</li>
 <li>Deutsch und Englisch, nach der Sprache des Handys</li>
 </ul>
 
 <b>Berechtigungen</b>
-Embersay braucht das Mikrofon und seine Bedienungshilfe: Sie findet das Textfeld, zeigt die Bubble und tippt den Text. "Über anderen Apps einblenden" braucht Embersay nicht. Sprachmodelle lädst du in der App herunter, wenn du eins auswählst.
+Embersay braucht das Mikrofon und seine Bedienungshilfe: Sie findet das Textfeld, zeigt die Bubble und fügt den Text ein. Das Mikrofon ist nur an, während du diktierst, mit der Benachrichtigung „Aufnahme läuft…“ und einer Taste zum Stoppen. "Über anderen Apps einblenden" braucht Embersay nicht. Sprachmodelle lädst du in der App herunter, wenn du eins auswählst.
 
 <b>Netzwerkdienste</b>
-Groq, OpenAI, Anthropic (Claude) und Tinfoil sind Dienste Dritter; Embersay nutzt sie nur, wenn du sie mit deinem eigenen Schlüssel einrichtest und auswählst. Sprachmodelle für das Handy werden geladen, wenn du eines auswählst, von Hugging Face und keyboard.futo.org.
+Groq, OpenAI, Anthropic (Claude) und Tinfoil sind Dienste Dritter; Embersay nutzt sie nur, wenn du sie mit deinem eigenen Schlüssel einrichtest und auswählst. Sprachmodelle für das Handy werden heruntergeladen, wenn du eines auswählst, von Hugging Face und keyboard.futo.org. Die Datenschutzerklärung steht in der App unter Einstellungen → Über Embersay.
 
 Läuft ab Android 9 auf einem Handy mit 64-Bit-ARM.

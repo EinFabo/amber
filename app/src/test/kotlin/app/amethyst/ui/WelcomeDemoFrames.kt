@@ -1,5 +1,6 @@
 package app.amethyst.ui
 
+import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.ui.onboarding.WelcomeStep
 import org.junit.Test
 
@@ -11,8 +12,13 @@ class WelcomeDemoFrames : TimelineFrames() {
      * second tap; working while the sentence goes in; the burst; at rest.
      */
     @Test
-    fun demo() = frames("4-demo", 0f, 0.15f, 0.34f, 0.5f, 0.61f, 0.8f, 0.9f, 1f) { WelcomeStep({}, {}) }
+    fun demo() = frames("4-demo", 0f, 0.15f, 0.34f, 0.5f, 0.61f, 0.8f, 0.9f, 1f) { WelcomeStep(PHONE, {}, {}) }
 
     @Test
-    fun demoLight() = frames("4-demo", 0.34f, 0.5f, 0.8f, 0.9f, dark = false, languages = listOf("de")) { WelcomeStep({}, {}) }
+    fun demoLight() = frames("4-demo", 0.34f, 0.5f, 0.8f, 0.9f, dark = false, languages = listOf("de")) { WelcomeStep(PHONE, {}, {}) }
+
+    private companion object {
+        /** A phone a model fits: the welcome step's usual promise. */
+        val PHONE = PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true)
+    }
 }

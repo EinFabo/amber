@@ -12,13 +12,15 @@
     <string name="disclosure_text">The text in the field</string>
     <string name="disclosure_text_note">Only while inserting, so the new words fit in at the cursor</string>
     <string name="disclosure_text_note_commands">Only while inserting a dictation, so the new words fit in at the cursor - and, with voice commands on, for a command that edits that field.</string>
+    <string name="disclosure_insert">Inserts your dictation</string>
+    <string name="disclosure_insert_note">Into the field you\'re in. If the field doesn\'t accept it directly, by pasting it from the clipboard</string>
     <string name="disclosure_back">Brings you back to Embersay</string>
     <string name="disclosure_back_note">After you turn on this service or unrestricted battery use in Android\'s settings</string>
     <string name="disclosure_commands">With voice commands on</string>
     <string name="disclosure_commands_note">It reads your list of apps, which parts of the screen can scroll and where the items sit in the one it scrolls - to tell whether it moved, never what they show - the volume and whether the flashlight is on.</string>
     <string name="disclosure_acts">Acts on the command you spoke</string>
     <string name="disclosure_acts_note">Only that one: back, home, recent apps, quick settings, notifications, lock, screenshot, split screen, power menu; open an app or a settings page; scroll, page, swipe; media keys and volume; the flashlight; edit the field you started the command in, never a password field. It never taps buttons or confirms dialogs; a swipe does what your own swipe would do in that app.</string>
-    <string name="disclosure_nothing_stored">Nothing Embersay reads this way leaves the phone. It keeps which apps you dictate in for your statistics, and your dictations for 24&#160;hours with their words encrypted. Only your recording goes to the speech recognition you chose. With cleanup on, its text goes to the cleanup model you chose.</string>
+    <string name="disclosure_nothing_stored">Nothing Embersay reads this way leaves the phone, and password fields are never read. Which apps you dictate in is kept on this phone, for your statistics and your history.</string>
     <string name="full_text">Full text</string>
     <string name="switch_on_note">In Android\'s settings, tap %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
     <string name="restricted_note">Android may block the switch for apps not installed from an app store. If it does, come back here to see how to unblock it.</string>
@@ -57,6 +59,8 @@
     <string name="welcome_every_app_note">A small bubble floats over the app you\'re using</string>
     <string name="welcome_private">Private by default</string>
     <string name="welcome_private_note">Your voice stays on this phone unless you choose a server</string>
+    <string name="welcome_android">You choose where your voice goes</string>
+    <string name="welcome_android_note">Here it\'s Android\'s speech recognition, which may send it to its maker</string>
     <string name="welcome_only_dictating">Only while you dictate</string>
     <string name="welcome_only_dictating_note">The microphone is off the rest of the time</string>
     <string name="access_title">Let Embersay insert your text</string>
@@ -67,6 +71,7 @@
     <string name="access_done">On. The bubble can now appear in every app.</string>
     <string name="mic_title">Allow the microphone</string>
     <string name="mic_lead">Embersay records only while you dictate. The bubble glows while it listens.</string>
+    <string name="mic_where">Your recording goes only to the speech recognition you use. With cleanup on, the recognized text goes to the cleanup you chose. Your dictations stay on this phone for 24&#160;hours, encrypted; you can change that in Settings → History.</string>
     <string name="continue_without">Continue without</string>
     <string name="mic_allowed">Allowed</string>
     <string name="mic_not_allowed">Not allowed yet. If Android doesn\'t ask anymore, allow it in Embersay\'s app info under Permissions → Microphone.</string>
@@ -96,6 +101,8 @@
     <string name="ready_step_lead">Optional. Without this, some phones cut off the microphone in the background.</string>
     <string name="done_title">All set</string>
     <string name="done_lead">You can change all of this in Settings. Open Embersay and tap the gear at the top right.</string>
+    <string name="done_android_leaves">Android\'s speech recognition may send your voice to its maker (Google, on most phones). You can choose another in Settings → Speech recognition.</string>
+    <string name="done_choose_another">Choose another</string>
     <string name="done_try">Try it</string>
     <string name="done_none">None</string>
     <string name="done_where_recognition">Settings → Speech recognition</string>

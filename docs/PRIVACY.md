@@ -1,15 +1,23 @@
+<!-- The app shows this policy in its About page, from app/src/main/res/raw/privacy_policy.txt
+     (English, the same words, the table as a list) and app/src/main/res/raw-de/privacy_policy.txt
+     (German). Change all three together. -->
+
 # Privacy policy
 
 Embersay (called Amber until November 2026) is a dictation app for Android: you speak, and the
 text is typed into the app you are in.
 This page says what Embersay does with your voice, your text and everything else it touches. It
-applies to the app as published at https://github.com/EinFabo/amber, version 0.33.0 and later.
+applies to Embersay version 0.35.0 and later, however you installed it: from Google Play, from
+GitHub (https://github.com/EinFabo/amber) or from Embersay's website.
 
 Embersay has no account, no advertising, no analytics and no crash reporting. Its developer runs
 no server that Embersay talks to and receives nothing from the app.
 
-Responsible for Embersay: EinFabo (https://github.com/EinFabo). Questions about this policy:
-https://github.com/EinFabo/amber/issues
+Responsible for Embersay:
+
+[Controller (name and postal address) and contact e-mail: to be added before publishing]
+
+Questions about this policy can also be asked at https://github.com/EinFabo/amber/issues.
 
 ## What stays on the phone
 
@@ -32,7 +40,7 @@ https://github.com/EinFabo/amber/issues
   text may stay.
 - **Diagnostics**: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
-  its words.
+  its words; it names the app each dictation went into.
 - **Speech models** you download.
 
 With the **security mode** on (Settings → Security mode), Embersay keeps none of a dictation's
@@ -54,7 +62,7 @@ screenshots and the Recents picture while it does.
 None of this is in Android's cloud backup or in a transfer to a new phone; Embersay excludes all
 of its files from both. Removing the app removes all of it.
 
-## What the accessibility service reads
+## What the accessibility service reads and does
 
 Embersay's bubble is an Android accessibility service. Through it Embersay reads:
 
@@ -64,8 +72,22 @@ Embersay's bubble is an Android accessibility service. Through it Embersay reads
   words fit at the cursor.
 
 None of this is sent anywhere. Which app a dictation went into is kept for the statistics
-and the history above; the text of the field is not kept. Password fields get no bubble and are not read. The
-service types your dictation into the field; it does nothing else in other apps.
+and the history above; the text of the field is not kept. Password fields get no bubble and are
+not read.
+
+In other apps the service:
+
+- shows the bubble, and short messages about a dictation, over the app in front;
+- inserts your dictation into the field. Where a field takes it no other way, it puts the
+  dictation on the clipboard and pastes it; where there is no field, it leaves the dictation on
+  the clipboard for you to paste. It does neither with "Use the clipboard if needed" off
+  (Settings → Text) or in the security mode;
+- opens Embersay's own screens over the app when you choose them in the quick menu, such as the
+  style for that app;
+- brings Embersay back to the front right after you turn on something in Android's settings
+  that Embersay sent you to (this service, or unrestricted battery use).
+
+Beyond that it never taps, swipes or acts for you.
 
 ## What leaves the phone, and to whom
 
@@ -85,8 +107,10 @@ phone's network address as with any connection. Embersay sends them nothing that
 beyond the API key you gave it. Every dictation is labelled in Embersay with where your voice and
 your text went.
 
-Without any of this: with speech recognition on the phone and the cleanup off - how Embersay
-starts - nothing you say or write leaves the phone.
+Without any of this: with speech recognition on the phone and the cleanup off, nothing you say
+or write leaves the phone. That is how Embersay starts where one of its speech models fits the
+phone; where none fits, it starts with Android's speech recognition and says on the phone that
+this may send your voice to its maker.
 
 ## Other connections
 
@@ -97,11 +121,19 @@ starts - nothing you say or write leaves the phone.
   beyond what any web request does. A copy installed by an app store never asks. You can
   switch the check off under Settings → Updates.
 - **Model lists**: Embersay asks the servers you added which models they offer.
+- **Tinfoil's proof**: before a recording or a text goes to Tinfoil, Embersay fetches the
+  server's attestation document from that server and checks it on the phone - the hardware
+  report and the signed release it was built from are part of that document. It carries a
+  random number and nothing about you; a checked proof is kept for as long as it is valid.
 
 ## Permissions
 
 - **Microphone**: to record a dictation. Embersay records only between your tap to start and the
-  end of that dictation.
+  end of that dictation. While it records, Embersay shows a "Recording…" notification with a
+  Stop button, and Android shows that the microphone is in use. The bubble records through the
+  accessibility service; where Android does not let it open the microphone that way (Android 9
+  and 10, or a start Android silences), an invisible screen of Embersay's opens for a moment
+  to start the recording.
 - **Accessibility service**: described above.
 - **Notifications**: for the notice shown while Embersay records (with a Stop button), and
   for an available update.

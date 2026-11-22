@@ -16,9 +16,9 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.words
 
 /**
- * What is about Amber rather than a setting: its version and the way to a newer one, what it
- * recorded of the dictations for finding faults (the diagnostics), the licenses, and the
- * introduction once more. The statistics are under Privacy, beside the history.
+ * What is about Amber rather than a setting: its version and the way to a newer one, the
+ * privacy policy, what it recorded of the dictations for finding faults (the diagnostics), the
+ * licenses, and the introduction once more. The statistics are under Privacy, beside the history.
  */
 @Composable
 fun AboutScreen(
@@ -47,6 +47,11 @@ fun AboutScreen(
             ) { onOpen(SettingsPage.UPDATES) }
         }
         SettingsGroup(label = null) {
+            NavRow(
+                stringResource(R.string.settings_privacy_policy), stringResource(R.string.settings_privacy_policy_summary), icon = AmberIcons.Lock,
+                summaryMaxLines = 2,
+            ) { onOpen(SettingsPage.PRIVACY_POLICY) }
+            RowDivider()
             NavRow(stringResource(R.string.settings_diagnostics), words(SettingsSummaries.diagnostics(diagnosticsCount)), icon = AmberIcons.Bug) { onOpen(SettingsPage.DIAGNOSTICS) }
             RowDivider()
             NavRow(

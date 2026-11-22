@@ -854,8 +854,9 @@ open class Screenshots {
         bubbleEvents: List<app.amethyst.core.bubble.BubbleEvent> = emptyList(),
         pending: PendingModel? = null,
         nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
+        phone: app.amethyst.core.engine.PhoneFacts = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
     ) = OnboardingContent(
-        phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 8_000, freeStorageMb = 20_000, whisperCpu = true, androidOnDevice = true),
+        phone = phone,
         metered = metered,
         parakeet = parakeet,
         whisper = whisper,
@@ -895,6 +896,17 @@ open class Screenshots {
     @Test
     @Config(qualifiers = "+w360dp-h780dp-xhdpi")
     fun onboardingWelcomeSmallPhone() = onboarding("1-welcome-a20e", OnboardingStep.WELCOME, bars = A20E)
+
+    /**
+     * Not part of the listing set: the A20e's own facts - no model fits, and Android 11 has no
+     * on-device recognizer - so the welcome step makes no "stays on this phone" promise.
+     */
+    @Test
+    @Config(qualifiers = "+w360dp-h780dp-xhdpi")
+    fun onboardingWelcomeNoModelFits() = onboarding(
+        "1-welcome-a20e-android", OnboardingStep.WELCOME, bars = A20E,
+        content = content(phone = app.amethyst.core.engine.PhoneFacts(totalRamMb = 2_800, freeStorageMb = 20_000, whisperCpu = false, androidOnDevice = false)),
+    )
 
     /** Not part of the listing set: the other steps on the same small phone, as they open. */
     @Test
@@ -1258,6 +1270,14 @@ open class Screenshots {
     }
 
     @Test fun aboutLight() = light(::about)
+
+    /** Not part of the listing set: the privacy policy from About, as the app shows it. */
+    @Test
+    fun privacyPolicy() = shoot("x-privacy-policy", SettingsPage.PRIVACY_POLICY.title()) {
+        // The phone's language picks the file, as Android does with raw-de/.
+        val folder = if (androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "de") "raw-de" else "raw"
+        app.amethyst.ui.screen.PrivacyPolicyScreen(onOpenUrl = {}, text = java.io.File("src/main/res/$folder/privacy_policy.txt").readText())
+    }
 
     /** Not part of the listing set: About Amber on a build that does not check, nothing dictated yet. */
     @Test
