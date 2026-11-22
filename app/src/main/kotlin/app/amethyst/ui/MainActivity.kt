@@ -42,7 +42,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -498,7 +497,6 @@ private fun AmethystScreens(
     val tester = remember(graph, testContext) { ConnectionTester(graph, testContext) }
     val settings by graph.settings.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     // Follows the clock, so an app left open overnight starts the new day at zero: once at
@@ -957,8 +955,10 @@ private fun AmethystScreens(
                                         graph.keySaved(alias)
                                     }
                                 },
+                                // The app's scope too: the screen saves typed fields as it
+                                // goes away, the moment its own scope is cancelled.
                                 onSave = { updated: EngineConfig ->
-                                    scope.launch {
+                                    graph.appScope.launch {
                                         graph.settingsStore.update { it.withEngine(updated) }
                                         // Once stored, so the answer finds the engine at its new
                                         // address. A new address is asked at once, the same one

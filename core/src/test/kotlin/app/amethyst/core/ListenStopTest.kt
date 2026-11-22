@@ -93,4 +93,26 @@ class ListenStopTest {
     fun `a recognizer gets about five seconds for its answer`() {
         assertEquals(5_000L, ListenStop.ANSWER_WITHIN_MS)
     }
+
+    @Test
+    fun `asked to stop, an empty answer or an error gives way to what was heard`() {
+        val stop = ListenStop()
+        stop.listening()
+        stop.partial("ich komme um acht")
+        stop.stop()
+        assertEquals("ich komme um acht", stop.heardOnStop)
+    }
+
+    @Test
+    fun `not asked to stop, an empty answer or an error stays what it is`() {
+        val stop = ListenStop()
+        stop.listening()
+        stop.partial("ich komme um acht")
+        assertNull(stop.heardOnStop, "the recognizer ended by itself")
+        stop.stop()
+        val nothing = ListenStop()
+        nothing.listening()
+        nothing.stop()
+        assertNull(nothing.heardOnStop, "nothing heard before the stop")
+    }
 }

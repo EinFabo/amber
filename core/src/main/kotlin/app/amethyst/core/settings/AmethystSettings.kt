@@ -9,6 +9,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.OpenAiCompatibleEngine
+import app.amethyst.core.engine.Servers
 import app.amethyst.core.history.HistoryOffer
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.core.text.NormalizeOptions
@@ -16,6 +17,13 @@ import app.amethyst.core.text.OwnWords
 import app.amethyst.core.text.SpliceOptions
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
 
 @Serializable
 data class EngineConfig(
@@ -401,7 +409,9 @@ data class AmethystSettings(
 /**
  * Serialises settings for DataStore. Tolerates unknown keys so older builds survive upgrades,
  * and a value it does not know (an option a newer build added, a null where it expects one)
- * where the field has a default: that one field takes its default, the rest stays.
+ * where the field has a default: that one field takes its default, the rest stays. An engine
+ * it cannot read at all - of a kind a newer build added, which has no default to fall back to -
+ * is left out and the rest is read ([SettingsRead.Partial]).
  */
 object SettingsCodec {
     private val json = Json {
@@ -429,8 +439,39 @@ object SettingsCodec {
         } catch (failure: Exception) {
             // IllegalArgumentException covers SerializationException; anything the migration
             // throws counts the same - the saved settings are not usable as they are.
-            SettingsRead.Unreadable(AmethystSettings.defaults(phone), SettingsRead.reason(failure))
+            val reason = SettingsRead.reason(failure)
+            withoutUnreadableEngines(raw)?.let { SettingsRead.Partial(it, reason) }
+                ?: SettingsRead.Unreadable(AmethystSettings.defaults(phone), reason)
         }
+    }
+
+    /**
+     * [raw] read once more with the engines this build cannot read left out, or null when that
+     * changes nothing or does not help. A newer build's engine kind is the change this file sees
+     * most, and without it the whole file would fall to the defaults - the introduction again,
+     * every setting looking lost. The active engine, if it was left out, hands over the way a
+     * removed one does.
+     */
+    private fun withoutUnreadableEngines(raw: String): AmethystSettings? = try {
+        val tree = json.parseToJsonElement(raw).jsonObject
+        val engines = tree["engines"] as? JsonArray
+        val kept = engines?.filter { readable(it) }
+        if (engines == null || kept == null || kept.size == engines.size) {
+            null
+        } else {
+            val settings = migrate(json.decodeFromJsonElement<AmethystSettings>(JsonObject(tree + ("engines" to JsonArray(kept)))))
+            val leftOut = (engines - kept.toSet()).mapNotNull { ((it as? JsonObject)?.get("id") as? JsonPrimitive)?.contentOrNull }
+            if (settings.activeEngineId in leftOut) settings.copy(activeEngineId = Servers.nextActive(settings.engines)) else settings
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun readable(engine: JsonElement): Boolean = try {
+        json.decodeFromJsonElement<EngineConfig>(engine)
+        true
+    } catch (_: Exception) {
+        false
     }
 
     /**

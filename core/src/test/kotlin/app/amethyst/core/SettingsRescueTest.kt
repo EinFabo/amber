@@ -1,6 +1,8 @@
 package app.amethyst.core
 
+import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.SettingsCodec
@@ -43,6 +45,56 @@ class SettingsRescueTest {
         assertIs<SettingsRead.Saved>(read)
         assertEquals(ThemeMode.SYSTEM, read.settings.ui.theme)
         assertTrue(read.settings.onboardingDone)
+    }
+
+    @Test
+    fun `a server of a kind this build does not know is left out and the rest is read`() {
+        val withServers = mine.copy(
+            engines = listOf(EngineConfig.fromPreset(EnginePresets.GROQ), EngineConfig.fromPreset(EnginePresets.OPENAI)),
+            activeEngineId = EnginePresets.OPENAI.id,
+        )
+        val encoded = SettingsCodec.encode(withServers)
+        val newer = encoded.replaceFirst("\"kind\": \"OPENAI_COMPATIBLE\"", "\"kind\": \"SOMETHING_NEWER\"")
+        assertTrue(newer != encoded, "fixture: no engine kind replaced")
+        val read = SettingsCodec.read(newer, TEST_PHONE)
+        assertIs<SettingsRead.Partial>(read)
+        assertEquals(listOf(EnginePresets.OPENAI.id), read.settings.engines.map { it.id })
+        assertEquals(EnginePresets.OPENAI.id, read.settings.activeEngineId)
+        assertTrue(read.settings.onboardingDone)
+        assertTrue("engines" in read.reason, read.reason)
+        assertTrue("SOMETHING_NEWER" !in read.reason, "no value in the reason: ${read.reason}")
+    }
+
+    @Test
+    fun `the active server left out hands over to one that is read`() {
+        val withServers = mine.copy(
+            engines = listOf(EngineConfig.fromPreset(EnginePresets.GROQ), EngineConfig.fromPreset(EnginePresets.OPENAI)),
+            activeEngineId = EnginePresets.GROQ.id,
+        )
+        val newer = SettingsCodec.encode(withServers)
+            .replaceFirst("\"kind\": \"OPENAI_COMPATIBLE\"", "\"kind\": \"SOMETHING_NEWER\"")
+        val read = SettingsCodec.read(newer, TEST_PHONE)
+        assertIs<SettingsRead.Partial>(read)
+        assertEquals(EnginePresets.OPENAI.id, read.settings.activeEngineId)
+    }
+
+    @Test
+    fun `settings read in part go aside and are used meanwhile, and only a full read brings them back`() {
+        val withServers = mine.copy(engines = listOf(EngineConfig.fromPreset(EnginePresets.GROQ)))
+        val newer = SettingsCodec.encode(withServers)
+            .replaceFirst("\"kind\": \"OPENAI_COMPATIBLE\"", "\"kind\": \"SOMETHING_NEWER\"")
+        val outcome = SettingsRescue.of(Stored(newer, null), TEST_PHONE)
+        assertTrue(outcome.settings.onboardingDone)
+        assertTrue(outcome.settings.engines.isEmpty())
+        assertEquals(Stored(newer, newer), outcome.store)
+        assertIs<SettingsRescue.Event.KeptAside>(outcome.event)
+        assertTrue("defaults" !in outcome.event!!.line, outcome.event!!.line)
+        // Changes made with this build meanwhile stay: the copy reads only in part here.
+        val meanwhile = SettingsCodec.encode(outcome.settings.copy(onboardingDone = false))
+        val later = SettingsRescue.of(Stored(meanwhile, newer), TEST_PHONE)
+        assertEquals(false, later.settings.onboardingDone)
+        assertNull(later.store)
+        assertNull(later.event)
     }
 
     @Test

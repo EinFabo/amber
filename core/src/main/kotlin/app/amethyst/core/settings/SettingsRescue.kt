@@ -11,6 +11,12 @@ sealed interface SettingsRead {
     data class Saved(override val settings: AmethystSettings) : SettingsRead
 
     /**
+     * Saved, and read with the parts this build cannot read left out - an engine of a kind a
+     * newer build added. The app runs on the rest; [reason] as for [Unreadable].
+     */
+    data class Partial(override val settings: AmethystSettings, val reason: String) : SettingsRead
+
+    /**
      * Saved, but this build cannot read it - written by a newer build after a downgrade, or
      * damaged. The app runs on the defaults; [reason] is for Diagnostics: the failure's kind
      * and where in the settings, never a value (the settings hold the user's own words).
@@ -55,10 +61,11 @@ object SettingsRescue {
         /** Diagnostics only: English, never shown as a message. */
         val line: String
 
-        data class KeptAside(val reason: String) : Event {
+        data class KeptAside(val reason: String, val inPart: Boolean = false) : Event {
             override val line: String
-                get() = "Stored settings could not be read ($reason): a copy is kept and comes back " +
-                    "with an app version that reads it; the defaults stand in until then"
+                get() = "Stored settings could not be read${if (inPart) " in full" else ""} ($reason): a copy is kept " +
+                    "and comes back with an app version that reads it; " +
+                    (if (inPart) "the parts read stand in until then" else "the defaults stand in until then")
         }
 
         data object Restored : Event {
@@ -71,11 +78,19 @@ object SettingsRescue {
         val main = SettingsCodec.read(stored.main.orEmpty(), phone)
         // The settings in place are always the newest: only another build can have written
         // something this one cannot read, and it did so after this one last saved. They go
-        // aside, over an older copy.
-        if (main is SettingsRead.Unreadable) {
-            val keep = if (stored.backup == stored.main) null else Stored(stored.main, stored.main)
-            return Outcome(main.settings, keep, keep?.let { Event.KeptAside(main.reason) })
+        // aside, over an older copy. Read in part, the same: what was left out must not be lost
+        // to the next save.
+        val aside = when (main) {
+            is SettingsRead.Unreadable -> Event.KeptAside(main.reason)
+            is SettingsRead.Partial -> Event.KeptAside(main.reason, inPart = true)
+            else -> null
         }
+        if (aside != null) {
+            val keep = if (stored.backup == stored.main) null else Stored(stored.main, stored.main)
+            return Outcome(main.settings, keep, keep?.let { aside })
+        }
+        // Only a copy read in full comes back: one this build reads in part is the one it
+        // kept aside itself, and bringing it back would undo every change made since.
         val backup = stored.backup?.let { SettingsCodec.read(it, phone) }
         if (backup is SettingsRead.Saved) {
             return Outcome(backup.settings, Stored(stored.backup, null), Event.Restored)

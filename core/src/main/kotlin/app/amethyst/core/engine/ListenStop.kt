@@ -58,6 +58,15 @@ class ListenStop {
     val heard: String?
         @Synchronized get() = partial?.trim()?.takeIf { it.isNotEmpty() }
 
+    /**
+     * What stands in for an empty result or an error once a stop was asked for: [heard], or
+     * null when no stop was asked for (the recognizer ended by itself - its answer stands).
+     * Stopped - by a tap or a call, whose audio mode can silence the recognizer - it may answer
+     * "no match" or nothing for words the bubble already showed; those words are what was said.
+     */
+    val heardOnStop: String?
+        @Synchronized get() = if (asked) heard else null
+
     companion object {
         /** How long a recognizer asked to stop gets for its answer. */
         const val ANSWER_WITHIN_MS = 5_000L

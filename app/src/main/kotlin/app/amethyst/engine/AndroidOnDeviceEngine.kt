@@ -164,8 +164,8 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                 }
 
                 override fun onResults(results: Bundle?) {
-                    val text = firstResult(results)
-                    if (text.isNullOrBlank()) {
+                    val text = firstResult(results)?.takeIf { it.isNotBlank() } ?: stop.heardOnStop
+                    if (text == null) {
                         settle(
                             Result.failure(
                                 SttFailure(Problem.NothingRecognized, "empty RESULTS_RECOGNITION"),
@@ -177,7 +177,15 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                 }
 
                 override fun onError(error: Int) {
-                    settle(Result.failure(failureFor(error)))
+                    // Asked to stop, the words the bubble showed are what was said, whatever the
+                    // recognizer makes of the end ([ListenStop.heardOnStop]).
+                    val text = stop.heardOnStop
+                    if (text != null) {
+                        Log.w(TAG, "the system recognizer answered the stop with error $error - taking its last interim text")
+                        settle(Result.success(heard(text)))
+                    } else {
+                        settle(Result.failure(failureFor(error)))
+                    }
                 }
             })
 
