@@ -20,6 +20,11 @@ import app.amethyst.core.audio.VadDecision
  *   at the stop tap. Now a tap ends the recording, and [EMPTY_READS] in a row end it too.
  * - **A read that fails** mid-recording used to drop everything recorded. Now it ends the
  *   recording, and what was captured is recognized.
+ * - **A phone call starts** while it records. Android does not silence an accessibility
+ *   service's recording for a call (Pixel 9a, Android 17, 2026-11-22: a dictation went on
+ *   through a call and wrote down the user's side of it). So a call that begins - ringing,
+ *   a phone call, a call in an app ([inCall]) - ends the recording; one that was already on
+ *   when the dictation started is the user's choice and changes nothing.
  *
  * Whatever ends it here, what was said before is kept and sent like a tap's ([ending]).
  */
@@ -49,16 +54,25 @@ class MicrophoneWatch(
 
         /** The read failed or stopped delivering. */
         UNREADABLE,
+
+        /** A call began after the recording started: what follows is the call, not a dictation. */
+        CALL,
     }
 
     private var silentMs = 0
     private var emptyReads = 0
 
+    /** Whether a call was on at the first read; null before it. */
+    private var callAtStart: Boolean? = null
+
     /**
      * After every read: [read] is its result (samples, zero, or a negative error code),
-     * [allZero] whether the samples were exact zeros, [silenced] what Android says right now.
+     * [allZero] whether the samples were exact zeros, [silenced] what Android says right now,
+     * [inCall] whether the phone is ringing or in a call (also one in an app) right now.
      */
-    fun onRead(read: Int, allZero: Boolean, silenced: Boolean, stopRequested: Boolean): Step {
+    fun onRead(read: Int, allZero: Boolean, silenced: Boolean, stopRequested: Boolean, inCall: Boolean = false): Step {
+        val callBefore = callAtStart ?: inCall.also { callAtStart = it }
+        if (inCall && !callBefore) return Step.Lost(Why.CALL, "a call started during the recording")
         if (read < 0) return Step.Lost(Why.UNREADABLE, "the read failed with $read")
         if (read == 0) {
             if (stopRequested) return Step.Stopped
@@ -88,9 +102,13 @@ class MicrophoneWatch(
          * worth sending are sent, the reason kept; without them the user is told why nothing
          * came of it - not "nothing heard".
          */
-        fun ending(why: Why, manualStop: VadDecision): VadDecision = when (manualStop) {
-            is VadDecision.Stop -> VadDecision.Stop(if (why == Why.SILENCED) StopReason.MIC_SILENCED else StopReason.MIC_LOST)
-            else -> VadDecision.Discard(if (why == Why.SILENCED) DiscardReason.MIC_SILENCED else DiscardReason.MIC_LOST)
+        fun ending(why: Why, manualStop: VadDecision): VadDecision {
+            // A call took the microphone, as another app would: said so in the same words.
+            val taken = why == Why.SILENCED || why == Why.CALL
+            return when (manualStop) {
+                is VadDecision.Stop -> VadDecision.Stop(if (taken) StopReason.MIC_SILENCED else StopReason.MIC_LOST)
+                else -> VadDecision.Discard(if (taken) DiscardReason.MIC_SILENCED else DiscardReason.MIC_LOST)
+            }
         }
     }
 }

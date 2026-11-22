@@ -10,6 +10,7 @@ import app.amethyst.core.capture.MicrophoneWatch.Step
 import app.amethyst.core.capture.MicrophoneWatch.Why
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertIs
 
 class MicrophoneWatchTest {
@@ -136,5 +137,22 @@ class MicrophoneWatchTest {
             repeat(MicrophoneWatch.EMPTY_READS - 1) { assertEquals(Step.Again, watch.onRead(0, allZero = false, silenced = false, stopRequested = false)) }
             assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false))
         }
+    }
+
+    @Test
+    fun `a call that starts during the recording ends it, with what was said kept`() {
+        val watch = known()
+        repeat(20) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = false)) }
+        val step = watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)
+        assertTrue(step is Step.Lost && step.why == Why.CALL)
+        // Said like another app taking the microphone; words before it are sent.
+        assertEquals(VadDecision.Stop(StopReason.MIC_SILENCED), MicrophoneWatch.ending(Why.CALL, VadDecision.Stop(StopReason.MANUAL)))
+        assertEquals(VadDecision.Discard(DiscardReason.MIC_SILENCED), MicrophoneWatch.ending(Why.CALL, VadDecision.Discard(DiscardReason.NO_SPEECH)))
+    }
+
+    @Test
+    fun `a call that was already on when the dictation started changes nothing`() {
+        val watch = known()
+        repeat(50) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)) }
     }
 }

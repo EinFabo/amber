@@ -624,7 +624,7 @@ open class Screenshots {
 
     @Composable
     private fun KeepStyle(cleanupOpen: Boolean = false) = app.amethyst.ui.screen.AppStyleScreen(
-        profile = keep, settings = pipeline.copy(profiles = listOf(keep)), apps = FakeApps, access = cleanupAccess,
+        profile = keep, settings = pipeline.copy(profiles = listOf(keep)), access = cleanupAccess,
         modelReady = { true }, onUpdateSettings = {}, onRemoved = {}, initialCleanupOpen = cleanupOpen,
     )
 
@@ -656,7 +656,7 @@ open class Screenshots {
         app.amethyst.ui.screen.AppStyleScreen(
             profile = app.amethyst.core.settings.AppProfile(GAME, FakeApps.label(GAME)),
             settings = settings.copy(profiles = emptyList(), bubble = settings.bubble.copy(hiddenIn = listOf(GAME))),
-            apps = FakeApps, access = cleanupAccess, modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
+            access = cleanupAccess, modelReady = { true }, onUpdateSettings = {}, onRemoved = {},
         )
     }
 

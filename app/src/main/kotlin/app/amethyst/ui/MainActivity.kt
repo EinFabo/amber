@@ -918,7 +918,6 @@ private fun AmethystScreens(
                         AppStyleScreen(
                             profile = profile,
                             settings = settings,
-                            apps = apps,
                             access = cleanupAccess,
                             modelReady = graph::modelReady,
                             onUpdateSettings = ::updateSettings,

@@ -18,6 +18,7 @@ import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.accessibility.FieldEditor
 import app.amethyst.capture.AudioCapture
+import app.amethyst.capture.PhoneCall
 import app.amethyst.capture.MicForegroundService
 import app.amethyst.capture.MediaPause
 import app.amethyst.capture.MicProxyActivity
@@ -138,6 +139,9 @@ class DictationController(
     val state: StateFlow<DictationState> = _state.asStateFlow()
 
     private val capture = AudioCapture()
+
+    /** Whether a call rings or runs: a recording ends when one begins. */
+    private val phoneCall by lazy { PhoneCall(context) }
 
     /** The stop a tap asks of the run in progress; a run that ended late never clears a later one's. */
     private val runStop = RunStop()
@@ -1016,6 +1020,8 @@ class DictationController(
                 onStarted = ::microphoneOpen,
                 // The start tone plays as the microphone opens: its beep is not to be recognized.
                 silenceFirstMs = if (graph.settings.value.feedback.sounds) StartToneMute.START_TONE_MS else 0,
+                // A call that begins ends the recording: it must not write down the call.
+                inCall = phoneCall::on,
             )
         } catch (e: Throwable) {
             chunked?.cancel()

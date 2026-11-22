@@ -435,10 +435,8 @@ fun BubbleScreen(
 
         // The apps it stays out of, here where people look for them; each app's page says it too.
         SettingsGroup(stringResource(R.string.bubble_hidden_group), note = stringResource(R.string.bubble_hidden_note)) {
+            // None hidden yet: only the way to hide it somewhere, no row that looks tappable and is not.
             val hidden = bubble.hiddenIn.distinct()
-            if (hidden.isEmpty()) {
-                NavRow(stringResource(R.string.bubble_none_hidden), summary = null, icon = AmberIcons.Apps, trailing = null, onClick = null)
-            }
             hidden.forEach { packageName ->
                 NavRow(
                     apps.label(packageName),
@@ -449,7 +447,6 @@ fun BubbleScreen(
                 )
                 RowDivider()
             }
-            if (hidden.isEmpty()) RowDivider()
             NavRow(stringResource(R.string.styles_add_app), summary = null, icon = AmberIcons.Add, trailing = null) { picking = true }
         }
 

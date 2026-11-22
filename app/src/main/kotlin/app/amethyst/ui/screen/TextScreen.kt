@@ -54,7 +54,7 @@ fun TextScreen(
 ) {
     SubPage(modifier) {
         // Cleanup and these rules both change the text; which is which, said once on top.
-        Hint(stringResource(R.string.text_page_lead))
+        Hint(stringResource(R.string.text_page_lead), modifier = Modifier.padding(horizontal = 16.dp))
         SectionCard(
             title = stringResource(R.string.text_words),
         ) {
@@ -139,7 +139,7 @@ fun OwnWordsScreen(
         // Said only while it matters: the active recognition cannot take the list.
         val active = settings.activeEngine
         if (active != null && !OwnWordsReach.recognitionTakes(active.kind)) {
-            Hint(stringResource(R.string.own_words_not_used, recognitionRowName(active)), AmberPalette.Primary)
+            Hint(stringResource(R.string.own_words_not_used, recognitionRowName(active)), AmberPalette.Primary, Modifier.padding(horizontal = 16.dp))
         }
     }
 }

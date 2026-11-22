@@ -78,7 +78,6 @@
     <string name="reset">Zurücksetzen</string>
     <string name="bubble_hidden_group">Ausgeblendet in</string>
     <string name="bubble_hidden_note">Spiele oder Apps mit eigener Spracheingabe</string>
-    <string name="bubble_none_hidden">Noch keine ausgeblendet</string>
     <string name="bubble_preview_text">Hi, ich bin in zehn Minuten da. Bring den Schlüssel mit, meiner liegt schon wieder zu Hause.</string>
     <string name="reliability_subtitle">Optional. Hält Android davon ab, das Mikrofon abzuschalten.</string>
     <string name="engine_stops_at_pause">Hört bei Pausen auf</string>

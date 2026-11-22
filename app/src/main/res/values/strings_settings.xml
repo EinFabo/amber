@@ -78,7 +78,6 @@
     <string name="reset">Reset</string>
     <string name="bubble_hidden_group">Hidden in these apps</string>
     <string name="bubble_hidden_note">For games, or apps with their own voice input</string>
-    <string name="bubble_none_hidden">No apps yet</string>
     <string name="bubble_preview_text">Hi, I\'ll be there in ten minutes. Bring the key, I left mine at home again.</string>
     <string name="reliability_subtitle">Optional. Keeps Android from cutting off the microphone.</string>
     <string name="engine_stops_at_pause">Stops at a pause</string>

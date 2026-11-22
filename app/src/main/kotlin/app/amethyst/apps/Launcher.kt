@@ -37,6 +37,8 @@ object Launcher {
      */
     fun installed(context: Context, packageName: String?): String? {
         if (packageName.isNullOrBlank() || packageName == context.packageName || packageName.length > MAX_PACKAGE_CHARS) return null
+        // The home screen is seen in front between apps, but nothing is dictated there.
+        if (isHome(context, packageName)) return null
         val found = inOwnProfile(context, packageName) ||
             packageName in AmethystApp.graph(context).appsSeenInFront ||
             otherProfiles(context).any { user -> inProfile(context, packageName, user) }
@@ -71,6 +73,22 @@ object Launcher {
             runCatching { launcherApps(context)?.getActivityList(packageName, user)?.firstOrNull()?.getBadgedIcon(0) }.getOrNull()
         }
     }
+
+    /**
+     * Whether [packageName] is a home screen (a launcher in the HOME sense): seen in front
+     * between apps, never one to give a style or a quick menu action to.
+     */
+    fun isHome(context: Context, packageName: String): Boolean {
+        val home = homes ?: runCatching {
+            context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+                .mapTo(HashSet()) { it.activityInfo.packageName }
+        }.getOrDefault(emptySet()).also { homes = it }
+        return packageName in home
+    }
+
+    /** The home screens, read once per process: they rarely change. */
+    @Volatile
+    private var homes: Set<String>? = null
 
     /** The profiles besides Amber's own that Android lets Amber look into; none where it lets it see none. */
     private fun otherProfiles(context: Context): List<UserHandle> {

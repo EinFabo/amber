@@ -79,6 +79,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         onStarted: () -> Unit = {},
         /** The recording's first moments silenced, for the start tone that plays then ([StartToneMute]); 0 for none. */
         silenceFirstMs: Int = 0,
+        /** Whether the phone rings or is in a call now ([PhoneCall]); asked a few times a second. */
+        inCall: () -> Boolean = { false },
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -157,11 +159,16 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 VadDecision.Continue -> error("a recording that goes on has not ended")
             }
 
+            // The audio mode is a call into the system: asked every few frames, not every one.
+            val callEvery = (CALL_CHECK_MS / config.frameMs).coerceAtLeast(1)
+            var reads = 0
+            var call = inCall()
             while (currentCoroutineContext().isActive) {
                 val read = recorder.read(frame, 0, frameSamples)
                 val stop = stopRequested()
+                if (++reads % callEvery == 0) call = inCall()
                 val allZero = read > 0 && (0 until read).all { frame[it] == 0.toShort() }
-                when (val step = watch.onRead(read, allZero, silenced = silence.silenced, stopRequested = stop)) {
+                when (val step = watch.onRead(read, allZero, silenced = silence.silenced, stopRequested = stop, inCall = call)) {
                     MicrophoneWatch.Step.Frame -> Unit
                     MicrophoneWatch.Step.Again -> continue
                     MicrophoneWatch.Step.Stopped -> return@withContext ended(vad.onManualStop())
@@ -243,5 +250,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
 
     private companion object {
         const val TAG = "Embersay"
+
+        /** How often a running recording asks whether a call began ([PhoneCall]). */
+        const val CALL_CHECK_MS = 250
     }
 }

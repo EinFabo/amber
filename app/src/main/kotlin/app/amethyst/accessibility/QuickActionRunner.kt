@@ -109,7 +109,7 @@ class QuickActionRunner(
     }
 
     /** The app in front when it is an installed app other than Amber ([Launcher.installed]) - the one rule for every action. */
-    private fun otherApp(currentApp: String?): String? = Launcher.installed(service, currentApp)
+    private fun otherApp(currentApp: String?): String? = Launcher.installed(service, service.appInFrontNow() ?: currentApp)
 
     private fun cleanupHere(app: String, on: Boolean): Boolean {
         val label = labelOf(app)

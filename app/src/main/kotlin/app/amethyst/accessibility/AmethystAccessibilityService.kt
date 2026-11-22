@@ -12,6 +12,7 @@ import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -261,9 +262,25 @@ class AmethystAccessibilityService : AccessibilityService() {
      * ([app.amethyst.core.apps.AppsSeenInFront]).
      */
     private fun inFront(pkg: String) {
-        if (pkg != packageName) graph.appsSeenInFront.add(pkg)
+        noteSeenInFront(pkg)
         bubble?.setCurrentApp(pkg)
     }
+
+    /** An app the user is in, for [app.amethyst.core.apps.AppsSeenInFront] - never Amber, never a home screen. */
+    private fun noteSeenInFront(pkg: String) {
+        if (pkg != packageName && !Launcher.isHome(this, pkg)) graph.appsSeenInFront.add(pkg)
+    }
+
+    /**
+     * The app whose window has the focus right now, asked of the windows themselves. The last
+     * window event can be stale: back from the recent apps into an app, Pixel's launcher sent
+     * the last one, and the quick menu offered a style for the launcher (2026-11-22). Asked
+     * once when the quick menu opens, not on every event.
+     */
+    fun appInFrontNow(): String? = runCatching {
+        windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused }
+            ?.root?.packageName?.toString()
+    }.getOrNull()?.also(::noteSeenInFront)
 
     /** Whether a window change of these kinds can be a keyboard coming, going or resizing; 0 says nothing. */
     private fun mayMoveKeyboard(changes: Int): Boolean = changes == 0 || changes and KEYBOARD_WINDOW_CHANGES != 0

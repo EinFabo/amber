@@ -147,7 +147,8 @@ fun EngineDetailScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val preset = if (Servers.isServer(config)) EnginePresets.SERVER else EnginePresets.byId(config.id)
-    val local = config.kind == EngineKind.WHISPER_CPP
+    // A model on the phone is tested, not a connection: Whisper and Parakeet alike.
+    val local = config.kind == EngineKind.WHISPER_CPP || config.kind == EngineKind.LOCAL_SHERPA
 
     fun edited(): EngineConfig = config.copy(
         baseUrl = baseUrl.trim().takeIf { it.isNotBlank() },

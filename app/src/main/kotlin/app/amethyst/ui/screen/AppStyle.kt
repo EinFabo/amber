@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,7 +19,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,8 +40,6 @@ import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.text.ChatCleanup
 import app.amethyst.ui.AmberIcons
-import app.amethyst.ui.AppIcon
-import app.amethyst.ui.AppSource
 import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.DangerAction
 import app.amethyst.ui.ExpandChevron
@@ -80,7 +76,6 @@ private const val INSTRUCTION_SAVE_MS = 600L
 fun AppStyleScreen(
     profile: AppProfile,
     settings: AmethystSettings,
-    apps: AppSource,
     /** Keys, settings and servers, for the cleanup's service list. */
     access: CleanupAccess,
     /** Whether a speech recognition's model is on the phone (true for one elsewhere). */
@@ -112,16 +107,8 @@ fun AppStyleScreen(
         if (!removed) onUpdateSettings { it.copy(profiles = AppRows.edited(it.profiles, profile.packageName, profile.label, change)) }
     }
 
+    // The app's name is the page's title already ([app.amethyst.ui.MainActivity]): no second one here.
     SubPage(modifier) {
-        Row(
-            Modifier.padding(start = 16.dp, top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            AppIcon(profile.packageName, apps, size = 44.dp)
-            Text(profile.label, style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
-        }
-
         // Written to the bubble's own list of apps it stays out of, not to the profile.
         SectionCard(title = null) {
             ToggleRow(

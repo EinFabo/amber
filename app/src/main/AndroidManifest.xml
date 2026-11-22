@@ -24,6 +24,12 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Home screens: never "the app in front" for the quick menu - there is nothing to
+             dictate into, and a style for the launcher makes no sense (Launcher.isHome). -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
         <!-- The old Amber (the id before the rename to Embersay): Home asks to uninstall it so
              only one bubble shows. The same list as OtherAmbers.OLD_PACKAGES. -->
         <package android:name="app.amber" />
