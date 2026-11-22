@@ -25,4 +25,22 @@ object OwnClip {
 
     /** Whether the clip on the clipboard - its [label], [marked] with [MARK] - is Amber's. */
     fun isOurs(label: CharSequence?, marked: Boolean): Boolean = marked || label?.toString() in OLD_LABELS
+
+    /**
+     * Whether the clip written [writtenAgoMs] ago to paste a dictation may be cleared now that
+     * the words are in the field. [ours] is what the clipboard says of the clip on it now
+     * ([isOurs]), or null when Android would not say: since Android 10 only the app in front
+     * may look at the clipboard, and after a paste into another app that app is in front. Then
+     * the clip is taken to be still the one written for this paste only within
+     * [PASTE_WINDOW_MS] - the paste and its check take a few seconds at most, and nobody copies
+     * something else by hand in that time. Later, or when another clip is there, it stays.
+     */
+    fun clearAfterPaste(ours: Boolean?, writtenAgoMs: Long): Boolean = when (ours) {
+        true -> true
+        false -> false
+        null -> writtenAgoMs in 0..PASTE_WINDOW_MS
+    }
+
+    /** How long after its writing a clip whose owner cannot be read still counts as the paste's. */
+    const val PASTE_WINDOW_MS = 10_000L
 }

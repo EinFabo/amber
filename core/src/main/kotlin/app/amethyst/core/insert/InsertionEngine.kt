@@ -68,6 +68,13 @@ interface EditableTarget {
 fun interface Clipboard {
     /** Returns false if the clipboard could not be written at all. */
     fun copy(text: String): Boolean
+
+    /**
+     * Takes [text] - copied a moment ago only to paste it - off the clipboard again, now that it
+     * is in the field, while the clip is still the app's own ([OwnClip.clearAfterPaste]). True
+     * when it was cleared.
+     */
+    fun forget(text: String): Boolean = false
 }
 
 data class InsertionOutcome(
@@ -192,6 +199,11 @@ class InsertionEngine(
             if (inserted) {
                 memory.recordSuccess(packageName, strategy)
                 onMemoryChanged(memory)
+                // The clip was only the way in: left there, every dictation pasted would stay
+                // on the clipboard - for the next paste anywhere, and for any app allowed to
+                // read it. A clip that is the fallback ("copied, paste it yourself") never
+                // gets here: then nothing went into the field.
+                if (copied && clipboard.forget(words)) copied = false
                 val fragment = when (strategy) {
                     InsertionStrategy.COMMIT_TEXT -> committed
                     InsertionStrategy.SET_TEXT -> setFragment

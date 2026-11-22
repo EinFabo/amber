@@ -10,6 +10,7 @@ import android.util.Log
 import app.amethyst.core.engine.whisper.ModelInstall
 import app.amethyst.core.engine.whisper.ModelSlots
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
+import app.amethyst.core.engine.whisper.WhisperModelFile
 import app.amethyst.core.engine.whisper.WhisperModelInfo
 import app.amethyst.core.engine.whisper.WhisperModelSpec
 import app.amethyst.core.engine.whisper.WhisperModels
@@ -106,7 +107,8 @@ class WhisperModelStore(
     /**
      * A picked file goes into the slot of the catalog model it matches by size - so an
      * imported FUTO file keeps its short context and gets its hash checked - or into the
-     * slot for foreign files.
+     * slot for foreign files, checked from end to end before native code sees it
+     * ([ModelInstall]).
      */
     fun import(uri: Uri) {
         val size = runCatching {
@@ -117,6 +119,10 @@ class WhisperModelStore(
         val id = known?.id ?: WhisperModels.IMPORTED_ID
 
         slots.run(id, context.getString(R.string.slot_copying)) { report, isCancelled ->
+            // Said at once rather than after gigabytes copied (the copy stops there anyway).
+            if (known == null && size != null && size > WhisperModelFile.MAX_IMPORT_BYTES) {
+                return@run Result.failure(ModelFileException(FileProblem.TooLarge(WhisperModelFile.MAX_IMPORT_BYTES / 1_000_000)))
+            }
             val input = context.contentResolver.openInputStream(uri)
                 ?: return@run Result.failure(ModelFileException(FileProblem.CannotOpen))
             input.use { install(it, id, known, size, report, isCancelled) }

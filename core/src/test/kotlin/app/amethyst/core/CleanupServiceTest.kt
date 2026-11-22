@@ -52,6 +52,7 @@ class CleanupServiceTest {
             baseUrl = "https://api.groq.com/openai/v1",
             modelId = "whisper-large-v3-turbo",
             keyHost = "api.groq.com",
+            keyScheme = "https",
         ), engine)
         assertEquals("key.server-123456", setup.engine.apiKeyAlias)
         assertEquals(CleanupChoice(engine.id, ServerProviders.GROQ.cleanupModels.first { it.recommended }.id), after.cleanup)

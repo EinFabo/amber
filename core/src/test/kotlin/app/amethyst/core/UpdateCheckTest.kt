@@ -173,8 +173,42 @@ class GithubReleasesTest {
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("", 502), "0.23.0"))
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("<html></html>"), "0.23.0"))
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport.json("""{"tag_name":"soon"}"""), "0.23.0"))
-        // A redirect is not followed (the transport has redirects off) and not a release.
+        // A redirect that names no address is not a release.
         assertIs<UpdateFetch.Failed>(GithubReleases.fetch(FakeHttpTransport { HttpResponse(301, ByteArray(0)) }, "0.23.0"))
+    }
+
+    @Test
+    fun `a renamed repository's redirect within api github com is followed`() = runTest {
+        val moved = "https://api.github.com/repositories/123456/releases/latest"
+        val transport = FakeHttpTransport { request ->
+            if (request.url == moved) HttpResponse(200, release.encodeToByteArray())
+            else HttpResponse(301, ByteArray(0), mapOf("location" to moved))
+        }
+        assertEquals(AppVersion(0, 24, 0), assertIs<UpdateFetch.Found>(GithubReleases.fetch(transport, "0.23.0")).release.version)
+        assertEquals(listOf(GithubReleases.LATEST_URL, moved), transport.requests.map { it.url })
+        assertEquals(transport.requests.first().headers, transport.requests.last().headers, "the same anonymous request")
+        // A path of its own resolves against the API too.
+        assertEquals(moved, GithubReleases.redirectTarget(GithubReleases.LATEST_URL, "/repositories/123456/releases/latest"))
+    }
+
+    @Test
+    fun `a redirect anywhere else is not followed and says where it pointed`() = runTest {
+        for (location in listOf(
+            "http://api.github.com/repos/EinFabo/amber/releases/latest",
+            "https://github.com/EinFabo/amber/releases/latest",
+            "https://api.github.com.evil.example/releases/latest",
+            "https://user@api.github.com/repos/x/releases/latest",
+            "https://api.github.com:8443/repos/x/releases/latest",
+        )) {
+            val transport = FakeHttpTransport { HttpResponse(301, ByteArray(0), mapOf("Location" to location)) }
+            val failed = assertIs<UpdateFetch.Failed>(GithubReleases.fetch(transport, "0.23.0"), location)
+            assertEquals(1, transport.requests.size, location)
+            assertTrue("not followed" in failed.detail, failed.detail)
+        }
+        // Round and round: given up after a few.
+        val loop = FakeHttpTransport { HttpResponse(302, ByteArray(0), mapOf("Location" to GithubReleases.LATEST_URL)) }
+        assertIs<UpdateFetch.Failed>(GithubReleases.fetch(loop, "0.23.0"))
+        assertEquals(4, loop.requests.size)
     }
 
     @Test

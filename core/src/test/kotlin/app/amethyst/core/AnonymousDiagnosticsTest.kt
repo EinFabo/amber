@@ -76,11 +76,11 @@ class AnonymousDiagnosticsTest {
     }
 
     @Test
-    fun `apps, timings, reasons and hosts stay`() {
+    fun `timings, reasons and hosts stay, and an app as its alias`() {
         fill()
         val text = copy()
         for (kept in listOf(
-            "com.whatsapp", "recording 1.2 s", "cleanup 300 ms (llama, de)", "https://pc.example:8443/…",
+            "SET_TEXT · app 1", "recording 1.2 s", "cleanup 300 ms (llama, de)", "https://pc.example:8443/…",
             "HTTP 400: answer of", "HTTP 500: answer of", "not understood: no rule matches", "outcome: failed",
             "text: 34 characters, 4 words, 1 line", "text: 50 characters, 7 words, 2 lines", "heard: 34 characters, 4 words, 1 line",
             "words: 4", "keyboard settled at 1466", "Note: Amber (debug) is also on - switch one off.",

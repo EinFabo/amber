@@ -949,7 +949,7 @@ class DictationController(
                 commandRecorded = true
                 val steps = commandSteps
                 graph.memory.log.recordFailure(
-                    "Stopped by a tap.", engineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true,
+                    "Stopped by a tap.", engineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, appLabel = runAppLabel(),
                     details = if (steps == null) listOf("stopped by a tap before the command ran")
                     else steps.apply { note("stopped by a tap") }.lines,
                 )
@@ -1158,6 +1158,7 @@ class DictationController(
         graph.memory.log.recordFailure(
             "Paused for more than ${RecordingPause.MAX_PAUSE_MS / 60_000} minutes with nothing recorded - the recording ended.",
             timing = trace?.summary(namesApps = graph.memory.log.namesApps),
+            appLabel = runAppLabel(),
         )
         _state.value = DictationState.Idle
     }
@@ -1740,6 +1741,13 @@ class DictationController(
         Resources.getSystem().configuration.locales.takeUnless { it.isEmpty }?.get(0)?.language
 
     /**
+     * The name the run's app has in Amber, which its timing may use ("WhatsApp's own speech
+     * recognition"): a copied report gives it the same alias as the app's package
+     * ([app.amethyst.core.dictation.AppAliases]).
+     */
+    private fun runAppLabel(): String? = AppProfiles.forPackage(graph.settings.value.profiles, runPackage)?.label
+
+    /**
      * The installed apps' launcher labels, for a bare app name: taken once per command when the
      * rules first need them - picking a language, then running the command - and not at all
      * while commands are off. Asked for on the IO pool only; the list itself is the process's
@@ -1976,7 +1984,7 @@ class DictationController(
             if (stoppedByTap && !commandRecorded) {
                 commandRecorded = true
                 steps.note("stopped by a tap")
-                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines)
+                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabel())
             }
             throw e
         }
@@ -1988,7 +1996,7 @@ class DictationController(
             }),
         )
         commandRecorded = true
-        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines)
+        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabel())
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
             fail(plain(outcome.message), transcript.engineId, record = false, logAs = "command not done")
@@ -2168,6 +2176,7 @@ class DictationController(
             targetPackage = insertion.targetPackage,
             note = inserter.lastTrace,
             timing = trace?.summary(namesApps = graph.memory.log.namesApps),
+            appLabel = runAppLabel(),
         )
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
         loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
@@ -2333,9 +2342,9 @@ class DictationController(
                 val steps = commandSteps ?: CommandTrace()
                 details.forEach(steps::note)
                 commandRecorded = true
-                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, details = steps.lines)
+                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, details = steps.lines, appLabel = runAppLabel())
             } else {
-                graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text)
+                graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text, appLabel = runAppLabel())
                 // Words that did not go in are a dictation too: the history keeps them.
                 if (history && text.isNotBlank()) graph.keepInHistory(text, startTarget?.packageName)
                 if (text.isNotBlank()) wordsKept()

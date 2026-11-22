@@ -4,6 +4,7 @@ import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionStrategy
+import app.amethyst.core.insert.OwnClip
 import app.amethyst.core.insert.StrategyMemory
 import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.text.FieldState
@@ -199,6 +200,73 @@ class InsertionEngineTest {
         assertTrue(outcome.copiedToClipboard)
         assertEquals(0, target.setTextCalls)
         assertEquals(0, target.pasteCalls)
+    }
+
+    /** A clipboard that also takes a pasted clip off again, as Amber's does; [forgotten] says what. */
+    private class ForgettingClipboard(private val target: FakeTarget?) : Clipboard {
+        val forgotten = mutableListOf<String>()
+
+        override fun copy(text: String): Boolean {
+            target?.clipboardContent = text
+            return true
+        }
+
+        override fun forget(text: String): Boolean {
+            forgotten += text
+            target?.clipboardContent = null
+            return true
+        }
+    }
+
+    @Test
+    fun `a pasted dictation is taken off the clipboard once it is in the field`() {
+        val target = FakeTarget(setTextLies = true)
+        val clipboard = ForgettingClipboard(target)
+        val outcome = InsertionEngine(StrategyMemory(), clipboard, pause = {}).insert(target, "Hallo Welt")
+
+        assertEquals(InsertionStrategy.PASTE, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(listOf("Hallo Welt"), clipboard.forgotten)
+        assertFalse(outcome.copiedToClipboard, "the clip is gone")
+        assertEquals(null, target.clipboardContent)
+    }
+
+    @Test
+    fun `a clip that is the fallback stays on the clipboard`() {
+        val notWritable = FakeTarget(setTextLies = true, pasteWorks = false)
+        val clipboard = ForgettingClipboard(notWritable)
+        val outcome = InsertionEngine(StrategyMemory(), clipboard, pause = {}).insert(notWritable, "Hallo")
+        assertFalse(outcome.insertedIntoField)
+        assertTrue(outcome.copiedToClipboard)
+        assertEquals("Hallo", notWritable.clipboardContent)
+
+        val lost = FakeTarget(hasInputConnection = true, commitLost = true)
+        val lostClipboard = ForgettingClipboard(lost)
+        val uncertain = InsertionEngine(StrategyMemory(), lostClipboard, pause = {}).insert(lost, "Hallo")
+        assertTrue(uncertain.uncertain)
+        assertTrue(uncertain.copiedToClipboard)
+
+        val nothingFocused = ForgettingClipboard(null)
+        assertTrue(InsertionEngine(StrategyMemory(), nothingFocused, pause = {}).insert(null, "Hallo").copiedToClipboard)
+        assertEquals(emptyList(), clipboard.forgotten + lostClipboard.forgotten + nothingFocused.forgotten)
+    }
+
+    @Test
+    fun `words typed or set without the clipboard leave it alone`() {
+        val target = FakeTarget(initialText = "Guten Morgen")
+        val clipboard = ForgettingClipboard(target)
+        InsertionEngine(StrategyMemory(), clipboard, pause = {}).insert(target, "wie geht es dir")
+        assertEquals(emptyList(), clipboard.forgotten)
+    }
+
+    @Test
+    fun `a pasted clip is cleared only while it is still the app's own`() {
+        assertTrue(OwnClip.clearAfterPaste(ours = true, writtenAgoMs = 60_000))
+        assertFalse(OwnClip.clearAfterPaste(ours = false, writtenAgoMs = 100), "the user copied something since")
+        // Android 10+ shows the clipboard to the app in front only - after a paste, the other app.
+        assertTrue(OwnClip.clearAfterPaste(ours = null, writtenAgoMs = 2_500))
+        assertFalse(OwnClip.clearAfterPaste(ours = null, writtenAgoMs = OwnClip.PASTE_WINDOW_MS + 1))
+        assertFalse(OwnClip.clearAfterPaste(ours = null, writtenAgoMs = -1), "a clock that went back tells nothing")
     }
 
     @Test

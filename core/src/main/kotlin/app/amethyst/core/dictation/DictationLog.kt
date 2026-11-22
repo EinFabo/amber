@@ -53,6 +53,8 @@ class DictationLog(
         note: String? = null,
         /** Where the time went, one line. */
         timing: String? = null,
+        /** The app's name in Amber, when [timing] may name it ([DictationRecord.appLabel]). */
+        appLabel: String? = null,
     ) = add(
         DictationRecord(
             text = transcript.text,
@@ -66,6 +68,7 @@ class DictationLog(
             atMillis = clock(),
             note = note,
             timing = timing,
+            appLabel = appLabel,
         ),
     )
 
@@ -80,6 +83,7 @@ class DictationLog(
         command: Boolean = false,
         details: List<String> = emptyList(),
         text: String = "",
+        appLabel: String? = null,
     ) = add(
         DictationRecord(
             text = text,
@@ -94,6 +98,7 @@ class DictationLog(
             timing = timing,
             command = command,
             details = details,
+            appLabel = appLabel,
         ),
     )
 
@@ -107,6 +112,7 @@ class DictationLog(
         engineId: String?,
         timing: String? = null,
         details: List<String> = emptyList(),
+        appLabel: String? = null,
     ) = add(
         DictationRecord(
             text = heard,
@@ -122,6 +128,7 @@ class DictationLog(
             timing = timing,
             command = true,
             details = details,
+            appLabel = appLabel,
         ),
     )
 
@@ -183,6 +190,12 @@ data class DictationRecord(
      * Diagnostics show in their place. Null while [text] holds them.
      */
     val shape: TextShape? = null,
+    /**
+     * The name the app the run was for has in Amber ([app.amethyst.core.settings.AppProfile.label]),
+     * when its [timing] may name it - "WhatsApp's own speech recognition": a shared report gives
+     * it the alias of [targetPackage] ([AppAliases]).
+     */
+    val appLabel: String? = null,
 ) {
     val failed: Boolean get() = error != null
 
@@ -195,7 +208,7 @@ data class DictationRecord(
      */
     fun withoutWords(): DictationRecord {
         // A command's note is what came of it, not a field's trace.
-        val anonymous = copy(text = "", targetPackage = null, note = note.takeIf { command })
+        val anonymous = copy(text = "", targetPackage = null, appLabel = null, note = note.takeIf { command })
         if (text.isBlank()) return anonymous
         val words = listOf(text)
         return anonymous.copy(

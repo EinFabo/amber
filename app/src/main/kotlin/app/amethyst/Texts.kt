@@ -159,6 +159,8 @@ object Texts {
             FileProblem.TooSmallForWhisper -> getString(R.string.file_too_small_for_whisper)
             FileProblem.NotWhisperCpp -> getString(R.string.file_not_whisper_cpp)
             FileProblem.NotWhisper -> getString(R.string.file_not_whisper)
+            FileProblem.CutShort -> getString(R.string.file_cut_short)
+            is FileProblem.TooLarge -> getString(R.string.file_too_large, problem.maxMb)
             FileProblem.Other -> getString(R.string.file_other)
         }
     }

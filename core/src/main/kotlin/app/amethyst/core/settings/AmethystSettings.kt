@@ -58,6 +58,13 @@ data class EngineConfig(
      * address they had.
      */
     val keyHost: String? = null,
+    /**
+     * The scheme ("https", "http") the key was given over, bound with [keyHost]: a key given
+     * for https://host does not go to http://host, unencrypted. Null for a key bound before
+     * schemes were (it is completed from its address when the settings are read) and while
+     * [keyHost] is.
+     */
+    val keyScheme: String? = null,
 ) {
     companion object {
         fun fromPreset(preset: EnginePreset, languageTag: String? = null) = EngineConfig(
@@ -70,6 +77,7 @@ data class EngineConfig(
             apiKeyAlias = if (preset.needsApiKey) "key.${preset.id}" else null,
             requireEnclave = preset.requireEnclave,
             keyHost = if (preset.needsApiKey) EnginePresets.hostOf(preset.baseUrl) else null,
+            keyScheme = if (preset.needsApiKey) KeyBinding.schemeOf(preset.baseUrl) else null,
         )
 
         /**
@@ -435,7 +443,7 @@ object SettingsCodec {
     fun read(raw: String, phone: List<String>): SettingsRead {
         if (raw.isBlank()) return SettingsRead.Fresh(AmethystSettings.defaults(phone))
         return try {
-            SettingsRead.Saved(migrate(json.decodeFromString<AmethystSettings>(raw)))
+            SettingsRead.Saved(upToDate(json.decodeFromString<AmethystSettings>(raw)))
         } catch (failure: Exception) {
             // IllegalArgumentException covers SerializationException; anything the migration
             // throws counts the same - the saved settings are not usable as they are.
@@ -459,7 +467,7 @@ object SettingsCodec {
         if (engines == null || kept == null || kept.size == engines.size) {
             null
         } else {
-            val settings = migrate(json.decodeFromJsonElement<AmethystSettings>(JsonObject(tree + ("engines" to JsonArray(kept)))))
+            val settings = upToDate(json.decodeFromJsonElement<AmethystSettings>(JsonObject(tree + ("engines" to JsonArray(kept)))))
             val leftOut = (engines - kept.toSet()).mapNotNull { ((it as? JsonObject)?.get("id") as? JsonPrimitive)?.contentOrNull }
             if (settings.activeEngineId in leftOut) settings.copy(activeEngineId = Servers.nextActive(settings.engines)) else settings
         }
@@ -479,6 +487,18 @@ object SettingsCodec {
      * Whisper translates English speech instead of writing it down, so that default - never
      * something the user chose - becomes the German/English pair Whisper detects between.
      */
+    /**
+     * [settings] as read: migrated, and every key bound to its address ([KeyBinding.bindIfUnbound]).
+     * The binding on every read, not only once in a migration: a key bound before schemes were
+     * gets its scheme, and a key that reached the file unbound is bound before its first use -
+     * the next write keeps it so.
+     */
+    private fun upToDate(settings: AmethystSettings): AmethystSettings {
+        val migrated = migrate(settings)
+        val bound = migrated.engines.map(KeyBinding::bindIfUnbound)
+        return if (bound == migrated.engines) migrated else migrated.copy(engines = bound)
+    }
+
     internal fun migrate(settings: AmethystSettings): AmethystSettings {
         if (settings.schemaVersion >= AmethystSettings.SCHEMA_VERSION) return settings
         // Version 6: ElevenLabs Realtime was offered but never worked.
@@ -526,7 +546,8 @@ object SettingsCodec {
                     else -> engine
                 }.let { if (it.id == EnginePresets.TINFOIL.id) it.copy(requireEnclave = true) else it }
                     .copy(cleanupModel = null)
-                    // Version 12: a stored key belongs to the address it was used with so far.
+                    // Version 12: a stored key belongs to the address it was used with so far
+                    // (and, since keys are bound to a scheme too, to that: [upToDate]).
                     .let { if (settings.schemaVersion < 12) KeyBinding.bindIfUnbound(it) else it }
                     // Version 16: Parakeet's new name, unless it was given another one.
                     .let {

@@ -135,24 +135,70 @@ object Servers {
 }
 
 /**
- * Which host an API key may go to. A key is bound when it is given ([EngineConfig.keyHost]); a
- * request to any other host goes without it, and the engine says the key must be entered again.
- * So a changed address - a typo, a pasted link, someone else's hand - never takes the key along.
+ * Which host an API key may go to, and over which scheme. A key is bound when it is given
+ * ([EngineConfig.keyHost], [EngineConfig.keyScheme]); a request to any other host - or over
+ * http to the host it was given for over https - goes without it, and the engine says the key
+ * must be entered again. So a changed address - a typo, a pasted link, someone else's hand -
+ * never takes the key along, nor sends it unencrypted.
+ *
+ * Unbound is a key only while its server has no address at all: nothing can be sent then.
+ * Every read of the settings and every write binds the rest ([bindIfUnbound]), so a key is
+ * bound to the first address it gets, before anything is sent there.
  */
 object KeyBinding {
 
-    /** Whether [engine]'s key may go to its address: bound to that host, or not bound at all. */
+    /**
+     * Whether [engine]'s key may go to its address: bound to that host and scheme, or not
+     * bound at all (no address yet, see above). A key bound before schemes were goes to its
+     * host over either until the settings are read again, which completes it.
+     */
     fun allows(engine: EngineConfig): Boolean {
         val bound = engine.keyHost ?: return true
-        return bound.equals(EnginePresets.hostOf(engine.baseUrl), ignoreCase = true)
+        if (!bound.equals(EnginePresets.hostOf(engine.baseUrl), ignoreCase = true)) return false
+        val scheme = engine.keyScheme ?: return true
+        return scheme.equals(schemeOf(engine.baseUrl), ignoreCase = true)
     }
 
-    /** [engine] with its key bound to its current host, as when the key was just entered. */
-    fun bind(engine: EngineConfig): EngineConfig = engine.copy(keyHost = EnginePresets.hostOf(engine.baseUrl))
+    /**
+     * Where [engine]'s key belongs, as a message names it: its host - with the scheme when the
+     * address has the same host and only the scheme differs ("https://192.168.1.20"), so the
+     * message does not seem to name this very address.
+     */
+    fun shown(engine: EngineConfig): String {
+        val bound = engine.keyHost.orEmpty()
+        val scheme = engine.keyScheme
+        val sameHost = bound.equals(EnginePresets.hostOf(engine.baseUrl), ignoreCase = true)
+        return if (sameHost && scheme != null) "$scheme://$bound" else bound
+    }
 
-    /** Binds a key that has no host yet to the address it is used with (schema 12, and keys stored without one). */
-    fun bindIfUnbound(engine: EngineConfig): EngineConfig =
-        if (engine.apiKeyAlias != null && engine.keyHost == null && EnginePresets.hostOf(engine.baseUrl) != null) bind(engine) else engine
+    /** [engine] with its key bound to its current host and scheme, as when the key was just entered. */
+    fun bind(engine: EngineConfig): EngineConfig {
+        val host = EnginePresets.hostOf(engine.baseUrl)
+        return engine.copy(keyHost = host, keyScheme = host?.let { schemeOf(engine.baseUrl) })
+    }
+
+    /**
+     * Binds a key that has no host yet to the address it is used with (schema 12, and keys
+     * stored without one), and gives a key bound to this host before schemes were the scheme it
+     * has been going over. A key bound to another host stays as it is: it waits to be typed again.
+     */
+    fun bindIfUnbound(engine: EngineConfig): EngineConfig {
+        if (engine.apiKeyAlias == null) return engine
+        val host = EnginePresets.hostOf(engine.baseUrl) ?: return engine
+        return when {
+            engine.keyHost == null -> bind(engine)
+            engine.keyScheme == null && engine.keyHost.equals(host, ignoreCase = true) ->
+                schemeOf(engine.baseUrl)?.let { engine.copy(keyScheme = it) } ?: engine
+            else -> engine
+        }
+    }
+
+    /** "https" or "http" of [baseUrl], lower case; null for an address without a scheme. */
+    fun schemeOf(baseUrl: String?): String? {
+        val url = baseUrl.orEmpty().trim()
+        if ("://" !in url) return null
+        return url.substringBefore("://").lowercase().takeIf { it.isNotEmpty() && it.all { c -> c.isLetter() } }
+    }
 }
 
 /**

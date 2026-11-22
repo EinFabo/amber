@@ -392,9 +392,8 @@ fun EngineDetailScreen(
                         )
                         Hint(stringResource(R.string.engine_key_stored))
                         // Given for another host: it stays there; this address gets none until typed again.
-                        val bound = config.keyHost
-                        if (!keyEdited && apiKey.isNotBlank() && bound != null && !KeyBinding.allows(edited())) {
-                            Hint(stringResource(R.string.server_key_elsewhere, bound), AmberPalette.Error)
+                        if (!keyEdited && apiKey.isNotBlank() && config.keyHost != null && !KeyBinding.allows(edited())) {
+                            Hint(stringResource(R.string.server_key_elsewhere, KeyBinding.shown(edited())), AmberPalette.Error)
                         }
                     }
                 }
@@ -571,6 +570,9 @@ private fun WhisperModelsCard(
 
         GhostButton(stringResource(R.string.model_pick_file), { picker.launch(arrayOf("*/*")) })
         Hint(stringResource(R.string.model_pick_file_hint))
+        // The file goes to native code. Its checks keep a wrong or broken file away from it,
+        // not one made to pass them (WhisperModelFile.check).
+        Hint(stringResource(R.string.model_pick_file_trust))
     }
 }
 

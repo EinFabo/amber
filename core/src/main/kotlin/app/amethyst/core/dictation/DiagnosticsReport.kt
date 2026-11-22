@@ -10,7 +10,8 @@ import java.time.format.DateTimeFormatter
  * record its time of day, its one-line summary, the shape of what was heard (or dictated), a
  * command's steps - each of several commands' lines under its heading - and the timing. What
  * goes in is what the screen shows until "Show text" - nothing more is read for it, and no word
- * of a dictation, a command or a field ([anonymous]).
+ * of a dictation, a command or a field ([anonymous]). Nor the apps: each one is "app 1", "app 2"
+ * ... throughout ([AppAliases]), where the screen names them.
  */
 object DiagnosticsReport {
 
@@ -58,14 +59,16 @@ object DiagnosticsReport {
             else -> "${records.size} records, newest first"
         }
         val texts = texts(records)
+        val apps = AppAliases(records)
         appendLine("$title - diagnostics copied ${DATE_TIME.format(local(copiedAt, zone))} - $count")
         warning?.let { appendLine("Note: ${Anonymize.line(it, texts)}") }
         for (record in records) {
             val shown = anonymous(record, texts)
+            val (summary, lines) = apps.lines(record, listOf(shown.summary) + shown.lines).let { it.first() to it.drop(1) }
             appendLine()
-            appendLine("${TIME.format(local(record.atMillis, zone))}  ${shown.summary}")
+            appendLine("${TIME.format(local(record.atMillis, zone))}  $summary")
             shown.shape?.let { appendLine("$INDENT${if (record.command) "heard" else "text"}: ${it.describe()}") }
-            shown.lines.forEach { appendLine("$INDENT$it") }
+            lines.forEach { appendLine("$INDENT$it") }
         }
         if (keyboard.isNotEmpty()) {
             appendLine()

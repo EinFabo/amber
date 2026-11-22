@@ -119,6 +119,60 @@ class ServersTest {
         assertEquals(null, KeyBinding.bindIfUnbound(keyless).keyHost)
     }
 
+    @Test
+    fun `a key given over https does not go over http to the same host`() {
+        val own = KeyBinding.bind(Servers.newServer("server-000001", null).copy(baseUrl = "https://192.168.1.20:8443/v1", modelId = "large-v3"))
+        assertEquals("192.168.1.20", own.keyHost)
+        assertEquals("https", own.keyScheme)
+        assertTrue(KeyBinding.allows(own))
+        assertTrue(KeyBinding.allows(own.copy(baseUrl = "HTTPS://192.168.1.20/v1")), "scheme case and port do not matter")
+        val plain = own.copy(baseUrl = "http://192.168.1.20:8000/v1")
+        assertFalse(KeyBinding.allows(plain))
+        assertEquals(listOf(ConfigIssue.KeyForOtherAddress("https://192.168.1.20")), EngineConfigValidator.validate(plain, hasApiKey = true))
+        // Given over http, it stays there too: no quiet move to https either way.
+        val lan = KeyBinding.bind(plain)
+        assertTrue(KeyBinding.allows(lan))
+        assertFalse(KeyBinding.allows(lan.copy(baseUrl = "https://192.168.1.20/v1")))
+        // Another host: the host is all it takes to say where the key belongs.
+        assertEquals("192.168.1.20", KeyBinding.shown(lan.copy(baseUrl = "https://elsewhere.example/v1")))
+    }
+
+    @Test
+    fun `a key bound before schemes were keeps working and gets the scheme it is used over`() {
+        val before = EngineConfig.fromPreset(EnginePresets.GROQ).copy(keyScheme = null)
+        assertTrue(KeyBinding.allows(before))
+        assertTrue(KeyBinding.allows(before.copy(baseUrl = "http://api.groq.com/openai/v1")), "nothing to tell it by yet")
+        val completed = KeyBinding.bindIfUnbound(before)
+        assertEquals("https", completed.keyScheme)
+        assertEquals("api.groq.com", completed.keyHost)
+        assertFalse(KeyBinding.allows(completed.copy(baseUrl = "http://api.groq.com/openai/v1")))
+        // Bound to another host: it waits to be typed again, no scheme is made up for it.
+        val elsewhere = before.copy(baseUrl = "https://elsewhere.example/v1")
+        assertSame(elsewhere, KeyBinding.bindIfUnbound(elsewhere))
+    }
+
+    @Test
+    fun `stored settings bind every key when they are read, not only at the next change`() {
+        val unbound = EngineConfig.fromPreset(EnginePresets.GROQ).copy(keyHost = null, keyScheme = null)
+        val raw = SettingsCodec.encode(AmethystSettings.defaults(listOf("de-DE")).let { it.copy(engines = it.engines + unbound) })
+        val read = SettingsCodec.decode(raw, listOf("de-DE")).engines.single { it.id == unbound.id }
+        assertEquals("api.groq.com", read.keyHost)
+        assertEquals("https", read.keyScheme)
+        assertFalse(KeyBinding.allows(read.copy(baseUrl = "https://evil.example.com/openai/v1")))
+    }
+
+    @Test
+    fun `a key with no address yet goes to the first one it gets, and only there`() {
+        // Typed before the address: nothing to bind it to, and nothing to send it to either.
+        val keyFirst = Servers.newServer("server-000003", null)
+        assertEquals(null, KeyBinding.bind(keyFirst).keyHost)
+        val withAddress = Servers.normalized(
+            AmethystSettings.defaults(listOf("de-DE")).let { it.copy(engines = it.engines + keyFirst.copy(baseUrl = "https://pc.example/v1")) },
+        ).engines.single { it.id == keyFirst.id }
+        assertEquals("pc.example", withAddress.keyHost)
+        assertFalse(KeyBinding.allows(withAddress.copy(baseUrl = "https://other.example/v1")))
+    }
+
     // --- names ---
 
     @Test

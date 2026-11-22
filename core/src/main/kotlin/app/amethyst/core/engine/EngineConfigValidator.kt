@@ -36,7 +36,7 @@ object EngineConfigValidator {
                 when {
                     // A key for another host stays there; it has to be given again for this one.
                     config.apiKeyAlias != null && hasApiKey && !KeyBinding.allows(config) ->
-                        add(ConfigIssue.KeyForOtherAddress(config.keyHost.orEmpty()))
+                        add(ConfigIssue.KeyForOtherAddress(KeyBinding.shown(config)))
                     !hasApiKey && Servers.keyRequired(config) -> add(ConfigIssue.ApiKeyMissing)
                 }
                 if (config.requireEnclave && !EnginePresets.isEnclaveHost(config.baseUrl)) {

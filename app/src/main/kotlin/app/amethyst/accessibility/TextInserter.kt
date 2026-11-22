@@ -47,7 +47,10 @@ class TextInserter(
 
     private val engine = InsertionEngine(
         memory = strategyStore.memory,
-        clipboard = Clipboard { text -> copyToClipboard(text) },
+        clipboard = object : Clipboard {
+            override fun copy(text: String): Boolean = copyToClipboard(text)
+            override fun forget(text: String): Boolean = OwnClipboard.forgetPasted(service, text)
+        },
         onMemoryChanged = { memory -> strategyStore.save(memory) },
     )
 

@@ -8,7 +8,7 @@ import java.text.Normalizer
  * A Diagnostics line without what was said, for a copy that gets shared and for logcat: the
  * words of a dictation or a command, a field's text or a server's answer may have ended up in an
  * error, a note or a command's steps. App names, timings and reasons ("negation dropped") stay -
- * they are what a report is for.
+ * they are what a report is for; a copied report then gives each app an alias ([AppAliases]).
  *
  * Taken out, in this order:
  * - an address's path, query and user info ([Redact.text]): a server only as its host

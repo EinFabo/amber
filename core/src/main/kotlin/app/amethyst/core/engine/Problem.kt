@@ -125,6 +125,12 @@ sealed interface FileProblem {
     data object TooSmallForWhisper : FileProblem
     data object NotWhisperCpp : FileProblem
     data object NotWhisper : FileProblem
+
+    /** A model file that ends before the model does: cut off on the way, or never whole. */
+    data object CutShort : FileProblem
+
+    /** A file larger than any Whisper model for a phone ([maxMb] megabytes). */
+    data class TooLarge(val maxMb: Long) : FileProblem
     data object Other : FileProblem
 
     companion object {

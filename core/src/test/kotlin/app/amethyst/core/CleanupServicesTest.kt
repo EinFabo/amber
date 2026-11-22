@@ -393,6 +393,7 @@ class CleanupServicesTest {
                 baseUrl = "https://api.groq.com/openai/v1",
                 modelId = "whisper-large-v3-turbo",
                 keyHost = "api.groq.com",
+                keyScheme = "https",
             ),
             setup.engine,
         )

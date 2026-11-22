@@ -70,10 +70,32 @@ class AmberAddressTest {
     }
 
     @Test
-    fun `a server that is not known to be amber keeps its address`() {
-        val other = Servers.newServer("server-1", null).copy(baseUrl = "http://nas:8000/$key/v1")
-        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(other)
-        assertSame(settings, AmberAddress.movePathKeys(settings).first)
+    fun `a server without a model list moves its key out too, by the key's shape`() {
+        // Off since it was added: no list stored, the key still in its address.
+        val unlisted = Servers.newServer("server-1", null).copy(baseUrl = "http://nas:8000/$key/v1")
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(unlisted)
+        val (moved, moves) = AmberAddress.movePathKeys(settings)
+        assertEquals(listOf(AmberAddress.Move("server-1", "key.server-1", key)), moves)
+        val engine = moved.engines.first { it.id == "server-1" }
+        assertEquals("http://nas:8000/v1", engine.baseUrl)
+        assertEquals("nas", engine.keyHost)
+        assertEquals(emptyMap(), moved.serverCatalogs)
+    }
+
+    @Test
+    fun `a path that only looks a bit like a key stays`() {
+        for (path in listOf(
+            "http://nas:8000/v1",
+            "http://nas:8000/abcdefghjkmnpqrstuv/v1", // 19 characters
+            "http://nas:8000/abcdefghjkmnpqrstuvwx/v1", // 21
+            "http://nas:8000/abcdefghijkmnpqrstuv/v1", // an "i", which Amber's keys leave out
+            "http://nas:8000/$key/api/v1", // something other than v1 after it
+            "http://nas:8000/proxy/$key/v1", // not the first segment
+        )) {
+            val other = Servers.newServer("server-1", null).copy(baseUrl = path)
+            val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(other)
+            assertSame(settings, AmberAddress.movePathKeys(settings).first, path)
+        }
     }
 
     @Test

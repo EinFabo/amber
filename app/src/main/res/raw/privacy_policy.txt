@@ -36,7 +36,8 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   text may stay.
 - Diagnostics: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
-  its words; it names the app each dictation went into.
+  its words, and no app's name: each app is "app 1", "app 2" and so on, the same one throughout
+  the report. The list on the phone shows the apps' names.
 - Speech models you download.
 
 With the security mode on (Settings → Security mode), Embersay keeps none of a dictation's
@@ -75,8 +76,8 @@ In other apps the service:
 
 - shows the bubble, and short messages about a dictation, over the app in front;
 - inserts your dictation into the field. Where a field takes it no other way, it puts the
-  dictation on the clipboard and pastes it; where there is no field, it leaves the dictation on
-  the clipboard for you to paste. It does neither with "Use the clipboard if needed" off
+  dictation on the clipboard, pastes it and takes it off the clipboard again once the text is in;
+  where there is no field, it leaves the dictation on the clipboard for you to paste. It does neither with "Use the clipboard if needed" off
   (Settings → Text) or in the security mode;
 - opens Embersay's own screens over the app when you choose them in the quick menu, such as the
   style for that app;

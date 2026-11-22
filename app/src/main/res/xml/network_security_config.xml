@@ -4,11 +4,35 @@
      name address ranges. The app itself narrows it down: EngineConfigValidator accepts
      http:// only for private and local addresses, CleartextGuard (on every OkHttp client)
      refuses a plain-http request whose connected address is public, the enclave channel
-     insists on https, and every other address in the app is https. -->
+     insists on https, and every other address in the app is https.
+
+     The services and downloads the app knows by name never take plain http, whatever
+     an address, a redirect or a bug says: OkHttp asks Android's policy per host before a
+     cleartext request. With their subdomains, for the hosts a download is redirected to
+     (Hugging Face's CDN under huggingface.co and hf.co, GitHub's under
+     githubusercontent.com). A user's own server is none of these, so it keeps working.
+     Keep this list with the hosts in the code: EnginePresets, ServerProviders,
+     WhisperModels, Parakeet, GithubReleases, TinfoilVerifier. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Speech recognition and cleanup services -->
+        <domain includeSubdomains="true">groq.com</domain>
+        <domain includeSubdomains="true">openai.com</domain>
+        <domain includeSubdomains="true">anthropic.com</domain>
+        <domain includeSubdomains="true">openrouter.ai</domain>
+        <!-- Tinfoil's enclave and its attestation (inference.tinfoil.sh) -->
+        <domain includeSubdomains="true">tinfoil.sh</domain>
+        <!-- Speech models -->
+        <domain includeSubdomains="true">huggingface.co</domain>
+        <domain includeSubdomains="true">hf.co</domain>
+        <domain includeSubdomains="true">futo.org</domain>
+        <!-- The update check and the releases page -->
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+    </domain-config>
 </network-security-config>

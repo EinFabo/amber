@@ -36,6 +36,9 @@ class WhisperTest {
 
     // --- model header -------------------------------------------------------------------
 
+    /** The tensors whisper.cpp wants of six encoder and six decoder layers: 11 + 15 * 6 + 24 * 6. */
+    private val EXPECTED_TENSORS = 11 + 15 * 6 + 24 * 6
+
     /** The first 48 bytes of FUTO's voice-input-multilingual-74.bin, as hparams. */
     private fun futoHeader(vocab: Int = 51_865, magic: Int = 0x67676d6c): ByteArray =
         ByteBuffer.allocate(WhisperModelFile.HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN).apply {
@@ -77,6 +80,128 @@ class WhisperTest {
     @Test
     fun `a truncated header is rejected instead of read out of bounds`() {
         assertTrue(WhisperModelFile.inspect(ByteArray(10)).isFailure)
+    }
+
+    /** [futoHeader] with the int at [offset] (bytes, magic at 0) set to [value]. */
+    private fun headerWith(offset: Int, value: Int): ByteArray =
+        futoHeader().also { ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).putInt(offset, value) }
+
+    @Test
+    fun `header fields whisper cpp sizes memory or divides by are held to whisper's`() {
+        for ((what, header) in listOf(
+            "no audio heads" to headerWith(16, 0),
+            "heads that do not divide the width" to headerWith(16, 7),
+            "a million audio layers" to headerWith(20, 1_000_000),
+            "no text context" to headerWith(24, 0),
+            "a text width unlike the audio one" to headerWith(28, 768),
+            "negative text heads" to headerWith(32, -8),
+            "no text layers" to headerWith(36, 0),
+            "a negative ftype" to headerWith(44, -1),
+        )) {
+            assertEquals(FileProblem.NotWhisper, FileProblem.of(WhisperModelFile.inspect(header).exceptionOrNull()), what)
+        }
+        assertEquals(FileProblem.NotWhisperCpp, FileProblem.of(WhisperModelFile.inspect(headerWith(0, 0x46554747)).exceptionOrNull()), "GGUF")
+    }
+
+    /** One tensor's header and data as the file has them. */
+    private data class Tensor(val dims: List<Int> = listOf(4), val type: Int = 0, val name: String = "t", val dataBytes: Int? = null)
+
+    /**
+     * A model file as whisper.cpp writes it, with [futoHeader]'s six and six layers: the mel
+     * filters, a few tokens of [tokenLengths], and [tensors] - by default exactly as many as
+     * Whisper has, each of four floats. Small: the check walks the structure, not the shapes.
+     */
+    private fun modelFile(
+        header: ByteArray = futoHeader(),
+        filters: Pair<Int, Int> = 80 to 201,
+        tokenCount: Int? = null,
+        tokenLengths: List<Int> = listOf(1, 3, 0, 2),
+        tensors: List<Tensor> = List(EXPECTED_TENSORS) { Tensor() },
+    ): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        fun int(value: Int) = out.write(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array())
+        out.write(header)
+        int(filters.first)
+        int(filters.second)
+        out.write(ByteArray(filters.first.coerceAtMost(256) * filters.second.coerceAtMost(256) * 4))
+        int(tokenCount ?: tokenLengths.size)
+        tokenLengths.forEach { length ->
+            int(length)
+            out.write(ByteArray(length.coerceIn(0, 64)) { 'a'.code.toByte() })
+        }
+        tensors.forEach { tensor ->
+            int(tensor.dims.size)
+            int(tensor.name.length)
+            int(tensor.type)
+            tensor.dims.forEach(::int)
+            out.write(tensor.name.toByteArray())
+            out.write(ByteArray(tensor.dataBytes ?: (tensor.dims.fold(1L) { a, b -> a * b } * 4).toInt()))
+        }
+        return out.toByteArray()
+    }
+
+    private fun check(bytes: ByteArray, size: Long = bytes.size.toLong()): Result<*> =
+        WhisperModelFile.check(ByteArrayInputStream(bytes), size)
+
+    private fun problem(bytes: ByteArray): FileProblem = FileProblem.of(check(bytes).exceptionOrNull())
+
+    @Test
+    fun `a whole model passes the check`() {
+        val info = check(modelFile()).getOrThrow() as app.amethyst.core.engine.whisper.WhisperModelInfo
+        assertEquals("base", info.sizeName)
+        // Quantized and K-quantized weights, sized by their blocks.
+        val quantized = List(EXPECTED_TENSORS) { if (it % 2 == 0) Tensor(listOf(64, 2), type = 8, dataBytes = 4 * 34) else Tensor(listOf(256), type = 12, dataBytes = 144) }
+        assertTrue(check(modelFile(tensors = quantized)).isSuccess)
+    }
+
+    @Test
+    fun `a model cut off anywhere is named as cut short`() {
+        val whole = modelFile()
+        val filtersEnd = WhisperModelFile.HEADER_BYTES + 8 + 80 * 201 * 4
+        for (at in listOf(WhisperModelFile.HEADER_BYTES + 4, filtersEnd - 10, filtersEnd + 6, whole.size - 30, whole.size - 2)) {
+            assertEquals(FileProblem.CutShort, problem(whole.copyOf(at)), "cut at $at of ${whole.size}")
+        }
+        // Cut exactly between two tensors: every part whole, a tensor missing.
+        assertEquals(FileProblem.CutShort, problem(modelFile(tensors = List(EXPECTED_TENSORS - 1) { Tensor() })))
+        assertEquals(FileProblem.TooSmallForWhisper, problem(whole.copyOf(20)))
+    }
+
+    @Test
+    fun `lengths the loader would allocate by are held to whisper's before anything is sized`() {
+        for ((what, file) in listOf(
+            "a 2 GB token" to modelFile(tokenLengths = listOf(1, Int.MAX_VALUE)),
+            "a negative token length" to modelFile(tokenLengths = listOf(-1)),
+            "more tokens than the vocabulary" to modelFile(tokenCount = 60_001),
+            "a negative token count" to modelFile(tokenCount = -5),
+            "a filter table of a billion floats" to modelFile(filters = 40_000 to 40_000),
+            "no filters" to modelFile(filters = 0 to 201),
+            "five dimensions" to modelFile(tensors = listOf(Tensor(listOf(1, 1, 1, 1, 1)))),
+            "a type ggml does not have" to modelFile(tensors = listOf(Tensor(type = 99))),
+            "a negative extent" to modelFile(tensors = listOf(Tensor(listOf(-4), dataBytes = 0))),
+            "a q8_0 tensor not in whole blocks" to modelFile(tensors = listOf(Tensor(listOf(33), type = 8, dataBytes = 34))),
+            "one tensor more than whisper has" to modelFile(tensors = List(EXPECTED_TENSORS + 1) { Tensor() }),
+        )) {
+            assertEquals(FileProblem.NotWhisper, problem(file), what)
+        }
+        // A name of a gigabyte (its length sits before the type, one extent, the name and 16 bytes
+        // of data), and extents whose product overflows a Long.
+        assertEquals(FileProblem.NotWhisper, problem(modelFile(tensors = listOf(Tensor(name = "x")))
+            .also { ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).putInt(it.size - 16 - 1 - 4 - 4 - 4, 1 shl 30) }))
+        val huge = Int.MAX_VALUE
+        assertEquals(FileProblem.CutShort, problem(modelFile(tensors = listOf(Tensor(listOf(huge, huge, huge, huge), dataBytes = 0)))))
+    }
+
+    @Test
+    fun `a file larger than any phone model is refused before it is read`() {
+        val result = check(ByteArray(0), size = WhisperModelFile.MAX_IMPORT_BYTES + 1)
+        assertIs<FileProblem.TooLarge>(FileProblem.of(result.exceptionOrNull()))
+    }
+
+    @Test
+    fun `a tensor type the check cannot size stops it there, not the model`() {
+        // IQ2_XXS: whisper.cpp may load it; refusing would refuse a model that works.
+        val tensors = List(10) { Tensor() } + Tensor(listOf(256), type = 16, dataBytes = 66)
+        assertTrue(check(modelFile(tensors = tensors)).isSuccess)
     }
 
     // --- input ---------------------------------------------------------------------------
@@ -357,15 +482,27 @@ class WhisperTest {
     }
 
     @Test
-    fun `an imported file is checked by its header`() {
+    fun `an imported file is checked from end to end`() {
         val target = File(tempDir(), "whisper.bin")
         val notAModel = ByteArrayInputStream(ByteArray(2_000) { 7 })
 
         assertTrue(ModelInstall.install(notAModel, target, expected = null).isFailure)
         assertFalse(target.exists())
 
-        assertTrue(ModelInstall.install(ByteArrayInputStream(modelBytes()), target, null).isSuccess)
+        // A good header in front of anything is not a model.
+        val headerOnly = ModelInstall.install(ByteArrayInputStream(modelBytes()), target, null)
+        assertTrue(headerOnly.isFailure)
+        assertFalse(target.exists())
+
+        assertTrue(ModelInstall.install(ByteArrayInputStream(modelFile()), target, null).isSuccess)
         assertTrue(target.exists())
+    }
+
+    @Test
+    fun `a catalog download is the file its hash names, so its header is all that is read`() {
+        // Header and padding only: no imported file would pass, the pinned one does.
+        val bytes = modelBytes()
+        assertTrue(ModelInstall.install(ByteArrayInputStream(bytes), File(tempDir(), "whisper.bin"), specFor(bytes)).isSuccess)
     }
 
     @Test

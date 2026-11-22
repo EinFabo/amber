@@ -56,16 +56,21 @@ object AmberAddress {
     data class Move(val engineId: String, val alias: String, val key: String)
 
     /**
-     * Every server whose stored address carries an Amber key in its path, and whose model list
-     * says it is Amber (so no other server's path is touched): the address without the key, the
-     * key bound to its host under the engine's alias, the list kept for the new address. The
-     * key itself is returned in [Move]s, for the app to put into its encrypted store first.
+     * Every server whose stored address carries an Amber key in its path: the address without
+     * the key, the key bound to its host under the engine's alias, a stored model list kept for
+     * the new address. The key itself is returned in [Move]s, for the app to put into its
+     * encrypted store first.
+     *
+     * Known by the key's shape alone ([split]: twenty of Amber's 31 characters as the whole
+     * first path segment, then nothing or `v1`), not by a model list: a server that was off
+     * since it was added has none stored, and its key would stay in the address - in every
+     * request line and every log that keeps paths.
      */
     fun movePathKeys(settings: AmethystSettings): Pair<AmethystSettings, List<Move>> {
         val moves = mutableListOf<Move>()
         var catalogs = settings.serverCatalogs
         val engines = settings.engines.map { engine ->
-            if (!Servers.isServer(engine) || settings.catalogFor(engine) == null) return@map engine
+            if (!Servers.isServer(engine)) return@map engine
             val split = split(engine.baseUrl) ?: return@map engine
             val alias = engine.apiKeyAlias ?: "key.${engine.id}"
             moves += Move(engine.id, alias, split.key)

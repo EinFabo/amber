@@ -36,7 +36,7 @@ object ModelInstall {
             val read = input.read(buffer)
             if (read < 0) break
             total += read
-            if (total > maxBytes) throw java.io.IOException("more than the expected $maxBytes bytes")
+            if (total > maxBytes) throw TooManyBytes(maxBytes)
             output.write(buffer, 0, read)
             digest.update(buffer, 0, read)
             onProgress(total)
@@ -45,10 +45,14 @@ object ModelInstall {
         return Copied(total, digest.digest().toHex())
     }
 
+    /** More bytes arrived than [maxBytes] - the copy stopped there. */
+    class TooManyBytes(val maxBytes: Long) : java.io.IOException("more than the expected $maxBytes bytes")
+
     /**
      * Writes into a temporary sibling of [target], checks it, then renames it over [target].
      * [expected] pins size and hash for a known download; an imported file has no pinned
-     * hash and is checked by its header alone.
+     * hash, is held to [WhisperModelFile.MAX_IMPORT_BYTES] and checked from end to end
+     * ([WhisperModelFile.check]).
      */
     fun install(
         input: InputStream,
@@ -61,7 +65,7 @@ object ModelInstall {
         val partial = File(target.parentFile, target.name + ".part")
         return try {
             val copied = partial.outputStream().use { out ->
-                copyWithDigest(input, out, onProgress, isCancelled, maxBytes = expected?.sizeBytes ?: Long.MAX_VALUE)
+                copyWithDigest(input, out, onProgress, isCancelled, maxBytes = expected?.sizeBytes ?: WhisperModelFile.MAX_IMPORT_BYTES)
             }
             verify(partial, copied, expected).onSuccess {
                 if (!partial.renameTo(target)) {
@@ -73,6 +77,12 @@ object ModelInstall {
             }
         } catch (e: InterruptedException) {
             Result.failure(e)
+        } catch (e: TooManyBytes) {
+            if (expected == null) {
+                Result.failure(ModelFileException(FileProblem.TooLarge(e.maxBytes / 1_000_000), "Larger than ${e.maxBytes} bytes.", e))
+            } else {
+                Result.failure(ModelFileException(FileProblem.Interrupted, "Transfer interrupted: ${e.message}", e))
+            }
         } catch (e: java.io.IOException) {
             Result.failure(ModelFileException(FileProblem.Interrupted, "Transfer interrupted: ${e.message}", e))
         } finally {
@@ -107,8 +117,16 @@ object ModelInstall {
                     ModelFileException(FileProblem.ChecksumMismatch),
                 )
             }
+            // Pinned by size and hash: the very file the catalog names.
+            return inspect(file)
         }
-        return inspect(file)
+        return checkWhole(file)
+    }
+
+    /** [file] from end to end ([WhisperModelFile.check]), for a model nothing pins. */
+    private fun checkWhole(file: File): Result<WhisperModelInfo> {
+        if (!file.isFile) return Result.failure(ModelFileException(FileProblem.NoModelInstalled))
+        return file.inputStream().buffered(BUFFER_SIZE).use { WhisperModelFile.check(it, file.length()) }
     }
 
     private fun InputStream.readNBytesCompat(buffer: ByteArray): Int {

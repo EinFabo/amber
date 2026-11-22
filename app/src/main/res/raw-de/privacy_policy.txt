@@ -39,7 +39,8 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
   Text bleiben kann.
 - Diagnose: die letzten Diktate mit ihren Zeiten und, nur auf dem Handy, ihrem Text. Ein Bericht,
   den du zum Teilen kopierst, enthält die Form jedes Diktats (Zeichen, Wörter, Sprache), nicht
-  seine Wörter; er nennt die App, in die jedes Diktat ging.
+  seine Wörter, und keinen App-Namen: jede App heißt darin „app 1“, „app 2“ und so weiter, im
+  ganzen Bericht dieselbe. Die Liste auf dem Handy zeigt die Namen der Apps.
 - Sprachmodelle, die du herunterlädst.
 
 Mit dem Sicherheitsmodus (Einstellungen → Sicherheitsmodus) behält Embersay keines der Wörter
@@ -81,8 +82,9 @@ In anderen Apps tut die Bedienungshilfe Folgendes:
 
 - Sie zeigt die Bubble und kurze Meldungen zu einem Diktat über der App, die vorne ist.
 - Sie fügt dein Diktat in das Feld ein. Nimmt ein Feld es nicht anders an, legt sie das Diktat
-  in die Zwischenablage und fügt es von dort ein; gibt es kein Feld, lässt sie das Diktat in der
-  Zwischenablage, damit du es selbst einfügen kannst. Beides tut sie nicht, wenn „Zwischenablage
+  in die Zwischenablage, fügt es von dort ein und nimmt es wieder heraus, sobald der Text im Feld
+  steht; gibt es kein Feld, lässt sie das Diktat in der Zwischenablage, damit du es selbst
+  einfügen kannst. Beides tut sie nicht, wenn „Zwischenablage
   nutzen, wenn nötig“ aus ist (Einstellungen → Text), und nicht im Sicherheitsmodus.
 - Sie öffnet Bildschirme von Embersay über der App, wenn du sie im Schnellmenü auswählst, etwa
   den Stil für diese App.

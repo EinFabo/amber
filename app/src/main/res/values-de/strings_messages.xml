@@ -76,6 +76,8 @@
     <string name="file_too_small_for_whisper">Die Datei ist zu klein für ein Whisper-Modell.</string>
     <string name="file_not_whisper_cpp">Das ist kein whisper.cpp-Modell. Erwartet wird eine .bin-Datei im ggml-Format, z. B. von FUTO.</string>
     <string name="file_not_whisper">Die Datei hat einen ggml-Kopf, sieht aber nicht nach Whisper aus.</string>
+    <string name="file_cut_short">Diese Modelldatei ist unvollständig: Sie endet, bevor das Modell zu Ende ist. Kopiere oder lade sie noch einmal.</string>
+    <string name="file_too_large">Die Datei ist größer als %1$d MB, mehr als jedes Whisper-Modell für ein Handy.</string>
     <string name="file_other">Download fehlgeschlagen.</string>
     <string name="issue_key_for_other_address">Der API-Schlüssel gehört zu %1$s. Gib ihn für diese Adresse noch einmal ein.</string>
 </resources>
