@@ -165,6 +165,9 @@ enum class StopReason {
 
     /** The microphone could no longer be read: what was captured is sent. */
     MIC_LOST,
+
+    /** A call began ([app.amethyst.core.capture.CallWatch]): what was said before it is sent. */
+    CALL,
 }
 
 enum class DiscardReason {
@@ -178,4 +181,7 @@ enum class DiscardReason {
 
     /** The microphone could not be read and nothing worth sending was recorded. */
     MIC_LOST,
+
+    /** A call began and nothing worth sending was recorded before it. */
+    CALL,
 }

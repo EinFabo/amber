@@ -15,6 +15,8 @@
     <string name="dictation_nothing_heard">No speech recognized. Try again closer to the phone.</string>
     <string name="dictation_mic_taken_sent">Another app took the microphone. Embersay uses what you said so far.</string>
     <string name="dictation_mic_lost_sent">Microphone interrupted. Embersay uses what you said so far.</string>
+    <string name="dictation_call_ended_sent">A call ended the recording. Embersay uses what you said so far.</string>
+    <string name="dictation_call_ended">A call ended the recording.</string>
     <string name="dictation_service_off">Couldn\'t insert. Turn on Embersay\'s accessibility service.</string>
     <string name="dictation_why_password">The field is now a password field</string>
     <string name="dictation_why_no_field">No text field is selected anymore</string>

@@ -6,7 +6,11 @@ import android.media.AudioManager
 /**
  * Whether the phone is ringing or in a call - a phone call or one in an app (WhatsApp, Signal:
  * Android's communication mode). Read from the audio mode, which needs no permission; a
- * recording that sees it turn on ends ([app.amethyst.core.capture.MicrophoneWatch]).
+ * recording that sees it turn on ends ([app.amethyst.core.capture.CallWatch]).
+ *
+ * The communication mode alone is not confirmed by a call state: the call state needs the phone
+ * permission from Android 12, and it would not know a call in an app anyway. Only a mode that
+ * turns on during the recording counts, so an app that merely sits in that mode stops nothing.
  */
 class PhoneCall(context: Context) {
 

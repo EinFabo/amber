@@ -28,6 +28,7 @@ import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.audio.StopReason
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.TextFieldKind
+import app.amethyst.core.capture.CallWatch
 import app.amethyst.core.capture.LoudnessLog
 import app.amethyst.core.capture.MicrophoneRoute
 import app.amethyst.core.capture.MicrophoneRouter
@@ -1045,15 +1046,33 @@ class DictationController(
         loudness = LoudnessLog()
 
         microphoneOpening()
+        // Android's recognizer records by itself, so no recorder looks for a call: looked for
+        // here, as Embersay's own recorder does ([CallWatch]), or it writes down the call.
+        var endedByCall = false
         val result = try {
-            engine.listen(
-                options,
-                ListenCallbacks(
-                    onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
-                    onPartial = { partial -> updateListening { it.copy(partial = partial) } },
-                    onReady = ::microphoneOpen,
-                ),
-            )
+            coroutineScope {
+                val calls = launch {
+                    val watch = CallWatch()
+                    while (!watch.began(phoneCall.on())) delay(CallWatch.CHECK_MS)
+                    endedByCall = true
+                    Log.i(TAG, "a call started during the recording - stopping Android's speech recognition")
+                    // As a tap: the recognizer delivers what it heard before the call.
+                    engine.requestStop()
+                    limit.recordingEnded(graph.settings.value.capture.afterRecordingMs(limit.elapsedMs()))
+                }
+                try {
+                    engine.listen(
+                        options,
+                        ListenCallbacks(
+                            onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
+                            onPartial = { partial -> updateListening { it.copy(partial = partial) } },
+                            onReady = ::microphoneOpen,
+                        ),
+                    )
+                } finally {
+                    calls.cancel()
+                }
+            }
         } finally {
             microphoneClosed()
         }
@@ -1063,8 +1082,17 @@ class DictationController(
         // Also when the recognizer ended by itself, with no tap that told the limit.
         limit.recordingEnded(graph.settings.value.capture.afterRecordingMs(limit.elapsedMs()))
         _state.value = DictationState.Transcribing()
+        if (endedByCall) {
+            trace?.ended = "ended: a call started during the recording"
+            // Said as the call, also when the recognizer then found nothing: that is why.
+            if (result.isSuccess) toast(R.string.dictation_call_ended_sent, long = true)
+        }
         return result.getOrElse { error ->
-            fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
+            if (endedByCall) {
+                fail(say(R.string.dictation_call_ended), details = listOf("a call started during the recording; recognition then: ${technicalOf(error)}"))
+            } else {
+                fail(failureOf(error), remedy = remedyOf(error), details = listOf("recognition failed: ${technicalOf(error)}"))
+            }
             null
         }
     }
@@ -1175,12 +1203,14 @@ class DictationController(
                         DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> say(R.string.dictation_nothing_heard)
                         DiscardReason.MIC_SILENCED -> said(Problem.MicrophoneTaken)
                         DiscardReason.MIC_LOST -> said(Problem.MicrophoneUnreadable)
+                        DiscardReason.CALL -> say(R.string.dictation_call_ended)
                     },
                     details = listOf(
                         when (outcome.reason) {
                             DiscardReason.TOO_SHORT -> "recording discarded: too short"
                             DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> "recording discarded: no speech detected"
-                            DiscardReason.MIC_SILENCED, DiscardReason.MIC_LOST -> "recording discarded: ${outcome.technical ?: "the microphone was lost"}"
+                            DiscardReason.MIC_SILENCED, DiscardReason.MIC_LOST, DiscardReason.CALL ->
+                                "recording discarded: ${outcome.technical ?: "the microphone was lost"}"
                         },
                     ),
                 )
@@ -1211,12 +1241,18 @@ class DictationController(
                 if (outcome.reason == StopReason.MAX_DURATION) {
                     trace?.ended = "ended at the longest recording, ${vadConfig.maxDurationMs / 1000} s"
                 }
-                // The microphone went away mid-dictation - another app took it, or it could
-                // no longer be read: what was said before is recognized, and the user is told
-                // why the recording ended without their tap.
-                if (outcome.reason == StopReason.MIC_SILENCED || outcome.reason == StopReason.MIC_LOST) {
+                // The microphone went away mid-dictation - another app took it, it could no
+                // longer be read, or a call began: what was said before is recognized, and the
+                // user is told why the recording ended without their tap.
+                val endedWhy = when (outcome.reason) {
+                    StopReason.MIC_SILENCED -> R.string.dictation_mic_taken_sent
+                    StopReason.MIC_LOST -> R.string.dictation_mic_lost_sent
+                    StopReason.CALL -> R.string.dictation_call_ended_sent
+                    else -> null
+                }
+                if (endedWhy != null) {
                     trace?.ended = "ended: ${outcome.technical ?: "the microphone was lost"}"
-                    toast(if (outcome.reason == StopReason.MIC_SILENCED) R.string.dictation_mic_taken_sent else R.string.dictation_mic_lost_sent, long = true)
+                    toast(endedWhy, long = true)
                 }
                 // Ended while paused: the pause ends with the recording.
                 pause.resume(SystemClock.elapsedRealtime())

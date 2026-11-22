@@ -16,6 +16,7 @@ import app.amethyst.core.audio.StopReason
 import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
+import app.amethyst.core.capture.CallWatch
 import app.amethyst.core.capture.ChunkPlanner
 import app.amethyst.core.capture.MicrophoneWatch
 import app.amethyst.core.capture.PausableRecording
@@ -160,7 +161,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             }
 
             // The audio mode is a call into the system: asked every few frames, not every one.
-            val callEvery = (CALL_CHECK_MS / config.frameMs).coerceAtLeast(1)
+            val callEvery = (CallWatch.CHECK_MS / config.frameMs).toInt().coerceAtLeast(1)
             var reads = 0
             var call = inCall()
             while (currentCoroutineContext().isActive) {
@@ -250,8 +251,5 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
 
     private companion object {
         const val TAG = "Embersay"
-
-        /** How often a running recording asks whether a call began ([PhoneCall]). */
-        const val CALL_CHECK_MS = 250
     }
 }

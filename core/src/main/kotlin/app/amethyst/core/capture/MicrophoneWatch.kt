@@ -24,7 +24,8 @@ import app.amethyst.core.audio.VadDecision
  *   service's recording for a call (Pixel 9a, Android 17, 2026-11-22: a dictation went on
  *   through a call and wrote down the user's side of it). So a call that begins - ringing,
  *   a phone call, a call in an app ([inCall]) - ends the recording; one that was already on
- *   when the dictation started is the user's choice and changes nothing.
+ *   when the dictation started is the user's choice and changes nothing, the next one after
+ *   it hung up ends it again ([CallWatch]).
  *
  * Whatever ends it here, what was said before is kept and sent like a tap's ([ending]).
  */
@@ -62,8 +63,7 @@ class MicrophoneWatch(
     private var silentMs = 0
     private var emptyReads = 0
 
-    /** Whether a call was on at the first read; null before it. */
-    private var callAtStart: Boolean? = null
+    private val calls = CallWatch()
 
     /**
      * After every read: [read] is its result (samples, zero, or a negative error code),
@@ -71,8 +71,7 @@ class MicrophoneWatch(
      * [inCall] whether the phone is ringing or in a call (also one in an app) right now.
      */
     fun onRead(read: Int, allZero: Boolean, silenced: Boolean, stopRequested: Boolean, inCall: Boolean = false): Step {
-        val callBefore = callAtStart ?: inCall.also { callAtStart = it }
-        if (inCall && !callBefore) return Step.Lost(Why.CALL, "a call started during the recording")
+        if (calls.began(inCall)) return Step.Lost(Why.CALL, "a call started during the recording")
         if (read < 0) return Step.Lost(Why.UNREADABLE, "the read failed with $read")
         if (read == 0) {
             if (stopRequested) return Step.Stopped
@@ -103,11 +102,22 @@ class MicrophoneWatch(
          * came of it - not "nothing heard".
          */
         fun ending(why: Why, manualStop: VadDecision): VadDecision {
-            // A call took the microphone, as another app would: said so in the same words.
-            val taken = why == Why.SILENCED || why == Why.CALL
+            // A call is said as a call: "another app took the microphone" left the user guessing.
             return when (manualStop) {
-                is VadDecision.Stop -> VadDecision.Stop(if (taken) StopReason.MIC_SILENCED else StopReason.MIC_LOST)
-                else -> VadDecision.Discard(if (taken) DiscardReason.MIC_SILENCED else DiscardReason.MIC_LOST)
+                is VadDecision.Stop -> VadDecision.Stop(
+                    when (why) {
+                        Why.SILENCED -> StopReason.MIC_SILENCED
+                        Why.UNREADABLE -> StopReason.MIC_LOST
+                        Why.CALL -> StopReason.CALL
+                    },
+                )
+                else -> VadDecision.Discard(
+                    when (why) {
+                        Why.SILENCED -> DiscardReason.MIC_SILENCED
+                        Why.UNREADABLE -> DiscardReason.MIC_LOST
+                        Why.CALL -> DiscardReason.CALL
+                    },
+                )
             }
         }
     }

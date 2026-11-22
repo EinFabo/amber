@@ -5,11 +5,13 @@ import app.amethyst.core.audio.StopReason
 import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
+import app.amethyst.core.capture.CallWatch
 import app.amethyst.core.capture.MicrophoneWatch
 import app.amethyst.core.capture.MicrophoneWatch.Step
 import app.amethyst.core.capture.MicrophoneWatch.Why
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertIs
 
@@ -145,14 +147,37 @@ class MicrophoneWatchTest {
         repeat(20) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = false)) }
         val step = watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)
         assertTrue(step is Step.Lost && step.why == Why.CALL)
-        // Said like another app taking the microphone; words before it are sent.
-        assertEquals(VadDecision.Stop(StopReason.MIC_SILENCED), MicrophoneWatch.ending(Why.CALL, VadDecision.Stop(StopReason.MANUAL)))
-        assertEquals(VadDecision.Discard(DiscardReason.MIC_SILENCED), MicrophoneWatch.ending(Why.CALL, VadDecision.Discard(DiscardReason.NO_SPEECH)))
+        // Said as a call, not as another app taking the microphone; words before it are sent.
+        assertEquals(VadDecision.Stop(StopReason.CALL), MicrophoneWatch.ending(Why.CALL, VadDecision.Stop(StopReason.MANUAL)))
+        assertEquals(VadDecision.Discard(DiscardReason.CALL), MicrophoneWatch.ending(Why.CALL, VadDecision.Discard(DiscardReason.NO_SPEECH)))
     }
 
     @Test
     fun `a call that was already on when the dictation started changes nothing`() {
         val watch = known()
         repeat(50) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)) }
+    }
+
+    @Test
+    fun `a second call after the one the dictation started in ends the recording`() {
+        val watch = known()
+        repeat(10) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)) }
+        // The first call hung up; the dictation goes on.
+        repeat(10) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = false)) }
+        val step = watch.onRead(320, allZero = false, silenced = false, stopRequested = false, inCall = true)
+        assertTrue(step is Step.Lost && step.why == Why.CALL)
+    }
+
+    @Test
+    fun `a call is seen when it begins, not before`() {
+        val calls = CallWatch()
+        assertFalse(calls.began(inCall = true), "already on at the first look: the user's choice")
+        assertFalse(calls.began(inCall = true))
+        assertFalse(calls.began(inCall = false))
+        assertTrue(calls.began(inCall = true))
+        assertFalse(calls.began(inCall = true), "said once per call")
+        val fresh = CallWatch()
+        assertFalse(fresh.began(inCall = false))
+        assertTrue(fresh.began(inCall = true))
     }
 }
