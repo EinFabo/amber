@@ -398,12 +398,17 @@ data class AmethystSettings(
     }
 }
 
-/** Serialises settings for DataStore. Tolerates unknown keys so older builds survive upgrades. */
+/**
+ * Serialises settings for DataStore. Tolerates unknown keys so older builds survive upgrades,
+ * and a value it does not know (an option a newer build added, a null where it expects one)
+ * where the field has a default: that one field takes its default, the rest stays.
+ */
 object SettingsCodec {
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
         encodeDefaults = true
+        coerceInputValues = true
     }
 
     fun encode(settings: AmethystSettings): String = json.encodeToString(settings)
@@ -411,11 +416,22 @@ object SettingsCodec {
     /**
      * Falls back to defaults rather than throwing: corrupt settings must not brick the app.
      * Nothing saved yet (a first launch) decodes to the defaults too, in the [phone]'s
-     * languages; anything saved keeps its own.
+     * languages; anything saved keeps its own. Whoever stores settings asks [read] instead, to
+     * tell a failure from a first launch ([SettingsRescue]).
      */
-    fun decode(raw: String, phone: List<String>): AmethystSettings = runCatching {
-        migrate(json.decodeFromString<AmethystSettings>(raw))
-    }.getOrElse { AmethystSettings.defaults(phone) }
+    fun decode(raw: String, phone: List<String>): AmethystSettings = read(raw, phone).settings
+
+    /** What [raw] comes to: nothing saved yet, the saved settings, or settings this build cannot read. */
+    fun read(raw: String, phone: List<String>): SettingsRead {
+        if (raw.isBlank()) return SettingsRead.Fresh(AmethystSettings.defaults(phone))
+        return try {
+            SettingsRead.Saved(migrate(json.decodeFromString<AmethystSettings>(raw)))
+        } catch (failure: Exception) {
+            // IllegalArgumentException covers SerializationException; anything the migration
+            // throws counts the same - the saved settings are not usable as they are.
+            SettingsRead.Unreadable(AmethystSettings.defaults(phone), SettingsRead.reason(failure))
+        }
+    }
 
     /**
      * Version 1 put "de-DE" on every engine it created, Whisper included. Forced to German,

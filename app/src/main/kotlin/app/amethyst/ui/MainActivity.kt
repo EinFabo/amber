@@ -569,8 +569,10 @@ private fun AmethystScreens(
         }
     }
 
+    // On the app's scope, not the screen's: a change made just before the screen goes away -
+    // Back, a rotation - would be cancelled with it and silently not saved.
     fun updateSettings(transform: (AmethystSettings) -> AmethystSettings) {
-        scope.launch { graph.settingsStore.update(transform) }
+        graph.appScope.launch { graph.settingsStore.update(transform) }
     }
 
     // Which build this is and its version, read on the IO pool at the start; null for the moment

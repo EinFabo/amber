@@ -126,7 +126,8 @@ class Graph(app: Application) {
         runCatching { memory.log.recordFailure("Background work failed unexpectedly: ${error::class.java.name}") }
     }
 
-    val settingsStore = SettingsStore(app)
+    /** A line for Diagnostics when stored settings could not be read and went aside ([app.amethyst.core.settings.SettingsRescue]). */
+    val settingsStore = SettingsStore(app) { line -> runCatching { memory.log.recordFailure(line) } }
     /** Which insertion method worked in which app - not written down in the security mode. */
     val strategyStore = StrategyStore(app) { SecurityMode.remembersApps(loadedSettings.value) }
 
@@ -271,6 +272,11 @@ class Graph(app: Application) {
         hold { opusEncoder.clearLeftovers() }
         // Nothing kept until the settings say the security mode is off.
         keepsWords = SecurityMode.keepsWords(loadedSettings.value)
+    }
+
+    init {
+        // After [memory], so the line lands in Diagnostics.
+        appScope.launch(Dispatchers.IO) { settingsStore.rescueAtStart() }
     }
 
     /** A cleanup that will not run until the user puts something right, for a toast and the row on top of Settings. */
