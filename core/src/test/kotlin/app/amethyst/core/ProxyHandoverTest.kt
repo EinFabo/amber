@@ -78,4 +78,42 @@ class ProxyHandoverTest {
         handover.begin(now = 0)
         assertEquals(ProxyHandover.Arrival(stopped = false), handover.arrive())
     }
+    @Test
+    fun `an activity that waits for the run that handed over still starts it, with a release from before`() {
+        val handover = handover()
+        handover.begin(now = 0)
+        handover.stop()
+        val arrival = handover.arrive()!!
+        handover.waitAgain(arrival, now = 200)
+        assertTrue(handover.pending)
+        assertEquals(ProxyHandover.Arrival(stopped = true), handover.arrive())
+    }
+
+    @Test
+    fun `a release while the activity waits for the run is kept as its stop`() {
+        val handover = handover()
+        handover.begin(now = 0)
+        handover.waitAgain(handover.arrive()!!, now = 200)
+        handover.stop()
+        assertEquals(ProxyHandover.Arrival(stopped = true), handover.arrive())
+    }
+
+    @Test
+    fun `a cancel while the activity waits for the run ends it`() {
+        val handover = handover()
+        handover.begin(now = 0)
+        handover.waitAgain(handover.arrive()!!, now = 200)
+        handover.cancel()
+        assertNull(handover.arrive(), "cancelled: it must not record")
+    }
+
+    @Test
+    fun `a start over while the activity waits for the run takes that activity`() {
+        val handover = handover()
+        handover.begin(now = 0)
+        handover.waitAgain(handover.arrive()!!, now = 200)
+        handover.cancel()
+        assertFalse(handover.begin(now = 400), "the activity is up and calls in again: no second launch")
+        assertEquals(ProxyHandover.Arrival(stopped = false), handover.arrive())
+    }
 }

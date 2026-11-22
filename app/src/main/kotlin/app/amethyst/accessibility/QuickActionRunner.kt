@@ -52,7 +52,8 @@ class QuickActionRunner(
         val app = otherApp(currentApp)
         // Each says what happened; copy, the cleanup switch and hiding say it themselves.
         val ran = when (action) {
-            QuickAction.INSERT_AGAIN -> dictation.insertAgain().also { if (it) toast(service.getString(R.string.quick_done_inserted)) }
+            // Off the main thread: it says what came of it once the text is in.
+            QuickAction.INSERT_AGAIN -> dictation.insertAgain()
             // The bubble shows the work; the text goes in as a dictation's would.
             QuickAction.TRY_AGAIN -> dictation.tryAgain()
             QuickAction.UNDO_LAST -> dictation.undoLast()

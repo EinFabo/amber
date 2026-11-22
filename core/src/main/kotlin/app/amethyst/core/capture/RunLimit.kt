@@ -38,6 +38,14 @@ class RunLimit(
         limitMs = minOf(limitMs, elapsedMs() + afterMs.coerceAtLeast(0))
     }
 
+    /**
+     * How long a step of its own [ownMs] may take inside this run, leaving [reserveMs] for what
+     * must come after it - the text going into the field: its own time, or what the run has
+     * left, whichever ends first. Zero or less when nothing is left for it. A cleanup cut short
+     * here leaves the words as recognized, instead of the limit taking the whole dictation.
+     */
+    fun budgetMs(ownMs: Long, reserveMs: Long): Long = minOf(ownMs, remainingMs() - reserveMs)
+
     companion object {
         /** How often the watchdog looks whether its limit got shorter meanwhile. */
         const val LOOK_AGAIN_MS = 1_000L

@@ -59,6 +59,7 @@
     <string name="quick_done_style_no_cleanup">%1$s: %2$s. No cleanup runs here, so it has no effect.</string>
     <string name="quick_open_failed">Android didn\'t let Embersay open it</string>
     <string name="toast_unexpected">Something went wrong. See Diagnostics for details.</string>
+    <string name="toast_unexpected_try_again">Something went wrong. Hold the bubble and choose Try again.</string>
     <string name="toast_on_clipboard">Couldn\'t insert. Paste the text from the clipboard.</string>
     <string name="toast_may_arrive">Text may still appear. If not, hold the bubble and choose Copy last.</string>
     <string name="toast_may_arrive_on_clipboard">Text may still appear. If not, paste it from the clipboard.</string>

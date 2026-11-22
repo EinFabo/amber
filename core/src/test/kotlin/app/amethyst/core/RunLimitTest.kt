@@ -74,6 +74,25 @@ class RunLimitTest {
         assertEquals(20_000L, limit.remainingMs())
     }
 
+    @Test
+    fun `a step gets its own time while the run has more than that left`() {
+        val limit = RunLimit(840_000, RecordingPause()) { now }
+        now = 10_000
+        limit.recordingEnded(afterMs = 140_000)
+        assertEquals(12_000L, limit.budgetMs(ownMs = 12_000, reserveMs = 5_000))
+    }
+
+    @Test
+    fun `a step near the run's end gets what is left, less what comes after it`() {
+        val limit = RunLimit(840_000, RecordingPause()) { now }
+        now = 10_000
+        limit.recordingEnded(afterMs = 140_000)
+        now = 140_000
+        assertEquals(5_000L, limit.budgetMs(ownMs = 12_000, reserveMs = 5_000))
+        now = 146_000
+        assertTrue(limit.budgetMs(ownMs = 12_000, reserveMs = 5_000) <= 0, "no time left for the step")
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `a recognizer that never answers is given up once its short recording's time is over`() = runTest {

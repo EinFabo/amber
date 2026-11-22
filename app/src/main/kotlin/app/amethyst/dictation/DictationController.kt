@@ -108,6 +108,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -218,6 +220,7 @@ class DictationController(
     private val handover = ProxyHandover(lostAfterMs = PROXY_HANDOVER_TIMEOUT_MS)
 
     /** Counts runs, so a timer from an earlier run never acts on a later one. */
+    @Volatile
     private var runSerial = 0
 
     private val _mode = MutableStateFlow(RunMode.DICTATION)
@@ -293,6 +296,43 @@ class DictationController(
     private var commandRecorded = false
 
     /**
+     * This dictation's words once recognized - after its cleanup, the cleaned ones - until they
+     * went into the field or into the record ([fail] with their text). Once words exist they are
+     * never thrown away: the run's time limit inserts them as recognized, an unexpected error
+     * keeps them for Insert again and Copy last ([run]).
+     */
+    @Volatile
+    private var runWords: Transcript? = null
+
+    /**
+     * Sets back what one run keeps for itself, before a new one begins - a dictation, a Try
+     * again, the debug build's typed command. [handedOver]: the proxy activity's re-entry, which
+     * goes on with the run handed to it - its serial, its "As recognized" from the quick menu
+     * and its target stay; only what its first attempt at recording may have left goes.
+     * [engineId]: the speech recognition the run is routed to, as known now.
+     */
+    private fun resetRunState(engineId: String?, handedOver: Boolean = false) {
+        if (!handedOver) {
+            runSerial++
+            retryForHistory = false
+            skipCleanup = CompletableDeferred()
+            fellBack = null
+            fellBackFrom = null
+        }
+        runEngineId = engineId
+        recordingPause = RecordingPause()
+        runLimit = null
+        wait = null
+        runAudio = null
+        runWords = null
+        // A run cancelled while its recognizer listened left its microphone counted as open.
+        cue.ended()
+        stoppedByTap = false
+        commandSteps = null
+        commandRecorded = false
+    }
+
+    /**
      * What the bubble does on a tap, and what it came to ([BubbleTap.Result]): a recording
      * started, something stopped, or - while a dictation is being written - nothing, said with
      * the hint how to cancel.
@@ -335,7 +375,6 @@ class DictationController(
     }
 
     fun start(source: TriggerSource = TriggerSource.BUBBLE) {
-        if (source != TriggerSource.PROXY_ACTIVITY) retryForHistory = false
         // The proxy activity records only for a run that still waits for it - not after a
         // cancel - and brings along a release that came while it was on its way.
         val stoppedDuringHandover = if (source == TriggerSource.PROXY_ACTIVITY) {
@@ -344,11 +383,20 @@ class DictationController(
                 Log.i(TAG, "mic proxy activity arrived with no dictation waiting for it")
                 return
             }
+            // The run that handed over - its own recording failed a moment ago - may still be
+            // letting go of its engine. Returning here would leave the bubble on "starting"
+            // until the handover's watch said the microphone never opened: the activity waits
+            // for that run instead, and records once it is over.
+            val previous = job
+            if (previous?.isActive == true) {
+                awaitPreviousRun(previous, arrival)
+                return
+            }
             arrival.stopped
         } else {
+            if (isRunning) return
             false
         }
-        if (isRunning) return
         // The app being dictated into picks the speech recognition: its own, or the one for
         // every app. Taken once, at the start; the proxy activity's re-entry keeps it.
         if (source != TriggerSource.PROXY_ACTIVITY) {
@@ -361,17 +409,13 @@ class DictationController(
         // nothing, rather than taking the words and failing - and never hand them to another engine.
         routed?.takeIf(ModelDownloads::downloadsModel)?.let(graph.modelDownloads::forEngine)?.let { download ->
             notice(Texts.downloadAtStart(context, download))
+            // A run handed to the proxy activity ends here: "starting" would keep the activity
+            // up and have the handover's watch say the microphone never opened.
+            if (source == TriggerSource.PROXY_ACTIVITY) _state.value = DictationState.Idle
             return
         }
+        resetRunState(routed?.id, handedOver = source == TriggerSource.PROXY_ACTIVITY)
         if (source != TriggerSource.PROXY_ACTIVITY) {
-            runSerial++
-            stoppedByTap = false
-            commandSteps = null
-            commandRecorded = false
-            runEngineId = routed?.id
-            skipCleanup = CompletableDeferred()
-            fellBack = null
-            fellBackFrom = null
             _mode.value = CommandTrigger.modeAtStart(
                 source,
                 commandsOn = graph.settings.value.commandsEnabled,
@@ -424,6 +468,20 @@ class DictationController(
         // begin before the coroutine gets its first dispatch.
         _state.value = DictationState.Starting
         job = scope.launch { run(source, token) }
+    }
+
+    /**
+     * The proxy activity arrived while [previous] - the run that handed over to it - is still
+     * ending: the activity waits for it, as it waited for the handover ([ProxyHandover.waitAgain]),
+     * then calls in again. A cancel meanwhile ends the wait, a tap is kept as the stop.
+     */
+    private fun awaitPreviousRun(previous: Job, arrival: ProxyHandover.Arrival) {
+        Log.i(TAG, "mic proxy activity arrived while the run before is still ending - waiting for it")
+        handover.waitAgain(arrival, SystemClock.elapsedRealtime())
+        scope.launch {
+            previous.join()
+            withContext(Dispatchers.Main) { start(TriggerSource.PROXY_ACTIVITY) }
+        }
     }
 
     /**
@@ -701,24 +759,32 @@ class DictationController(
 
     /**
      * The last dictation of this session (any app) typed again into the field that has focus
-     * now - never into a password field. False with nothing to insert or nowhere to put it.
+     * now - never into a password field. False with nothing to insert or no service to do it;
+     * otherwise a toast says what came of it once it is done.
      */
     fun insertAgain(): Boolean {
         if (isRunning) return false
         val text = graph.memory.sessionDictation()?.text ?: return false
         val service = graph.accessibilityService ?: return false
-        val target = service.focusedTarget()
-        if (target == null || target.kind == TextFieldKind.SECRET) {
-            toast(R.string.dictation_no_field)
-            return false
-        }
-        val settings = graph.settings.value
-        val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value), expectedPackage = target.packageName)
-        Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
-        remember(insertion)
-        if (!insertion.insertedIntoField && !insertion.copiedToClipboard) {
-            toast(R.string.dictation_not_inserted_here)
-            return false
+        // Off the main thread, as undoLast: finding the field walks the window's nodes (up to
+        // 1500), and the insertion checks its work in short sleeps for up to seconds - on the
+        // quick menu's touch handler the bubble and the app in front would freeze meanwhile.
+        scope.launch {
+            val target = service.focusedTarget()
+            if (target == null || target.kind == TextFieldKind.SECRET) {
+                toast(R.string.dictation_no_field)
+                return@launch
+            }
+            val settings = graph.settings.value
+            val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value), expectedPackage = target.packageName)
+            Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
+            remember(insertion)
+            when {
+                insertion.insertedIntoField -> toast(R.string.quick_done_inserted)
+                // On the clipboard instead: the inserter's own toast says so.
+                insertion.copiedToClipboard -> Unit
+                else -> toast(R.string.dictation_not_inserted_here)
+            }
         }
         return true
     }
@@ -747,14 +813,8 @@ class DictationController(
      */
     private suspend fun run(source: TriggerSource, token: Int, retry: PcmAudio? = null) {
         _state.value = if (retry == null) DictationState.Starting else DictationState.Transcribing()
-        val pause = RecordingPause().also { recordingPause = it }
-        wait = null
-        runAudio = null
-        // A run cancelled while its recognizer listened left its microphone counted as open.
-        cue.ended()
-        stoppedByTap = false
-        commandSteps = null
-        commandRecorded = false
+        // This run's, set back by whatever started it ([resetRunState]).
+        val pause = recordingPause
 
         val settings = graph.settings.value
         // Watches this run's wait, and ends with the run.
@@ -813,17 +873,36 @@ class DictationController(
                     else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit)
                 } ?: return@withPausableTimeout Unit // the failure was already reported
 
-                if (_mode.value == RunMode.COMMAND) runCommand(transcript, appLabels) else scratched(transcript, settings)?.let { deliver(cleanUp(it), settings, engineConfig.id) } ?: Unit
+                if (_mode.value == RunMode.COMMAND) {
+                    runCommand(transcript, appLabels)
+                } else {
+                    scratched(transcript, settings)?.let { words ->
+                        runWords = words
+                        val cleaned = cleanUp(words)
+                        runWords = cleaned
+                        deliver(cleaned, settings, engineConfig.id)
+                    } ?: Unit
+                }
             }
 
             if (finished == null) {
-                val keptNow = keepForRetry(null)
-                fail(
-                    say(R.string.dictation_timed_out),
-                    engineConfig.id,
-                    brief = say(if (keptNow) R.string.toast_timed_out_try_again else R.string.dictation_timed_out),
-                    details = listOf("stopped: the run's time limit of ${limit.limitMs} ms ran out"),
-                )
+                val words = runWords
+                if (words != null) {
+                    // The words were there when the time ran out - in the cleanup, or while the
+                    // field was looked for: they go in now, as far as they came, rather than
+                    // being dropped. Outside the limit; the insertion bounds its own waits.
+                    Log.i(TAG, "the run's time limit ran out after the words came - inserting them as they are")
+                    trace?.ended = "the run's time limit of ${limit.limitMs} ms ran out after the words came: inserted as they were"
+                    deliver(words, settings, engineConfig.id)
+                } else {
+                    val keptNow = keepForRetry(null)
+                    fail(
+                        say(R.string.dictation_timed_out),
+                        engineConfig.id,
+                        brief = say(if (keptNow) R.string.toast_timed_out_try_again else R.string.dictation_timed_out),
+                        details = listOf("stopped: the run's time limit of ${limit.limitMs} ms ran out"),
+                    )
+                }
             }
         } catch (e: CancellationException) {
             // A command a tap stopped that has no record yet - while it was still being
@@ -841,17 +920,32 @@ class DictationController(
             // cancel() already set the state, and a cancelled parent scope is not a dictation
             // error. Rethrow so structured concurrency still sees it.
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Not only exceptions: an Error from a native engine or the memory running out
+            // would otherwise end the process, and the dictation with it.
             // Its message may hold a server's answer or what was heard: a release build logs
             // the class only.
             if (DebugLog.enabled) Log.e(TAG, "dictation failed", e) else Log.e(TAG, "dictation failed: ${e::class.java.name}")
+            // Nothing recognized is lost to it: words that came are kept in the record for
+            // Insert again and Copy last - as delivering would have put them, where that works;
+            // before them, the recording is kept for Try again.
+            val words = runWords?.let { held -> runCatching { normalized(held, settings, engineConfig.id) }.getOrDefault(held.text) }.orEmpty()
+            val keptNow = words.isBlank() && keepForRetry(null)
+            val brief = when {
+                words.isNotBlank() -> if (SecurityMode.keepsWords(graph.loadedSettings.value)) R.string.toast_insert_again else R.string.toast_not_kept
+                keptNow -> R.string.toast_unexpected_try_again
+                else -> R.string.toast_unexpected
+            }
             fail(
                 // The message may be long and technical: the screen and the toast say where it
                 // is, Diagnostics keep it.
                 say(R.string.toast_unexpected),
+                engineConfig.id,
+                brief = say(brief),
                 recordAs = english.getString(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
                 logAs = english.getString(R.string.dictation_unexpected, e::class.java.name),
                 details = listOf("unexpected ${e::class.java.name}"),
+                text = words,
             )
         } finally {
             // Only what is still this run's. After a cancel during a recognition on the phone,
@@ -861,7 +955,15 @@ class DictationController(
             // The recording had its chance to be kept for "Try again" ([keepForRetry]): what
             // is not in [kept] now is let go, not held in memory until the next dictation. A
             // run another has followed leaves alone what is that one's.
-            if (runStop.end(token)) runAudio = null
+            if (runStop.end(token)) {
+                runAudio = null
+                // A cancel set the bubble to rest from the main thread while this run may have
+                // been about to show "listening" or "working": the last word is the cancel's,
+                // or the bubble spins on and the screen stays awake. Not once a newer run began -
+                // also not one still being handed to the proxy activity, whose "starting" it is.
+                val busy = _state.value.let { it is DictationState.Starting || it is DictationState.Listening || it is DictationState.Transcribing }
+                if (currentCoroutineContext()[Job]?.isCancelled == true && busy && !handover.pending) _state.value = DictationState.Idle
+            }
             runCatching { engine.close() }
             graph.scheduleModelRelease()
         }
@@ -1025,13 +1127,13 @@ class DictationController(
             )
         } catch (e: Throwable) {
             chunked?.cancel()
-            prepared?.chunks?.cancel()
+            prepared?.drop()
             throw e
         } finally {
             microphoneClosed()
         }
         if (outcome !is AudioCapture.Outcome.Captured || outcome.chunks == 0) chunked?.cancel()
-        if (outcome !is AudioCapture.Outcome.Captured) prepared?.chunks?.cancel()
+        if (outcome !is AudioCapture.Outcome.Captured) prepared?.drop()
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
@@ -1105,8 +1207,9 @@ class DictationController(
                 // the engine gets the command.
                 val command = _mode.value == RunMode.COMMAND
                 if (command) chunked?.cancelAndJoin()
-                // A command is heard by its engine alone; nothing prepared stands in for it.
-                if (command) prepared?.chunks?.cancelAndJoin()
+                // A command is heard by its engine alone; nothing prepared stands in for it. The
+                // prepared model is another engine than the command's: no need to wait for it.
+                if (command) prepared?.drop()
                 // Kept for "Try again" should its recognition fail; a command is said again instead.
                 if (!command) runAudio = outcome.audio
                 return recognize(engine, options, outcome, chunked, prepared, command, estimateKey, appLabels)
@@ -1295,7 +1398,6 @@ class DictationController(
     fun tryAgain(forHistory: Boolean = false, inAmber: Boolean = false): Boolean {
         if (isRunning) return false
         val audio = kept.recording() ?: return false
-        retryForHistory = forHistory
         takeStartTarget()
         runInAmber = inAmber
         runPackage = targetApp()
@@ -1305,14 +1407,8 @@ class DictationController(
             notice(Texts.downloadAtStart(context, download))
             return false
         }
-        runSerial++
-        stoppedByTap = false
-        commandSteps = null
-        commandRecorded = false
-        runEngineId = routed?.id
-        skipCleanup = CompletableDeferred()
-        fellBack = null
-        fellBackFrom = null
+        resetRunState(routed?.id)
+        retryForHistory = forHistory
         _mode.value = RunMode.DICTATION
         handover.cancel()
         trace = RunTrace("TRY_AGAIN")
@@ -1323,8 +1419,20 @@ class DictationController(
         return true
     }
 
-    /** A fallback on the phone recognizing this recording alongside the server ([ReadyFallback]). */
-    private class Prepared(val config: EngineConfig, val engine: SttEngine, val options: TranscribeOptions, val chunks: ChunkedTranscription)
+    /**
+     * A fallback on the phone recognizing this recording alongside the server ([ReadyFallback]),
+     * its loading and its chunks in [work] - a scope of its own, which [drop] lets go of.
+     */
+    private class Prepared(
+        val config: EngineConfig,
+        val engine: SttEngine,
+        val options: TranscribeOptions,
+        val chunks: ChunkedTranscription,
+        val work: CoroutineScope,
+    ) {
+        /** Nothing more is wanted of it: its loading and its chunks are cancelled, and nobody waits for them. */
+        fun drop() = work.cancel()
+    }
 
     /**
      * The fallback model to prepare while [primary] records, if the user switched preparing on
@@ -1334,11 +1442,18 @@ class DictationController(
     private suspend fun prepareFallback(primary: EngineConfig): Prepared? {
         val config = ReadyFallback.engineToPrepare(graph.settings.value, primary, ::trustOf, graph::modelReady) ?: return null
         val engine = graph.engineFactory.create(config).getOrNull() ?: return null
-        val scope = CoroutineScope(currentCoroutineContext())
+        // A scope of its own in the app's, as Graph.prepareForDictation loads a model - not a
+        // child of the run: a cold Parakeet takes seconds to load, and a run that waited for it
+        // (or for a chunk still being recognized) after its text was in stayed "working" - a
+        // tap said "still working", Insert again, Undo and Try again refused. A native load or
+        // recognition cannot be aborted; it ends by itself, and nobody waits for it.
+        val work = CoroutineScope(graph.appScope.coroutineContext + SupervisorJob(graph.appScope.coroutineContext[Job]))
+        // Let go of with the run, whichever way it ends; the race lets go of it sooner.
+        currentCoroutineContext()[Job]?.invokeOnCompletion { work.cancel() }
         // The model loads while the user speaks; a failure shows when it is asked for text.
-        scope.launch { engine.warmUp() }
+        work.launch { engine.warmUp() }
         val options = TranscribeOptions(languageTag = LanguageList.forDictation(config), vocabularyHint = graph.settings.value.words.hint())
-        return Prepared(config, engine, options, ChunkedTranscription(engine, options, scope))
+        return Prepared(config, engine, options, ChunkedTranscription(engine, options, work), work)
     }
 
     private fun trustOf(config: EngineConfig): TrustLevel =
@@ -1366,7 +1481,9 @@ class DictationController(
         val stoppedAt = SystemClock.elapsedRealtime()
         val localDoneAt = AtomicLong(0)
         val localOk = AtomicBoolean(false)
-        val local = CoroutineScope(currentCoroutineContext()).async {
+        // In the prepared work's scope: once the server's answer stands, the run goes on without
+        // waiting for a recognition on the phone that cannot be aborted.
+        val local = ready.work.async {
             try {
                 if (captured.chunks > 0) {
                     ready.chunks.finish(captured.tail, captured.audio)
@@ -1401,8 +1518,7 @@ class DictationController(
             trace?.prepared = "prepared on the phone with ${ready.config.displayName}, ${ready.chunks.chunkCount} chunks, $readyAfter; $who"
             return outcome
         } finally {
-            local.cancel()
-            ready.chunks.cancel()
+            ready.drop()
         }
     }
 
@@ -1582,7 +1698,20 @@ class DictationController(
      * implausible answer the transcript is kept as recognized, and the diagnostics say why.
      * The bubble stays on "working" meanwhile.
      */
-    private suspend fun cleanUp(transcript: Transcript): Transcript {
+    private suspend fun cleanUp(transcript: Transcript): Transcript = try {
+        cleanUpOrThrow(transcript)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // Reading its key (the encrypted store can refuse), building the prompt, checking the
+        // reply: whatever throws on the way, the words go in as recognized - a failed cleanup
+        // must never cost the dictation. The class only: a message may quote the words.
+        Log.w(TAG, "cleanup failed: ${e::class.java.name}")
+        trace?.cleanup = "cleanup skipped: unexpected ${e::class.java.name}"
+        transcript
+    }
+
+    private suspend fun cleanUpOrThrow(transcript: Transcript): Transcript {
         // Both the cleanup and the style belong to the app whose field gets the text; after
         // the proxy activity that is only known once focus is back.
         awaitFocusReturn()
@@ -1616,8 +1745,16 @@ class DictationController(
             transcript.detectedLanguage,
             settings.engines.firstOrNull { it.id == transcript.engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
         )
-        // A long text takes its time to be written back; past it, it goes in as recognized.
-        val result = withTimeoutOrNull(ChatCleanup.timeoutMs(transcript.text.length)) {
+        // A long text takes its time to be written back; past it, it goes in as recognized. So
+        // it does when the run's own time limit is near: the cleanup ends first, with time left
+        // for the words to go in, rather than the limit taking the whole dictation.
+        val ownMs = ChatCleanup.timeoutMs(transcript.text.length)
+        val budgetMs = runLimit?.budgetMs(ownMs, DELIVERY_RESERVE_MS) ?: ownMs
+        if (budgetMs <= 0) {
+            trace?.cleanup = "cleanup skipped: the run's time limit is near (${cleanup.model})"
+            return transcript
+        }
+        val result = withTimeoutOrNull(budgetMs) {
             coroutineScope {
                 val work = async {
                     cleanup.clean(
@@ -1639,7 +1776,11 @@ class DictationController(
             }
         }
         if (result == null) {
-            trace?.cleanup = if (skip.isCompleted) "cleanup dropped from the quick menu (${cleanup.model})" else "cleanup timed out (${cleanup.model})"
+            trace?.cleanup = when {
+                skip.isCompleted -> "cleanup dropped from the quick menu (${cleanup.model})"
+                budgetMs < ownMs -> "cleanup stopped at the run's time limit (${cleanup.model})"
+                else -> "cleanup timed out (${cleanup.model})"
+            }
             return transcript
         }
         return result.fold(
@@ -1756,10 +1897,7 @@ class DictationController(
                 Toast.makeText(context, "\u201C${heard.take(SHOWN_CHARS)}\u201D \u2192 ${outcome.message}", Toast.LENGTH_SHORT).show()
             }
         }
-        scope.launch {
-            delay(DONE_DISPLAY_MS)
-            if (_state.value is DictationState.Commanded) _state.value = DictationState.Idle
-        }
+        restAfter<DictationState.Commanded>(DONE_DISPLAY_MS)
     }
 
     /**
@@ -1768,9 +1906,7 @@ class DictationController(
      */
     internal suspend fun commandForTest(text: String) {
         _mode.value = RunMode.COMMAND
-        stoppedByTap = false
-        commandSteps = null
-        commandRecorded = false
+        resetRunState(engineId = "test")
         trace = RunTrace("TEST/COMMAND")
         takeStartTarget()
         runCommand(Transcript(text = text, engineId = "test", trustLevel = TrustLevel.ON_DEVICE, latencyMs = 0))
@@ -1834,32 +1970,16 @@ class DictationController(
         settings: app.amethyst.core.settings.AmethystSettings,
         engineId: String,
     ) {
-        val cleaned = TranscriptNormalizer.normalize(
-            transcript.text,
-            settings.normalizeOptions(),
-            // As for the cleanup, between German and English the words first: a recognizer that
-            // detects the language itself (Parakeet) is otherwise named by the phone's - English
-            // on a phone set to English alone, where German "Komma" stayed a word and "um" went
-            // as an English filler. Any other language keeps German and English rules off.
-            language = LanguageGuess.forNormalizer(
-                transcript.text,
-                transcript.detectedLanguage,
-                settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
-            ),
-            // Whether the field takes them is decided at insertion (InsertionEngine).
-            keepLineBreaks = transcript.formatted,
-        )
+        val cleaned = normalized(transcript, settings, engineId)
         if (cleaned.isBlank()) {
             fail(said(Problem.NothingRecognized), engineId)
             return
         }
-        // Words came: a recording kept from a failed dictation is not needed now - whatever
-        // becomes of these, they are kept for Insert again and Copy last.
-        if (_mode.value == RunMode.DICTATION) kept.textRecognized()
-
         val inserter = graph.accessibilityService?.textInserter
         if (inserter == null) {
-            fail(say(R.string.dictation_service_off), engineId)
+            // The words stay in the record: once the service is on again, Insert again and Copy
+            // last take them.
+            fail(say(R.string.dictation_service_off), engineId, text = cleaned)
             return
         }
 
@@ -1934,6 +2054,7 @@ class DictationController(
         }
 
         remember(insertion)
+        wordsKept()
         trace?.servedBy = transcript.servedBy
         val finalTranscript = transcript.copy(text = cleaned)
         graph.memory.log.recordSuccess(
@@ -1959,9 +2080,47 @@ class DictationController(
 
         // Let the bubble show the result for a moment, then go back to resting. Launched
         // separately so this pause is not charged to the dictation's timeout.
+        restAfter<DictationState.Done>(DONE_DISPLAY_MS)
+    }
+
+    /** The words as they go into a field: spoken punctuation, fillers, spacing ([TranscriptNormalizer]). */
+    private fun normalized(transcript: Transcript, settings: AmethystSettings, engineId: String): String =
+        TranscriptNormalizer.normalize(
+            transcript.text,
+            settings.normalizeOptions(),
+            // As for the cleanup, between German and English the words first: a recognizer that
+            // detects the language itself (Parakeet) is otherwise named by the phone's - English
+            // on a phone set to English alone, where German "Komma" stayed a word and "um" went
+            // as an English filler. Any other language keeps German and English rules off.
+            language = LanguageGuess.forNormalizer(
+                transcript.text,
+                transcript.detectedLanguage,
+                settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
+            ),
+            // Whether the field takes them is decided at insertion (InsertionEngine).
+            keepLineBreaks = transcript.formatted,
+        )
+
+    /**
+     * This dictation's words went into the field or into the record: the run holds them no
+     * longer ([runWords]), and a recording kept from a failed dictation is not needed now -
+     * these words are kept for Insert again and Copy last. Only here, once they are safe: words
+     * that were dropped on the way would otherwise take the recording with them.
+     */
+    private fun wordsKept() {
+        runWords = null
+        if (_mode.value == RunMode.DICTATION) kept.textRecognized()
+    }
+
+    /**
+     * The bubble goes back to resting after [ms] if it still shows [S] - this run's. A newer run
+     * meanwhile has its own result on show, which this run's timer must not end early.
+     */
+    private inline fun <reified S : DictationState> restAfter(ms: Long) {
+        val serial = runSerial
         scope.launch {
-            delay(DONE_DISPLAY_MS)
-            if (_state.value is DictationState.Done) _state.value = DictationState.Idle
+            delay(ms)
+            if (runSerial == serial && _state.value is S) _state.value = DictationState.Idle
         }
     }
 
@@ -2074,6 +2233,7 @@ class DictationController(
                 graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text)
                 // Words that did not go in are a dictation too: the history keeps them.
                 if (history && text.isNotBlank()) graph.keepInHistory(text, startTarget?.packageName)
+                if (text.isNotBlank()) wordsKept()
             }
         }
         _state.value = DictationState.Failed(message, remedy)
@@ -2086,10 +2246,7 @@ class DictationController(
             }
         }
 
-        scope.launch {
-            delay(FAILED_DISPLAY_MS)
-            if (_state.value is DictationState.Failed) _state.value = DictationState.Idle
-        }
+        restAfter<DictationState.Failed>(FAILED_DISPLAY_MS)
     }
 
     private fun remedyOf(error: Throwable): SttFailure.Remedy? = (error as? SttFailure)?.remedy
@@ -2135,6 +2292,12 @@ class DictationController(
 
         const val PROXY_HANDOVER_TIMEOUT_MS = 3_000L
         const val FAILED_DISPLAY_MS = 3_500L
+
+        /**
+         * What a cleanup leaves of the run's time limit for the words to go in: the wait for the
+         * proxy activity's window, a field looked for again, an insertion that checks its work.
+         */
+        const val DELIVERY_RESERVE_MS = 5_000L
         const val PROXY_EXIT_TIMEOUT_MS = 1_500L
         const val PROXY_POLL_MS = 50L
         const val FOCUS_SETTLE_MS = 200L

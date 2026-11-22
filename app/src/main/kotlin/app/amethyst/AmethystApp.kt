@@ -46,6 +46,7 @@ import app.amethyst.engine.SherpaRuntime
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.engine.WhisperModelStore
 import app.amethyst.update.UpdateChecker
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,7 +111,20 @@ class AmethystApp : Application() {
  */
 class Graph(app: Application) {
 
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * The app's background work - every dictation runs here. A failure nobody caught - an Error
+     * from a native engine, a bug in some background job - is logged and kept in Diagnostics
+     * instead of ending the process, which would take the bubble and a dictation in progress
+     * with it.
+     */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error -> backgroundFailed(error) })
+
+    private fun backgroundFailed(error: Throwable) {
+        // The class only in a release build: a message may hold a server's answer or what was heard.
+        if (DebugLog.enabled) android.util.Log.e("Embersay", "background work failed", error)
+        else android.util.Log.e("Embersay", "background work failed: ${error::class.java.name}")
+        runCatching { memory.log.recordFailure("Background work failed unexpectedly: ${error::class.java.name}") }
+    }
 
     val settingsStore = SettingsStore(app)
     /** Which insertion method worked in which app - not written down in the security mode. */

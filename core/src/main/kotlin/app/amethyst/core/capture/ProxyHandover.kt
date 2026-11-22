@@ -58,6 +58,19 @@ class ProxyHandover(
         launchedAt = null
     }
 
+    /**
+     * The activity is up, but the run that handed over is still letting go of its recorder -
+     * its own recording failed a moment ago: it waits for that run with [arrival] held as a
+     * handover holds it - a release meanwhile is its stop, a cancel ends it - and it is the
+     * activity on its way for a start over meanwhile ([begin]). [arrive] once that run is over.
+     */
+    @Synchronized
+    fun waitAgain(arrival: Arrival, now: Long) {
+        waiting = true
+        stopped = arrival.stopped
+        launchedAt = now
+    }
+
     /** The activity is up. Null when no run waits for it - it records nothing then. */
     @Synchronized
     fun arrive(): Arrival? {
