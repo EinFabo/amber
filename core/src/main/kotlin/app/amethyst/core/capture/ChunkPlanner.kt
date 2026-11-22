@@ -31,6 +31,9 @@ class ChunkPlanner(
         private set
 
     private var silenceMs = 0
+
+    /** Where the last speech frame ended, in samples since the start of the recording. */
+    private var lastSpeechEnd = 0
     private var quietestRms = Double.MAX_VALUE
     private var quietestAt = 0
 
@@ -41,6 +44,7 @@ class ChunkPlanner(
         if (speech) {
             speechSinceCut = true
             silenceMs = 0
+            lastSpeechEnd = totalSamples
         } else {
             silenceMs += frameMs
         }
@@ -68,8 +72,9 @@ class ChunkPlanner(
 
         val chunk = Chunk(chunkStart, cut)
         chunkStart = cut
-        // A forced cut can land in speech, so what follows may still be speech.
-        speechSinceCut = ms(totalSamples - cut) > 0 && silenceMs == 0
+        // A forced cut goes back to the quietest frame, so words may follow it - even when
+        // this frame is a breath. Without them counted, a stop right now would drop them.
+        speechSinceCut = lastSpeechEnd > cut
         silenceMs = 0
         quietestRms = Double.MAX_VALUE
         quietestAt = 0

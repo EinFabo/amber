@@ -100,6 +100,41 @@ class ChunkingTest {
         assertTrue(planner.speechSinceCut)
     }
 
+    @Test
+    fun `words after a forced cut stay pending when the limit lands on a quiet frame`() {
+        val planner = ChunkPlanner(rate, maxChunkMs = 10_000, quietSearchMs = 2_000)
+        val chunks = mutableListOf<ChunkPlanner.Chunk>()
+        var samples = 0
+        // Speech without a pause; its quietest moment at 9 s, then a short breath right at the
+        // limit - the cut goes back to 9 s, the words from 9 s to 10 s come after it.
+        repeat(seconds(10.0)) { i ->
+            samples += frame
+            val last = i == seconds(10.0) - 1
+            val rms = when {
+                i == seconds(9.0) -> 10.0
+                last -> 50.0
+                else -> 2_000.0
+            }
+            planner.onFrame(samples, rms, speech = !last)?.let(chunks::add)
+        }
+        assertEquals((seconds(9.0) + 1) * frame, chunks.single().end)
+        assertTrue(planner.speechSinceCut, "the last second of words would be dropped when the user stops now")
+    }
+
+    @Test
+    fun `a forced cut at the current frame leaves no speech pending`() {
+        val planner = ChunkPlanner(rate, maxChunkMs = 10_000, quietSearchMs = 2_000)
+        val chunks = mutableListOf<ChunkPlanner.Chunk>()
+        var samples = 0
+        // The quietest moment is the frame at the limit itself: the cut takes all the words.
+        repeat(seconds(10.0)) { i ->
+            samples += frame
+            planner.onFrame(samples, if (i == seconds(10.0) - 1) 10.0 else 2_000.0, speech = true)?.let(chunks::add)
+        }
+        assertEquals(samples, chunks.single().end)
+        assertTrue(!planner.speechSinceCut)
+    }
+
     // --- slicing ---------------------------------------------------------------------------
 
     @Test
