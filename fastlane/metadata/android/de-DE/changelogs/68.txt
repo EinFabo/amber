@@ -1,0 +1,3 @@
+- Beginnt während eines Diktats ein Anruf, endet die Aufnahme: Das Gespräch wird nicht mitgeschrieben
+- Das Schnellmenü bietet nach der Rückkehr aus den letzten Apps keinen Stil mehr für den Startbildschirm an
+- Parakeet zeigt „Modell testen“, die Seite einer App nennt ihren Namen nur einmal, kleine Korrekturen am Layout

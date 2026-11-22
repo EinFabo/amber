@@ -193,6 +193,23 @@ After a research round (settings UX, Learn more, English and German copy, the pr
       the phone while you speak" (fallback) are two names for close ideas; a tap on a
       recognition row switches it at once (an undo would be kinder); Diagnostics under About.
 
+## Testing rc2 on the Pixel (2026-11-22) - fixed in rc3
+
+- [x] A dictation went on through a phone call and wrote down Fabi's side of it: Android does
+      not silence an accessibility service's recording for a call. A call that begins now ends
+      the recording (`MicrophoneWatch`, `PhoneCall`). Not yet tried with a real call.
+- [x] Back from the recent apps, "Style here" opened for Pixel's launcher (and made it a
+      profile): home screens never count as the app in front; the menu asks the focused window.
+- [x] Parakeet's "Test model", the app page's name once, no dead "No apps yet" row, hints indented.
+- Checked and fine: the update from rc1 keeps the settings and switches the clipboard on;
+  every settings page in English and German; dictations in Claude (German and English, with
+  the cleanup: fillers out, "um drei ... um vier" settled, "question mark" made a mark) and in
+  Signal (casual style); the quick menu without name chips; Insert again, Undo last, Style here.
+- [ ] Seen once with the PC's voice through its speakers: a chunk seam doubled the last words
+      ("den Schüssel mit. Schlüssel mit."), which the cleanup then bent. Chunking was not changed
+      in rc2; to watch with a real voice.
+- [ ] WhatsApp could not be tried (app lock); GrapheneOS still owes its diagnostics report.
+
 ## Google Play: what is missing (research 2026-11-18; Fabi has a developer account)
 
 No hard blocker - Wispr Flow is on Play with the same design (accessibility service that is not

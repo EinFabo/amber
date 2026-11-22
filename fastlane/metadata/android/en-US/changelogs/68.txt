@@ -1,0 +1,3 @@
+- A call that starts during a dictation now ends the recording: the call is not written down
+- The quick menu no longer offers a style for the home screen after you come back from recent apps
+- Parakeet's page says "Test model"; an app's page shows its name once; small layout fixes
