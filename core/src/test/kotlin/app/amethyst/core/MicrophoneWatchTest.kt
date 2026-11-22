@@ -237,6 +237,26 @@ class MicrophoneWatchTest {
     }
 
     @Test
+    fun `a silenced report that comes after the start's watch still goes to the proxy activity when no sound came`() {
+        // A quiet start opens where Android tells (exact zeros, not silenced); its silenced
+        // report comes late. Not one sample of sound came: no microphone, not one taken.
+        val watch = watched()
+        val frames = MicrophoneRouter.PROBE_MS / 20
+        repeat(frames - 1) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        assertEquals(Step.Open, watch.onRead(320, allZero = true, silenced = false, stopRequested = false))
+        repeat(5) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        repeat(49) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = true, stopRequested = false)) }
+        assertIs<Step.NeverOpened>(watch.onRead(320, allZero = true, silenced = true, stopRequested = false))
+    }
+
+    @Test
+    fun `an unwatched recording silenced from its start is still another app holding the microphone`() {
+        val watch = known()
+        repeat(49) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = true, stopRequested = false)) }
+        assertEquals(Why.SILENCED, assertIs<Step.Lost>(watch.onRead(320, allZero = true, silenced = true, stopRequested = false)).why)
+    }
+
+    @Test
     fun `once open, a watched recording that Android silences ends as another app holding the microphone`() {
         val watch = watched()
         assertEquals(Step.Open, watch.onRead(320, allZero = false, silenced = false, stopRequested = false))

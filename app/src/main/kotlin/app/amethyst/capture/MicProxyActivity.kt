@@ -17,13 +17,15 @@ import kotlinx.coroutines.launch
 /**
  * A 1x1 transparent activity that exists only to make the process foreground.
  *
- * The last fallback, never the first way to the microphone. A bubble tap records directly in
- * the accessibility service's process ([app.amethyst.core.capture.MicrophoneRouter]): Android
- * binds that service so it holds while-in-use microphone access while the screen is on. That
- * rests on how AOSP binds accessibility services, and vendor builds may differ. So when the
- * direct start delivers only silence, when Android refuses the recorder or when Android's speech
- * recognition cannot open the microphone, the dictation hands over to this activity
- * (DictationController.handToProxy) - and only then. An activity is foreground by definition,
+ * The last fallback, never the first way to the microphone from Android 11. A bubble tap
+ * records directly in the accessibility service's process there
+ * ([app.amethyst.core.capture.MicrophoneRouter]): Android binds that service so it holds
+ * while-in-use microphone access while the screen is on. That rests on how AOSP binds
+ * accessibility services, and vendor builds may differ. So when the direct start delivers only
+ * silence, when Android refuses the recorder or when Android's speech recognition cannot open
+ * the microphone, the dictation hands over to this activity (DictationController.handToProxy) -
+ * and only then. On Android 9 and 10, and for a bubble whose accessibility service is not
+ * connected, it is the way, as it was before. An activity is foreground by definition,
  * so starting this one is the one way to record that no ROM can argue with; whatever recorded
  * before the direct path still records.
  *

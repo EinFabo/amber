@@ -188,7 +188,9 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                         onStarted()
                     }
                     is MicrophoneWatch.Step.NeverOpened -> {
-                        // Only silence came, and nobody was told it records: nothing to keep.
+                        // Only silence came: nothing to keep. Mostly nobody was told it records
+                        // yet; a quiet start Android silenced only later was, and the proxy's
+                        // start says it once more.
                         Log.w(TAG, "the direct start never opened: ${step.technical}")
                         return@withContext Outcome.Failed(R.string.capture_refused, "${step.technical} - likely a background microphone block")
                     }

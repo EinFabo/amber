@@ -35,6 +35,11 @@ import app.amethyst.core.audio.VadDecision
  * silence. The microphone counts as open only once a frame carries sound ([Step.Open]); a start
  * that stays silent the whole time is no microphone at all ([Step.NeverOpened]), and the proxy
  * activity takes over. Nothing is lost by it: what came was silence.
+ *
+ * Where Android tells, a quiet start it does not call silenced opens at the end of the watch
+ * (noise suppression gives exact zeros in a quiet room). Its report may come later than that,
+ * though: a watched recording silenced before a single sample of sound came is still no
+ * microphone, not one another app took, and goes to the proxy activity as well.
  */
 class MicrophoneWatch(
     private val frameMs: Int,
@@ -63,7 +68,10 @@ class MicrophoneWatch(
          */
         data object Open : Step
 
-        /** A watched start delivered only silence: this way to the microphone does not work. */
+        /**
+         * A watched start delivered only silence: this way to the microphone does not work. At
+         * the end of [probeMs], or later when Android silenced it before any sound came.
+         */
         data class NeverOpened(val technical: String) : Step
     }
 
@@ -85,6 +93,9 @@ class MicrophoneWatch(
     private var probing = probeMs > 0
     private var probedMs = 0
 
+    /** Whether a frame carried sound: samples not all zero from a recording Android does not silence. */
+    private var heard = false
+
     private val calls = CallWatch()
 
     /**
@@ -101,11 +112,14 @@ class MicrophoneWatch(
             return if (emptyReads >= EMPTY_READS) Step.Lost(Why.UNREADABLE, "$emptyReads reads in a row returned nothing") else Step.Again
         }
         emptyReads = 0
+        if (!allZero && !silenced) heard = true
         if (probing) return probe(allZero, silenced)
         val silent = if (silenceKnown) silenced else allZero
         silentMs = if (silent) silentMs + frameMs else 0
         if (silentMs >= SILENCED_AFTER_MS) {
             val how = if (silenceKnown) "Android silenced the recording" else "only zeros came"
+            // Silenced late, but nothing ever came through: the start never had the microphone.
+            if (probeMs > 0 && !heard) return Step.NeverOpened("$how for $silentMs ms, and no sound came since the start")
             return Step.Lost(Why.SILENCED, "$how for $silentMs ms - another app holds the microphone")
         }
         return Step.Frame

@@ -194,9 +194,9 @@ ran.
 From Android 11 an app in the background may only record with while-in-use access - yet the
 bubble is tapped while another app is in front. Embersay takes two routes (`MicrophoneRouter`):
 
-1. **Directly** in the accessibility service's process. Android binds an accessibility
-   service with `BIND_INCLUDE_CAPABILITIES` and `BIND_FOREGROUND_SERVICE_WHILE_AWAKE`, so the
-   process holds while-in-use microphone access while the screen is on. `MicForegroundService`
+1. **Directly** in the accessibility service's process, from Android 11. Android binds an
+   accessibility service with `BIND_INCLUDE_CAPABILITIES` and
+   `BIND_FOREGROUND_SERVICE_WHILE_AWAKE`, so the process holds while-in-use microphone access while the screen is on. `MicForegroundService`
    (type `microphone`) runs only while a recording does - its notification says "Recording…",
    with a Stop button. Android may refuse it from the background; the recording goes on without
    it.
@@ -204,9 +204,10 @@ bubble is tapped while another app is in front. Embersay takes two routes (`Micr
    recorder, `MicProxyActivity` steps in - a 1×1-pixel transparent window that is in the
    foreground by definition. Nothing was recorded but silence, so nothing is lost.
 
-Route 2 kicks in automatically when route 1 fails. Logcat says per dictation which route it
-took and why (`microphone route: direct+service - ...`), and so does the dictation's line in
-Diagnostics.
+Route 2 kicks in automatically when route 1 fails. On Android 9 and 10 the bubble always takes
+route 2, as it did before: nothing shows that the accessibility binding gives the microphone
+there. Logcat says per dictation which route it took and why
+(`microphone route: direct+service - ...`), and so does the dictation's line in Diagnostics.
 
 ## Building
 
@@ -346,8 +347,8 @@ The order is deliberate - it isolates failures instead of mixing them:
 5. Add your own engine → **"Test connection"** shows the latency without you having to speak.
 6. Reboot without opening the app, tap the bubble → it records directly
    (`microphone route: direct+service` in logcat); if the ROM blocks that, the proxy activity
-   steps in (`microphone route: proxy+service`). This is where vendor ROMs are most likely to
-   get in the way.
+   steps in (`microphone route: proxy+service`; always on Android 9 and 10). This is where
+   vendor ROMs are most likely to get in the way.
 
 If step 2 works and step 4 does not, the problem is insertion, not recognition. If step 2
 already fails, it is the microphone or the engine - and the diagnostics say which.

@@ -51,19 +51,22 @@ enum class MicrophoneRoute {
  * screen was opened, so that a bubble tap counted as a foreground start. Google Play allows a
  * foreground service only for as long as the task the user started, so now:
  *
- * - The bubble records directly in the accessibility service's process. Android binds an
- *   accessibility service with BIND_INCLUDE_CAPABILITIES and BIND_FOREGROUND_SERVICE_WHILE_AWAKE
- *   (AOSP AccessibilityServiceConnection), so from Android 11 the process holds while-in-use
- *   microphone access while the screen is on. Before Android 11 there is no while-in-use rule
- *   for the microphone: the same binding keeps the process from counting as idle, which is
- *   what Android 9 and 10 silence. Either way the bubble records at once.
+ * - From Android 11 the bubble records directly in the accessibility service's process.
+ *   Android binds an accessibility service with BIND_INCLUDE_CAPABILITIES and
+ *   BIND_FOREGROUND_SERVICE_WHILE_AWAKE (AOSP AccessibilityServiceConnection), so the process
+ *   holds while-in-use microphone access while the screen is on.
+ * - On Android 9 and 10 the bubble goes through the proxy activity, as it did whenever the
+ *   all-day service was not up (Fabi's decision for the store review). Those versions silence
+ *   an idle app's recording instead of refusing it, and nothing has shown that the binding
+ *   counts there - least of all for Android's speech recognition, which records in another
+ *   app's process and has no silence watch to fall back on.
  * - The foreground service runs only while a recording does (it shows the recording and its
  *   Stop button); Android may refuse to start it from the background, and the recording goes
  *   on without it.
- * - The proxy activity is the last fallback: when the direct start delivers only silence
- *   ([startProbeMs], [MicrophoneWatch]), when Android refuses the recorder, or when Android's
- *   speech recognition cannot open the microphone ([proxyAfterRecognizerFailure]). So whatever
- *   recorded before still records.
+ * - From Android 11 the proxy activity is the last fallback: when the direct start delivers
+ *   only silence ([startProbeMs], [MicrophoneWatch]), when Android refuses the recorder, or when
+ *   Android's speech recognition cannot open the microphone ([proxyAfterRecognizerFailure]). So
+ *   whatever recorded before still records.
  */
 object MicrophoneRouter {
 
@@ -101,8 +104,8 @@ object MicrophoneRouter {
         )
 
         else -> Decision(
-            MicrophoneRoute.DIRECT,
-            "bubble, Android API $sdk: no while-in-use rule for the microphone before Android 11",
+            MicrophoneRoute.VIA_PROXY_ACTIVITY,
+            "bubble, Android API $sdk: before Android 11 the accessibility service's binding is not relied on for the microphone",
         )
     }
 

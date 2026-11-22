@@ -22,19 +22,28 @@ class MicrophoneRouterTest {
     }
 
     @Test
-    fun `a bubble tap records directly on every Android version, with no foreground service running`() {
-        // Android 9 and 10 have no while-in-use rule; from 11 the accessibility binding carries it.
-        for (sdk in listOf(28, 29, 30, 31, 34, 35, 36, 37)) {
+    fun `from Android 11 a bubble tap records directly, with no foreground service running`() {
+        // The accessibility binding carries while-in-use microphone access from Android 11.
+        for (sdk in listOf(30, 31, 34, 35, 36, 37)) {
             assertEquals(MicrophoneRoute.DIRECT, route(TriggerSource.BUBBLE, sdk = sdk), "API $sdk")
         }
     }
 
     @Test
-    fun `the reason names the Android version and why direct works there`() {
+    fun `on Android 9 and 10 a bubble tap goes through the proxy activity, as before`() {
+        // Fabi's decision for the store review: the proxy stays there; nothing proves the
+        // binding gives the process (or Android's speech recognition) the microphone there.
+        for (sdk in listOf(28, 29)) {
+            assertEquals(MicrophoneRoute.VIA_PROXY_ACTIVITY, route(TriggerSource.BUBBLE, sdk = sdk), "API $sdk")
+        }
+    }
+
+    @Test
+    fun `the reason names the Android version and why that route`() {
         val eleven = MicrophoneRouter.route(TriggerSource.BUBBLE, hasPermission = true, sdk = 30, accessibilityConnected = true)
         assertTrue("while-in-use" in eleven.why && "30" in eleven.why, eleven.why)
         val nine = MicrophoneRouter.route(TriggerSource.BUBBLE, hasPermission = true, sdk = 28, accessibilityConnected = true)
-        assertTrue("before Android 11" in nine.why, nine.why)
+        assertTrue("before Android 11" in nine.why && "28" in nine.why, nine.why)
     }
 
     @Test
@@ -45,12 +54,12 @@ class MicrophoneRouterTest {
     }
 
     @Test
-    fun `nothing but the bubble without its service routes to the proxy first`() {
+    fun `nothing but the bubble without its service or before Android 11 routes to the proxy first`() {
         for (source in TriggerSource.entries) {
             for (sdk in listOf(28, 29, 30, 36)) {
                 for (connected in listOf(true, false)) {
                     val first = route(source, sdk = sdk, connected = connected)
-                    val expected = source == TriggerSource.BUBBLE && !connected
+                    val expected = source == TriggerSource.BUBBLE && (!connected || sdk < 30)
                     assertEquals(expected, first == MicrophoneRoute.VIA_PROXY_ACTIVITY, "$source, API $sdk, connected $connected")
                 }
             }

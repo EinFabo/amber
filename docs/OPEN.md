@@ -216,9 +216,9 @@ No hard blocker - Wispr Flow is on Play with the same design (accessibility serv
 a tool, a bubble, text into other apps). Biggest first:
 - [x] **The microphone service runs all day** (see "Before a store launch"): Play's foreground
       service rule wants it running only for the task. Built 2026-11-22 (store review, item 15):
-      the bubble records directly in the accessibility service's process, the service runs
-      only while recording ("Recording…" with a Stop button), the proxy activity is the last
-      fallback. To try on a phone (Android 14+, and Android 9/10 where there is one): logcat
+      from Android 11 the bubble records directly in the accessibility service's process
+      (Android 9/10: through the proxy activity, as before), the service runs only while
+      recording ("Recording…" with a Stop button), the proxy activity is the last fallback. To try on a phone (Android 14+, and Android 9/10 where there is one): logcat
       `microphone route: ...` per dictation; after a reboot without opening the app; with
       notifications off; Stop in the notification.
 - [ ] **Accessibility declaration** in the Console as a non-tool (no `isAccessibilityTool`);
