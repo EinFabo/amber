@@ -820,41 +820,57 @@ class DictationController(
         // Watches this run's wait, and ends with the run.
         val stuckWatch = scope.launch { watchStuck() }
         currentCoroutineContext()[Job]?.invokeOnCompletion { stuckWatch.cancel() }
-        val routing = graph.engineFor(runPackage)
-        runRouting = routing
-        trace?.routing = routing
-        val engineConfig = routing.engine
-        runEngineId = engineConfig?.id
-        if (engineConfig == null) {
-            fail(say(R.string.dictation_no_engine), details = listOf("no engine selected"))
-            return
-        }
-
-        val engine = graph.engineFactory.create(engineConfig).getOrElse { error ->
-            fail(failureOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
-            return
-        }
-        warmUpConnections(engine, engineConfig, settings)
-
-        val options = TranscribeOptions(languageTag = LanguageList.forDictation(engineConfig), vocabularyHint = settings.words.hint())
-        val appLabels = appLabelsOnce()
-        if (engine is ParakeetEngine) {
-            trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
-        }
-        if (engine is WhisperCppEngine) {
-            val modelId = engineConfig.modelId ?: WhisperModels.default.id
-            trace?.modelWarm = graph.whisperRuntime.isLoaded(graph.whisperModels.fileFor(modelId).path)
-            // From here on the timings are this run's.
-            graph.whisperRuntime.takeTimings()
-        }
-
+        // For the catch and the finally: what the setup got as far as. The setup is inside the
+        // try - a throw there (the routing, the settings, a model's state) otherwise ended the
+        // job with the bubble left on "starting", for good.
+        var engineId: String? = null
+        var openedEngine: SttEngine? = null
         try {
+            val routing = graph.engineFor(runPackage)
+            runRouting = routing
+            trace?.routing = routing
+            val engineConfig = routing.engine
+            runEngineId = engineConfig?.id
+            if (engineConfig == null) {
+                fail(say(R.string.dictation_no_engine), details = listOf("no engine selected"))
+                return
+            }
+            engineId = engineConfig.id
+
+            val engine = graph.engineFactory.create(engineConfig).getOrElse { error ->
+                fail(failureOf(error), remedy = remedyOf(error), details = listOf("engine ${engineConfig.id} could not be set up: ${technicalOf(error)}"))
+                return
+            }
+            openedEngine = engine
+            // Only to save time later: a warm-up that throws - a key the encrypted store
+            // refuses to read - costs the dictation nothing. The cleanup meets the same
+            // problem on its own and goes on with the words as recognized ([cleanUp]).
+            runCatching { warmUpConnections(engine, engineConfig, settings) }
+                .onFailure { Log.w(TAG, "warming up the connections failed: ${it::class.java.name}") }
+
+            val options = TranscribeOptions(languageTag = LanguageList.forDictation(engineConfig), vocabularyHint = settings.words.hint())
+            val appLabels = appLabelsOnce()
+            if (engine is ParakeetEngine) {
+                trace?.modelWarm = graph.sherpaRuntime.isLoaded(graph.parakeetModels.dir.path)
+            }
+            if (engine is WhisperCppEngine) {
+                val modelId = engineConfig.modelId ?: WhisperModels.default.id
+                trace?.modelWarm = graph.whisperRuntime.isLoaded(graph.whisperModels.fileFor(modelId).path)
+                // From here on the timings are this run's.
+                graph.whisperRuntime.takeTimings()
+            }
+
             // A recognizer that never calls back, or a server that accepts the upload and
             // goes quiet, would otherwise leave the bubble spinning with no way out but
             // force-stopping the app. Time spent paused does not count.
             // While it records, the limit is that of the longest recording; once the recording
             // has ended, what that recording can still need ([RunLimit]).
             val limit = RunLimit(settings.capture.effectiveTotalTimeoutMs(), pause, SystemClock::elapsedRealtime).also { runLimit = it }
+            // Set as the work's last step: its outcome - in the field, in the record, a failure -
+            // is reported. The limit cancels the work but waits for it, and an insertion that
+            // blocks (its checks sleep) still ends with the words in: then the limit has
+            // nothing left to do - no "timed out", no recording kept for a second insertion.
+            var outcomeReported = false
             val finished = withPausableTimeout(limit) {
                 val estimateKey = "${engineConfig.id}/${engineConfig.modelId}"
                 val transcript = when {
@@ -871,7 +887,11 @@ class DictationController(
                     retry != null -> recognizeKept(engine, options, retry, estimateKey, appLabels, limit)
                     engine is SelfCapturingSttEngine -> listenWithEngine(engine, options, limit)
                     else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit)
-                } ?: return@withPausableTimeout Unit // the failure was already reported
+                } ?: run {
+                    // The failure was already reported.
+                    outcomeReported = true
+                    return@withPausableTimeout Unit
+                }
 
                 if (_mode.value == RunMode.COMMAND) {
                     runCommand(transcript, appLabels)
@@ -881,11 +901,12 @@ class DictationController(
                         val cleaned = cleanUp(words)
                         runWords = cleaned
                         deliver(cleaned, settings, engineConfig.id)
-                    } ?: Unit
+                    }
                 }
+                outcomeReported = true
             }
 
-            if (finished == null) {
+            if (finished == null && !outcomeReported) {
                 val words = runWords
                 if (words != null) {
                     // The words were there when the time ran out - in the cleanup, or while the
@@ -912,7 +933,7 @@ class DictationController(
                 commandRecorded = true
                 val steps = commandSteps
                 graph.memory.log.recordFailure(
-                    "Stopped by a tap.", engineConfig.id, trace?.summary(namesApps = graph.memory.log.namesApps), command = true,
+                    "Stopped by a tap.", engineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true,
                     details = if (steps == null) listOf("stopped by a tap before the command ran")
                     else steps.apply { note("stopped by a tap") }.lines,
                 )
@@ -929,7 +950,7 @@ class DictationController(
             // Nothing recognized is lost to it: words that came are kept in the record for
             // Insert again and Copy last - as delivering would have put them, where that works;
             // before them, the recording is kept for Try again.
-            val words = runWords?.let { held -> runCatching { normalized(held, settings, engineConfig.id) }.getOrDefault(held.text) }.orEmpty()
+            val words = runWords?.let { held -> runCatching { normalized(held, settings, engineId.orEmpty()) }.getOrDefault(held.text) }.orEmpty()
             val keptNow = words.isBlank() && keepForRetry(null)
             val brief = when {
                 words.isNotBlank() -> if (SecurityMode.keepsWords(graph.loadedSettings.value)) R.string.toast_insert_again else R.string.toast_not_kept
@@ -940,7 +961,7 @@ class DictationController(
                 // The message may be long and technical: the screen and the toast say where it
                 // is, Diagnostics keep it.
                 say(R.string.toast_unexpected),
-                engineConfig.id,
+                engineId,
                 brief = say(brief),
                 recordAs = english.getString(R.string.dictation_unexpected, e.message ?: e::class.simpleName.orEmpty()),
                 logAs = english.getString(R.string.dictation_unexpected, e::class.java.name),
@@ -951,7 +972,7 @@ class DictationController(
             // Only what is still this run's. After a cancel during a recognition on the phone,
             // which cannot be aborted, this runs seconds late - a new dictation may be
             // recording by then, and its recognizer and the tap that stopped it are not ours.
-            (engine as? SelfCapturingSttEngine)?.let { selfCapturing.compareAndSet(it, null) }
+            (openedEngine as? SelfCapturingSttEngine)?.let { selfCapturing.compareAndSet(it, null) }
             // The recording had its chance to be kept for "Try again" ([keepForRetry]): what
             // is not in [kept] now is let go, not held in memory until the next dictation. A
             // run another has followed leaves alone what is that one's.
@@ -964,7 +985,7 @@ class DictationController(
                 val busy = _state.value.let { it is DictationState.Starting || it is DictationState.Listening || it is DictationState.Transcribing }
                 if (currentCoroutineContext()[Job]?.isCancelled == true && busy && !handover.pending) _state.value = DictationState.Idle
             }
-            runCatching { engine.close() }
+            openedEngine?.let { runCatching { it.close() } }
             graph.scheduleModelRelease()
         }
     }
@@ -2105,10 +2126,13 @@ class DictationController(
      * This dictation's words went into the field or into the record: the run holds them no
      * longer ([runWords]), and a recording kept from a failed dictation is not needed now -
      * these words are kept for Insert again and Copy last. Only here, once they are safe: words
-     * that were dropped on the way would otherwise take the recording with them.
+     * that were dropped on the way would otherwise take the recording with them. This run's own
+     * recording goes too: an error after this point must not keep it for a Try again that would
+     * insert the same words a second time.
      */
     private fun wordsKept() {
         runWords = null
+        runAudio = null
         if (_mode.value == RunMode.DICTATION) kept.textRecognized()
     }
 
