@@ -19,6 +19,7 @@ import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.MessagePlacement
+import app.amethyst.core.bubble.MessageQueue
 import app.amethyst.core.bubble.MessageTiming
 import app.amethyst.core.bubble.Screen
 import app.amethyst.ui.theme.AmberColors
@@ -33,7 +34,7 @@ import kotlin.math.roundToInt
  * overlay is the service's own window and shows regardless, like the bubble (no "draw over
  * other apps" grant). It takes no touch and no focus, sits above the keys and clear of the
  * bubble, and is spoken by a screen reader as a toast would be. One at a time: a new message
- * takes the place of the one on screen. Main thread.
+ * waits until the one on screen had its time, as toasts do ([MessageQueue]). Main thread.
  */
 class MessagePill(
     private val service: AccessibilityService,
@@ -45,33 +46,52 @@ class MessagePill(
     private val bubble: () -> Box?,
 ) {
     private val handler = Handler(Looper.getMainLooper())
-    private val hide = Runnable { fadeOut() }
+    private val queue = MessageQueue()
+
+    /** The one on screen had its time: the next one in its place, or the pill goes. */
+    private val hide = Runnable { queue.next()?.let(::display) ?: fadeOut() }
     private var view: TextView? = null
     private var params: WindowManager.LayoutParams? = null
 
     private val windows: WindowManager? get() = service.getSystemService(WindowManager::class.java)
 
+    /** Shows [text] now, or after the message on screen had its time ([MessageQueue]). */
     fun show(text: String) {
-        val windows = windows ?: return
+        if (queue.add(text)) display(text)
+    }
+
+    /**
+     * Placed again for a rotation or a keyboard that came or went since: the place was worked
+     * out once, for the screen as it was, and could be off the bottom of a turned screen or
+     * under the keys.
+     */
+    fun relayout() {
+        val pill = view ?: return
+        val layout = params ?: return
+        val (x, y) = place(pill)
+        if (x == layout.x && y == layout.y && pill.measuredWidth == layout.width && pill.measuredHeight == layout.height) return
+        size(pill, layout, x, y)
+        runCatching { windows?.updateViewLayout(pill, layout) }.onFailure { Log.w(TAG, "could not move the message", it) }
+    }
+
+    /** A rotation: placed again now, and once more when the new measure has settled, as the bubble does. */
+    fun screenChanged() {
+        relayout()
+        handler.post { relayout() }
+    }
+
+    private fun display(text: String) {
+        // Nothing on screen then, and nothing may wait for it.
+        val windows = windows ?: return remove()
         handler.removeCallbacks(hide)
         val pill = view ?: newView()
         pill.animate().cancel()
         style(pill)
         pill.text = text
 
-        val area = screen() ?: fallbackScreen()
-        val maxWidth = MessagePlacement.maxWidth(area, dp(MARGIN_DP), dp(MAX_WIDTH_DP))
-        pill.measure(
-            View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-        )
-        val (x, y) = MessagePlacement.place(area, pill.measuredWidth, pill.measuredHeight, dp(GAP_DP), keyboardTop(), bubble())
-
         val layout = params ?: newParams()
-        layout.x = x
-        layout.y = y
-        layout.width = pill.measuredWidth
-        layout.height = pill.measuredHeight
+        val (x, y) = place(pill)
+        size(pill, layout, x, y)
         try {
             if (view == null) {
                 pill.alpha = if (animated()) 0f else 1f
@@ -94,9 +114,28 @@ class MessagePill(
         handler.postDelayed(hide, MessageTiming.shownMs(text))
     }
 
-    /** Off at once - the service is going. */
+    /** Measures [pill] for the screen as it is now and returns its top-left corner. */
+    private fun place(pill: TextView): Pair<Int, Int> {
+        val area = screen() ?: fallbackScreen()
+        val maxWidth = MessagePlacement.maxWidth(area, dp(MARGIN_DP), dp(MAX_WIDTH_DP))
+        pill.measure(
+            View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        )
+        return MessagePlacement.place(area, pill.measuredWidth, pill.measuredHeight, dp(GAP_DP), keyboardTop(), bubble())
+    }
+
+    private fun size(pill: TextView, layout: WindowManager.LayoutParams, x: Int, y: Int) {
+        layout.x = x
+        layout.y = y
+        layout.width = pill.measuredWidth
+        layout.height = pill.measuredHeight
+    }
+
+    /** Off at once, with what waits - the service is going. */
     fun remove() {
         handler.removeCallbacks(hide)
+        queue.clear()
         val pill = view ?: return
         view = null
         params = null
@@ -113,9 +152,6 @@ class MessagePill(
     private fun newView(): TextView = TextView(service).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, TEXT_SP)
         gravity = Gravity.CENTER
-        // Toasts are cut at two lines from Android 16 on; the texts are written for that
-        // (tools/check_strings.py), and the pill keeps to it too.
-        maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
         setPadding(dp(PADDING_H_DP), dp(PADDING_V_DP), dp(PADDING_H_DP), dp(PADDING_V_DP))
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -123,6 +159,10 @@ class MessagePill(
 
     /** Again on every message: the theme may have changed since the last one. */
     private fun style(pill: TextView) {
+        // Toasts are cut at two lines from Android 16 on; the texts are written for that
+        // (tools/check_strings.py), and the pill keeps to it - but a larger font fits fewer
+        // words on a line, and the end of a message is where it says what to do.
+        pill.maxLines = if (service.resources.configuration.fontScale > 1f) 3 else 2
         val colors = AmberColors.of(dark())
         pill.setTextColor(colors.text.toArgb())
         pill.background = GradientDrawable().apply {

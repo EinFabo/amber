@@ -20,5 +20,5 @@
     <string name="update_available_text">Tap to open the release page on GitHub</string>
 
     <string name="clipboard_fallback">The text is on the clipboard. Paste it.</string>
-    <string name="clipboard_after_lost_commit">The text may not have been inserted. If it\'s missing, paste it from the clipboard.</string>
+    <string name="clipboard_after_lost_commit">If the text is missing, paste it from the clipboard.</string>
 </resources>

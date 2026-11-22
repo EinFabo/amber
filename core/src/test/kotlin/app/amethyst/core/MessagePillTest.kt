@@ -2,12 +2,14 @@ package app.amethyst.core
 
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.MessagePlacement
+import app.amethyst.core.bubble.MessageQueue
 import app.amethyst.core.bubble.MessageTiming
 import app.amethyst.core.bubble.SafeArea
 import app.amethyst.core.bubble.Screen
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MessagePillTest {
@@ -94,5 +96,68 @@ class MessagePillTest {
     @Test
     fun `a keyboard reported below the screen counts as none`() {
         assertEquals(place().second, place(keyboardTop = 3000).second)
+    }
+}
+
+class MessageQueueTest {
+
+    @Test
+    fun `the first message shows at once`() {
+        val queue = MessageQueue()
+        assertTrue(queue.add("a"))
+        assertEquals("a", queue.showing)
+    }
+
+    @Test
+    fun `a second message waits until the first had its time, as toasts do`() {
+        val queue = MessageQueue()
+        queue.add("Recognized with the phone instead.")
+        assertFalse(queue.add("The text is on the clipboard. Paste it."))
+        assertEquals("Recognized with the phone instead.", queue.showing)
+        assertEquals("The text is on the clipboard. Paste it.", queue.next())
+        assertEquals("The text is on the clipboard. Paste it.", queue.showing)
+        assertNull(queue.next())
+        assertNull(queue.showing)
+    }
+
+    @Test
+    fun `the same text again starts its time over and is not shown twice`() {
+        val queue = MessageQueue()
+        queue.add("Still working…")
+        assertTrue(queue.add("Still working…"))
+        queue.add("b")
+        assertFalse(queue.add("b"))
+        assertEquals("b", queue.next())
+        assertNull(queue.next())
+    }
+
+    @Test
+    fun `after the last one went, the next shows at once`() {
+        val queue = MessageQueue()
+        queue.add("a")
+        queue.next()
+        assertTrue(queue.add("b"))
+        assertEquals("b", queue.showing)
+    }
+
+    @Test
+    fun `a pile-up keeps the newest waiting, never more than the cap`() {
+        val queue = MessageQueue(cap = 2)
+        queue.add("on screen")
+        listOf("1", "2", "3").forEach { queue.add(it) }
+        assertEquals("2", queue.next())
+        assertEquals("3", queue.next())
+        assertNull(queue.next())
+    }
+
+    @Test
+    fun `cleared, nothing shows or waits`() {
+        val queue = MessageQueue()
+        queue.add("a")
+        queue.add("b")
+        queue.clear()
+        assertNull(queue.showing)
+        assertNull(queue.next())
+        assertTrue(queue.add("c"))
     }
 }

@@ -86,6 +86,9 @@ TOASTS = {
     "quick_too_late", "quick_open_failed", "bubble_hidden_in",
     "fallback_server_too_slow", "fallback_no_connection", "fallback_no_answer_on_phone", "fallback_other_server",
     "fallback_no_credit", "fallback_model_gone",
+    # Said over the app in front by app.amethyst.Messages too, in a pill cut at two lines as well.
+    "clipboard_fallback", "clipboard_after_lost_commit", "dictation_call_ended_sent", "dictation_scratched",
+    "download_at_start",
 }
 # The reasons a kept recording's toast names before "Try again" (DictationController.failRecognition):
 # every problem KeptDictation.worthTryingAgain keeps a recording for, with the string Texts.problem

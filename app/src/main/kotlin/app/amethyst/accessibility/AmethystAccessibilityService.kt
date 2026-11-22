@@ -256,11 +256,13 @@ class AmethystAccessibilityService : AccessibilityService() {
                 focus.focusEvent(kind, inOwnApp = pkg == packageName)?.let(::updateTextFieldFocus)
             }
 
-            // Each one costs a getWindows() call; only the bubble needs the keyboard's edge,
-            // and a keyboard only comes, goes or changes size - a window that changed its
-            // title, layer or focus is none of these.
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (bubbleShown && mayMoveKeyboard(event.windowChanges)) {
-                keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
+            // Each one costs a getWindows() call; only the bubble and a message on screen need
+            // the keyboard's edge, and a keyboard only comes, goes or changes size - a window
+            // that changed its title, layer or focus is none of these.
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (mayMoveKeyboard(event.windowChanges)) {
+                if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
+                // A keyboard that came after the message would cover it, or put it on its keys.
+                pill.relayout()
             }
         }
     }
@@ -514,6 +516,7 @@ class AmethystAccessibilityService : AccessibilityService() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         bubble?.screenChanged()
+        pill.screenChanged()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {

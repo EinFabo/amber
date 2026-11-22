@@ -54,3 +54,47 @@ object MessagePlacement {
         return x to y.coerceAtLeast(top)
     }
 }
+
+/**
+ * One message on screen at a time, the next waiting until it had its time. Toasts queue like
+ * this, and two messages often come within a moment: "X didn't answer, recognized with Y
+ * instead", then "the text is on the clipboard". Swapped at once, the first - which says who
+ * heard the words - was gone before it could be read. Not thread-safe: the pill's main thread.
+ */
+class MessageQueue(
+    /** Android keeps about five toasts of an app; past that the oldest waiting one goes, the newest says how things stand. */
+    private val cap: Int = 4,
+) {
+    /** The message on screen, null when none is. */
+    var showing: String? = null
+        private set
+
+    private val waiting = ArrayDeque<String>()
+
+    /**
+     * True when [text] goes on screen now - nothing showed, or it is the text on screen again,
+     * whose time starts over. Otherwise it waits its turn; a text already waiting is not added twice.
+     */
+    fun add(text: String): Boolean {
+        if (showing == null || showing == text) {
+            showing = text
+            return true
+        }
+        if (text !in waiting) {
+            waiting.addLast(text)
+            if (waiting.size > cap) waiting.removeFirst()
+        }
+        return false
+    }
+
+    /** The one on screen had its time: the next to show, or null when none waits. */
+    fun next(): String? {
+        showing = waiting.removeFirstOrNull()
+        return showing
+    }
+
+    fun clear() {
+        showing = null
+        waiting.clear()
+    }
+}
