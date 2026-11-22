@@ -48,7 +48,6 @@ internal fun AttentionRow(attention: Attention, onOpen: (SettingsPage) -> Unit) 
 
 /** The thing by the name the Reliability page gives it. */
 private fun ReliabilityItem.label(): Int = when (this) {
-    ReliabilityItem.MIC_SERVICE -> R.string.reliability_mic_service
     ReliabilityItem.NOTIFICATIONS -> R.string.reliability_notifications
     ReliabilityItem.BATTERY -> R.string.reliability_battery
 }

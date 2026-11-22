@@ -64,8 +64,9 @@
         </activity>
 
         <!--
-          Fallback path for ROMs that deny microphone access to a long-lived foreground
-          service: a 1x1 transparent activity is, by definition, in the foreground.
+          The last fallback to the microphone, never the first: when the bubble's direct start
+          in the accessibility service's process is silenced or refused, a 1x1 transparent
+          activity is, by definition, in the foreground. See MicrophoneRouter.
         -->
         <activity
             android:name=".capture.MicProxyActivity"
@@ -103,6 +104,7 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- Runs only while a recording does: its notification shows it, with a Stop button. -->
         <service
             android:name=".capture.MicForegroundService"
             android:exported="false"

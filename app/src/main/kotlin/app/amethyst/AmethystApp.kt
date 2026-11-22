@@ -6,6 +6,7 @@ import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.accessibility.ReturnToAmber
 import app.amethyst.apps.LauncherList
+import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.apps.AppsSeenInFront
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
@@ -76,6 +77,9 @@ class AmethystApp : Application() {
         app.amethyst.engine.AndroidOnDeviceEngine.detectOnDeviceSpeech(this)
         // A recording a dying process left in the Opus scratch file goes; file I/O, so not here.
         graph.appScope.launch(Dispatchers.IO) { graph.opusEncoder.clearLeftovers() }
+        // The ready notification is gone since 0.35 (the microphone service runs only while it
+        // records): its channels leave Android's list with the update.
+        graph.appScope.launch(Dispatchers.IO) { MicForegroundService.dropOldChannels(this@AmethystApp) }
     }
 
     /**

@@ -28,11 +28,20 @@ import app.amethyst.core.audio.VadDecision
  *   it hung up ends it again ([CallWatch]).
  *
  * Whatever ends it here, what was said before is kept and sent like a tap's ([ending]).
+ *
+ * A direct start from the bubble is watched for its first [probeMs] as well
+ * ([MicrophoneRouter.startProbeMs]): recording in the accessibility service's process relies on
+ * Android granting it the microphone, and where it does not, the recorder starts and delivers
+ * silence. The microphone counts as open only once a frame carries sound ([Step.Open]); a start
+ * that stays silent the whole time is no microphone at all ([Step.NeverOpened]), and the proxy
+ * activity takes over. Nothing is lost by it: what came was silence.
  */
 class MicrophoneWatch(
     private val frameMs: Int,
     /** Whether Android tells when another app silences this recording (from Android 10). */
     private val silenceKnown: Boolean,
+    /** How long the start is watched for a microphone that never delivers sound; 0 for no watch. */
+    private val probeMs: Int = 0,
 ) {
 
     sealed interface Step {
@@ -47,6 +56,15 @@ class MicrophoneWatch(
 
         /** The microphone is gone, for [why]: the recording ends with what it has. */
         data class Lost(val why: Why, val technical: String) : Step
+
+        /**
+         * Samples came and the microphone is open now - the first sound of a watched start
+         * ([probeMs]): go on with them, and tell the user it records. Once per recording.
+         */
+        data object Open : Step
+
+        /** A watched start delivered only silence: this way to the microphone does not work. */
+        data class NeverOpened(val technical: String) : Step
     }
 
     enum class Why {
@@ -62,6 +80,10 @@ class MicrophoneWatch(
 
     private var silentMs = 0
     private var emptyReads = 0
+
+    /** Whether the start is still watched: no sound yet, within [probeMs]. */
+    private var probing = probeMs > 0
+    private var probedMs = 0
 
     private val calls = CallWatch()
 
@@ -79,6 +101,7 @@ class MicrophoneWatch(
             return if (emptyReads >= EMPTY_READS) Step.Lost(Why.UNREADABLE, "$emptyReads reads in a row returned nothing") else Step.Again
         }
         emptyReads = 0
+        if (probing) return probe(allZero, silenced)
         val silent = if (silenceKnown) silenced else allZero
         silentMs = if (silent) silentMs + frameMs else 0
         if (silentMs >= SILENCED_AFTER_MS) {
@@ -86,6 +109,28 @@ class MicrophoneWatch(
             return Step.Lost(Why.SILENCED, "$how for $silentMs ms - another app holds the microphone")
         }
         return Step.Frame
+    }
+
+    /**
+     * The start of a watched recording. Sound - samples that are not all zero, from a recording
+     * Android does not silence - opens it at once. At the end of [probeMs] without sound, the
+     * silence decides as it would later: where Android tells, its word counts (a quiet room
+     * behind noise suppression gives exact zeros too, and is a working microphone); where it
+     * cannot, zeros are no microphone. Android's word is read at the end, not the first frame:
+     * it reports a silenced recording a moment after the recorder starts.
+     */
+    private fun probe(allZero: Boolean, silenced: Boolean): Step {
+        if (!allZero && !silenced) {
+            probing = false
+            return Step.Open
+        }
+        probedMs += frameMs
+        if (probedMs < probeMs) return Step.Frame
+        probing = false
+        val silent = if (silenceKnown) silenced else allZero
+        if (!silent) return Step.Open
+        val how = if (silenceKnown) "Android silenced the recording" else "only zeros came"
+        return Step.NeverOpened("$how from its start for $probedMs ms")
     }
 
     companion object {

@@ -13,7 +13,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import app.amethyst.accessibility.AmethystAccessibilityService
-import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.InstallSource
@@ -27,7 +26,6 @@ data class SetupState(
     val microphoneGranted: Boolean = false,
     val accessibilityEnabled: Boolean = false,
     val notificationsGranted: Boolean = false,
-    val micServiceRunning: Boolean = false,
     val batteryUnrestricted: Boolean = false,
     /** Android 13+ may lock the accessibility switch: Amber was not installed by a store. */
     val restrictedSettings: Boolean = false,
@@ -55,7 +53,6 @@ object Setup {
             ) == PackageManager.PERMISSION_GRANTED,
             accessibilityEnabled = accessibility,
             notificationsGranted = areNotificationsGranted(context),
-            micServiceRunning = MicForegroundService.isRunning,
             batteryUnrestricted = isBatteryUnrestricted(context),
             restrictedSettings = restrictedSettings(context),
             accessibilityTried = accessibilityTried && !accessibility,

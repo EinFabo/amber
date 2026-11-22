@@ -6,6 +6,7 @@ import app.amethyst.core.audio.VadConfig
 import app.amethyst.core.audio.VadDecision
 import app.amethyst.core.audio.VadPolicy
 import app.amethyst.core.capture.CallWatch
+import app.amethyst.core.capture.MicrophoneRouter
 import app.amethyst.core.capture.MicrophoneWatch
 import app.amethyst.core.capture.MicrophoneWatch.Step
 import app.amethyst.core.capture.MicrophoneWatch.Why
@@ -38,7 +39,8 @@ class MicrophoneWatchTest {
                     Step.Again -> return@forEachIndexed
                     Step.Stopped -> return vad.onManualStop()
                     is Step.Lost -> return MicrophoneWatch.ending(step.why, vad.onManualStop())
-                    Step.Frame -> Unit
+                    Step.Frame, Step.Open -> Unit
+                    is Step.NeverOpened -> error("only a watched start ends as never opened")
                 }
                 recordedFrames++
                 val decision = if (i >= stopAt) vad.onManualStop() else vad.onFrame(rms)
@@ -179,5 +181,66 @@ class MicrophoneWatchTest {
         val fresh = CallWatch()
         assertFalse(fresh.began(inCall = false))
         assertTrue(fresh.began(inCall = true))
+    }
+
+    private fun watched(known: Boolean = true) =
+        MicrophoneWatch(frameMs = 20, silenceKnown = known, probeMs = MicrophoneRouter.PROBE_MS)
+
+    @Test
+    fun `a watched start opens at its first sound`() {
+        val watch = watched()
+        // Warm-up zeros first, then the room's noise.
+        repeat(3) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        assertEquals(Step.Open, watch.onRead(320, allZero = false, silenced = false, stopRequested = false))
+        // Once: from here it is an ordinary recording.
+        repeat(100) { assertEquals(Step.Frame, watch.onRead(320, allZero = false, silenced = false, stopRequested = false)) }
+    }
+
+    @Test
+    fun `a direct start Android silences goes to the proxy activity`() {
+        // Android reports the silencing a moment after the recorder started.
+        val watch = watched()
+        val frames = MicrophoneRouter.PROBE_MS / 20
+        repeat(2) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        repeat(frames - 3) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = true, stopRequested = false)) }
+        assertIs<Step.NeverOpened>(watch.onRead(320, allZero = true, silenced = true, stopRequested = false))
+    }
+
+    @Test
+    fun `a direct start of only zeros goes to the proxy activity where Android cannot tell`() {
+        val watch = watched(known = false)
+        val frames = MicrophoneRouter.PROBE_MS / 20
+        repeat(frames - 1) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        assertIs<Step.NeverOpened>(watch.onRead(320, allZero = true, silenced = false, stopRequested = false))
+    }
+
+    @Test
+    fun `a quiet room behind noise suppression is a working microphone where Android tells`() {
+        // Exact zeros, but Android says nothing silences the recording: no detour through the proxy.
+        val watch = watched()
+        val frames = MicrophoneRouter.PROBE_MS / 20
+        repeat(frames - 1) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+        assertEquals(Step.Open, watch.onRead(320, allZero = true, silenced = false, stopRequested = false))
+        repeat(500) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = false, stopRequested = false)) }
+    }
+
+    @Test
+    fun `an unwatched start is never held back`() {
+        val watch = known()
+        repeat(40) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = true, stopRequested = false)) }
+    }
+
+    @Test
+    fun `a watched start that fails to read is still a lost microphone, which the proxy may mend`() {
+        val watch = watched()
+        assertEquals(Why.UNREADABLE, assertIs<Step.Lost>(watch.onRead(-3, allZero = false, silenced = false, stopRequested = false)).why)
+    }
+
+    @Test
+    fun `once open, a watched recording that Android silences ends as another app holding the microphone`() {
+        val watch = watched()
+        assertEquals(Step.Open, watch.onRead(320, allZero = false, silenced = false, stopRequested = false))
+        repeat(49) { assertEquals(Step.Frame, watch.onRead(320, allZero = true, silenced = true, stopRequested = false)) }
+        assertEquals(Why.SILENCED, assertIs<Step.Lost>(watch.onRead(320, allZero = true, silenced = true, stopRequested = false)).why)
     }
 }

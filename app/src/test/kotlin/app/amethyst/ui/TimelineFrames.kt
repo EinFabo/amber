@@ -50,7 +50,7 @@ abstract class TimelineFrames {
 
     private val out = File("build/frames").apply { mkdirs() }
 
-    protected val actions = SetupActions({}, {}, {}, {}, {}, {}, {})
+    protected val actions = SetupActions({}, {}, {}, {}, {}, {})
 
     /** [content] with every timeline in it held at each of [at] (0..1) in turn, one picture each. */
     protected fun frames(name: String, vararg at: Float, dark: Boolean = true, languages: List<String> = LANGUAGES, content: @Composable () -> Unit) {

@@ -103,7 +103,7 @@ starts - nothing you say or write leaves the phone.
 - **Microphone**: to record a dictation. Embersay records only between your tap to start and the
   end of that dictation.
 - **Accessibility service**: described above.
-- **Notifications**: for the notice Android requires while the microphone service runs, and
+- **Notifications**: for the notice shown while Embersay records (with a Stop button), and
   for an available update.
 - **Internet**: for the connections listed above.
 

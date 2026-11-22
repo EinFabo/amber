@@ -52,14 +52,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.SecureWindow
 import app.amethyst.Texts
 import app.amethyst.apps.Launcher
-import app.amethyst.capture.MicForegroundService
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.dictation.DictationLog
@@ -149,9 +147,6 @@ class MainActivity : ComponentActivity() {
             // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk).
             getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_MIC_REFUSED, MicrophoneAsk.refused(granted)).apply()
             refreshSetup()
-            // The mic foreground service may only be started while we are visible, so this
-            // is the right moment - right after the grant, with the app in front.
-            if (granted) MicForegroundService.start(this)
         }
 
     private val requestNotifications =
@@ -210,10 +205,6 @@ class MainActivity : ComponentActivity() {
                             openAccessibilityList = ::openAccessibilityList,
                             openAppInfo = { Setup.openAppSettings(this) },
                             openBattery = ::openBattery,
-                            startMicService = {
-                                MicForegroundService.start(this)
-                                refreshSetup()
-                            },
                         ),
                     )
                 }
@@ -266,7 +257,6 @@ class MainActivity : ComponentActivity() {
         AmethystApp.graph(this).returnToAmber.cancel()
         // Accessibility and battery state change outside the app, in system settings.
         refreshSetup()
-        ensureMicServiceRunning()
         // Amber's screen is open: the GitHub build asks for a new release, once a day at most.
         AmethystApp.graph(this).updates.checkIfDue()
     }
@@ -324,25 +314,6 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Starting a microphone foreground service is only permitted while the app is visible,
-     * and this is the one moment that is reliably true. Doing it on every resume keeps later
-     * bubble taps off the proxy-activity fallback - including after a reboot, where nothing
-     * else could have started it.
-     */
-    private fun ensureMicServiceRunning() {
-        val state = setupState.value
-        if (!state.microphoneGranted || state.micServiceRunning) return
-
-        MicForegroundService.start(this)
-        // The service flips its flag in onStartCommand, so re-read it a moment later
-        // instead of showing a stale "not running" to the user.
-        lifecycleScope.launch {
-            delay(SERVICE_START_GRACE_MS)
-            refreshSetup()
-        }
-    }
-
-    /**
      * Asks the system recognizer to fetch the offline pack. Where that API is missing or
      * refuses, the voice-input settings are the next best place to do it by hand.
      */
@@ -372,7 +343,6 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val SERVICE_START_GRACE_MS = 600L
         private const val KEY_ACCESSIBILITY_TRIED = "accessibilityTried"
         private const val THEME_PREFS = "theme"
         private const val KEY_THEME = "theme"
@@ -411,7 +381,6 @@ class SetupActions(
     val openAccessibilityList: () -> Unit,
     val openAppInfo: () -> Unit,
     val openBattery: () -> Unit,
-    val startMicService: () -> Unit,
 )
 
 private sealed interface Screen {

@@ -4,8 +4,12 @@ import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 
-/** The things the Reliability page lists, top to bottom: each keeps the microphone available in other apps. */
-enum class ReliabilityItem { MIC_SERVICE, NOTIFICATIONS, BATTERY }
+/**
+ * The things the Reliability page lists, top to bottom. Until 0.35 a "Microphone service" came
+ * first: a foreground service that ran all day. It runs only while recording now, by itself,
+ * so there is nothing left to switch on ([app.amethyst.core.capture.MicrophoneRouter]).
+ */
+enum class ReliabilityItem { NOTIFICATIONS, BATTERY }
 
 /** What the row on top of the Settings page points at; see [SettingsAttention.of]. */
 sealed interface Attention {
@@ -28,9 +32,8 @@ sealed interface Attention {
 object SettingsAttention {
 
     /** What the Reliability page shows as not done, in its order. */
-    fun reliabilityOpen(micServiceRunning: Boolean, notificationsGranted: Boolean, batteryUnrestricted: Boolean): List<ReliabilityItem> =
+    fun reliabilityOpen(notificationsGranted: Boolean, batteryUnrestricted: Boolean): List<ReliabilityItem> =
         listOfNotNull(
-            ReliabilityItem.MIC_SERVICE.takeUnless { micServiceRunning },
             ReliabilityItem.NOTIFICATIONS.takeUnless { notificationsGranted },
             ReliabilityItem.BATTERY.takeUnless { batteryUnrestricted },
         )

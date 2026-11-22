@@ -16,14 +16,14 @@ class SettingsAttentionTest {
 
     @Test
     fun `reliability lists what is not done, in the page's order`() {
-        assertEquals(allSet, SettingsAttention.reliabilityOpen(micServiceRunning = true, notificationsGranted = true, batteryUnrestricted = true))
+        assertEquals(allSet, SettingsAttention.reliabilityOpen(notificationsGranted = true, batteryUnrestricted = true))
         assertEquals(
             listOf(ReliabilityItem.BATTERY),
-            SettingsAttention.reliabilityOpen(micServiceRunning = true, notificationsGranted = true, batteryUnrestricted = false),
+            SettingsAttention.reliabilityOpen(notificationsGranted = true, batteryUnrestricted = false),
         )
         assertEquals(
-            listOf(ReliabilityItem.MIC_SERVICE, ReliabilityItem.NOTIFICATIONS, ReliabilityItem.BATTERY),
-            SettingsAttention.reliabilityOpen(micServiceRunning = false, notificationsGranted = false, batteryUnrestricted = false),
+            listOf(ReliabilityItem.NOTIFICATIONS, ReliabilityItem.BATTERY),
+            SettingsAttention.reliabilityOpen(notificationsGranted = false, batteryUnrestricted = false),
         )
     }
 

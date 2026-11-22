@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="dictation_mic_permission">Keine Mikrofon-Berechtigung. Öffne Embersay und erlaube sie.</string>
-    <string name="dictation_mic_not_opened">Mikrofon nicht geöffnet. Öffne Embersay und versuche es noch einmal.</string>
+    <string name="dictation_mic_not_opened">Mikrofon nicht geöffnet. Tippe noch einmal auf die Bubble.</string>
     <string name="dictation_no_field">Kein Textfeld. Tippe zuerst in eines.</string>
     <string name="dictation_not_inserted_here">Hier nicht eingefügt. Halte die Bubble: „Letztes kopieren“.</string>
     <string name="dictation_scratched">Gestrichen, nichts eingefügt</string>

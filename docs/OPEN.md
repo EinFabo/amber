@@ -214,9 +214,13 @@ After a research round (settings UX, Learn more, English and German copy, the pr
 
 No hard blocker - Wispr Flow is on Play with the same design (accessibility service that is not
 a tool, a bubble, text into other apps). Biggest first:
-- [ ] **The microphone service runs all day** (see "Before a store launch"): Play's foreground
-      service rule wants it running only for the task. Start it with a dictation, stop after;
-      test on Android 14+ (background starts are limited).
+- [x] **The microphone service runs all day** (see "Before a store launch"): Play's foreground
+      service rule wants it running only for the task. Built 2026-11-22 (store review, item 15):
+      the bubble records directly in the accessibility service's process, the service runs
+      only while recording ("Recording…" with a Stop button), the proxy activity is the last
+      fallback. To try on a phone (Android 14+, and Android 9/10 where there is one): logcat
+      `microphone route: ...` per dictation; after a reboot without opening the app; with
+      notifications off; Stop in the notification.
 - [ ] **Accessibility declaration** in the Console as a non-tool (no `isAccessibilityTool`);
       the in-app disclosure with "Agree and open" exists. Needs a **video**: disclosure,
       consent, a dictation into another app.
@@ -402,9 +406,10 @@ Open - Fabi's decisions:
 - [x] **Name and id before F-Droid.** F-Droid lists another "Amber"
       (`com.greenart7c3.nostrsigner`); `app.amber` reads as the domain amber.app. After
       inclusion the id is fixed. Done 2026-11-17: Embersay, `com.embersay` (see the top).
-- [ ] **The microphone service runs all day** (started at every resume, sticky, never
+- [x] **The microphone service runs all day** (started at every resume, sticky, never
       stopped) so the bubble may record from the background on Android 14+. Play's
       foreground-service declaration wants "only for as long as necessary" - a review risk.
+      Built 2026-11-22: it runs only while recording (see "Google Play: what is missing").
 - [ ] **Privacy policy:** a contact (a name and an address or e-mail) and a public URL; then
       a link to it in "About Amber".
 - [ ] **Play Console:** a developer account (identity, trader status), an app bundle

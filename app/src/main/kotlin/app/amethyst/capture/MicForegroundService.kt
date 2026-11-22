@@ -8,26 +8,40 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.core.content.ContextCompat
+import app.amethyst.AmethystApp
 import app.amethyst.R
-import app.amethyst.ui.MainActivity
 
 /**
- * Keeps the app's process in a foreground state of type "microphone".
+ * A foreground service of type "microphone" for the length of one recording.
  *
- * This is the whole reason the service exists. Android 14 and 15 refuse to let an app start
- * microphone capture from the background, and the bubble is tapped while a completely
- * different app is in front. Starting this service once, while Amber itself is visible
- * during onboarding, grants the process while-in-use microphone access for as long as it
- * lives - so a later tap is not a background start. The green microphone indicator still
- * appears only while audio is actually being read.
+ * It shows that Embersay records - a notification with a Stop button - and puts the process in
+ * a foreground state while it does. The recording does not depend on it: the bubble records
+ * directly in the accessibility service's process ([app.amethyst.core.capture.MicrophoneRouter]),
+ * and Android may refuse a foreground service started from the background (Android 12+:
+ * ForegroundServiceStartNotAllowedException; Android 14+: a SecurityException for the
+ * microphone type without while-in-use access). A refusal is logged, said to the dictation for
+ * its Diagnostics, and the recording goes on without the service.
+ *
+ * Until 0.35 this service ran all day, started on every visit to Embersay's screen, so that a
+ * bubble tap was no background start. Google Play allows a foreground service only for as long
+ * as the task the user started, so it now starts with a recording and stops when it ends.
+ *
+ * Started with startService, not startForegroundService: a service started that way that then
+ * fails to call startForeground crashes the whole process ("did not then call startForeground"),
+ * with the dictation in it. Started plainly, a refused startForeground is only a log line. A
+ * plain start is allowed while the process is not idle, which the accessibility service's
+ * binding sees to while the screen is on.
  */
 class MicForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** Whether this instance reached the foreground - it shows a recording. */
+    private var foreground = false
 
     override fun onCreate() {
         super.onCreate()
@@ -35,106 +49,125 @@ class MicForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            // The notification's Stop: as a tap on the bubble would stop the recording.
+            Log.i(TAG, "Stop tapped in the recording notification")
+            AmethystApp.graph(this).dictation.stop()
+            // Tapped as the recording ended: the tap itself started this service, nothing else keeps it.
+            if (!foreground) stopSelf(startId)
+            return START_NOT_STICKY
+        }
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    buildNotification(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-                )
+            // The microphone type exists from Android 11; before, the manifest's type stands.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             } else {
                 startForeground(NOTIFICATION_ID, buildNotification())
             }
         } catch (e: Exception) {
-            // Thrown when the app was already in the background on Android 14+. The caller
-            // then falls back to MicProxyActivity, so log and stop rather than crash.
-            Log.w(TAG, "startForeground(microphone) refused", e)
-            running = false
+            // Refused from the background. The recording reads the microphone without this
+            // service, so log it, tell the dictation, and go.
+            Log.w(TAG, "the recording's foreground service was refused: ${e::class.java.name}")
+            AmethystApp.graph(this).dictation.foregroundServiceRefused(e::class.java.simpleName)
             stopSelf()
             return START_NOT_STICKY
         }
-        running = true
-        return START_STICKY
+        foreground = true
+        // Never brought back by Android after the process died: the recording died with it.
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        running = false
+        foreground = false
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
-    /**
-     * The channel at the lowest importance: no icon in the status bar, folded away in the shade.
-     * A channel's importance cannot be lowered once it exists, so this is a new channel; the old
-     * one, at low importance, goes.
-     */
+    /** Low importance: no sound, no pop-up, shown in the shade while it records. */
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(OLD_CHANNEL_ID) != null) manager.deleteNotificationChannel(OLD_CHANNEL_ID)
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_MIN,
+                getString(R.string.notification_recording_channel),
+                NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = getString(R.string.notification_channel_description)
+                description = getString(R.string.notification_recording_channel_description)
                 setShowBadge(false)
             },
         )
     }
 
     private fun buildNotification(): Notification {
-        val openApp = PendingIntent.getActivity(
+        // Immutable and to this service only, which is not exported: nobody else can fill it in.
+        val stop = PendingIntent.getService(
             this,
             0,
-            Intent(this, MainActivity::class.java),
+            Intent(this, MicForegroundService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-        return builder
-            .setContentTitle(getString(R.string.notification_ready_title))
-            .setContentText(getString(R.string.notification_ready_text))
+        val builder = Notification.Builder(this, CHANNEL_ID)
+        // No tap target of its own: opening Embersay mid-dictation would take the focus away from
+        // the field the words are for.
+        builder
+            .setContentTitle(getString(R.string.notification_recording_title))
             .setSmallIcon(R.drawable.ic_amber)
-            .setContentIntent(openApp)
             .setOngoing(true)
-            .build()
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .setShowWhen(false)
+            .addAction(
+                Notification.Action.Builder(
+                    Icon.createWithResource(this, R.drawable.ic_amber),
+                    getString(R.string.notification_recording_stop),
+                    stop,
+                ).build(),
+            )
+        // Shown at once: a dictation is often over before Android's usual ten-second delay.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+        return builder.build()
     }
 
     companion object {
         private const val TAG = "Embersay"
-        private const val CHANNEL_ID = "amber_ready_quiet"
-
-        /** Until 0.34: the same notification at low importance, with an icon in the status bar. */
-        private const val OLD_CHANNEL_ID = "amethyst_ready"
+        private const val CHANNEL_ID = "embersay_recording"
         private const val NOTIFICATION_ID = 1001
-
-        /** Must be called while the app is visible, or Android 14+ will refuse it. */
-        fun start(context: Context) {
-            runCatching {
-                ContextCompat.startForegroundService(
-                    context,
-                    Intent(context, MicForegroundService::class.java),
-                )
-            }.onFailure { Log.w(TAG, "could not start mic service", it) }
-        }
-
-        fun stop(context: Context) {
-            context.stopService(Intent(context, MicForegroundService::class.java))
-        }
+        private const val ACTION_STOP = "com.embersay.action.STOP_RECORDING"
 
         /**
-         * True once the service actually reached the foreground. The dictation controller
-         * reads this to decide whether it needs the proxy-activity fallback.
+         * The channels of the notification that kept the service running all day: "amethyst_ready"
+         * until 0.34 (low importance), "amber_ready_quiet" after it (minimum importance).
          */
-        val isRunning: Boolean get() = running
+        private val OLD_CHANNEL_IDS = listOf("amethyst_ready", "amber_ready_quiet")
 
-        @Volatile
-        private var running = false
+        /**
+         * Asks for the service as a recording starts. Null when asked; otherwise why Android
+         * refused at once (the process counted as in the background) - the recording goes on
+         * without it. A refusal that comes later, in the service, reaches the dictation by
+         * [app.amethyst.dictation.DictationController.foregroundServiceRefused].
+         */
+        fun start(context: Context): String? = try {
+            context.startService(Intent(context, MicForegroundService::class.java))
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "could not start the recording's foreground service: ${e::class.java.name}")
+            e::class.java.simpleName
+        }
+
+        /** The recording ended: the service and its notification go. */
+        fun stop(context: Context) {
+            runCatching { context.stopService(Intent(context, MicForegroundService::class.java)) }
+                .onFailure { Log.w(TAG, "could not stop the recording's foreground service: ${it::class.java.name}") }
+        }
+
+        /** The ready notification's channels go with the update that ended it; nothing if they are gone. */
+        fun dropOldChannels(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java) ?: return
+            for (id in OLD_CHANNEL_IDS) {
+                if (manager.getNotificationChannel(id) != null) manager.deleteNotificationChannel(id)
+            }
+        }
     }
 }

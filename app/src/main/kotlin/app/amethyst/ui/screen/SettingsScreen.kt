@@ -110,7 +110,7 @@ fun SettingsScreen(
 ) {
     val engine = settings.activeEngine
     val trust = engine?.trustLevelForDisplay()
-    val reliability = SettingsAttention.reliabilityOpen(setup.micServiceRunning, setup.notificationsGranted, setup.batteryUnrestricted)
+    val reliability = SettingsAttention.reliabilityOpen(setup.notificationsGranted, setup.batteryUnrestricted)
     val reliabilityOpen = reliability.size
     // Only while a cleanup still uses the one that failed.
     val trouble = cleanupTrouble?.takeIf { CleanupTrouble.stillApplies(it, settings) }

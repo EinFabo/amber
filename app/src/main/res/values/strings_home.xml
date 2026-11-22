@@ -25,14 +25,11 @@
         <item quantity="one">%d dictation</item>
         <item quantity="other">%d dictations</item>
     </plurals>
-    <string name="reliability_mic_service">Microphone service</string>
-    <string name="reliability_mic_service_note">Keeps the microphone ready in other apps</string>
-    <string name="start">Start</string>
     <string name="reliability_notifications">Notifications</string>
-    <string name="reliability_notifications_note">Only for the silent “Embersay is ready” notification</string>
+    <string name="reliability_notifications_note">Shows that Embersay records, with a Stop button, and lets its short messages through</string>
     <string name="allow">Allow</string>
     <string name="reliability_battery">Unrestricted battery</string>
-    <string name="reliability_battery_note">So the phone doesn\'t stop the service</string>
+    <string name="reliability_battery_note">So the phone doesn\'t stop Embersay in the background</string>
     <string name="home_finish_setup">Finish the setup above first.</string>
     <string name="home_tap_and_speak">Tap and speak. The text appears in the test field.</string>
     <string name="home_opening_mic">Opening microphone…</string>

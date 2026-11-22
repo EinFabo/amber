@@ -26,6 +26,12 @@ internal class RunTrace(val route: String) {
 
     var modelWarm: Boolean? = null
 
+    /**
+     * How the microphone was got and why ("microphone direct+service - bubble, ..."): directly,
+     * with or without the recording's foreground service, or through the proxy activity.
+     */
+    var microphone: String? = null
+
     /** Which speech recognition heard the run, and whether the app's own setting chose it. */
     var routing: EngineRouting.Decision? = null
 
@@ -115,6 +121,7 @@ internal class RunTrace(val route: String) {
      */
     fun summary(namesApps: Boolean = true): String = buildList {
         add("route $route")
+        microphone?.let(::add)
         routing?.line(namesApps)?.let(::add)
         if (recordingFrom > 0) add("start ${ms(recordingFrom - startedAt)}")
         if (recordingTo > 0) add("recording ${ms(recordingMs)}")

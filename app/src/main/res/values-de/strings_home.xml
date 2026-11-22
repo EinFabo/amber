@@ -25,14 +25,11 @@
         <item quantity="one">%d Diktat</item>
         <item quantity="other">%d Diktate</item>
     </plurals>
-    <string name="reliability_mic_service">Mikrofon-Dienst</string>
-    <string name="reliability_mic_service_note">Hält das Mikrofon in anderen Apps bereit</string>
-    <string name="start">Starten</string>
     <string name="reliability_notifications">Benachrichtigungen</string>
-    <string name="reliability_notifications_note">Nur für den stillen Hinweis „Embersay ist bereit“</string>
+    <string name="reliability_notifications_note">Zeigt, dass Embersay aufnimmt, mit Stopp-Taste, und lässt seine kurzen Meldungen durch</string>
     <string name="allow">Erlauben</string>
     <string name="reliability_battery">Akku ohne Einschränkung</string>
-    <string name="reliability_battery_note">Das Handy beendet den Dienst dann nicht</string>
+    <string name="reliability_battery_note">Das Handy beendet Embersay im Hintergrund dann nicht</string>
     <string name="home_finish_setup">Schließe zuerst die Einrichtung oben ab.</string>
     <string name="home_tap_and_speak">Tippe und sprich. Der Text landet im Testfeld.</string>
     <string name="home_opening_mic">Mikrofon wird geöffnet …</string>

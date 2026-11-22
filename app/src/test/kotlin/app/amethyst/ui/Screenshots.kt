@@ -86,11 +86,10 @@ open class Screenshots {
         microphoneGranted = true,
         accessibilityEnabled = true,
         notificationsGranted = true,
-        micServiceRunning = true,
         batteryUnrestricted = true,
     )
 
-    private val actions = SetupActions({}, {}, {}, {}, {}, {}, {})
+    private val actions = SetupActions({}, {}, {}, {}, {}, {})
 
     /** The theme of the picture being taken: dark as the listing shows Amber, or light ([light]). */
     private var dark = true
@@ -724,7 +723,7 @@ open class Screenshots {
     private val commandLog = app.amethyst.core.dictation.DictationLog { 0L }.apply {
         val apps = listOf("WhatsApp", "Telegram", "Telefon", "Google Maps", "Spotify")
         fun explain(heard: String) = app.amethyst.core.commands.VoiceCommands.explain(heard) { apps }
-        val timing = "route BUBBLE/RECORD_NOW · start 0.1 s · recording 1.3 s · recognition 0.4 s, model was loaded"
+        val timing = "route BUBBLE/DIRECT · start 0.1 s · recording 1.3 s · recognition 0.4 s, model was loaded"
         recordSuccess(
             Transcript("Bin in zehn Minuten da.", engineId = EnginePresets.LOCAL_PARAKEET.id, trustLevel = TrustLevel.ON_DEVICE, latencyMs = 410),
             InsertionStrategy.SET_TEXT, inserted = true, targetPackage = "com.whatsapp", timing = timing,

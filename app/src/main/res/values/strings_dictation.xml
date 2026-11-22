@@ -3,7 +3,7 @@
      (dictation/DictationController, capture/AudioCapture, the model stores). -->
 <resources>
     <string name="dictation_mic_permission">No microphone access. Open Embersay and allow it.</string>
-    <string name="dictation_mic_not_opened">Couldn\'t open the microphone. Open Embersay once, then tap again.</string>
+    <string name="dictation_mic_not_opened">Couldn\'t open the microphone. Tap the bubble to try again.</string>
     <string name="dictation_no_field">No text field selected. Tap one first.</string>
     <string name="dictation_not_inserted_here">Couldn\'t insert here. Hold the bubble and choose Copy last.</string>
     <string name="dictation_scratched">Discarded. Nothing was inserted.</string>

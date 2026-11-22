@@ -189,7 +189,7 @@ fun HomeScreen(
 
         TestFieldCard(testField, Modifier)
 
-        val reliable = setup.micServiceRunning && setup.notificationsGranted && setup.batteryUnrestricted
+        val reliable = setup.notificationsGranted && setup.batteryUnrestricted
         if (setup.ready && !reliable) ReliabilitySection(setup, actions)
     }
 }
@@ -499,16 +499,9 @@ private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
     }
 }
 
-/** The three things that keep the microphone available in the background. */
+/** What keeps a dictation in another app working and said: notifications and the battery. */
 @Composable
 fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
-    StatusRow(
-        label = stringResource(R.string.reliability_mic_service),
-        description = stringResource(R.string.reliability_mic_service_note),
-        done = setup.micServiceRunning,
-        actionLabel = stringResource(R.string.start),
-        onAction = actions.startMicService,
-    )
     StatusRow(
         label = stringResource(R.string.reliability_notifications),
         description = stringResource(R.string.reliability_notifications_note),

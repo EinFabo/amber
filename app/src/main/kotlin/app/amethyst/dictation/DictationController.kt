@@ -4,6 +4,7 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -220,6 +221,17 @@ class DictationController(
      */
     private val handover = ProxyHandover(lostAfterMs = PROXY_HANDOVER_TIMEOUT_MS)
 
+    /**
+     * How this run gets at the microphone - "direct" or "proxy" - and why, for the one logcat
+     * line and the Diagnostics line that say so when the microphone opens ([microphoneOpening]).
+     * Kept across the proxy activity's re-entry, which records for the run that handed over.
+     */
+    @Volatile
+    private var micRoute = "direct"
+
+    @Volatile
+    private var micWhy = ""
+
     /** Counts runs, so a timer from an earlier run never acts on a later one. */
     @Volatile
     private var runSerial = 0
@@ -425,35 +437,38 @@ class DictationController(
             if (_mode.value == RunMode.COMMAND) capCommand()
         }
 
-        val route = MicrophoneRouter.route(
+        val decision = MicrophoneRouter.route(
             source = source,
             hasPermission = hasMicrophonePermission(),
-            foregroundServiceRunning = MicForegroundService.isRunning,
+            sdk = Build.VERSION.SDK_INT,
+            accessibilityConnected = graph.accessibilityService != null,
         )
         trace = if (source == TriggerSource.PROXY_ACTIVITY && trace != null) {
             trace
         } else {
-            RunTrace("${source.name}/${route.name}")
+            RunTrace("${source.name}/${decision.route.name}")
+        }
+        // The proxy's re-entry records for the run that handed over: its route and reason stand.
+        if (source != TriggerSource.PROXY_ACTIVITY) {
+            micRoute = "direct"
+            micWhy = decision.why
         }
 
-        when (route) {
+        when (decision.route) {
             MicrophoneRoute.NEEDS_PERMISSION -> {
                 fail(say(R.string.dictation_mic_permission), details = listOf("microphone permission missing"))
                 return
             }
 
             MicrophoneRoute.VIA_PROXY_ACTIVITY -> {
-                // Android 14+ refuses a background microphone start and a foreign app is in
-                // front, so hand over to the invisible activity and let it call back in.
-                Log.i(TAG, "no foreground anchor - routing through the proxy activity")
-
-                handToProxy()
+                // Nothing gives this process the microphone in the background, so hand over to
+                // the invisible activity and let it call back in.
+                handToProxy(decision.why)
                 return
             }
 
-            MicrophoneRoute.START_SERVICE_THEN_RECORD -> MicForegroundService.start(context)
-
-            MicrophoneRoute.RECORD_NOW -> Unit
+            // The foreground service comes up with the microphone ([microphoneOpening]).
+            MicrophoneRoute.DIRECT -> Unit
         }
 
         // Recording directly: an activity still on its way starts nothing when it arrives.
@@ -504,9 +519,13 @@ class DictationController(
     /**
      * Hands the run to the invisible activity, which calls back in ([start] from
      * [TriggerSource.PROXY_ACTIVITY]) once it is up. Until then the run is "starting" with
-     * nothing working on it: a tap is kept as its stop ([stop]), a cancel as its end.
+     * nothing working on it: a tap is kept as its stop ([stop]), a cancel as its end. The last
+     * fallback ([MicrophoneRouter]): [why] says what made it necessary.
      */
-    private fun handToProxy() {
+    private fun handToProxy(why: String) {
+        micRoute = "proxy"
+        micWhy = why
+        Log.i(TAG, "handing the microphone to the proxy activity: $why")
         // Set synchronously, before the activity exists. The activity waits for the run to
         // *leave* this state; seeing Idle it would finish during its own onCreate - before
         // AudioRecord opened - and the anchor it exists to provide would be gone again.
@@ -886,7 +905,7 @@ class DictationController(
                         null
                     }
                     retry != null -> recognizeKept(engine, options, retry, estimateKey, appLabels, limit)
-                    engine is SelfCapturingSttEngine -> listenWithEngine(engine, options, limit)
+                    engine is SelfCapturingSttEngine -> listenWithEngine(engine, options, source, limit)
                     else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit)
                 } ?: run {
                     // The failure was already reported.
@@ -1000,9 +1019,28 @@ class DictationController(
     /** Holds the audio focus while the microphone is open, when music is to pause ([MediaPause]). */
     private val mediaPause by lazy { MediaPause(context) }
 
-    /** The microphone is about to open: music pauses now, before the first word, if wanted. */
+    /**
+     * The microphone is about to open: music pauses now, before the first word, if wanted. The
+     * recording's foreground service starts with it - best effort, the recording does not wait
+     * for it ([MicForegroundService]) - and logcat and Diagnostics get the line that says how
+     * this dictation got at the microphone and why.
+     */
     private fun microphoneOpening() {
         if (graph.settings.value.feedback.pauseMedia) mediaPause.hold()
+        val refused = MicForegroundService.start(context)
+        val route = if (refused == null) "$micRoute+service" else "$micRoute (foreground service refused: $refused)"
+        Log.i(TAG, "microphone route: $route - $micWhy")
+        trace?.microphone = "microphone $route - $micWhy"
+    }
+
+    /**
+     * Android refused the recording's foreground service after it was asked for - from the
+     * background on Android 12+, or the microphone type without while-in-use access on 14+. The
+     * recording reads the microphone without it; Diagnostics say so. Main thread.
+     */
+    fun foregroundServiceRefused(technical: String) {
+        Log.i(TAG, "microphone route: $micRoute (foreground service refused: $technical) - $micWhy; the recording goes on without it")
+        trace?.microphone = "microphone $micRoute (foreground service refused: $technical) - $micWhy"
     }
 
     /**
@@ -1017,6 +1055,8 @@ class DictationController(
 
     /** The recording ended, however: the stop tone, once, if the microphone had opened. */
     private fun microphoneClosed() {
+        // The recording's notification goes with the recording.
+        MicForegroundService.stop(context)
         // The focus goes back first: the music is on again as the stop tone plays.
         mediaPause.release()
         if (cue.ended() != null && graph.settings.value.feedback.sounds) sounds.play(RecordingSounds.Tone.STOP)
@@ -1033,6 +1073,7 @@ class DictationController(
     private suspend fun listenWithEngine(
         engine: SelfCapturingSttEngine,
         options: TranscribeOptions,
+        source: TriggerSource,
         limit: RunLimit,
     ): Transcript? {
         selfCapturing.set(engine)
@@ -1049,6 +1090,9 @@ class DictationController(
         // Android's recognizer records by itself, so no recorder looks for a call: looked for
         // here, as Embersay's own recorder does ([CallWatch]), or it writes down the call.
         var endedByCall = false
+        // Whether the recognizer got the microphone open: a failure before that may be Android
+        // refusing it in the background, which the proxy activity can mend.
+        var opened = false
         val result = try {
             coroutineScope {
                 val calls = launch {
@@ -1066,7 +1110,10 @@ class DictationController(
                         ListenCallbacks(
                             onAmplitude = { amplitude -> noteLoudness(amplitude); updateListening { it.copy(amplitude = amplitude) } },
                             onPartial = { partial -> updateListening { it.copy(partial = partial) } },
-                            onReady = ::microphoneOpen,
+                            onReady = {
+                                opened = true
+                                microphoneOpen()
+                            },
                         ),
                     )
                 } finally {
@@ -1088,6 +1135,11 @@ class DictationController(
             if (result.isSuccess) toast(R.string.dictation_call_ended_sent, long = true)
         }
         return result.getOrElse { error ->
+            if (MicrophoneRouter.proxyAfterRecognizerFailure(source, opened, endedByCall, (error as? SttFailure)?.problem) && hasMicrophonePermission()) {
+                // Never heard anything: as the recorder's refused start, once more through the activity.
+                handToProxy("Android's speech recognition could not open the microphone directly: ${technicalOf(error)}")
+                return null
+            }
             if (endedByCall) {
                 fail(say(R.string.dictation_call_ended), details = listOf("a call started during the recording; recognition then: ${technicalOf(error)}"))
             } else {
@@ -1173,6 +1225,8 @@ class DictationController(
                 silenceFirstMs = if (graph.settings.value.feedback.sounds) StartToneMute.START_TONE_MS else 0,
                 // A call that begins ends the recording: it must not write down the call.
                 inCall = phoneCall::on,
+                // The bubble's direct start: silence from it means the proxy activity is needed.
+                probeMs = MicrophoneRouter.startProbeMs(source),
             )
         } catch (e: Throwable) {
             chunked?.cancel()
@@ -1219,14 +1273,15 @@ class DictationController(
 
             is AudioCapture.Outcome.Failed -> {
                 Log.w(TAG, "capture failed: ${outcome.technical}")
-                // Classic symptom of a ROM blocking the microphone for a background
-                // service. Retry once through the activity path before giving up.
+                // Android refused the recorder, or the direct start delivered only silence:
+                // the microphone is blocked for this process in the background. Nothing worth
+                // keeping was recorded (words would have come as Captured), so retry once
+                // through the activity before giving up.
                 if (source.mayUseProxyFallback) {
-                    Log.i(TAG, "retrying capture via proxy activity")
                     // Starting again, as at the first handover: a tap meanwhile is this run's
                     // stop, and an activity that never comes is said after a moment - the
                     // bubble no longer stays on "listening" with nothing behind it.
-                    handToProxy()
+                    handToProxy("the direct start failed: ${outcome.technical}")
                 } else {
                     fail(say(outcome.message), details = listOf("capture failed: ${outcome.technical}"))
                 }

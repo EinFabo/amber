@@ -76,12 +76,21 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
          * ([PausableRecording]) and the recording goes on seamlessly after it.
          */
         pause: RecordingPause = RecordingPause(),
-        /** The microphone is really open: the recorder records. On the recorder's thread. */
+        /**
+         * The microphone is really open: the recorder records. On the recorder's thread. With
+         * [probeMs], only once the microphone delivers sound.
+         */
         onStarted: () -> Unit = {},
         /** The recording's first moments silenced, for the start tone that plays then ([StartToneMute]); 0 for none. */
         silenceFirstMs: Int = 0,
         /** Whether the phone rings or is in a call now ([PhoneCall]); asked a few times a second. */
         inCall: () -> Boolean = { false },
+        /**
+         * How long the start is watched for a microphone that delivers only silence
+         * ([MicrophoneWatch], [app.amethyst.core.capture.MicrophoneRouter.startProbeMs]); 0 for
+         * none. Such a start ends as [Outcome.Failed], for the caller to try the proxy activity.
+         */
+        probeMs: Int = 0,
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -123,7 +132,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
         var chunks = 0
         val frame = ShortArray(frameSamples)
         val silence = SilencedWatch()
-        val watch = MicrophoneWatch(config.frameMs, silenceKnown = silence.known)
+        val watch = MicrophoneWatch(config.frameMs, silenceKnown = silence.known, probeMs = probeMs)
         val toneMute = StartToneMute(sampleRate, silenceFirstMs)
 
         try {
@@ -134,7 +143,10 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     "recordingState ${recorder.recordingState} - likely a background mic block",
                 )
             }
-            onStarted()
+            // A watched start is open at its first sound ([MicrophoneWatch.Step.Open]): the buzz
+            // and the start tone must not invite words into a microphone that delivers silence.
+            var open = probeMs <= 0
+            if (open) onStarted()
 
             silence.watch(recorder)
             // How the recording ends when the microphone is gone or a tap comes while it
@@ -171,6 +183,15 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 val allZero = read > 0 && (0 until read).all { frame[it] == 0.toShort() }
                 when (val step = watch.onRead(read, allZero, silenced = silence.silenced, stopRequested = stop, inCall = call)) {
                     MicrophoneWatch.Step.Frame -> Unit
+                    MicrophoneWatch.Step.Open -> {
+                        open = true
+                        onStarted()
+                    }
+                    is MicrophoneWatch.Step.NeverOpened -> {
+                        // Only silence came, and nobody was told it records: nothing to keep.
+                        Log.w(TAG, "the direct start never opened: ${step.technical}")
+                        return@withContext Outcome.Failed(R.string.capture_refused, "${step.technical} - likely a background microphone block")
+                    }
                     MicrophoneWatch.Step.Again -> continue
                     MicrophoneWatch.Step.Stopped -> return@withContext ended(vad.onManualStop())
                     is MicrophoneWatch.Step.Lost -> {
@@ -179,8 +200,9 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     }
                 }
 
-                // After the check for a silenced microphone, which must see what it delivered.
-                toneMute.apply(frame, read)
+                // After the check for a silenced microphone, which must see what it delivered;
+                // from the open on, which is when the start tone plays.
+                if (open) toneMute.apply(frame, read)
                 val rms = PcmAudio.rms(frame, 0, read)
                 val decision = when (val step = gate.onFrame(rms, stop)) {
                     // Paused: never stored, never chunked, the level shown as silence.
