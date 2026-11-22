@@ -71,7 +71,7 @@
     <string name="access_done">On. The bubble can now appear in every app.</string>
     <string name="mic_title">Allow the microphone</string>
     <string name="mic_lead">Embersay records only while you dictate. The bubble glows while it listens.</string>
-    <string name="mic_where">Your recording goes only to the speech recognition you use. With cleanup on, the recognized text goes to the cleanup you chose. Your dictations stay on this phone for 24&#160;hours, encrypted; you can change that in Settings → History.</string>
+    <string name="mic_where">Your recording goes only to the speech recognition you use. With cleanup on, the recognized text goes to the cleanup you chose. By default, your dictations stay on this phone for 24&#160;hours, encrypted; you can change that in Settings → Privacy → History.</string>
     <string name="continue_without">Continue without</string>
     <string name="mic_allowed">Allowed</string>
     <string name="mic_not_allowed">Not allowed yet. If Android doesn\'t ask anymore, allow it in Embersay\'s app info under Permissions → Microphone.</string>

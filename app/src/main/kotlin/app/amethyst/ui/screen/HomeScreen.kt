@@ -637,6 +637,10 @@ private fun SetupCard(setup: SetupState, actions: SetupActions, modifier: Modifi
             actionLabel = stringResource(R.string.allow),
             onAction = actions.requestMicrophone,
         )
+        // Where the recording and its text go, and what is kept: the introduction says it on its
+        // microphone step, and this card is the way for whoever skipped that step - here, with
+        // the microphone, and not in the accessibility consent, which Play wants about the service alone.
+        if (!setup.microphoneGranted) Hint(stringResource(R.string.mic_where))
         StatusRow(
             label = stringResource(R.string.setup_accessibility),
             description = if (setup.accessibilityTried) {
