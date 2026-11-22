@@ -5,13 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.amethyst.DebugLog
 import app.amethyst.Graph
@@ -157,7 +154,6 @@ class DictationController(
     /** This run's time limit, from its start to the text in the field; null before the first run. */
     @Volatile
     private var runLimit: RunLimit? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
     private var job: Job? = null
@@ -372,7 +368,7 @@ class DictationController(
                 stoppedByTap = true
                 cancel()
                 Log.i(TAG, "command stopped by a tap")
-                mainHandler.post { Toast.makeText(context, "Command stopped.", Toast.LENGTH_SHORT).show() }
+                graph.messages.show("Command stopped.")
             }
             BubbleTap.Action.NOTHING -> Unit
             BubbleTap.Action.STILL_WORKING -> {
@@ -510,7 +506,7 @@ class DictationController(
             val waiting = wait
             if (_state.value is DictationState.Transcribing && waiting?.stuck() == true) {
                 Log.i(TAG, "still working past twice the estimate")
-                toast(R.string.toast_still_working, long = true)
+                toast(R.string.toast_still_working)
                 return
             }
         }
@@ -639,7 +635,7 @@ class DictationController(
         keptWhileScreenOff = false
         // The security mode kept no copy: nothing to insert again.
         val kept = SecurityMode.keepsWords(graph.loadedSettings.value)
-        toast(if (kept) R.string.toast_screen_off_insert_again else R.string.toast_screen_off_not_kept, long = true)
+        toast(if (kept) R.string.toast_screen_off_insert_again else R.string.toast_screen_off_not_kept)
     }
 
     /** For the record and Amber's screen: why the text did not go in. */
@@ -1132,7 +1128,7 @@ class DictationController(
         if (endedByCall) {
             trace?.ended = "ended: a call started during the recording"
             // Said as the call, also when the recognizer then found nothing: that is why.
-            if (result.isSuccess) toast(R.string.dictation_call_ended_sent, long = true)
+            if (result.isSuccess) toast(R.string.dictation_call_ended_sent)
         }
         return result.getOrElse { error ->
             if (MicrophoneRouter.proxyAfterRecognizerFailure(source, opened, endedByCall, (error as? SttFailure)?.problem) && hasMicrophonePermission()) {
@@ -1307,7 +1303,7 @@ class DictationController(
                 }
                 if (endedWhy != null) {
                     trace?.ended = "ended: ${outcome.technical ?: "the microphone was lost"}"
-                    toast(endedWhy, long = true)
+                    toast(endedWhy)
                 }
                 // Ended while paused: the pause ends with the recording.
                 pause.resume(SystemClock.elapsedRealtime())
@@ -1657,7 +1653,7 @@ class DictationController(
             // A read timeout or a 5xx came after the upload: the recording may be the server's.
             else -> context.getString(R.string.fallback_no_answer_on_phone)
         }
-        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+        graph.messages.show(message)
         return transcript.copy(trustLevel = trust)
     }
 
@@ -1797,7 +1793,7 @@ class DictationController(
                     local -> context.getString(R.string.fallback_no_answer_on_phone)
                     else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)
                 }
-                mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+                graph.messages.show(message)
                 return transcript.copy(trustLevel = trust)
             }
         }
@@ -1921,9 +1917,7 @@ class DictationController(
                 (error as? SttFailure)?.problem?.let { problem ->
                     val service = settings.engines.firstOrNull { it.id == choice.engineId }?.displayName ?: choice.engineId
                     graph.cleanupTrouble.failed(problem, service, choice)?.let { open ->
-                        mainHandler.post {
-                            Toast.makeText(context, context.getString(R.string.toast_cleanup_did_not_run, Texts.cleanupTrouble(context, open)), Toast.LENGTH_LONG).show()
-                        }
+                        graph.messages.show(context.getString(R.string.toast_cleanup_did_not_run, Texts.cleanupTrouble(context, open)))
                     }
                 }
                 transcript
@@ -2005,9 +1999,7 @@ class DictationController(
         // also when that was one of several commands.
         val actions = (understanding as? Understanding.Understood)?.commands.orEmpty().mapNotNull { (it as? Command.Navigate)?.action }
         if (GlobalAction.SCREENSHOT !in actions && GlobalAction.LOCK_SCREEN !in actions) {
-            mainHandler.post {
-                Toast.makeText(context, "\u201C${heard.take(SHOWN_CHARS)}\u201D \u2192 ${outcome.message}", Toast.LENGTH_SHORT).show()
-            }
+            graph.messages.show("\u201C${heard.take(SHOWN_CHARS)}\u201D \u2192 ${outcome.message}")
         }
         restAfter<DictationState.Commanded>(DONE_DISPLAY_MS)
     }
@@ -2296,14 +2288,12 @@ class DictationController(
     }
 
     /** A short note over whatever app is open, from the quick menu's actions. */
-    private fun toast(message: Int, long: Boolean = false) {
-        mainHandler.post { Toast.makeText(context, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show() }
-    }
+    private fun toast(message: Int) = graph.messages.show(message)
 
     /** A toast without a failure: the state stays Idle, the bubble stays calm, nothing is logged. */
     private fun notice(message: String) {
         Log.i(TAG, "dictation not started: $message")
-        mainHandler.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+        graph.messages.show(message)
     }
 
     /**
@@ -2356,9 +2346,7 @@ class DictationController(
         // While dictating into another app the bubble is the only visible surface, and a red
         // ring does not say why. A toast does, without making the user switch back.
         if (toast) {
-            mainHandler.post {
-                Toast.makeText(context, brief(context), Toast.LENGTH_LONG).show()
-            }
+            graph.messages.show(brief(context))
         }
 
         restAfter<DictationState.Failed>(FAILED_DISPLAY_MS)

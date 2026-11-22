@@ -458,6 +458,9 @@ class Graph(app: Application) {
     @Volatile
     var accessibilityService: AmethystAccessibilityService? = null
 
+    /** Short messages over another app: the service's own overlay while it is connected, else a toast. */
+    val messages = Messages(app) { accessibilityService }
+
     /** Brings Amber back from Android's settings once what it sent the user for is on. */
     val returnToAmber = ReturnToAmber(app, appScope) { accessibilityService }
 

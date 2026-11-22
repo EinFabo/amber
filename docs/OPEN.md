@@ -221,6 +221,14 @@ a tool, a bubble, text into other apps). Biggest first:
       recording ("Recording…" with a Stop button), the proxy activity is the last fallback. To try on a phone (Android 14+, and Android 9/10 where there is one): logcat
       `microphone route: ...` per dictation; after a reboot without opening the app; with
       notifications off; Stop in the notification.
+- [x] **Messages vanished with notifications off**: Android drops a background app's toast
+      when its notifications are off (the default from Android 13). Built 2026-11-22 (store
+      review, item 17): the dictation, quick menu and insertion speak through one path
+      (`Messages`): while the accessibility service is connected a small pill of its own above
+      the keys and clear of the bubble (`MessagePill`, placement and time in `:core`), a toast
+      only without the service. To try on a phone: notifications off for Embersay, then Pause
+      from the quick menu, a dictation with no field, "Hide here"; light and dark theme;
+      "Remove animations" on; with TalkBack the message is spoken.
 - [ ] **Accessibility declaration** in the Console as a non-tool (no `isAccessibilityTool`);
       the in-app disclosure with "Agree and open" exists. Needs a **video**: disclosure,
       consent, a dictation into another app.

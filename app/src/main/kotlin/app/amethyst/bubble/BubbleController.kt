@@ -939,8 +939,8 @@ class BubbleController(
         }
     }
 
-    /** The display with what the bubble keeps clear of: bars, gesture bar, cutout. */
-    private fun screen(): Screen {
+    /** The display with what the bubble keeps clear of: bars, gesture bar, cutout. The message pill keeps clear of them too. */
+    fun screen(): Screen {
         val (width, height) = screenSize()
         return Screen(width, height, safeArea(width, height))
     }

@@ -1,0 +1,56 @@
+package app.amethyst.core.bubble
+
+/**
+ * How long a short message over another app stays. Android drops a toast of an app in the
+ * background whose notifications are off (the default from Android 13 until the user allows
+ * them), so while the accessibility service runs Amber shows its own small message instead,
+ * and that one needs a time of its own: long enough to read, by its length, but gone before
+ * it is in the way.
+ */
+object MessageTiming {
+    const val MIN_MS = 2_500L
+    const val MAX_MS = 6_000L
+
+    /** A moment to notice it, then about sixteen characters a second. */
+    private const val BASE_MS = 1_500L
+    private const val PER_CHAR_MS = 60L
+
+    fun shownMs(text: String): Long = (BASE_MS + PER_CHAR_MS * text.length).coerceIn(MIN_MS, MAX_MS)
+
+    /**
+     * Without the service it is a plain toast, which knows two lengths only: the short one
+     * (about two seconds) for what is read at a glance, the long one for the rest.
+     */
+    fun longToast(text: String): Boolean = shownMs(text) > MIN_MS
+}
+
+/**
+ * Where the message sits: centred, just above the keys - or above the bottom bar with no
+ * keyboard - where the eyes are while dictating, and above the bubble when the bubble is in
+ * that place. Never under the status bar. Pure, so every case is a test.
+ */
+object MessagePlacement {
+
+    /** As wide as the text needs, up to [cap], and [margin] clear of either edge. */
+    fun maxWidth(screen: Screen, margin: Int, cap: Int): Int =
+        minOf(cap, screen.width - screen.safe.left - screen.safe.right - 2 * margin).coerceAtLeast(0)
+
+    /**
+     * The top-left corner of a message [width] x [height], [gap] clear of the keys of a docked
+     * keyboard at [keyboardTop], the bottom bar, the [bubble] (its frame, null when not shown)
+     * and the status bar.
+     */
+    fun place(screen: Screen, width: Int, height: Int, gap: Int, keyboardTop: Int?, bubble: Box?): Pair<Int, Int> {
+        val left = screen.safe.left
+        val usable = screen.width - left - screen.safe.right
+        val x = left + (usable - width) / 2
+        val top = screen.safe.top + gap
+        val bottom = screen.height - screen.safe.bottom
+        val floor = if (keyboardTop != null) minOf(keyboardTop, bottom) else bottom
+        var y = floor - gap - height
+        if (bubble != null && bubble.overlaps(Box(x, y - gap, x + width, y + height + gap))) {
+            y = bubble.top - gap - height
+        }
+        return x to y.coerceAtLeast(top)
+    }
+}

@@ -1,10 +1,7 @@
 package app.amethyst.accessibility
 
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
 import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.Texts
@@ -36,7 +33,6 @@ class QuickActionRunner(
     /** Hides the bubble in an app, as a drop on the hide target does. */
     private val hideIn: (packageName: String) -> Unit,
 ) {
-    private val main = Handler(Looper.getMainLooper())
 
     /** The idle places as the user put them together (Settings -> Bubble -> Quick menu), else today's. */
     fun slots(currentApp: String?): List<QuickSlot?> =
@@ -158,7 +154,7 @@ class QuickActionRunner(
     private fun labelOf(app: String): String = Launcher.label(service, app) ?: app
 
     private fun toast(message: String) {
-        main.post { Toast.makeText(service, message, Toast.LENGTH_SHORT).show() }
+        graph.messages.show(message)
     }
 
     private companion object {

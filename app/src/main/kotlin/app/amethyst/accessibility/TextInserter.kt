@@ -4,14 +4,12 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import app.amethyst.DebugLog
+import app.amethyst.Messages
 import app.amethyst.R
 import app.amethyst.apps.Launcher
 import app.amethyst.core.bubble.SecretField
@@ -44,9 +42,8 @@ import app.amethyst.data.StrategyStore
 class TextInserter(
     private val service: AccessibilityService,
     strategyStore: StrategyStore,
+    private val messages: Messages,
 ) {
-
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val engine = InsertionEngine(
         memory = strategyStore.memory,
@@ -104,10 +101,7 @@ class TextInserter(
         // Only nag when the text really did not make it into the field. A successful paste
         // also uses the clipboard, and announcing that every time would be noise.
         if (!outcome.insertedIntoField && outcome.copiedToClipboard) {
-            mainHandler.post {
-                val message = if (outcome.uncertain) R.string.clipboard_after_lost_commit else R.string.clipboard_fallback
-                Toast.makeText(service, message, Toast.LENGTH_LONG).show()
-            }
+            messages.show(if (outcome.uncertain) R.string.clipboard_after_lost_commit else R.string.clipboard_fallback)
         }
 
         return outcome

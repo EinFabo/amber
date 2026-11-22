@@ -14,7 +14,6 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.EditorInfo
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import app.amethyst.apps.Launcher
@@ -81,6 +80,16 @@ class AmethystAccessibilityService : AccessibilityService() {
     /** The screen stays on from the start of a dictation until its text went in, or failed. */
     private val screenAwake by lazy { ScreenAwake(this) }
 
+    /** Short messages over the app in front, where a toast may not show ([app.amethyst.Messages]). */
+    private val pill by lazy {
+        MessagePill(
+            service = this,
+            dark = { graph.settings.value.ui.theme.dark(systemDark()) },
+            screen = { bubble?.screen() },
+            bubble = { bubble?.frame() },
+        )
+    }
+
     /** The keyboard in use, kept current by an observer: asked on every window change. */
     private val defaultKeyboard by lazy { DefaultKeyboard(contentResolver) }
 
@@ -117,7 +126,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         if (!scope.isActive) scope = newScope()
 
         graph = AmethystApp.graph(this)
-        textInserter = TextInserter(this, graph.strategyStore)
+        textInserter = TextInserter(this, graph.strategyStore, graph.messages)
         fieldEditor = FieldEditor(this, textInserter)
         commands = CommandExecutor(this, graph)
 
@@ -320,6 +329,12 @@ class AmethystAccessibilityService : AccessibilityService() {
     /** Where the bubble is while it shows; a voice command's gesture keeps clear of it. */
     fun bubbleFrame(): Box? = bubble?.frame()
 
+    /** Shows [text] as a short message over the app in front. Main thread; [app.amethyst.Messages] is the way in. */
+    fun say(text: String) = pill.show(text)
+
+    private fun systemDark(): Boolean =
+        resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
     /** Out of sight for a screenshot taken by voice, and back. Main thread. */
     fun hideBubbleForCapture(hidden: Boolean) {
         bubble?.setHiddenForCapture(hidden)
@@ -492,7 +507,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             }
         }
         val name = Launcher.label(this, pkg) ?: pkg
-        Toast.makeText(this, getString(R.string.bubble_hidden_in, name), Toast.LENGTH_LONG).show()
+        graph.messages.show(getString(R.string.bubble_hidden_in, name))
     }
 
     /** A rotation: the bubble goes back to its edge, at the same share of the height. */
@@ -553,6 +568,7 @@ class AmethystAccessibilityService : AccessibilityService() {
         defaultKeyboard.stop()
         bubble?.detach()
         screenAwake.hold(false)
+        pill.remove()
         bubble = null
         if (::graph.isInitialized && graph.accessibilityService === this) {
             // Switched off mid-dictation: with the service go the bubble that could stop the
