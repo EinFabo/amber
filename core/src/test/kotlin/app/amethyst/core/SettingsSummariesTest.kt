@@ -3,6 +3,7 @@ package app.amethyst.core
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
+import app.amethyst.core.settings.Attention
 import app.amethyst.core.settings.AppCleanup
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfile
@@ -14,12 +15,15 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.FallbackMode
 import app.amethyst.core.settings.FallbackSettings
 import app.amethyst.core.settings.InsertionSettings
+import app.amethyst.core.settings.ReliabilityItem
+import app.amethyst.core.settings.SettingsAttention
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.Summary
 import app.amethyst.core.settings.UpdateSettings
 import app.amethyst.core.update.ReleaseChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SettingsSummariesTest {
 
@@ -239,5 +243,15 @@ class SettingsSummariesTest {
         assertEquals(Summary.Privacy(settings.privacy.history, secure = false), SettingsSummaries.privacy(settings))
         val secure = settings.copy(privacy = settings.privacy.copy(securityMode = true))
         assertEquals(true, (SettingsSummaries.privacy(secure) as Summary.Privacy).secure)
+    }
+
+    @Test
+    fun `what is open for reliability is said once, on top while that row shows`() {
+        val open = listOf(ReliabilityItem.BATTERY)
+        assertEquals(Summary.Reliability(1), SettingsSummaries.reliability(1))
+        assertEquals(Summary.Reliability(0), SettingsSummaries.reliability(0, attention = null))
+        assertNull(SettingsSummaries.reliability(1, SettingsAttention.of(open, ReleaseChannel.GITHUB, UpdateSettings(), "0.32.0")))
+        // The row on top points at something else: the Reliability row says its own state.
+        assertEquals(Summary.Reliability(1), SettingsSummaries.reliability(1, Attention.Update("0.33.0")))
     }
 }

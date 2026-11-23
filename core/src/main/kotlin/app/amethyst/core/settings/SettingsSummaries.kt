@@ -214,7 +214,12 @@ object SettingsSummaries {
     /** How many things the Text row names: what fits a line on a phone, in German too. */
     const val TEXT_PARTS = 3
 
-    fun reliability(open: Int): Summary = Summary.Reliability(open)
+    /**
+     * The Reliability row's state - none while the row on top of the page says what is open
+     * ([Attention.Reliability]): said once, where it is in sight, not again at the bottom.
+     */
+    fun reliability(open: Int, attention: Attention? = null): Summary? =
+        Summary.Reliability(open).takeUnless { attention is Attention.Reliability }
 
     fun diagnostics(count: Int): Summary = Summary.Diagnostics(count)
 

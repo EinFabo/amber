@@ -8,8 +8,12 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,15 +43,17 @@ fun PrivacyPolicyScreen(
     text: String? = null,
 ) {
     val context = LocalContext.current
-    val blocks by produceState(text?.let(PrivacyPolicy::parse)) {
-        if (value != null) return@produceState
-        value = withContext(Dispatchers.IO) {
-            runCatching { context.resources.openRawResource(R.raw.privacy_policy).bufferedReader().use { it.readText() } }
-                .map(PrivacyPolicy::parse)
-                .getOrDefault(emptyList())
+    // The text kept across a rotation: read again, the page would be short for a moment and
+    // lose its place. Empty when it could not be read.
+    var read by rememberSaveable { mutableStateOf(text) }
+    LaunchedEffect(Unit) {
+        if (read != null) return@LaunchedEffect
+        read = withContext(Dispatchers.IO) {
+            runCatching { context.resources.openRawResource(R.raw.privacy_policy).bufferedReader().use { it.readText() } }.getOrDefault("")
         }
     }
-    SubPage(modifier) {
+    val blocks = remember(read) { read?.let(PrivacyPolicy::parse) }
+    SubPage(modifier, readable = true) {
         PrivacyPolicy.webAddress()?.let { url ->
             GhostButton(stringResource(R.string.privacy_policy_web), { onOpenUrl(url) })
         }

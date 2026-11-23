@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -163,7 +165,7 @@ fun DiagnosticsScreen(
     val shown = filter.apply(records)
     val keyboardShown = filter != DiagnosticsReport.Filter.COMMANDS && keyboardLog.isNotEmpty()
 
-    SubPage(modifier) {
+    SubPage(modifier, readable = true) {
         if (otherAmbers.isNotEmpty()) OtherAmbersCard(otherAmbers, onOpenAccessibility)
 
         // Without voice commands every entry is a dictation: no filter to offer.
@@ -253,6 +255,7 @@ fun DiagnosticsScreen(
  * command or a field in any of it ([DiagnosticsReport.anonymous], against all records' [texts]),
  * until [revealed] by "Show text".
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RecordRow(
     record: DictationRecord,
@@ -285,12 +288,17 @@ private fun RecordRow(
             summaryMaxLines = if (open) Int.MAX_VALUE else 2,
             icon = if (record.command) AmberIcons.VoiceCommand else AmberIcons.Mic,
             below = {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Hint(TIME.format(Instant.ofEpochMilli(record.atMillis).atZone(ZoneId.systemDefault())))
-                    record.trustLevel?.let { TrustBadge(it) }
+                // Show text at the end of the line where it fits; where the time and the badge leave
+                // too little room ("Text verbergen" beside "Auf dem Handy"), on a line of its own
+                // rather than broken over two.
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Hint(TIME.format(Instant.ofEpochMilli(record.atMillis).atZone(ZoneId.systemDefault())))
+                        record.trustLevel?.let { TrustBadge(it) }
+                    }
                     if (hidesWords) {
-                        Spacer(Modifier.weight(1f))
-                        GhostButton(stringResource(if (show) R.string.diag_hide_text else R.string.diag_show_text), onReveal)
+                        // The button's own padding keeps it clear of the badge.
+                        GhostButton(stringResource(if (show) R.string.diag_hide_text else R.string.diag_show_text), onReveal, Modifier.align(Alignment.CenterVertically))
                     }
                 }
             },

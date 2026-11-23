@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -118,7 +119,8 @@ fun SettingsScreen(
     val reliabilityOpen = reliability.size
     // Only while a cleanup still uses the one that failed.
     val trouble = cleanupTrouble?.takeIf { CleanupTrouble.stillApplies(it, settings) }
-    // The Reliability row is at the bottom, out of sight: what is open there is said on top too.
+    // The Reliability row is at the bottom, out of sight: what is open there is said on top
+    // instead, and the row itself then says nothing more (SettingsSummaries.reliability).
     val attention = SettingsAttention.of(reliability, releaseChannel, settings.updates, version, trouble)
     val commandsWithoutBubble = settings.commandsEnabled && !settings.bubble.enabled
     val updateAvailable = releaseChannel?.let { UpdatePolicy.available(it, settings.updates, version) } != null
@@ -153,7 +155,7 @@ fun SettingsScreen(
             onOpen(SettingsPage.INSERTING)
         }
         SettingsItem.RELIABILITY -> NavRow(
-            stringResource(R.string.settings_reliability), words(SettingsSummaries.reliability(reliabilityOpen)), icon = AmberIcons.Battery,
+            stringResource(R.string.settings_reliability), SettingsSummaries.reliability(reliabilityOpen, attention)?.let { words(it) }, icon = AmberIcons.Battery,
             summaryColor = if (reliabilityOpen > 0) AmberPalette.Primary else AmberPalette.Muted,
         ) { onOpen(SettingsPage.RELIABILITY) }
         SettingsItem.APPEARANCE -> NavRow(
@@ -572,18 +574,30 @@ fun ReliabilityScreen(setup: SetupState, actions: SetupActions, modifier: Modifi
     }
 }
 
-/** A scrolling page of groups, the frame every settings page shares. */
+/**
+ * A scrolling page of groups, the frame every settings page shares. A page of long text
+ * ([readable]: the privacy policy, the licenses, Diagnostics) keeps its lines to a width that
+ * reads, centred, on a wide window - a phone in landscape ran them across 2400 px.
+ */
 @Composable
-internal fun SubPage(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = PageGutter)
-            .padding(bottom = 32.dp),
-        content = content,
-    )
+internal fun SubPage(modifier: Modifier = Modifier, readable: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    val page = modifier
+        .fillMaxSize()
+        .verticalScroll(rememberScrollState())
+        .padding(horizontal = PageGutter)
+        .padding(bottom = 32.dp)
+    if (!readable) {
+        Column(page, content = content)
+        return
+    }
+    // The whole width still scrolls; only the text keeps to its column.
+    Box(page, contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = READABLE_WIDTH).fillMaxWidth(), content = content)
+    }
 }
+
+/** About 75 characters of body text a line, where reading stays easy. */
+private val READABLE_WIDTH = 640.dp
 
 @Composable
 private fun EngineRow(
