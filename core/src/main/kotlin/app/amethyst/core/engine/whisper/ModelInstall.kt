@@ -2,6 +2,8 @@ package app.amethyst.core.engine.whisper
 
 import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.ModelFileException
+import app.amethyst.core.engine.download.DownloadTransport
+import app.amethyst.core.engine.download.FileDownload
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -86,9 +88,41 @@ object ModelInstall {
         } catch (e: java.io.IOException) {
             Result.failure(ModelFileException(FileProblem.Interrupted, "Transfer interrupted: ${e.message}", e))
         } finally {
+            // The same name a download keeps its part under: whatever was kept for this slot
+            // goes, its origin with it - the slot holds the copied file now, or nothing.
             partial.delete()
+            FileDownload.discardKept(target)
         }
     }
+
+    /**
+     * A catalog model fetched so that a break costs nothing ([FileDownload]): what arrived stays
+     * beside [target] as its `.part`, and the next try - after a lost connection, a failure or
+     * the end of the process - asks the server for the rest only. A part may also be one an
+     * older version left behind (it wrote the same name, without the origin FileDownload keeps
+     * beside it): it is hashed along with the rest, and the whole file is held to the pinned
+     * size and hash before it takes [target]'s place, so nothing kept is trusted unchecked.
+     * Then the header is read, as for any installed model.
+     */
+    fun download(
+        spec: WhisperModelSpec,
+        target: File,
+        transport: DownloadTransport,
+        onProgress: (Long) -> Unit = {},
+        isCancelled: () -> Boolean = { false },
+    ): Result<WhisperModelInfo> =
+        FileDownload(spec.url, target, spec.sizeBytes, spec.sha256, transport).run(onProgress, isCancelled).fold(
+            // Pinned by size and hash, so the header is the catalog's; one that still does not
+            // read must not stay where the loader would find it.
+            onSuccess = { inspect(target).onFailure { target.delete() } },
+            onFailure = { Result.failure(it) },
+        )
+
+    /** The bytes of [spec] still to fetch into [target]: all of them, less a part kept from an earlier try. */
+    fun missingBytes(spec: WhisperModelSpec, target: File): Long = FileDownload.missingBytes(target, spec.sizeBytes)
+
+    /** Lets go of a download's part for [target] - a cancel, or a file put there another way. */
+    fun discardKept(target: File) = FileDownload.discardKept(target)
 
     /** Reads the header of an installed model, or explains why it is unusable. */
     fun inspect(file: File): Result<WhisperModelInfo> {

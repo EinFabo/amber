@@ -161,6 +161,12 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
     fun isLoaded(modelPath: String): Boolean = loadedPath == modelPath
 
     /**
+     * The size of the model in memory right now, 0 with none - its file's size, which is what
+     * whisper.cpp reads into memory. Read without the lock, for [app.amethyst.core.engine.ModelRelease].
+     */
+    fun loadedBytes(): Long = loadedPath?.let { File(it).length() } ?: 0L
+
+    /**
      * How the inference thread is being scheduled, for the diagnostics card: its cpuset
      * ("/top-app", "/foreground", ...), the priority it got and whether the hint session runs.
      */

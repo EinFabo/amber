@@ -1,7 +1,9 @@
 package app.amethyst
 
+import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import android.os.SystemClock
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.accessibility.ReturnToAmber
@@ -17,9 +19,10 @@ import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ModelRelease
 import app.amethyst.core.engine.RecognitionEstimate
+import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.WhisperModels
-import app.amethyst.core.net.HttpTransport
 import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.core.history.HistoryKeep
 import app.amethyst.core.onboarding.RealAppNudges
@@ -27,6 +30,7 @@ import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.PrivacySettings
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.stats.StatsSummary
 import app.amethyst.data.EstimateStore
 import app.amethyst.data.HistoryStore
 import app.amethyst.data.OwnClipboard
@@ -56,15 +60,20 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AmethystApp : Application() {
 
@@ -86,16 +95,19 @@ class AmethystApp : Application() {
      * The models are the largest thing in this process. When the system is about to start
      * killing apps, giving them back is cheaper for the user than losing the service.
      *
-     * Only on real memory pressure: UI_HIDDEN and BACKGROUND are numerically higher but only
-     * mean the screens went away - the bubble still dictates, and the idle release handles
-     * the rest. And never here on the main thread: a running transcription holds the model's
-     * lock, and waiting for it would freeze the bubble.
+     * Up to Android 13 only on real memory pressure: UI_HIDDEN and BACKGROUND are numerically
+     * higher but only mean the screens went away - the bubble still dictates, and the idle
+     * release handles the rest. From Android 14, which no longer sends that pressure, they are
+     * a moment to look at memory again ([ModelRelease.onTrim]). And never here on the main
+     * thread: a running transcription holds the model's lock, and waiting for it would freeze
+     * the bubble.
      */
-    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level == TRIM_MEMORY_RUNNING_CRITICAL || level >= TRIM_MEMORY_COMPLETE) {
-            graph.releaseModelsWhenIdle()
+        when (ModelRelease.onTrim(level, Build.VERSION.SDK_INT)) {
+            ModelRelease.Trim.RELEASE -> graph.releaseModelsWhenIdle()
+            ModelRelease.Trim.REVIEW -> graph.reviewModelRelease()
+            ModelRelease.Trim.NONE -> Unit
         }
     }
 
@@ -104,6 +116,9 @@ class AmethystApp : Application() {
             (context.applicationContext as AmethystApp).graph
     }
 }
+
+/** The statistics summed up ([StatsSummary]) and the day they were summed for. */
+class StatsView(val today: Long, val summary: StatsSummary)
 
 /**
  * Hand-written service locator.
@@ -135,34 +150,67 @@ class Graph(app: Application) {
     /** Which insertion method worked in which app - not written down in the security mode. */
     val strategyStore = StrategyStore(app) { SecurityMode.remembersApps(loadedSettings.value) }
 
+    // Before [secretStore], which sets it: a start's background work may build that while
+    // the rest of the graph is still being made.
+    private val secretStoreBuilt = MutableStateFlow(false)
+
     /**
      * Lazy on purpose. Building this generates or unwraps a keystore-backed master key and
      * initialises Tink - the slowest thing in the app on a first launch. In
      * Application.onCreate it would delay the first frame for everyone, including users who
      * never configure a cloud engine at all.
      */
-    val secretStore: SecretStore by lazy { SecretStore(app) }
+    val secretStore: SecretStore by lazy { SecretStore(app).also { secretStoreBuilt.value = true } }
 
-    /** Synchronously readable settings, for the service paths that cannot suspend. */
-    val settings: StateFlow<AmethystSettings> = settingsStore.settings
-        .stateIn(appScope, SharingStarted.Eagerly, AmethystSettings.defaults(PhoneLocales.tags()))
+    /**
+     * True once [secretStore] is built - or building it failed and nothing is gained by
+     * waiting. Screens that ask it about keys wait for this instead of building it on the main
+     * thread themselves ([warmSecretStore]).
+     */
+    val secretStoreReady: StateFlow<Boolean> = secretStoreBuilt
+
+    /**
+     * Builds [secretStore] on the IO pool - called as Amber's screens open, which ask it about
+     * keys a moment later. The accessibility service builds it with [warmUp].
+     */
+    fun warmSecretStore() {
+        if (secretStoreBuilt.value) return
+        appScope.launch(Dispatchers.IO) {
+            runCatching { secretStore }
+                .onFailure { android.util.Log.w("Embersay", "secret store not opened: ${it.javaClass.simpleName}") }
+            secretStoreBuilt.value = true
+        }
+    }
+
+    /** [engineFactory] for a caller that may be on the main thread: built on the IO pool the first time. */
+    suspend fun engines(): EngineFactory = withContext(Dispatchers.IO) { engineFactory }
 
     /**
      * The stored settings, null until DataStore has answered. [settings] starts on the defaults,
      * which would show a fresh install's introduction to everyone for a moment; the start screen
      * is decided from this instead. So is every privacy question ([SecurityMode]): asked of the
      * defaults, a security mode that is on would be off for that moment.
+     *
+     * The one reader of the store: each change is decoded once, here, and everything else in
+     * the process follows this flow rather than the store's.
      */
     val loadedSettings: StateFlow<AmethystSettings?> = settingsStore.settings
         .stateIn(appScope, SharingStarted.Eagerly, null)
 
+    /** Synchronously readable settings, for the service paths that cannot suspend. */
+    val settings: StateFlow<AmethystSettings> = loadedSettings.filterNotNull()
+        .stateIn(appScope, SharingStarted.Eagerly, AmethystSettings.defaults(PhoneLocales.tags()))
+
+    /** The stored settings once they are read: what a one-off look at them suspends for. */
+    private suspend fun storedSettings(): AmethystSettings = loadedSettings.filterNotNull().first()
+
     val whisperRuntime = NativeWhisperRuntime(app)
 
-    val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) }
+    val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) { httpTransport.downloadClient() } }
 
     val sherpaRuntime = SherpaRuntime()
 
-    val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) }
+    val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) { httpTransport.downloadClient() } }
 
     /** The introduction's downloads, and whether the active engine is still waiting for one. */
     val modelDownloads: ModelDownloads by lazy { ModelDownloads(app, appScope, parakeetModels, whisperModels) }
@@ -173,8 +221,8 @@ class Graph(app: Application) {
     /** One per process, so its cache of proofs spans dictations. */
     val tinfoilVerifier: TinfoilVerifier by lazy { TinfoilVerifier(tinfoilLog) }
 
-    /** One HTTP client for the engines and the model lists, so they share connections. */
-    val httpTransport: HttpTransport by lazy { OkHttpTransport() }
+    /** One HTTP client for the engines, the model lists and the model downloads, so they share connections and threads. */
+    val httpTransport: OkHttpTransport by lazy { OkHttpTransport() }
 
     /** Compresses recordings for Amber servers that take Ogg Opus. */
     val opusEncoder = OpusEncoder(app)
@@ -236,7 +284,7 @@ class Graph(app: Application) {
             // What is stored under each alias decides with the key's shape: a server with
             // another key already there is not an old Amber, and keeps both.
             val stored = { alias: String -> secretStore.get(alias) }
-            val (_, moves) = AmberAddress.movePathKeys(settingsStore.settings.first(), stored)
+            val (_, moves) = AmberAddress.movePathKeys(storedSettings(), stored)
             if (moves.isEmpty()) return
             moves.forEach { move -> secretStore.put(move.alias, move.key) }
             settingsStore.update { AmberAddress.movePathKeys(it, stored).first }
@@ -300,6 +348,32 @@ class Graph(app: Application) {
 
     /** Counts and timings of every dictation, for the statistics; never text or audio. */
     val stats = StatsStore(app, appScope) { loadedSettings.value }
+
+    /**
+     * The statistics summed up for Home and the statistics page, with the day they were summed
+     * for: on the Default pool, not in a screen's composition - again with every dictation
+     * (which may be the first of a new day), a new typing speed, and at midnight, so an app left
+     * open overnight starts the new day at zero. Only while a screen shows them; the last
+     * summary stays for the next screen, a rotation's included.
+     */
+    val statsSummary: StateFlow<StatsView> = combine(
+        stats.all,
+        settings.map { it.stats.typingWpm }.distinctUntilChanged(),
+        midnights(),
+    ) { all, typingWpm, _ ->
+        val today = stats.dayOf(System.currentTimeMillis())
+        StatsView(today, StatsSummary.of(all, today, typingWpm))
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(appScope, SharingStarted.WhileSubscribed(STATS_KEPT_MS), stats.dayOf(System.currentTimeMillis()).let { StatsView(it, StatsSummary.of(emptyList(), it)) })
+
+    /** Once now and at every midnight after; a delay stands still while the phone sleeps, and a dictation asks the day itself. */
+    private fun midnights(): Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(stats.millisUntilNextDay(System.currentTimeMillis()))
+        }
+    }
 
     private val amberPackage = app.packageName
 
@@ -438,7 +512,7 @@ class Graph(app: Application) {
 
     /** A dictation went into another app: the nudge toward one is over for good ([RealAppNudges.reached]). */
     private suspend fun rememberRealApp() {
-        if (settingsStore.settings.first().firstRun.realAppReached) return
+        if (storedSettings().firstRun.realAppReached) return
         settingsStore.update { it.copy(firstRun = it.firstRun.copy(realAppReached = true)) }
     }
 
@@ -467,7 +541,11 @@ class Graph(app: Application) {
     /** Brings Amber back from Android's settings once what it sent the user for is on. */
     val returnToAmber = ReturnToAmber(app, appScope) { accessibilityService }
 
+    private val releaseLock = Any()
     private var releaseJob: Job? = null
+
+    /** When [releaseJob] frees the models (elapsedRealtime), so a review only ever brings it forward. */
+    private var releaseAt = Long.MAX_VALUE
 
     @Volatile
     private var lastDictationAt = 0L
@@ -537,7 +615,7 @@ class Graph(app: Application) {
                 runCatching { sherpaRuntime.ensureLoaded(parakeetModels.dir.path) }
                     .onFailure { android.util.Log.w("Embersay", "parakeet warm-up failed", it) }
             }
-            scheduleModelRelease()
+            scheduleRelease { memory -> ModelRelease.beforeDictation(memory, maxOf(loadedModelBytes(), ParakeetModel.TOTAL_BYTES)) }
             return
         }
         if (engine.kind != EngineKind.WHISPER_CPP) return
@@ -549,15 +627,71 @@ class Graph(app: Application) {
             runCatching { whisperRuntime.ensureLoaded(whisperModels.fileFor(modelId).path) }
                 .onFailure { android.util.Log.w("Embersay", "whisper warm-up failed", it) }
         }
-        scheduleModelRelease()
+        val file = whisperModels.fileFor(modelId)
+        scheduleRelease { memory -> ModelRelease.beforeDictation(memory, maxOf(loadedModelBytes(), file.length())) }
     }
 
+    /**
+     * A dictation ended: the models go after their idle time - or sooner when memory is short
+     * on Android 14 and later, which no longer warns of it ([ModelRelease.afterDictation]).
+     */
     fun scheduleModelRelease() {
-        releaseJob?.cancel()
-        releaseJob = appScope.launch {
-            delay(MODEL_IDLE_RELEASE_MS)
-            releaseModelsWhenIdle()
+        scheduleRelease { memory -> ModelRelease.afterDictation(memory, loadedModelBytes()) }
+    }
+
+    /**
+     * The screens went away on Android 14 or later: memory is looked at again, and a release
+     * comes forward when it is short. The usual idle time is left as it runs.
+     */
+    fun reviewModelRelease() {
+        appScope.launch {
+            val wait = ModelRelease.afterDictation(memoryNow(), loadedModelBytes())
+            if (wait == ModelRelease.Wait.IDLE) return@launch
+            // A timer that fires as early already stays.
+            val due = SystemClock.elapsedRealtime() + wait.ms
+            if (synchronized(releaseLock) { releaseJob?.isActive == true && releaseAt <= due }) return@launch
+            scheduleRelease { wait }
         }
+    }
+
+    /**
+     * (Re)starts the one timer that frees the models. The memory is asked inside it, off the
+     * caller's thread - a dictation's start is often on the main thread.
+     */
+    private fun scheduleRelease(decide: (ModelRelease.Memory?) -> ModelRelease.Wait) {
+        synchronized(releaseLock) {
+            releaseJob?.cancel()
+            releaseAt = Long.MAX_VALUE
+            releaseJob = appScope.launch {
+                val wait = decide(memoryNow())
+                synchronized(releaseLock) { if (releaseJob === coroutineContext[Job]) releaseAt = SystemClock.elapsedRealtime() + wait.ms }
+                if (wait != ModelRelease.Wait.IDLE) {
+                    android.util.Log.i("Embersay", "memory is short: the speech model goes ${if (wait == ModelRelease.Wait.NOW) "now" else "in ${wait.ms / 1000} s"} (${memoryLine()})")
+                }
+                delay(wait.ms)
+                // The dictation that asked may still be finishing; one that runs longer is the
+                // one whose end starts this timer over.
+                while (dictation.isRunning) delay(RELEASE_RECHECK_MS)
+                releaseModelsWhenIdle()
+            }
+        }
+    }
+
+    /** Loaded models' bytes, both runtimes - a change of engine may leave the other loaded until the release. */
+    private fun loadedModelBytes(): Long = whisperRuntime.loadedBytes() + sherpaRuntime.loadedBytes()
+
+    /** Android's view of memory now; null when it gives none. A binder call: never on the main thread. */
+    private fun memoryNow(): ModelRelease.Memory? = runCatching {
+        val activities = appContext.getSystemService(ActivityManager::class.java) ?: return null
+        val info = ActivityManager.MemoryInfo().also(activities::getMemoryInfo)
+        ModelRelease.Memory(Build.VERSION.SDK_INT, activities.isLowRamDevice, info.lowMemory, info.availMem, info.threshold)
+    }.getOrNull()
+
+    /** The numbers behind a short-memory release, for logcat - no words, no apps. */
+    private fun memoryLine(): String {
+        val memory = memoryNow() ?: return "no memory info"
+        return "available ${memory.availBytes / 1_000_000} MB, threshold ${memory.thresholdBytes / 1_000_000} MB, " +
+            "model ${loadedModelBytes() / 1_000_000} MB, low-RAM phone ${memory.lowRamDevice}"
     }
 
     /**
@@ -571,7 +705,11 @@ class Graph(app: Application) {
     }
 
     private companion object {
-        const val MODEL_IDLE_RELEASE_MS = 3 * 60 * 1000L
+        /** How long the statistics are kept summed up after the last screen stopped showing them. */
+        const val STATS_KEPT_MS = 5_000L
+
+        /** How often a release that came due during a dictation looks again whether it ended. */
+        const val RELEASE_RECHECK_MS = 1_000L
 
         /** Someone who dictated this recently is likely to again in the next field. */
         const val RECENT_DICTATION_MS = 10 * 60 * 1000L

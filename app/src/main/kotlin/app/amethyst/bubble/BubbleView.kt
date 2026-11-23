@@ -460,16 +460,30 @@ class BubbleView(context: Context) : View(context) {
     /** At rest the chosen opacity; listening, working and the result fully visible. */
     fun targetAlpha(): Float = if (visual == BubbleVisual.IDLE) restingOpacity else 1f
 
+    /**
+     * Where [settleAlpha]'s last fade went and when it started (uptime). Listening calls it
+     * with every level, 50 times a second: started over each time, the fade would never finish
+     * and its animator would be rebuilt on every frame. Timed rather than ended by an end
+     * action, which a cancelled fade never runs.
+     */
+    private var settlingTo = Float.NaN
+    private var settleStartedAt = 0L
+
     /** Fades to [targetAlpha] - for a shown bubble whose state or setting changed. */
     fun settleAlpha() {
         val target = targetAlpha()
         if (alpha == target) return
-        animate().alpha(target).setDuration(200).setInterpolator(DecelerateInterpolator()).withEndAction(null).start()
+        val now = SystemClock.uptimeMillis()
+        if (target == settlingTo && now - settleStartedAt < ALPHA_SETTLE_MS) return
+        settlingTo = target
+        settleStartedAt = now
+        animate().alpha(target).setDuration(ALPHA_SETTLE_MS).setInterpolator(DecelerateInterpolator()).withEndAction(null).start()
     }
 
     /** Brings the bubble in. Called when a text field gains focus. */
     fun appear() {
         animate().cancel()
+        settlingTo = Float.NaN
         if (alpha == 0f) {
             scaleX = 0.8f
             scaleY = 0.8f
@@ -487,6 +501,7 @@ class BubbleView(context: Context) : View(context) {
     /** Fades the bubble out, then runs [onHidden]. */
     fun vanish(onHidden: () -> Unit) {
         animate().cancel()
+        settlingTo = Float.NaN
         animate()
             .alpha(0f)
             .scaleX(0.8f)
@@ -514,6 +529,9 @@ class BubbleView(context: Context) : View(context) {
          * was fully there 50 ms after it (Pixel 9a, screen recording, 2026-11-13).
          */
         const val APPEAR_MS = 100L
+
+        /** A fade to the resting opacity and back ([settleAlpha]). */
+        const val ALPHA_SETTLE_MS = 200L
         const val LISTENING_FRAME_MS = 16L
         const val ENTER_MS = 200f
         const val SETTLE_MS = 500f

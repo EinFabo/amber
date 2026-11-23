@@ -41,7 +41,7 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
 
     suspend fun test(config: EngineConfig): Result {
         if (!Servers.recognizes(config)) return testCleanup(config)
-        val engine = graph.engineFactory.create(config).getOrElse { error ->
+        val engine = graph.engines().create(config).getOrElse { error ->
             return Result.Failed(Texts.failure(context, error))
         }
 
@@ -109,7 +109,9 @@ class ConnectionTester(private val graph: Graph, private val context: Context) {
         // Named as the store will name it: a failure says "Claude", not "Server".
         val settings = Servers.normalized(graph.settings.value.withEngine(config))
         val typed = typedKey?.trim()?.takeIf { it.isNotEmpty() }
-        val cleanup = graph.engineFactory.cleanupFor(CleanupChoice(config.id, model), settings, typed)
+        // Built on the IO pool if this is the first to need it: a test runs from a screen's scope.
+        val engines = graph.engines()
+        val cleanup = engines.cleanupFor(CleanupChoice(config.id, model), settings, typed)
             ?: return Result.Failed(
                 EngineConfigValidator.validate(config, typed != null || graph.secretStore.has(config.apiKeyAlias))
                     .firstOrNull { !EngineConfigValidator.onlyAboutSpeech(it) }

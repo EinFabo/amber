@@ -66,6 +66,8 @@ class QuickStyleActivity : ComponentActivity() {
         }
         enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         val graph = AmethystApp.graph(this)
+        // Off the main thread: the card asks for keys as it composes.
+        graph.warmSecretStore()
         val apps = AndroidAppSource(this)
         val label = apps.label(app)
 
@@ -78,6 +80,8 @@ class QuickStyleActivity : ComponentActivity() {
             AmberTheme(dark = true) {
                 // Read from the store, not the defaults the process starts on.
                 val settings = graph.loadedSettings.collectAsStateWithLifecycle().value ?: return@AmberTheme
+                // Waits for the secret store rather than building it here, on the main thread.
+                if (!graph.secretStoreReady.collectAsStateWithLifecycle().value) return@AmberTheme
                 val profile = AppProfiles.forPackage(settings.profiles, app)
                 if (profile == null) {
                     // The quick menu makes it before it opens the card; removed meanwhile, made again.

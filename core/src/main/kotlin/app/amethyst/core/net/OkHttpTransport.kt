@@ -48,6 +48,19 @@ class OkHttpTransport(
     internal val client: OkHttpClient =
         if (client.networkInterceptors.any { it is CleartextGuard }) client else client.newBuilder().guardCleartext().build()
 
+    /**
+     * A client for model downloads that shares this one's connection pool and threads. Its
+     * own timeouts, and redirects followed: the model hosts hand a download on to their CDN -
+     * which is no recording replayed elsewhere, only a GET. The cleartext guard comes along,
+     * so plain http to the internet stays refused on every hop.
+     */
+    fun downloadClient(): OkHttpClient = client.newBuilder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
     /** One pinned copy per host, replaced when the pinned key changes. */
     private val pinned = ConcurrentHashMap<String, Pair<String, OkHttpTransport>>()
 

@@ -14,6 +14,7 @@ import app.amethyst.core.privacy.TrustLevel
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
@@ -23,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 
 /**
  * The request-time guard on the real OkHttp path. The test server listens on loopback, which
@@ -97,6 +99,27 @@ class CleartextGuardTest {
         val transport = OkHttpTransport(OkHttpClient())
         assertEquals(1, transport.guards())
         assertEquals(1, OkHttpTransport(everythingPublic).guards())
+    }
+
+    @Test
+    fun `the download client shares the pool, follows a redirect and keeps the guard`() {
+        server.createContext("/model.bin") { exchange ->
+            exchange.responseHeaders.add("Location", "$baseUrl/cdn/model.bin")
+            exchange.sendResponseHeaders(302, -1)
+            exchange.close()
+        }
+        val transport = OkHttpTransport()
+        val downloads = transport.downloadClient()
+        assertSame(transport.client.connectionPool, downloads.connectionPool)
+        assertSame(transport.client.dispatcher, downloads.dispatcher)
+        assertEquals(1, downloads.networkInterceptors.count { it is CleartextGuard })
+        val url = "http://127.0.0.1:${server.address.port}/model.bin"
+        downloads.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            assertEquals(200, response.code)
+            assertEquals("/v1/cdn/model.bin", response.request.url.encodedPath)
+        }
+        // The engines' own client still follows none.
+        assertFalse(transport.client.followRedirects)
     }
 
     private fun OkHttpTransport.guards(): Int = client.networkInterceptors.count { it is CleartextGuard }

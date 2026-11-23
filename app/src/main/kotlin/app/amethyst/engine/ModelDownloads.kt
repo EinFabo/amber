@@ -248,10 +248,17 @@ class ModelDownloads(
         else -> whisper.states.value[option.whisperModelId] is SlotState.Busy
     }
 
-    /** Only Parakeet's files are continued where they stopped; a Whisper model starts over. */
-    private fun resumes(option: EngineOption): Boolean = option == EngineOption.PARAKEET
+    /** Both stores continue a download where it stopped (FileDownload): what arrived stays for the next try. */
+    private fun resumes(option: EngineOption): Boolean = option == EngineOption.PARAKEET || option.whisperModelId != null
 
-    private fun bytesKept(option: EngineOption): Long = if (resumes(option)) parakeet.bytesOnPhone() else 0
+    private fun bytesKept(option: EngineOption): Long {
+        val whisperId = option.whisperModelId
+        return when {
+            option == EngineOption.PARAKEET -> parakeet.bytesOnPhone()
+            whisperId != null -> whisper.bytesOnPhone(whisperId)
+            else -> 0
+        }
+    }
 
     private fun show(waiting: EngineOption?, retrying: EngineOption?) {
         this.retrying = retrying

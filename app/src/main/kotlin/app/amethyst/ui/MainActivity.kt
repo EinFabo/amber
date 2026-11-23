@@ -79,7 +79,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import app.amethyst.AmethystApp
 import app.amethyst.Graph
 import app.amethyst.R
@@ -114,7 +118,6 @@ import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.settings.ThemeMode
-import app.amethyst.core.stats.StatsSummary
 import app.amethyst.core.ui.Navigation
 import app.amethyst.core.ui.Screen
 import app.amethyst.core.ui.SettingsPage
@@ -157,6 +160,7 @@ import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -196,8 +200,12 @@ class MainActivity : ComponentActivity() {
         // theme once it is known (applyTheme), the phone's until then.
         enableEdgeToEdge()
         val graph = AmethystApp.graph(this)
+        // Keystore and Tink on the IO pool now, not on the main thread when a page asks for a key.
+        graph.warmSecretStore()
         accessibilityTried = savedInstanceState?.getBoolean(KEY_ACCESSIBILITY_TRIED) ?: false
-        refreshSetup()
+        // Here on the main thread, once: the first frame shows what is set up, not a moment of
+        // everything missing. Every later look is off it (refreshSetup).
+        takeSetup(Setup.snapshot(this, accessibilityTried))
         // Recreated (a rotation): the page asked for was opened then.
         if (savedInstanceState == null) takeAppPage(intent)
 
@@ -361,8 +369,22 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, R.string.language_download_by_hand, Toast.LENGTH_LONG).show()
     }
 
+    private var setupRefresh: Job? = null
+
+    /**
+     * What is set up, looked at again on the IO pool: the snapshot asks the accessibility
+     * settings, the notification, power and package managers - binder calls each, on every
+     * return to Amber. The newest look wins.
+     */
     private fun refreshSetup() {
-        val state = Setup.snapshot(this, accessibilityTried)
+        val tried = accessibilityTried
+        setupRefresh?.cancel()
+        setupRefresh = lifecycleScope.launch {
+            takeSetup(withContext(Dispatchers.IO) { Setup.snapshot(this@MainActivity, tried) })
+        }
+    }
+
+    private fun takeSetup(state: SetupState) {
         // On is on: the next time it is off, the trip starts over.
         if (state.accessibilityEnabled) accessibilityTried = false
         setupState.value = state
@@ -498,21 +520,18 @@ private fun AmethystScreens(
     val testContext = LocalContext.current
     val tester = remember(graph, testContext) { ConnectionTester(graph, testContext) }
     val settings by graph.settings.collectAsStateWithLifecycle()
+    // Every screen but Home asks the secret store whether keys are stored; they wait the moment
+    // it may still be building after a cold start rather than build it on the main thread.
+    val secretsReady by graph.secretStoreReady.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // The loops below run while Amber's screen is started, not behind another app.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    // Follows the clock, so an app left open overnight starts the new day at zero: once at
-    // midnight, and with every new dictation (which may be the first of a new day).
-    val today by produceState(graph.stats.dayOf(System.currentTimeMillis()), statList) {
-        while (true) {
-            val now = System.currentTimeMillis()
-            value = graph.stats.dayOf(now)
-            delay(graph.stats.millisUntilNextDay(now))
-        }
-    }
-    val stats = remember(statList, settings.stats.typingWpm, today) {
-        StatsSummary.of(statList, today, settings.stats.typingWpm)
-    }
+    // Summed up off the main thread, following the clock ([Graph.statsSummary]).
+    val statsView by graph.statsSummary.collectAsStateWithLifecycle()
+    val stats = statsView.summary
+    val today = statsView.today
     // Read so the line under the flame follows the download; forEngine reads their current values.
     // The stores read every model file when they are built, so only for a local engine or the
     // introduction - not on every start for everyone. And while the first run still fetches a
@@ -551,10 +570,12 @@ private fun AmethystScreens(
     val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
     // In the security mode nothing is kept, so Home offers no "Try again" there.
     val canTryAgainHome = remember(keptChanges) { graph.memory.kept.hasRecording }
-    val lastDictation by produceState<String?>(null, records, keptChanges) {
-        while (true) {
-            value = graph.memory.kept.lastDictation(records)?.text
-            delay(LAST_DICTATION_RECHECK_MS)
+    val lastDictation by produceState<String?>(null, records, keptChanges, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                value = graph.memory.kept.lastDictation(records)?.text
+                delay(LAST_DICTATION_RECHECK_MS)
+            }
         }
     }
 
@@ -562,10 +583,12 @@ private fun AmethystScreens(
     // with every change and every minute, as the oldest run out of time.
     val historyKeep = SecurityMode.historyKeep(settings)
     val historyChanges by graph.historyChanges.collectAsStateWithLifecycle()
-    val historyCount by produceState<Int?>(null, historyKeep, historyChanges) {
-        while (true) {
-            value = if (historyKeep == HistoryKeep.OFF) null else withContext(Dispatchers.IO) { graph.history.count(historyKeep) }
-            delay(HISTORY_RECOUNT_MS)
+    val historyCount by produceState<Int?>(null, historyKeep, historyChanges, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                value = if (historyKeep == HistoryKeep.OFF) null else withContext(Dispatchers.IO) { graph.history.count(historyKeep) }
+                delay(HISTORY_RECOUNT_MS)
+            }
         }
     }
 
@@ -747,7 +770,7 @@ private fun AmethystScreens(
                                     translationX = (if (dragEdge == BackEventCompat.EDGE_LEFT) 1 else -1) * shift * at
                                 },
                         ) {
-                            when (current) {
+                            if (current == Screen.Home || secretsReady) when (current) {
                                 Screen.Onboarding -> {
                                     val records by graph.memory.log.records.collectAsStateWithLifecycle()
                                     OnboardingScreen(

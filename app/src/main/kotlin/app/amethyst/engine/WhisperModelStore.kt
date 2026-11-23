@@ -19,23 +19,30 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import okhttp3.Call
-import app.amethyst.core.net.guardCleartext
+import app.amethyst.core.engine.download.DownloadAnswer
+import app.amethyst.core.engine.download.DownloadTransport
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 /**
  * The Whisper models on this device: one file per catalog entry plus one slot for a file the
  * user picked, each with its own state, so several can be downloaded and switched between.
+ *
+ * A download cut off halfway is continued where it stopped ([ModelInstall.download]) - after a
+ * lost connection, a failure, or the end of the process. Only a cancel or a delete lets go of
+ * the unfinished part.
  */
 class WhisperModelStore(
     private val context: Context,
     private val scope: CoroutineScope,
     private val runtime: NativeWhisperRuntime,
+    /** The app's HTTP client made for downloads ([app.amethyst.core.net.OkHttpTransport.downloadClient]); asked on the first download. */
+    newHttp: () -> OkHttpClient,
 ) {
 
     /** noBackupFilesDir: hundreds of MB of model have no business in a cloud backup. */
@@ -48,12 +55,29 @@ class WhisperModelStore(
     /** The HTTP call of each running download, so a cancel can cut the connection itself. */
     private val calls = ConcurrentHashMap<String, Call>()
 
-    private val http by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .guardCleartext()
+    private val http by lazy(newHttp)
+
+    /**
+     * Downloads, copies and the discard of a cancelled download's part take turns: they share
+     * the slot's `.part`, and a download cut by a cancel only stops at its next chunk.
+     */
+    private val files = Mutex()
+
+    /** The server as a download sees it; "identity" so a byte position means the same on both sides. */
+    private fun server(id: String) = DownloadTransport { url, from ->
+        val request = Request.Builder().url(url).header("Accept-Encoding", "identity")
+            .apply { if (from > 0) header("Range", "bytes=$from-") }
             .build()
+        val call = http.newCall(request).also { calls[id] = it }
+        val response = call.execute()
+        DownloadAnswer(
+            code = response.code,
+            etag = response.header("ETag"),
+            lastModified = response.header("Last-Modified"),
+            contentRange = response.header("Content-Range"),
+            body = response.body?.byteStream(),
+            onClose = { response.close() },
+        )
     }
 
     init {
@@ -78,29 +102,32 @@ class WhisperModelStore(
     /** Imported files that matched no catalog entry are treated as stock Whisper. */
     fun shortContextFor(id: String): Boolean = WhisperModels.byId(id)?.shortContext ?: false
 
+    /** The model's bytes on the phone for [id], an unfinished part included - for whether a failed try got anywhere. */
+    fun bytesOnPhone(id: String): Long {
+        val spec = WhisperModels.byId(id) ?: return 0
+        return spec.sizeBytes - ModelInstall.missingBytes(spec, fileFor(id))
+    }
+
     fun download(spec: WhisperModelSpec) = slots.run(spec.id, context.getString(R.string.slot_downloading)) { report, isCancelled ->
-        val free = directory.apply { mkdirs() }.usableSpace
-        if (free < spec.sizeBytes + SPACE_MARGIN_BYTES) {
-            return@run Result.failure(
-                ModelFileException(FileProblem.NotEnoughStorage(spec.sizeBytes / 1_000_000, free / 1_000_000)),
-            )
-        }
-        val call = http.newCall(Request.Builder().url(spec.url).build())
-        calls[spec.id] = call
-        try {
-            call.execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@run Result.failure(ModelFileException(FileProblem.ServerAnswered(response.code)))
-                }
-                val body = response.body
-                    ?: return@run Result.failure(ModelFileException(FileProblem.EmptyAnswer))
-                install(body.byteStream(), spec.id, spec, spec.sizeBytes, report, isCancelled)
+        files.withLock {
+            val target = fileFor(spec.id)
+            val free = directory.apply { mkdirs() }.usableSpace
+            val needed = ModelInstall.missingBytes(spec, target)
+            if (free < needed + SPACE_MARGIN_BYTES) {
+                return@withLock Result.failure(
+                    ModelFileException(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000)),
+                )
             }
-        } catch (e: IOException) {
-            if (isCancelled()) Result.failure(InterruptedException("cancelled"))
-            else Result.failure(ModelFileException(FileProblem.NoConnection, "No connection: ${e.message}", e))
-        } finally {
-            calls.remove(spec.id)
+            try {
+                ModelInstall.download(spec, target, server(spec.id), { received -> report(received, spec.sizeBytes) }, isCancelled)
+                    .map { info ->
+                        Log.i(TAG, "whisper model ${spec.id} installed: ${info.sizeName}, multilingual=${info.multilingual}")
+                        info to target.length()
+                    }
+                    .onFailure { error -> if (error !is InterruptedException) Log.w(TAG, "whisper download ${spec.id} failed: ${error.message}") }
+            } finally {
+                calls.remove(spec.id)
+            }
         }
     }
 
@@ -123,17 +150,22 @@ class WhisperModelStore(
             if (known == null && size != null && size > WhisperModelFile.MAX_IMPORT_BYTES) {
                 return@run Result.failure(ModelFileException(FileProblem.TooLarge(WhisperModelFile.MAX_IMPORT_BYTES / 1_000_000)))
             }
-            val input = context.contentResolver.openInputStream(uri)
-                ?: return@run Result.failure(ModelFileException(FileProblem.CannotOpen))
-            input.use { install(it, id, known, size, report, isCancelled) }
+            files.withLock {
+                val input = context.contentResolver.openInputStream(uri)
+                    ?: return@withLock Result.failure(ModelFileException(FileProblem.CannotOpen))
+                input.use { install(it, id, known, size, report, isCancelled) }
+            }
         }
     }
 
+    /** Stops a download or copy and lets go of its unfinished part; another start begins anew. */
     fun cancel(id: String) {
         // Cut the connection first: a download blocked in read() would otherwise only notice
         // the cancel when the next chunk arrives.
         calls.remove(id)?.cancel()
         slots.cancel(id)
+        // After the download that was cut has ended, before one started afterwards begins.
+        scope.launch(Dispatchers.IO) { files.withLock { ModelInstall.discardKept(fileFor(id)) } }
     }
 
     fun delete(id: String) {

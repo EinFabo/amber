@@ -6,7 +6,6 @@ import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.download.DownloadAnswer
 import app.amethyst.core.engine.download.DownloadTransport
 import app.amethyst.core.engine.sherpa.ParakeetModel
-import app.amethyst.core.net.guardCleartext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,7 +18,6 @@ import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Where the Parakeet model stands on this phone. */
@@ -41,6 +39,8 @@ class ParakeetModelStore(
     context: Context,
     private val scope: CoroutineScope,
     private val runtime: SherpaRuntime,
+    /** The app's HTTP client made for downloads ([app.amethyst.core.net.OkHttpTransport.downloadClient]); asked on the first download. */
+    newHttp: () -> OkHttpClient,
 ) {
 
     /** noBackupFilesDir: hundreds of MB of model have no business in a cloud backup. */
@@ -60,13 +60,7 @@ class ParakeetModelStore(
     @Volatile
     private var call: Call? = null
 
-    private val http by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .guardCleartext()
-            .build()
-    }
+    private val http by lazy(newHttp)
 
     /** The server as a download sees it; "identity" so a byte position means the same on both sides. */
     private val server = DownloadTransport { url, from ->

@@ -46,9 +46,14 @@ class AndroidAppSource(
     private val context = context.applicationContext
     private val icons = LruCache<String, ImageBitmap>(ICONS_KEPT)
 
+    /** Asked while lists compose, row by row: one package manager call per app, not per frame. */
+    private val labels = LruCache<String, String>(LABELS_KEPT)
+
     override suspend fun all(): List<InstalledApp> = launcher.apps()
 
-    override fun label(packageName: String): String = Launcher.label(context, packageName) ?: packageName
+    // An app that is gone is not remembered: installed again, it has its name back.
+    override fun label(packageName: String): String =
+        labels.get(packageName) ?: Launcher.label(context, packageName)?.also { labels.put(packageName, it) } ?: packageName
 
     override fun cachedIcon(packageName: String): ImageBitmap? = icons.get(packageName)
 
@@ -60,6 +65,9 @@ class AndroidAppSource(
     private companion object {
         /** About 40 KB each at 36 dp: a full list's worth stays in memory. */
         const val ICONS_KEPT = 200
+
+        /** A name is a few dozen bytes: every app on a full phone. */
+        const val LABELS_KEPT = 500
     }
 }
 

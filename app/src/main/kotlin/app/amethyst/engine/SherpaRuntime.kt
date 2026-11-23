@@ -26,6 +26,7 @@ class SherpaRuntime : TransducerRuntime {
 
     private val lock = Any()
     private var recognizer: OfflineRecognizer? = null
+    @Volatile
     private var loadedDir: String? = null
 
     private val executor = Executors.newSingleThreadExecutor { work ->
@@ -83,6 +84,9 @@ class SherpaRuntime : TransducerRuntime {
     }
 
     fun isLoaded(modelDir: String): Boolean = loadedDir == modelDir
+
+    /** The model files' size while a recognizer is loaded, 0 with none; for [app.amethyst.core.engine.ModelRelease]. */
+    fun loadedBytes(): Long = loadedDir?.let { File(it).listFiles()?.sumOf(File::length) } ?: 0L
 
     /** Frees the ~700 MB the recognizer holds. The next dictation loads it again. */
     fun release() {
