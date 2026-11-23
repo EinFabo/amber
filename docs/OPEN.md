@@ -28,8 +28,9 @@ Open for Fabi:
   and in the quick menu's message; in German "Embersay hört zu" / "Embersay schreibt …" on Home
   and no full stop after a single note or status (`check_strings.py` now flags one); a refused
   API key names the service and the fix ("Groq rejected the API key. Check or replace it."),
-  and its toast says that instead of "Try again"; a cleanup or download that fails with an HTTP
-  status says why before the code ("Cleanup failed: API key rejected (error 401).").
+  and its toast names that fix before "Try again" ("Replace it, then choose Try again."); a
+  cleanup or download that fails with an HTTP status says why before the code ("Cleanup
+  failed: API key rejected (error 401).").
 - Built (item 34, 35, 40, the grey buttons' reasons of 42, and the Pixel test of 2026-11-22),
   to try on a phone: dragging the bubble off its edge with gesture navigation goes no Back; the
   bubble and quick menu after a new display size or font size; a grey quick menu button says

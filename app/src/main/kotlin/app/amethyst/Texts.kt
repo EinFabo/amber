@@ -105,6 +105,10 @@ object Texts {
         }
     }
 
+    /** The toast after a refused key whose recording is kept: the fix first, then "Try again". */
+    fun keyRejectedTryAgain(context: Context, problem: Problem.KeyRejected): String =
+        context.getString(R.string.toast_key_rejected_try_again, catalog(context, problem.service))
+
     /** What an HTTP status means, in a few words to go before its code: "API key rejected (error 401)". */
     private fun httpReason(context: Context, reason: HttpReason): String = context.getString(
         when (reason) {
@@ -170,11 +174,7 @@ object Texts {
                 ?: getString(R.string.file_not_enough_storage, problem.neededMb)
             is FileProblem.ServerAnswered -> getString(
                 R.string.file_server_answered,
-                // A download needs no key and costs nothing: a refusal for those is just a refusal.
-                when (val reason = HttpReason.of(problem.code)) {
-                    HttpReason.KEY_REFUSED, HttpReason.NO_CREDIT, HttpReason.TOO_LARGE -> httpReason(this, HttpReason.REFUSED)
-                    else -> httpReason(this, reason)
-                },
+                httpReason(this, HttpReason.forDownload(problem.code)),
                 problem.code,
             )
             FileProblem.EmptyAnswer -> getString(R.string.file_empty_answer)

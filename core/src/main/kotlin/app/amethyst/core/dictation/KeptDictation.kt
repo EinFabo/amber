@@ -169,10 +169,11 @@ class KeptDictation(
         }
 
         /**
-         * Whether the toast after [why] names "Try again" as the way out, for a recording kept by
-         * [worthTryingAgain]. Not after a refused key: it is refused again until the user fixes
-         * it, so its toast names that fix instead - "Try again" stays in the quick menu and on
-         * Home for afterwards. `tools/check_strings.py` reads the problems left out here.
+         * Whether the toast after [why] is the reason followed by "Try again", for a recording
+         * kept by [worthTryingAgain]. Not after a refused key: it is refused again until the user
+         * fixes it, so its own toast names that fix first and "Try again" after it - the recording
+         * is still kept, and nothing else would say so. `tools/check_strings.py` reads the
+         * problems left out here.
          */
         fun toastSaysTryAgain(why: Problem?): Boolean = worthTryingAgain(why) && why !is Problem.KeyRejected
     }

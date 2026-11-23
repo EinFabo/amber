@@ -40,6 +40,7 @@
     <string name="slot_copying">Wird kopiert</string>
     <string name="quick_try_again">Nochmal versuchen</string>
     <string name="toast_try_again">%1$s. Halte die Bubble: „Nochmal versuchen“.</string>
+    <string name="toast_key_rejected_try_again">„%1$s“: Schlüssel abgelehnt. Ersetzen, dann „Nochmal versuchen“.</string>
     <string name="toast_timed_out_try_again">Zeit abgelaufen. Halte die Bubble: „Nochmal versuchen“.</string>
     <string name="quick_too_late">Zu spät, das Diktat ist schon weiter.</string>
     <string name="quick_done_inserted">Letztes Diktat eingefügt</string>

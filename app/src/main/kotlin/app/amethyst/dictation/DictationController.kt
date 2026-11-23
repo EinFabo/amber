@@ -1456,22 +1456,19 @@ class DictationController(
     /**
      * Recognition failed for [error]: said, and - for a dictation whose recording is here and
      * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
-     * which the toast then names as the way out, unless the message names a fix to make first
-     * ([KeptDictation.toastSaysTryAgain]).
+     * which the toast then names as the way out; after a refused key, once the fix it names
+     * first is made ([KeptDictation.toastSaysTryAgain]).
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
         // Not a problem Amber knows (null): nothing says another go would help.
         val problem = (error as? SttFailure)?.problem
-        if (problem != null && keepForRetry(problem) && KeptDictation.toastSaysTryAgain(problem)) {
-            fail(
-                failureOf(error),
-                remedy = remedyOf(error),
-                brief = { it.getString(R.string.toast_try_again, Texts.failure(it, error).trimEnd('.')) },
-                details = details,
-            )
-        } else {
-            fail(failureOf(error), remedy = remedyOf(error), details = details)
+        val brief: Words? = when {
+            problem == null || !keepForRetry(problem) -> null
+            KeptDictation.toastSaysTryAgain(problem) -> { it -> it.getString(R.string.toast_try_again, Texts.failure(it, error).trimEnd('.')) }
+            problem is Problem.KeyRejected -> { it -> Texts.keyRejectedTryAgain(it, problem) }
+            else -> null
         }
+        fail(failureOf(error), remedy = remedyOf(error), brief = brief ?: failureOf(error), details = details)
     }
 
     /**

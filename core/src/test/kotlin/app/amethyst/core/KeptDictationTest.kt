@@ -67,7 +67,7 @@ class KeptDictationTest {
     }
 
     @Test
-    fun `the toast points to Try again, except after a refused key, which names its fix`() {
+    fun `the toast is the reason and Try again, except after a refused key, whose toast names its fix first`() {
         assertTrue(KeptDictation.toastSaysTryAgain(Problem.NoConnection("Groq")))
         assertTrue(KeptDictation.toastSaysTryAgain(null))
         assertFalse(KeptDictation.toastSaysTryAgain(Problem.KeyRejected("Groq")))

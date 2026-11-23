@@ -31,5 +31,15 @@ enum class HttpReason {
             in 500..599 -> SERVER_DOWN
             else -> REFUSED
         }
+
+        /**
+         * What [code] means for a model or file download: it needs no key, costs nothing and
+         * sends nothing that could be too large, so a key, credit or size refusal is only a
+         * refused request there - "API key rejected" would send the user looking for a key.
+         */
+        fun forDownload(code: Int): HttpReason = when (val reason = of(code)) {
+            KEY_REFUSED, NO_CREDIT, TOO_LARGE -> REFUSED
+            else -> reason
+        }
     }
 }

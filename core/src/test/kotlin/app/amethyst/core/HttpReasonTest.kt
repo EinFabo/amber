@@ -33,4 +33,19 @@ class HttpReasonTest {
     fun `the rest is a refused request`() {
         listOf(400, 405, 409, 415, 422, 301, 308, 0, 600).forEach { assertEquals(HttpReason.REFUSED, HttpReason.of(it), "$it") }
     }
+
+    @Test
+    fun `a download needs no key, costs nothing and asks for no size, so those refusals are just refusals`() {
+        listOf(401, 402, 403, 413).forEach { assertEquals(HttpReason.REFUSED, HttpReason.forDownload(it), "$it") }
+    }
+
+    @Test
+    fun `a download keeps every other reason`() {
+        assertEquals(HttpReason.NOT_FOUND, HttpReason.forDownload(404))
+        assertEquals(HttpReason.NOT_FOUND, HttpReason.forDownload(410))
+        assertEquals(HttpReason.TOO_MANY, HttpReason.forDownload(429))
+        assertEquals(HttpReason.TOO_SLOW, HttpReason.forDownload(504))
+        listOf(500, 502, 503).forEach { assertEquals(HttpReason.SERVER_DOWN, HttpReason.forDownload(it), "$it") }
+        listOf(206, 400, 416).forEach { assertEquals(HttpReason.REFUSED, HttpReason.forDownload(it), "$it") }
+    }
 }
