@@ -342,3 +342,33 @@ disconnect accessibility services; multi-display support.
     rotation: keep it (rememberSaveable / the stack's state holder).
 60. **Diagnostics: "Text zeigen" wraps to two lines** in German beside the time and badge;
     let the row wrap the action below or shorten the label (EN/DE).
+
+## Phase 9 - found in Fabi's voice test on the Pixel 9a (2026-11-23)
+
+61. **The model is released 30 s after every dictation on an 8 GB phone.** Logcat after each
+    dictation: "memory is short: the speech model goes in 30 s (available 531-731 MB,
+    threshold 226 MB, model 670 MB, low-RAM phone false)", then "parakeet released" and the
+    next dictation pays "parakeet ready in 3556-3870 ms". `availMem` on Android is low by
+    design (cached processes count as used and are killed on demand), so "room above the
+    threshold < model + 256 MB" fires on a phone with 8 GB. Fix `ModelRelease`: an early
+    release (NOW/30 s) only when `lowMemory` is set, or on a low-RAM device, or where the
+    phone's total memory (`MemoryInfo.totalMem`) is small (<= 6 GB, the plan's original
+    line) and room is tight; otherwise the 3-minute idle release as before. Tests with the
+    Pixel's numbers (totalMem ~7.4 GB usable, availMem ~600 MB, threshold 226 MB, model
+    670 MB -> IDLE) and with an A20e-like 3 GB phone.
+62. **The bubble's sparks show through the notification shade.** Fabi: "feuer geht noch
+    durch die benachrichtigung also die embers vom sprechen" - the bubble hides while the
+    shade is down (`SystemShade`), but its sparks (the embers drawn while speaking, a window
+    of their own) stay on top. Hide/stop the sparks together with the bubble while the shade
+    is open, and bring them back with it.
+63. **"Undo last" after a 42 s dictation left no trace.** "quick menu: UNDO_LAST" at
+    22:46:16 has no outcome line, while every other undo logs "undo via the input
+    connection: N characters, taken". `FieldEditor.undo` returns CHANGED / FAILED on several
+    paths without logging (find() null, secret, other package, `charsToDelete` null, no
+    node, read() null, a selection). Log every outcome with its reason (no text, only
+    lengths and the path). Then check whether a long dictation can be undone at all:
+    `keys.surrounding(last.fragment.length + UNDO_MARGIN)` - does the input connection cap
+    the text before the cursor (Messages' search field; `getSurroundingText` limits),
+    and does `UndoLast.charsToDelete` match a long fragment after the field changed it
+    (e.g. a search field trimming or the 5 chunks joined with different spacing)? A test in
+    `:core` for a long multi-chunk fragment.
