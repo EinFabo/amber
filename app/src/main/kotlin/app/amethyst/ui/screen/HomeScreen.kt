@@ -1,6 +1,7 @@
 package app.amethyst.ui.screen
 
 import android.os.Build
+import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,8 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -213,6 +219,23 @@ private fun OrbArea(
         dictation !is DictationState.Failed &&
         dictation !is DictationState.Done &&
         dictation !is DictationState.Commanded
+    // Why the last dictation failed stays under the flame until the next tap or until Home is
+    // left (remember, not saved): the run shows its failure for a few seconds only, as the bubble
+    // does, and the reason was gone before it was read. A new run ends it too.
+    var failure by remember { mutableStateOf<DictationState.Failed?>(null) }
+    LaunchedEffect(dictation) {
+        when (val now = dictation) {
+            is DictationState.Failed -> failure = now
+            DictationState.Idle -> Unit
+            else -> failure = null
+        }
+    }
+    val status = failure?.takeIf { dictation == DictationState.Idle } ?: dictation
+    fun tapped(action: () -> Unit): () -> Unit = {
+        failure = null
+        action()
+    }
+    val view = LocalView.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -224,10 +247,14 @@ private fun OrbArea(
             state = dictation,
             enabled = ready,
             size = 112.dp,
-            onClick = {
+            onClick = tapped {
                 if (running) {
                     onStopTest()
                 } else {
+                    // Felt as well as seen: the dictation starts.
+                    view.performHapticFeedback(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY,
+                    )
                     // The words are typed into whatever has focus, so make sure it is
                     // the test field and not nothing.
                     runCatching { testField.requestFocus() }
@@ -236,13 +263,13 @@ private fun OrbArea(
             },
         )
         StatusLine(
-            state = dictation,
+            state = status,
             ready = ready,
             download = download,
-            onInstallLanguage = onInstallLanguage,
-            onUseLocalWhisper = onUseLocalWhisper,
-            onOpenActiveEngine = onOpenActiveEngine,
-            onTryAgain = onTryAgain,
+            onInstallLanguage = tapped(onInstallLanguage),
+            onUseLocalWhisper = tapped(onUseLocalWhisper),
+            onOpenActiveEngine = tapped(onOpenActiveEngine),
+            onTryAgain = onTryAgain?.let(::tapped),
         )
         // Hidden while a dictation runs: the line above says what happens then.
         if (nudge != null && !running) {
@@ -264,7 +291,7 @@ private fun OrbArea(
 @Composable
 private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit) {
     val active = settings.activeEngine
-    val cleanup = settings.cleanupSummary()
+    val cleanup = settings.cleanupSummary(badged = true)
     val cleanupEngine = settings.cleanupEngine()
     // Apps with a cleanup model of their own send text where the rows above may not say.
     val ownModels = settings.profiles.filter { it.appCleanup.mode == AppCleanupMode.MODEL && settings.cleanupEngine(it.appCleanup.choice) != null }
@@ -358,7 +385,7 @@ private fun HistoryOfferCard(onTurnOn: () -> Unit, onNoThanks: () -> Unit) {
         NavRow(
             title = stringResource(R.string.settings_history),
             summary = stringResource(R.string.history_offer),
-            icon = AmberIcons.Replay,
+            icon = AmberIcons.History,
             summaryMaxLines = 3,
             trailing = null,
             onClick = null,
@@ -472,7 +499,7 @@ private fun HistoryRow(count: Int, onOpen: () -> Unit) {
         NavRow(
             stringResource(R.string.settings_history),
             if (count == 0) stringResource(R.string.history_empty) else pluralStringResource(R.plurals.history_count, count, count),
-            icon = AmberIcons.Replay,
+            icon = AmberIcons.History,
             onClick = onOpen,
         )
     }
@@ -531,6 +558,9 @@ private fun StatusLine(
     onOpenActiveEngine: () -> Unit,
     onTryAgain: (() -> Unit)?,
 ) {
+    // Said by a screen reader as it changes - "Listening", "Inserted", why it failed - without
+    // taking the user's place; the words as they are heard are not, they change too often.
+    val live = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
     AnimatedContent(
         targetState = state,
         contentKey = { it::class },
@@ -547,21 +577,24 @@ private fun StatusLine(
                     !ready -> Hint(stringResource(R.string.home_finish_setup))
                     download != null -> {
                         Hint(Texts.download(LocalContext.current, download), AmberPalette.Text)
-                        val fraction = (download as? ModelDownload.Running)
-                            ?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f }
-                        ProgressLine(fraction, Modifier.padding(horizontal = 48.dp))
+                        // A line only while bytes come - moving, when the size is not known yet.
+                        // Waiting for Wi-Fi or for the next try, the words say it all.
+                        if (download is ModelDownload.Running) {
+                            ProgressLine(DownloadNotice.fraction(download), Modifier.padding(horizontal = 48.dp))
+                        }
                     }
                     else -> {
                         Hint(stringResource(R.string.home_tap_and_speak))
-                        // The failure's line is gone after a few seconds; its recording stays a while longer.
+                        // Home was left since the failure, or another run came between: the
+                        // recording is still kept a while.
                         if (onTryAgain != null) GhostButton(stringResource(R.string.quick_try_again), onTryAgain)
                     }
                 }
 
-                DictationState.Starting -> Hint(stringResource(R.string.home_opening_mic), AmberPalette.Text)
+                DictationState.Starting -> Hint(stringResource(R.string.home_opening_mic), AmberPalette.Text, live)
 
                 is DictationState.Listening -> {
-                    Hint(stringResource(if (current.paused) R.string.home_paused else R.string.home_listening), AmberPalette.Text)
+                    Hint(stringResource(if (current.paused) R.string.home_paused else R.string.home_listening), AmberPalette.Text, live)
                     current.partial?.takeIf { it.isNotBlank() }?.let { partial ->
                         Text(
                             partial,
@@ -572,10 +605,11 @@ private fun StatusLine(
                     }
                 }
 
-                is DictationState.Transcribing -> Hint(stringResource(R.string.home_writing), AmberPalette.Text)
+                is DictationState.Transcribing -> Hint(stringResource(R.string.home_writing), AmberPalette.Text, live)
 
                 is DictationState.Done -> {
                     Row(
+                        live,
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -585,7 +619,7 @@ private fun StatusLine(
                     }
                 }
 
-                is DictationState.Commanded -> Hint(stringResource(R.string.home_command, current.did), AmberPalette.Text)
+                is DictationState.Commanded -> Hint(stringResource(R.string.home_command, current.did), AmberPalette.Text, live)
 
                 is DictationState.Failed -> {
                     Text(
@@ -593,6 +627,7 @@ private fun StatusLine(
                         style = MaterialTheme.typography.bodyMedium,
                         color = AmberPalette.Error,
                         textAlign = TextAlign.Center,
+                        modifier = live,
                     )
                     when (current.remedy) {
                         SttFailure.Remedy.INSTALL_LANGUAGE -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

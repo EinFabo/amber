@@ -22,11 +22,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.engine.Fallback
 import app.amethyst.core.engine.ReadyFallback
 import app.amethyst.core.engine.ServerProviders
@@ -256,13 +258,18 @@ private fun FallbackSections(
 internal fun AmethystSettings.cleanupEngine(choice: CleanupChoice? = cleanup): EngineConfig? =
     choice?.let { engines.firstOrNull { engine -> engine.id == it.engineId } }
 
-/** A cleanup in a few words - "DeepSeek V4.1 Flash · Tinfoil (Enclave)" - or null when off. */
+/**
+ * A cleanup in a few words - "DeepSeek V4.1 Flash · Tinfoil (Enclave)" - or null when off.
+ * [badged]: a badge beside it says where the text goes, so the service goes by its name alone
+ * ("Tinfoil"), as a recognition row does.
+ */
 @Composable
-internal fun AmethystSettings.cleanupSummary(choice: CleanupChoice? = cleanup): String? {
+internal fun AmethystSettings.cleanupSummary(choice: CleanupChoice? = cleanup, badged: Boolean = false): String? {
     if (choice == null) return null
     val engine = cleanupEngine(choice) ?: return null
     val model = ServerProviders.forEngine(engine, this).cleanupModel(choice.model)?.label ?: choice.model
-    return "$model · ${engineName(engine)}"
+    val service = if (badged) Texts.engineShortName(LocalContext.current, engine) else engineName(engine)
+    return "$model · $service"
 }
 
 /** A recording that never leaves the phone has no server that could fail. */

@@ -22,12 +22,13 @@ class RecognitionRowsTest {
     @Test
     fun `a row's name leaves out where it runs`() {
         assertEquals(EngineName.Plain("Parakeet"), RecognitionRows.name(parakeet))
-        assertEquals(EngineName.Plain("Whisper base"), RecognitionRows.name(whisper))
+        assertEquals(EngineName.Plain("Whisper"), RecognitionRows.name(whisper))
         assertEquals(EngineName.AndroidRecognizer, RecognitionRows.name(android))
     }
 
     @Test
-    fun `a Whisper model the introduction does not offer is Whisper`() {
+    fun `Whisper is Whisper whatever its model`() {
+        assertEquals(EngineName.Plain("Whisper"), RecognitionRows.name(whisper.copy(modelId = "futo-multilingual-244")))
         assertEquals(EngineName.Plain("Whisper"), RecognitionRows.name(whisper.copy(modelId = "futo-multilingual-39")))
         assertEquals(EngineName.Plain("Whisper"), RecognitionRows.name(whisper.copy(modelId = "imported-model")))
     }
@@ -68,7 +69,7 @@ class RecognitionRowsTest {
     @Test
     fun `a server's model goes by the name its service gives it`() {
         val note = RecognitionRows.note(tinfoil, settings.withEngine(tinfoil), 4_800)
-        assertEquals(RecognitionNote(model = "Voxtral Small 24B", stopsAtPause = false, typicalMs = 4_800), note)
+        assertEquals(RecognitionNote(model = "Voxtral", stopsAtPause = false, typicalMs = 4_800), note)
     }
 
     @Test

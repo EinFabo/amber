@@ -44,6 +44,7 @@ import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.DangerAction
 import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LocalUndo
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.RadioRow
 import app.amethyst.ui.SectionCard
@@ -199,11 +200,17 @@ fun AppStyleScreen(
             }
         }
 
-        // Off the Apps page altogether: the profile goes, and the bubble shows there again.
+        // Off the Apps page altogether: the profile goes, and the bubble shows there again. Undo
+        // puts both back - the page itself has closed by then.
+        val undo = LocalUndo.current
+        val removedText = stringResource(R.string.style_removed, profile.label)
         DangerAction(stringResource(R.string.style_remove, profile.label)) {
             removed = true
-            onUpdateSettings { AppRows.removed(it, profile.packageName) }
+            val before = settings
+            val pkg = profile.packageName
+            onUpdateSettings { AppRows.removed(it, pkg) }
             onRemoved()
+            undo.offer(removedText) { onUpdateSettings { AppRows.restored(it, before, pkg) } }
         }
     }
 }

@@ -32,6 +32,7 @@
     <string name="recognition_group_enclave">Verified enclave</string>
     <string name="recognition_group_server">Server</string>
     <string name="recognition_add">Add speech recognition</string>
+    <string name="recognition_switched">%1$s is in use now</string>
     <string name="recognition_cleanup_only">Only used for the cleanup</string>
     <string name="recording_ending">Stopping</string>
     <string name="recording_auto_stop">Stop on silence</string>
@@ -94,6 +95,7 @@
     <string name="bubble_size_large">Large</string>
     <string name="bubble_size_extra_large">Extra large</string>
     <string name="cancel">Cancel</string>
+    <string name="undo">Undo</string>
     <string name="updates_what_it_asks">Embersay only asks GitHub for the latest release. It sends no account, ID or anything about your dictations. GitHub sees your IP address and which version is asking.</string>
     <string name="updates_elsewhere">This copy of Embersay gets its updates from where you installed it. It doesn\'t check for updates itself.</string>
     <string name="updates_this_version">This version</string>
@@ -134,6 +136,7 @@
     <string name="copy">Copy</string>
     <string name="diag_keyboard">Keyboard</string>
     <string name="diag_clear">Clear diagnostics</string>
+    <string name="diag_cleared">Diagnostics cleared</string>
     <string name="diag_no_words">No words</string>
     <string name="diag_no_text">No text</string>
     <string name="diag_nothing_yet">Nothing dictated yet</string>

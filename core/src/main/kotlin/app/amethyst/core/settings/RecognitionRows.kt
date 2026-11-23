@@ -15,14 +15,16 @@ import app.amethyst.core.onboarding.EngineNames
 object RecognitionRows {
 
     /**
-     * The row's name: the introduction's where it has one ("Parakeet", "Whisper small",
-     * Android's recognizer). A Whisper model the introduction does not offer is "Whisper";
-     * any other goes by its own name, which the app shows without its bracketed note
+     * The row's name: the introduction's where it has one ("Parakeet", Android's recognizer).
+     * Whisper is "Whisper" whatever its model: there is one row for it, and the size the
+     * introduction offered it by ("Whisper base") means nothing in a list - the model is on its
+     * own page. Any other goes by its own name, which the app shows without its bracketed note
      * ([EngineName.Own]: "Tinfoil", a server as its owner named it).
      */
-    fun name(engine: EngineConfig): EngineName =
-        EngineNames.optionOf(engine)?.let(EngineNames::of)
-            ?: if (engine.id == EnginePresets.LOCAL_WHISPER.id) EngineName.Plain("Whisper") else EngineName.Own(engine)
+    fun name(engine: EngineConfig): EngineName = when {
+        engine.id == EnginePresets.LOCAL_WHISPER.id -> EngineName.Plain("Whisper")
+        else -> EngineNames.optionOf(engine)?.let(EngineNames::of) ?: EngineName.Own(engine)
+    }
 
     /**
      * What the row says under the name: a server's model by the name its service gives it

@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +30,10 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -93,13 +97,25 @@ fun DictateOrb(
         }
     }
 
+    // No ripple on the fire: pressed, the disc gives a little under the finger instead.
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) PRESSED_SCALE else 1f, spring(stiffness = Spring.StiffnessMediumLow), label = "press")
+
     Canvas(
         modifier
             .size(width = size, height = size * (1 + Fire.SPARK_HEADROOM))
+            .graphicsLayer {
+                scaleX = press
+                scaleY = press
+                // Around the disc's centre, not the canvas's: the room for the sparks is above it.
+                transformOrigin = TransformOrigin(0.5f, 1f - 0.5f / (1 + Fire.SPARK_HEADROOM))
+            }
             .clickable(
                 enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             )
             .semantics { contentDescription = description },
@@ -149,6 +165,9 @@ fun DictateOrb(
 }
 
 private const val SETTLE_MS = 900L
+
+/** How far the disc gives under a pressing finger. */
+private const val PRESSED_SCALE = 0.94f
 
 /** A burst's colour on the page itself: the pale fire in the dark, the burnt amber on paper. */
 internal val pageSpark: Color

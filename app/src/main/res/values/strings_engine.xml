@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="engine_unencrypted">Unencrypted (http). Anyone on the same network can read and change what\'s sent. Only use it on your own network: on another Wi-Fi, a different device could answer at the same address.</string>
-    <string name="engine_complete">Settings complete.</string>
     <string name="engine_use_active">Use this speech recognition</string>
     <string name="engine_configuration">Configuration</string>
     <string name="engine_android_note">Uses Android\'s speech recognition. Which languages work offline depends on the phone\'s settings.</string>
@@ -32,7 +31,6 @@
     <string name="engine_not_supported">Not supported</string>
     <string name="engine_elevenlabs">ElevenLabs Realtime isn\'t supported. Remove this speech recognition.</string>
     <string name="engine_check">Check</string>
-    <string name="save">Save</string>
     <string name="engine_test_model">Test model</string>
     <string name="engine_test_connection">Test connection</string>
     <string name="engine_test_billed">A test costs the same as a dictation ($%1$s).</string>
@@ -53,6 +51,9 @@
     <string name="model_in_use">In use</string>
     <string name="use">Use</string>
     <string name="delete">Delete</string>
+    <string name="model_delete_title">Delete %1$s?</string>
+    <string name="model_delete_text">You can download it again later.</string>
+    <string name="model_delete_in_use">Embersay can\'t dictate with it until you download it again.</string>
     <string name="try_again">Try again</string>
     <string name="model_english_only">This model only understands English.</string>
     <string name="progress_of">%1$d of %2$d MB</string>

@@ -69,6 +69,7 @@
     <string name="style_recognition_removed">Die eigene Spracherkennung dieser App wurde entfernt. Embersay nimmt die für alle Apps.</string>
     <string name="style_recognition_not_ready">%1$s ist nicht bereit. Bis dahin nimmt Embersay die für alle Apps.</string>
     <string name="style_remove">%1$s entfernen</string>
+    <string name="style_removed">%1$s entfernt</string>
     <string name="limits_silence">Stille vor dem Stoppen</string>
     <string name="limits_longest">Längstes Diktat</string>
     <string name="seconds">%1$d&#160;s</string>

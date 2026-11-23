@@ -45,6 +45,8 @@
     <string name="history_failed">Ein Diktat, das nicht klappte</string>
     <string name="history_failed_note">Die Aufnahme ist noch ein paar Minuten da. Mit „Nochmal versuchen“ erscheinen die Wörter hier.</string>
     <string name="history_delete_all">Alle löschen</string>
+    <string name="history_delete_title">Alle Diktate löschen?</string>
+    <string name="history_delete_text">Das lässt sich nicht rückgängig machen.</string>
     <string name="share">Teilen</string>
     <plurals name="history_count">
         <item quantity="one">%1$d Diktat</item>

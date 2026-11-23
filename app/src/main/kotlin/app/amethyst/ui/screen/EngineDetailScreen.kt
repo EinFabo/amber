@@ -99,6 +99,7 @@ import app.amethyst.ui.words
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -173,16 +174,29 @@ fun EngineDetailScreen(
         onSave(edited())
     }
 
-    fun persist() {
-        touched = true
+    fun save() {
         config.apiKeyAlias?.let { alias -> onSaveKey(alias, apiKey) }
         onSave(edited())
+    }
+
+    /**
+     * Saved before a test or "Use": the key stays with the address it is tested or used with -
+     * changed after that, the address gets it only once it is typed again ([KeyBinding]).
+     */
+    fun persist() {
+        touched = true
+        save()
         keyEdited = false
     }
 
+    /**
+     * What was typed, saved as it is - a moment after typing stops and as the page goes. A key
+     * typed here follows the address until a test or "Use": a pause in the middle of typing the
+     * address must not tie it to half a host.
+     */
     fun persistIfChanged() {
         if (removed) return
-        if (edited() != config || apiKey != storedKey.orEmpty()) persist()
+        if (edited() != config || apiKey != storedKey.orEmpty()) save()
     }
 
     Column(
@@ -205,13 +219,10 @@ fun EngineDetailScreen(
             // Without a speech model on purpose: said plainly, not as an error.
             val shown = if (cleanupOnly) problems.filterNot { it == ConfigIssue.ModelNameMissing || it is ConfigIssue.NoSpeechRecognition } else problems
             if (cleanupOnly) Hint(stringResource(R.string.recognition_cleanup_only))
-            if (shown.isEmpty()) {
-                if (!cleanupOnly) Hint(stringResource(R.string.engine_complete), AmberPalette.TrustOnDevice)
-            } else {
-                // Listed while typing, so the user is never left guessing which field the
-                // engine is still waiting for - in red once something was typed.
-                shown.forEach { problem -> Hint(words(problem), if (touched) AmberPalette.Error else AmberPalette.Muted) }
-            }
+            // Listed while typing, so the user is never left guessing which field the engine is
+            // still waiting for - in red once something was typed. Nothing said once it is
+            // complete: what is typed is saved by itself, as on every other page.
+            shown.forEach { problem -> Hint(words(problem), if (touched) AmberPalette.Error else AmberPalette.Muted) }
             // Not before it is complete: made active half filled in, the next dictation fails.
             if (!active && !cleanupOnly) {
                 PrimaryButton(
@@ -246,6 +257,7 @@ fun EngineDetailScreen(
             EngineKind.WHISPER_CPP -> {
                 WhisperModelsCard(
                     states = whisperModels,
+                    active = active,
                     selectedId = modelId.ifBlank { WhisperModels.default.id },
                     onSelect = { id ->
                         modelId = id
@@ -435,7 +447,7 @@ fun EngineDetailScreen(
             }
 
             EngineKind.LOCAL_SHERPA -> {
-                ParakeetCard(parakeetState, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
+                ParakeetCard(parakeetState, inUse = active, onDownloadParakeet, onCancelParakeet, onDeleteParakeet)
                 // No chips: Parakeet is given no language.
                 SectionCard(title = stringResource(R.string.engine_languages)) {
                     Hint(stringResource(R.string.engine_parakeet_languages))
@@ -448,22 +460,19 @@ fun EngineDetailScreen(
         }
 
         SectionCard(title = stringResource(R.string.engine_check)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryButton(stringResource(R.string.save), { persist() })
-                GhostButton(
-                    text = stringResource(if (local) R.string.engine_test_model else R.string.engine_test_connection),
-                    enabled = !testing,
-                    onClick = {
-                        persist()
-                        testing = true
-                        testResult = null
-                        scope.launch {
-                            testResult = onTest(edited())
-                            testing = false
-                        }
-                    },
-                )
-            }
+            PrimaryButton(
+                text = stringResource(if (local) R.string.engine_test_model else R.string.engine_test_connection),
+                enabled = !testing,
+                onClick = {
+                    persist()
+                    testing = true
+                    testResult = null
+                    scope.launch {
+                        testResult = onTest(edited())
+                        testing = false
+                    }
+                },
+            )
 
             if (config.kind == EngineKind.OPENAI_COMPATIBLE) {
                 val price = ServerProviders.forUrl(baseUrl).speechModel(modelId.trim())?.usdPerRequest ?: 0.0
@@ -485,8 +494,13 @@ fun EngineDetailScreen(
         }
     }
 
-    // Typed into a field and went back without "Save": keep it anyway.
+    // Saved a moment after typing stops, as an app's own instruction is, and as the page goes:
+    // there is no Save button to forget.
     val latestPersist by rememberUpdatedState(::persistIfChanged)
+    LaunchedEffect(config.id, baseUrl, modelId, apiKey) {
+        delay(FIELD_SAVE_MS)
+        latestPersist()
+    }
     DisposableEffect(config.id) {
         onDispose { latestPersist() }
     }
@@ -520,6 +534,8 @@ fun EngineDetailScreen(
 @Composable
 private fun WhisperModelsCard(
     states: Map<String, SlotState>,
+    /** This recognition is the one in use: deleting its chosen model stops the dictations. */
+    active: Boolean,
     selectedId: String,
     onSelect: (String) -> Unit,
     onDownload: (WhisperModelSpec) -> Unit,
@@ -531,6 +547,19 @@ private fun WhisperModelsCard(
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(onImport)
     }
+    // The model asked to be deleted, by id and name, until the question is answered.
+    var deleting by remember { mutableStateOf<Pair<String, String>?>(null) }
+    deleting?.let { (id, name) ->
+        DeleteModelDialog(
+            name = name,
+            inUse = active && id == selectedId,
+            onDelete = {
+                deleting = null
+                onDelete(id)
+            },
+            onDismiss = { deleting = null },
+        )
+    }
 
     SectionCard(
         title = stringResource(R.string.models_title),
@@ -538,8 +567,9 @@ private fun WhisperModelsCard(
         modifier = modifier,
     ) {
         WhisperModels.all.forEach { spec ->
+            val title = catalog(spec.displayName)
             ModelRow(
-                title = catalog(spec.displayName),
+                title = title,
                 tier = catalog(spec.tier),
                 sizeLabel = stringResource(R.string.megabytes, (spec.sizeBytes / 1_000_000).toInt()),
                 note = catalog(spec.note),
@@ -548,14 +578,15 @@ private fun WhisperModelsCard(
                 onSelect = { onSelect(spec.id) },
                 onDownload = { onDownload(spec) },
                 onCancel = { onCancel(spec.id) },
-                onDelete = { onDelete(spec.id) },
+                onDelete = { deleting = spec.id to title },
             )
         }
 
         val imported = states[WhisperModels.IMPORTED_ID] ?: SlotState.Missing
         if (imported !is SlotState.Missing) {
+            val title = stringResource(R.string.model_own_file)
             ModelRow(
-                title = stringResource(R.string.model_own_file),
+                title = title,
                 tier = "",
                 sizeLabel = (imported as? SlotState.Ready)?.let { stringResource(R.string.megabytes, (it.sizeBytes / 1_000_000).toInt()) } ?: "",
                 note = stringResource(R.string.model_own_file_note),
@@ -564,7 +595,7 @@ private fun WhisperModelsCard(
                 onSelect = { onSelect(WhisperModels.IMPORTED_ID) },
                 onDownload = { picker.launch(arrayOf("*/*")) },
                 onCancel = { onCancel(WhisperModels.IMPORTED_ID) },
-                onDelete = { onDelete(WhisperModels.IMPORTED_ID) },
+                onDelete = { deleting = WhisperModels.IMPORTED_ID to title },
             )
         }
 
@@ -681,10 +712,24 @@ private fun progressText(busy: SlotState.Busy): String {
 @Composable
 private fun ParakeetCard(
     state: ParakeetState,
+    /** Parakeet is the recognition in use: without its model there is no dictation. */
+    inUse: Boolean,
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var deleting by remember { mutableStateOf(false) }
+    if (deleting) {
+        DeleteModelDialog(
+            name = ParakeetModel.DISPLAY_NAME,
+            inUse = inUse,
+            onDelete = {
+                deleting = false
+                onDelete()
+            },
+            onDismiss = { deleting = false },
+        )
+    }
     SectionCard(
         title = stringResource(R.string.model_title),
         subtitle = stringResource(R.string.parakeet_subtitle, ParakeetModel.DISPLAY_NAME, (ParakeetModel.TOTAL_BYTES / 1_000_000).toInt()),
@@ -701,7 +746,7 @@ private fun ParakeetCard(
             }
             is ParakeetState.Ready -> {
                 Hint(stringResource(R.string.parakeet_ready), AmberPalette.TrustOnDevice)
-                GhostButton(stringResource(R.string.delete), onDelete, color = AmberPalette.Error)
+                GhostButton(stringResource(R.string.delete), { deleting = true }, color = AmberPalette.Error)
             }
             is ParakeetState.Failed -> {
                 Hint(words(state.problem), AmberPalette.Error)
@@ -710,6 +755,30 @@ private fun ParakeetCard(
         }
     }
 }
+
+/**
+ * A downloaded model is hundreds of megabytes and minutes to fetch again: one tap on Delete only
+ * asks. The model in use says what follows - no dictation with it until it is back.
+ */
+@Composable
+private fun DeleteModelDialog(name: String, inUse: Boolean, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AmberPalette.Surface,
+        shape = AmberShapes.Card,
+        title = { Text(stringResource(R.string.model_delete_title, name), color = AmberPalette.Text) },
+        text = { Hint(stringResource(if (inUse) R.string.model_delete_in_use else R.string.model_delete_text)) },
+        confirmButton = {
+            TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = AmberPalette.Error) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
+        },
+    )
+}
+
+/** Typing pauses this long before what was typed is saved. */
+private const val FIELD_SAVE_MS = 800L
 
 /**
  * Models as a radio list with a short note each; [noneLabel] adds a choice for "none" (null).

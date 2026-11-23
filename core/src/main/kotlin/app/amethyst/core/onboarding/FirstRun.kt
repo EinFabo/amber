@@ -3,6 +3,7 @@ package app.amethyst.core.onboarding
 import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
@@ -182,6 +183,34 @@ object FirstRun {
                 standIn = settings.firstRun.standIn.takeIf { it != theirs?.name },
             ),
         )
+    }
+
+    /**
+     * The Speech recognition page's Undo after [chosen]: the recognition active [before] the tap
+     * again, with the first run's plan as it was then - a model still on its way wanted again,
+     * the stand-in still standing in. One removed meanwhile is not brought back: the chosen one stays.
+     */
+    fun unchosen(settings: AmethystSettings, before: AmethystSettings): AmethystSettings {
+        if (settings.engines.none { it.id == before.activeEngineId }) return settings
+        return settings.copy(activeEngineId = before.activeEngineId, firstRun = before.firstRun)
+    }
+
+    /**
+     * Whether a tap on [engineId] in Settings can be taken back by [unchosen]: not when it leaves
+     * the small stand-in with nothing to do - its recognition and its file go at once
+     * ([leftover], [FirstRunWatch]), and there would be nothing to go back to.
+     */
+    fun canUnchoose(settings: AmethystSettings, engineId: String): Boolean = leftover(chosen(settings, engineId)) == null
+
+    /**
+     * Whether the introduction's last step may say "All set": not while a dictation still waits
+     * for a model - the one the first run fetches ([stage]) when no other recognition stands in,
+     * or the active recognition's own download ([activeDownload]), running or held.
+     */
+    fun readyAtDone(stage: PendingStage?, activeDownload: ModelDownload?): Boolean = when (stage) {
+        null -> activeDownload == null
+        PendingStage.SMALL_STANDS_IN, PendingStage.ANDROID_STANDS_IN -> true
+        PendingStage.SMALL_FIRST, PendingStage.OWN -> false
     }
 
     /** [option] added if missing, with its model, and made the active recognition. */

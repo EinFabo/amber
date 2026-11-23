@@ -24,4 +24,11 @@ class DownloadNoticeTest {
         assertNull(DownloadNotice.share(ModelDownload.WaitingForWifi))
         assertNull(DownloadNotice.share(null))
     }
+
+    @Test
+    fun `a running download of unknown size has no fraction for its line`() {
+        assertEquals(0.25f, DownloadNotice.fraction(ModelDownload.Running(250, 1000)))
+        assertNull(DownloadNotice.fraction(ModelDownload.Running(250, 0)))
+        assertNull(DownloadNotice.fraction(ModelDownload.Running(250, -1)))
+    }
 }

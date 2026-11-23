@@ -53,4 +53,25 @@ object AppRows {
             profiles = settings.profiles.filterNot { it.packageName == packageName },
             bubble = withBubble(settings.bubble, packageName, shown = true),
         )
+
+    /**
+     * The Apps page's Undo after [removed]: [packageName]'s profile from [before] back where it
+     * stood, and the bubble hidden there again if it was. What changed meanwhile stays - a profile
+     * the app's page made again since is the newer one and is kept.
+     */
+    fun restored(settings: AmethystSettings, before: AmethystSettings, packageName: String): AmethystSettings {
+        val profile = AppProfiles.forPackage(before.profiles, packageName)
+        val profiles = if (profile == null || AppProfiles.forPackage(settings.profiles, packageName) != null) {
+            settings.profiles
+        } else {
+            settings.profiles.toMutableList().apply { add(before.profiles.indexOf(profile).coerceAtMost(size), profile) }
+        }
+        val hiddenAt = before.bubble.hiddenIn.indexOf(packageName)
+        val hiddenIn = if (hiddenAt < 0 || packageName in settings.bubble.hiddenIn) {
+            settings.bubble.hiddenIn
+        } else {
+            settings.bubble.hiddenIn.toMutableList().apply { add(hiddenAt.coerceAtMost(size), packageName) }
+        }
+        return settings.copy(profiles = profiles, bubble = settings.bubble.copy(hiddenIn = hiddenIn))
+    }
 }

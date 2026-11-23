@@ -42,7 +42,10 @@
         <item quantity="other">Last %d dictations</item>
     </plurals>
     <string name="summary_titles_and_more">%1$s…</string>
-    <string name="summary_reliability_open">Reliability: %1$s</string>
+    <plurals name="summary_reliability_open">
+        <item quantity="one">Reliability: %d step left</item>
+        <item quantity="other">Reliability: %d steps left</item>
+    </plurals>
     <plurals name="summary_words">
         <item quantity="one">%d word</item>
         <item quantity="other">%d words</item>

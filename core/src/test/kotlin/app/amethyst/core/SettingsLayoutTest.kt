@@ -80,4 +80,11 @@ class SettingsLayoutTest {
         assertEquals(listed.distinct(), listed)
         assertEquals(SettingsItem.ABOUT, listed.last())
     }
+
+    @Test
+    fun `a group of one row has no heading over it`() {
+        val groups = SettingsLayout.groups(voiceCommands = false).associateBy { it.kind }
+        assertFalse(groups.getValue(SettingsGroupKind.PER_APP).labeled)
+        assertTrue(groups.getValue(SettingsGroupKind.AMBER).labeled)
+    }
 }

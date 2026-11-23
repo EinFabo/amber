@@ -150,6 +150,16 @@ class DictationLog(
         _records.value = emptyList()
     }
 
+    /**
+     * Diagnostics' Undo after [clear]: [cleared] (newest first, as [records] gave them) back under
+     * whatever was recorded since, within the capacity. Cleared before the security mode was
+     * switched on, they come back without their words too.
+     */
+    fun restore(cleared: List<DictationRecord>) {
+        val kept = if (keepsWords) cleared else cleared.map { it.withoutWords() }
+        _records.value = (_records.value + kept).take(capacity)
+    }
+
     private fun add(record: DictationRecord) {
         val kept = if (keepsWords) record else record.withoutWords()
         _records.value = (listOf(kept) + _records.value).take(capacity)

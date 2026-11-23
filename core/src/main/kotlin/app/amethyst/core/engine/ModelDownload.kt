@@ -20,6 +20,10 @@ object DownloadNotice {
         if (it.total <= 0) 0f else (it.received.toFloat() / it.total).coerceIn(0f, 1f)
     }
 
+    /** What a running download's progress line shows, 0..1 - null while its size is unknown: a line that moves, not one stuck at 0. */
+    fun fraction(download: ModelDownload.Running): Float? =
+        if (download.total <= 0) null else (download.received.toFloat() / download.total).coerceIn(0f, 1f)
+
     /** Floored and held below 100: "100 %" while the last bytes are still checked would lie. */
     fun percent(download: ModelDownload.Running): Int =
         if (download.total <= 0) 0 else (download.received * 100 / download.total).toInt().coerceIn(0, 99)

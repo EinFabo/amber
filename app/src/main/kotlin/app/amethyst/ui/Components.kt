@@ -1,8 +1,13 @@
 package app.amethyst.ui
 
+import android.animation.ValueAnimator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
@@ -32,10 +38,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -174,7 +182,7 @@ fun IconAction(
         modifier = modifier
             .size(ICON_ACTION_SIZE)
             .clip(CircleShape)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
@@ -241,28 +249,59 @@ fun Hint(text: String, color: Color = AmberPalette.Muted, modifier: Modifier = M
     Text(text = text, style = MaterialTheme.typography.bodySmall, color = color, modifier = modifier)
 }
 
-/** A thin progress line. */
+/**
+ * A thin progress line: filled to [fraction], or - null, while how far is not known - a short
+ * piece running along it, so it never looks stuck. With "Remove animations" on, that piece stands
+ * still at the start. Screen readers hear it as progress either way.
+ */
 @Composable
 fun ProgressLine(fraction: Float?, modifier: Modifier = Modifier) {
-    val animated by animateFloatAsState(fraction ?: 0f, tween(250), label = "progress")
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(3.dp)
-            .clip(AmberShapes.Pill)
-            .background(AmberPalette.Outline),
-    ) {
+    val track = modifier
+        .fillMaxWidth()
+        .height(3.dp)
+        .clip(AmberShapes.Pill)
+        .background(AmberPalette.Outline)
+    val ink = AmberPalette.Primary
+    if (fraction == null) {
+        val moving = remember { ValueAnimator.areAnimatorsEnabled() }
+        val sweep = if (moving) {
+            rememberInfiniteTransition(label = "progress").animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(INDETERMINATE_MS, easing = LinearEasing)),
+                label = "sweep",
+            )
+        } else {
+            null
+        }
+        // Read while drawing only: the line moves without recomposing anything.
+        Canvas(track.progressSemantics()) {
+            val piece = size.width * INDETERMINATE_PIECE
+            val at = sweep?.value ?: return@Canvas drawRect(ink, size = Size(piece, size.height))
+            drawRect(ink, topLeft = Offset(-piece + (size.width + piece) * at, 0f), size = Size(piece, size.height))
+        }
+        return
+    }
+    val animated by animateFloatAsState(fraction, tween(250), label = "progress")
+    Box(track.progressSemantics(fraction.coerceIn(0f, 1f))) {
         Box(
             Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(if (fraction == null) 0.35f else animated.coerceIn(0.02f, 1f))
+                .fillMaxWidth(animated.coerceIn(0.02f, 1f))
                 .clip(AmberShapes.Pill)
-                .background(AmberPalette.Primary),
+                .background(ink),
         )
     }
 }
 
-/** A choice among a few, with an optional note; the chosen one is filled amber. */
+/** How long the running piece of a [ProgressLine] takes from one end to the other, and how long it is. */
+private const val INDETERMINATE_MS = 1_100
+private const val INDETERMINATE_PIECE = 0.35f
+
+/**
+ * A choice among a few, with an optional note; the chosen one is filled amber - and said to be
+ * selected, not only coloured, for a screen reader.
+ */
 @Composable
 fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
     Column(
@@ -271,7 +310,7 @@ fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
             .heightIn(min = 48.dp)
             .clip(AmberShapes.Inner)
             .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
-            .clickable(onClick = onClick)
+            .selectable(selected = on, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.Center,
     ) {

@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.onboarding.FirstRun
@@ -500,5 +501,42 @@ class FirstRunTest {
     @Test
     fun `a new install starts without app styles`() {
         assertTrue(fresh.profiles.isEmpty())
+    }
+
+    @Test
+    fun `undoing a choice in Settings brings back the recognition and the first run's plan`() {
+        val small = FirstRun.settle(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), ready = true, TEST_PHONE)
+        val chosen = FirstRun.chosen(small, android)
+        assertNull(FirstRun.wanted(chosen))
+        assertEquals(small, FirstRun.unchosen(chosen, before = small))
+    }
+
+    @Test
+    fun `a choice that lets the small model go cannot be undone`() {
+        val small = FirstRun.settle(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), ready = true, TEST_PHONE)
+        assertFalse(FirstRun.canUnchoose(small, android))
+        val groq = fresh.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ))
+        assertTrue(FirstRun.canUnchoose(groq, EnginePresets.GROQ.id))
+    }
+
+    @Test
+    fun `undoing a choice whose earlier recognition is gone keeps the chosen one`() {
+        val before = fresh.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(activeEngineId = EnginePresets.GROQ.id)
+        val chosen = FirstRun.chosen(before, android)
+        val removed = chosen.copy(engines = chosen.engines.filterNot { it.id == EnginePresets.GROQ.id })
+        assertSame(removed, FirstRun.unchosen(removed, before))
+    }
+
+    @Test
+    fun `the last step says all set only when a dictation needs no model still on its way`() {
+        assertTrue(FirstRun.readyAtDone(stage = null, activeDownload = null))
+        assertFalse(FirstRun.readyAtDone(stage = null, activeDownload = ModelDownload.Running(10, 100)))
+        assertFalse(FirstRun.readyAtDone(stage = null, activeDownload = ModelDownload.WaitingForWifi))
+        // Another recognition hears the dictations meanwhile.
+        assertTrue(FirstRun.readyAtDone(PendingStage.SMALL_STANDS_IN, activeDownload = null))
+        assertTrue(FirstRun.readyAtDone(PendingStage.ANDROID_STANDS_IN, activeDownload = null))
+        // A dictation waits for this model.
+        assertFalse(FirstRun.readyAtDone(PendingStage.SMALL_FIRST, activeDownload = null))
+        assertFalse(FirstRun.readyAtDone(PendingStage.OWN, activeDownload = ModelDownload.Retrying))
     }
 }

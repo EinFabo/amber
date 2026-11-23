@@ -12,6 +12,7 @@ import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
+import app.amethyst.R
 import app.amethyst.core.bubble.LevelMeter
 import app.amethyst.core.engine.WaitProgress
 import kotlin.math.PI
@@ -108,6 +109,11 @@ class BubbleView(context: Context) : View(context) {
         strokeJoin = Paint.Join.ROUND
     }
     private val bounds = RectF()
+
+    init {
+        // Drawn by hand, so it has no words of its own: a name for a screen reader.
+        contentDescription = context.getString(R.string.bubble_description)
+    }
     private val path = Path()
     private val partial = Path()
     private val measure = PathMeasure()

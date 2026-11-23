@@ -93,17 +93,17 @@ object ServerProviders {
         name = "Groq",
         hosts = setOf("api.groq.com"),
         speechModels = listOf(
-            ModelChoice("whisper-large-v3-turbo", "Whisper large-v3-turbo", "fast · \$0.04 per hour", recommended = true, usdPerMinute = 0.04 / 60),
-            ModelChoice("whisper-large-v3", "Whisper large-v3", "a little more accurate · \$0.11 per hour", usdPerMinute = 0.111 / 60),
+            ModelChoice("whisper-large-v3-turbo", "Whisper Turbo", "fast · \$0.04 per hour", recommended = true, usdPerMinute = 0.04 / 60),
+            ModelChoice("whisper-large-v3", "Whisper", "a little more accurate · \$0.11 per hour", usdPerMinute = 0.111 / 60),
         ),
         cleanupModels = listOf(
             // Reasons first; "low" keeps that short and cheap.
             ModelChoice(
-                "openai/gpt-oss-20b", "gpt-oss 20B", "cheap and quick",
+                "openai/gpt-oss-20b", "gpt-oss", "cheap and quick",
                 recommended = true, usdPerMIn = 0.075, usdPerMOut = 0.30, extraParams = mapOf("reasoning_effort" to "low"),
             ),
-            ModelChoice("llama-3.3-70b-versatile", "Llama 3.3 70B", "no reasoning, steady"),
-            ModelChoice("llama-3.1-8b-instant", "Llama 3.1 8B", "fastest, simplest"),
+            ModelChoice("llama-3.3-70b-versatile", "Llama 3.3", "no reasoning, steady"),
+            ModelChoice("llama-3.1-8b-instant", "Llama 3.1", "fastest, simplest"),
         ),
         fixedAddress = true,
         streamsChat = true,

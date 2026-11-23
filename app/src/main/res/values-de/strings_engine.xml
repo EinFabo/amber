@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="engine_unencrypted">Unverschlüsselt (http): Jeder im selben Netz kann mitlesen und ändern, was gesendet wird. Sicher nur in deinem eigenen Netz. In einem fremden WLAN mit denselben Adressen antwortet vielleicht jemand anderes.</string>
-    <string name="engine_complete">Einstellungen vollständig.</string>
     <string name="engine_use_active">Als aktive Spracherkennung nutzen</string>
     <string name="engine_configuration">Über diese Spracherkennung</string>
     <string name="engine_android_note">Nutzt die Spracherkennung von Android. Welche Sprachen ohne Internet gehen, legen die Einstellungen des Handys fest.</string>
@@ -32,7 +31,6 @@
     <string name="engine_not_supported">Nicht unterstützt</string>
     <string name="engine_elevenlabs">ElevenLabs Realtime wurde nie fertig. Entferne diese Spracherkennung.</string>
     <string name="engine_check">Prüfen</string>
-    <string name="save">Speichern</string>
     <string name="engine_test_model">Modell testen</string>
     <string name="engine_test_connection">Verbindung testen</string>
     <string name="engine_test_billed">Ein Test kostet so viel wie ein Diktat (%1$s&#160;$).</string>
@@ -53,6 +51,9 @@
     <string name="model_in_use">Aktiv</string>
     <string name="use">Nutzen</string>
     <string name="delete">Löschen</string>
+    <string name="model_delete_title">%1$s löschen?</string>
+    <string name="model_delete_text">Du kannst es später wieder herunterladen.</string>
+    <string name="model_delete_in_use">Embersay kann damit erst wieder diktieren, wenn du es neu herunterlädst.</string>
     <string name="try_again">Nochmal versuchen</string>
     <string name="model_english_only">Dieses Modell versteht nur Englisch.</string>
     <string name="progress_of">%1$d von %2$d&#160;MB</string>

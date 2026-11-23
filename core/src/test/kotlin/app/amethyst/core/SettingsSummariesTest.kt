@@ -56,7 +56,7 @@ class SettingsSummariesTest {
 
     @Test
     fun `an app's own cleanup choice reads the same way`() {
-        assertEquals(Summary.Name("Gemma 4 31B"), SettingsSummaries.cleanup(settings, CleanupChoice(tinfoil.id, "gemma4-31b")))
+        assertEquals(Summary.Name("Gemma 4"), SettingsSummaries.cleanup(settings, CleanupChoice(tinfoil.id, "gemma4-31b")))
     }
 
     @Test
@@ -77,7 +77,7 @@ class SettingsSummariesTest {
         assertEquals(Summary.AppCleanupModel(own = false, null), SettingsSummaries.appCleanup(settings, AppCleanup()))
         assertEquals(Summary.Off, SettingsSummaries.appCleanup(on, AppCleanup(AppCleanupMode.OFF, CleanupChoice(tinfoil.id, "gemma4-31b"))))
         assertEquals(
-            Summary.AppCleanupModel(own = true, "Gemma 4 31B"),
+            Summary.AppCleanupModel(own = true, "Gemma 4"),
             SettingsSummaries.appCleanup(settings, AppCleanup(AppCleanupMode.MODEL, CleanupChoice(tinfoil.id, "gemma4-31b"))),
         )
         // Its service removed, or none picked yet: an own model without a name.

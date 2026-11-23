@@ -50,7 +50,10 @@ enum class SettingsItem(val group: SettingsGroupKind) {
 }
 
 /** A group of the Settings page with the rows it shows; see [SettingsLayout.groups]. */
-data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<SettingsItem>)
+data class SettingsGroupRows(val kind: SettingsGroupKind, val items: List<SettingsItem>) {
+    /** Whether a heading stands over the group: not over a single row, whose own name says it all. */
+    val labeled: Boolean get() = items.size > 1
+}
 
 /** Which rows the Settings page shows: all of them, voice commands only ever with [Features.VOICE_COMMANDS]. */
 object SettingsLayout {

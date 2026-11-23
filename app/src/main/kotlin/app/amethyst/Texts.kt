@@ -200,7 +200,8 @@ object Texts {
                 .ifEmpty { getString(R.string.summary_as_recognized) }
             is Summary.Reliability -> if (summary.open == 0) getString(R.string.summary_all_set) else count(R.plurals.summary_things_open, summary.open)
             is Summary.Diagnostics -> if (summary.count == 0) getString(R.string.summary_nothing_dictated) else count(R.plurals.summary_last_dictations, summary.count)
-            is Summary.ReliabilityOpen -> getString(R.string.summary_reliability_open, count(R.plurals.summary_things_open, summary.open))
+            // One line on top of Settings, in German too: "Zuverlässigkeit: 2 Punkte offen" took two.
+            is Summary.ReliabilityOpen -> count(R.plurals.summary_reliability_open, summary.open)
             is Summary.Models -> count(R.plurals.summary_models, summary.count)
             is Summary.Privacy -> if (summary.secure) {
                 getString(R.string.summary_privacy_secure)

@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.PendingStage
@@ -65,7 +66,8 @@ fun PendingModelNote(pending: PendingModel, modifier: Modifier = Modifier, progr
             // Also for the moment between the choice and the first byte.
             else -> {
                 Hint(stringResource(words.downloading, megabytes), AmberPalette.Text)
-                if (progress) ProgressLine((download as? ModelDownload.Running)?.let { if (it.total > 0) it.received.toFloat() / it.total else 0f })
+                // Moving while it has not started or its size is not known yet.
+                if (progress) ProgressLine((download as? ModelDownload.Running)?.let(DownloadNotice::fraction))
             }
         }
     }

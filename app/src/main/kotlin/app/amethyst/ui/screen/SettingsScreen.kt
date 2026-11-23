@@ -35,12 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
+import app.amethyst.Texts
 import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
@@ -71,6 +73,7 @@ import app.amethyst.ui.AppIcon
 import app.amethyst.ui.AppSource
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
+import app.amethyst.ui.LocalUndo
 import app.amethyst.ui.MainSwitch
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.PageGutter
@@ -172,7 +175,8 @@ fun SettingsScreen(
         attention?.let { AttentionRow(it, onOpen) }
         SettingsLayout.groups().forEach { group ->
             SettingsGroup(
-                label = when (group.kind) {
+                // No heading over a single row: "Per app" over "Apps" said the same twice.
+                label = if (!group.labeled) null else when (group.kind) {
                     SettingsGroupKind.MAIN -> null
                     SettingsGroupKind.PER_APP -> stringResource(R.string.settings_group_per_app)
                     SettingsGroupKind.AMBER -> "Embersay" // English: the app's name
@@ -199,7 +203,7 @@ fun PrivacyScreen(settings: AmethystSettings, onOpen: (SettingsPage) -> Unit, mo
     SubPage(modifier) {
         SettingsGroup(label = null) {
             NavRow(
-                stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.Replay,
+                stringResource(R.string.settings_history), words(SettingsSummaries.history(settings)), icon = AmberIcons.History,
             ) { onOpen(SettingsPage.HISTORY) }
             RowDivider()
             NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
@@ -252,6 +256,22 @@ fun RecognitionScreen(
     modifier: Modifier = Modifier,
 ) {
     var showPresets by remember { mutableStateOf(false) }
+    val undo = LocalUndo.current
+    val context = LocalContext.current
+
+    /**
+     * A tap on a row makes it the active recognition at once, with Undo: the one before comes
+     * back, with the first run's plan as it was (a model on its way wanted again). No Undo where
+     * the small stand-in model goes with the tap: nothing would be left to come back to.
+     */
+    fun choose(engine: EngineConfig) {
+        val before = settings
+        onUpdateSettings { app.amethyst.core.onboarding.FirstRun.chosen(it, engine.id) }
+        if (engine.id == before.activeEngineId || !app.amethyst.core.onboarding.FirstRun.canUnchoose(before, engine.id)) return
+        undo.offer(context.getString(R.string.recognition_switched, Texts.recognitionRowName(context, engine))) {
+            onUpdateSettings { app.amethyst.core.onboarding.FirstRun.unchosen(it, before) }
+        }
+    }
 
     // Once per settings change, not per engine row on every recomposition while scrolling.
     // (hasKeyFor() no longer decrypts - SecretStore keeps the stored aliases in memory.)
@@ -282,7 +302,7 @@ fun RecognitionScreen(
                             active = engine.id == settings.activeEngineId,
                             problems = problemsByEngine[engine.id].orEmpty(),
                             note = RecognitionRows.note(engine, settings, medianWaitMs[engine.id]),
-                            onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ onUpdateSettings { app.amethyst.core.onboarding.FirstRun.chosen(it, engine.id) } }),
+                            onSelect = if (cleanupOnly) ({ onOpenEngine(engine.id) }) else ({ choose(engine) }),
                             onOpen = { onOpenEngine(engine.id) },
                             cleanupOnly = cleanupOnly,
                         )

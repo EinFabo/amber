@@ -187,4 +187,29 @@ class DictationLogTest {
         log.recordCommand("öffne WhatsApp", CommandOutcome.Done("Opened WhatsApp"), engineId = "parakeet")
         assertEquals("Bis gleich", log.lastDictation?.text)
     }
+
+    @Test
+    fun `cleared records come back under any newer ones, still within the capacity`() {
+        val log = log(capacity = 3)
+        log.recordSuccess(transcript("eins"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        log.recordSuccess(transcript("zwei"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        val cleared = log.records.value
+        log.clear()
+        log.recordSuccess(transcript("drei"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        log.recordSuccess(transcript("vier"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        log.restore(cleared)
+        assertEquals(listOf("vier", "drei", "zwei"), log.records.value.map { it.text })
+    }
+
+    @Test
+    fun `cleared records restored in the security mode keep no words`() {
+        val log = log()
+        log.recordSuccess(transcript("Bis morgen"), InsertionStrategy.SET_TEXT, true, "com.whatsapp")
+        val cleared = log.records.value
+        log.clear()
+        log.keepsWords = false
+        log.restore(cleared)
+        assertEquals("", log.records.value.single().text)
+        assertNull(log.lastDictation)
+    }
 }

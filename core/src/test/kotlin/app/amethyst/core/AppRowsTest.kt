@@ -103,4 +103,27 @@ class AppRowsTest {
         assertEquals(listOf("com.game"), decoded.bubble.hiddenIn)
         assertEquals(profiles, decoded.profiles)
     }
+
+    @Test
+    fun `undoing a removal puts the profile back in its place and hides the bubble again`() {
+        val game = AppProfile("com.game", "Game")
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(
+            profiles = listOf(whatsapp, keep, game),
+            bubble = AmethystSettings.defaults(TEST_PHONE).bubble.copy(hiddenIn = listOf("com.other", "com.google.android.keep", "com.x")),
+        )
+        val removed = AppRows.removed(settings, "com.google.android.keep")
+        assertEquals(settings, AppRows.restored(removed, before = settings, packageName = "com.google.android.keep"))
+    }
+
+    @Test
+    fun `undoing a removal keeps what changed meanwhile`() {
+        val settings = AmethystSettings.defaults(TEST_PHONE).copy(profiles = profiles)
+        val removed = AppRows.removed(settings, "com.whatsapp")
+        val changed = removed.copy(profiles = removed.profiles.map { it.copy(style = WritingStyle.FORMAL) })
+        val restored = AppRows.restored(changed, before = settings, packageName = "com.whatsapp")
+        assertEquals(listOf(whatsapp, keep.copy(style = WritingStyle.FORMAL)), restored.profiles)
+        // Made again meanwhile (a change on its page): the newer one stays.
+        val again = removed.copy(profiles = removed.profiles + whatsapp.copy(style = WritingStyle.FORMAL))
+        assertEquals(again.profiles, AppRows.restored(again, before = settings, packageName = "com.whatsapp").profiles)
+    }
 }

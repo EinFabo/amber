@@ -47,6 +47,8 @@
     <string name="history_failed">Failed dictation</string>
     <string name="history_failed_note">Its recording is kept for a few minutes. Tap Try again and the words appear here.</string>
     <string name="history_delete_all">Delete all</string>
+    <string name="history_delete_title">Delete all dictations?</string>
+    <string name="history_delete_text">This can\'t be undone.</string>
     <string name="share">Share</string>
     <plurals name="history_count">
         <item quantity="one">%1$d dictation</item>

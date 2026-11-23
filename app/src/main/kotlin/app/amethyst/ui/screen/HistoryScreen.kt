@@ -4,10 +4,16 @@ import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,6 +36,7 @@ import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SettingsGroup
 import app.amethyst.ui.theme.AmberPalette
+import app.amethyst.ui.theme.AmberShapes
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -60,6 +67,8 @@ fun HistoryScreen(
     today: LocalDate = LocalDate.now(zone),
 ) {
     val context = LocalContext.current
+    // One tap would destroy every kept dictation for good: asked first.
+    var confirmDelete by remember { mutableStateOf(false) }
     // Dictated words on screen: out of screenshots and the Recents picture while they are.
     ShowsDictatedText(entries.isNotEmpty())
     SubPage {
@@ -84,7 +93,7 @@ fun HistoryScreen(
                 NavRow(
                     title = stringResource(R.string.history_failed),
                     summary = stringResource(R.string.history_failed_note),
-                    icon = AmberIcons.Replay,
+                    icon = AmberIcons.Refresh,
                     summaryMaxLines = Int.MAX_VALUE,
                     below = { GhostButton(stringResource(R.string.quick_try_again), onTryAgain) },
                     trailing = null,
@@ -110,10 +119,37 @@ fun HistoryScreen(
         }
         // Also for what is kept but cannot be shown: it can always be deleted.
         if (entries.isNotEmpty() || count > 0) {
-            DangerAction(stringResource(R.string.history_delete_all), onDeleteAll)
+            DangerAction(stringResource(R.string.history_delete_all)) { confirmDelete = true }
             GroupFootnote(stringResource(R.string.history_delete_note), AmberIcons.Info)
         }
     }
+
+    if (confirmDelete) {
+        DeleteAllDialog(
+            onDelete = {
+                confirmDelete = false
+                onDeleteAll()
+            },
+            onDismiss = { confirmDelete = false },
+        )
+    }
+}
+
+@Composable
+private fun DeleteAllDialog(onDelete: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AmberPalette.Surface,
+        shape = AmberShapes.Card,
+        title = { Text(stringResource(R.string.history_delete_title), color = AmberPalette.Text) },
+        text = { Hint(stringResource(R.string.history_delete_text)) },
+        confirmButton = {
+            TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = AmberPalette.Error) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = AmberPalette.Muted) }
+        },
+    )
 }
 
 /** One dictation: where and when as its title, its words in full, Copy and Share under them. */
