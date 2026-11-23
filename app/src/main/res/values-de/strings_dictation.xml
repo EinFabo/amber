@@ -58,6 +58,14 @@
     <string name="quick_done_style">%1$s: %2$s</string>
     <string name="quick_done_style_no_cleanup">%1$s: %2$s. Ohne Bereinigung hier wirkt der Stil nicht.</string>
     <string name="quick_open_failed">Android hat Embersay das Öffnen nicht erlaubt.</string>
+    <!-- Why a grey quick menu button cannot run, said when the thumb lets go on it. -->
+    <string name="quick_off_other_app">Nur in einer anderen App</string>
+    <string name="quick_off_no_dictation">Noch kein Diktat</string>
+    <string name="quick_off_nothing_to_undo">In dieser App gibt es nichts rückgängig zu machen</string>
+    <string name="quick_off_no_field">Tippe zuerst in ein Textfeld</string>
+    <string name="quick_off_no_cleanup">Keine Bereinigung eingerichtet</string>
+    <string name="quick_off_command">Nicht bei einem Sprachbefehl</string>
+    <string name="quick_off_cannot_pause">Diese Spracherkennung kann nicht pausieren</string>
     <string name="toast_unexpected">Etwas ist schiefgegangen. Details stehen in der Diagnose.</string>
     <string name="toast_unexpected_try_again">Etwas ist schiefgegangen. Halte die Bubble: „Nochmal versuchen“.</string>
     <string name="toast_on_clipboard">Nicht eingefügt. Der Text ist in der Zwischenablage.</string>

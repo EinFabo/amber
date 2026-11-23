@@ -46,6 +46,8 @@ class InsertionEngineTest {
         override val isSecret: Boolean = false,
         /** Where the field leaves the cursor after taking typed words in, from where typing put it. */
         private val cursorAfterCommit: (text: String, cursor: Int) -> Int = { _, cursor -> cursor },
+        /** Rich text or no EditText: a SET_TEXT write would flatten it. */
+        override val setTextFlattens: Boolean = false,
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -168,6 +170,58 @@ class InsertionEngineTest {
         assertTrue(outcome.copiedToClipboard)
         assertEquals(1, target.setTextCalls, "set text must be tried exactly once")
         assertEquals("Hallo Welt", target.text)
+    }
+
+    @Test
+    fun `a field that set text would flatten gets the words pasted, seam included`() {
+        val target = FakeTarget(initialText = "Guten Morgen", setTextFlattens = true)
+        val clipboard = ForgettingClipboard(target)
+        val outcome = InsertionEngine(StrategyMemory(), clipboard, pause = {}).insert(target, "wie geht es dir")
+
+        assertEquals(InsertionStrategy.PASTE, outcome.strategy)
+        assertEquals(0, target.setTextCalls, "the whole field is never written back")
+        assertEquals("Guten Morgen wie geht es dir", target.text)
+        assertEquals(" wie geht es dir", outcome.fragment, "Undo last takes the seam along")
+        assertEquals(listOf(" wie geht es dir"), clipboard.forgotten, "the clip that went in comes off again")
+    }
+
+    @Test
+    fun `pasting goes first even where set text worked last time`() {
+        val memory = StrategyMemory(mapOf("com.whatsapp" to InsertionStrategy.SET_TEXT))
+        val target = FakeTarget(initialText = "Hi", setTextFlattens = true)
+        val outcome = engine(target, memory).insert(target, "Anna")
+
+        assertEquals(InsertionStrategy.PASTE, outcome.strategy)
+        assertEquals(0, target.setTextCalls)
+    }
+
+    @Test
+    fun `typing still goes before pasting into a field set text would flatten`() {
+        val target = FakeTarget(initialText = "Hi", setTextFlattens = true, hasInputConnection = true)
+        val outcome = engine(target).insert(target, "Anna")
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertEquals(0, target.pasteCalls)
+    }
+
+    @Test
+    fun `without the clipboard a field set text would flatten still gets set text`() {
+        val target = FakeTarget(initialText = "Hi", setTextFlattens = true)
+        val outcome = engine(target).insert(target, "Anna", allowClipboard = false)
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertEquals(0, target.pasteCalls)
+        assertEquals("Hi Anna", target.text)
+    }
+
+    @Test
+    fun `a failed paste into such a field falls back to set text`() {
+        val target = FakeTarget(initialText = "Hi", setTextFlattens = true, pasteWorks = false)
+        val outcome = engine(target).insert(target, "Anna")
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertEquals(1, target.pasteCalls)
+        assertEquals("Hi Anna", target.text)
     }
 
     @Test
@@ -676,7 +730,8 @@ class InsertionEngineTest {
         assertEquals(InsertionStrategy.PASTE, outcome.strategy)
         assertTrue(outcome.insertedIntoField)
         assertEquals(1, target.setTextCalls, "set text did nothing, though the selection held the words")
-        assertEquals("see you tomorrow", target.text)
+        // Pasted as typing would put it: a capital at the start of the field.
+        assertEquals("See you tomorrow", target.text)
     }
 
     @Test

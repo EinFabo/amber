@@ -60,6 +60,14 @@
     <string name="quick_done_style">%1$s: %2$s</string>
     <string name="quick_done_style_no_cleanup">%1$s: %2$s. No cleanup runs here, so it has no effect.</string>
     <string name="quick_open_failed">Android didn\'t let Embersay open it</string>
+    <!-- Why a grey quick menu button cannot run, said when the thumb lets go on it. -->
+    <string name="quick_off_other_app">Only in another app</string>
+    <string name="quick_off_no_dictation">No dictation yet</string>
+    <string name="quick_off_nothing_to_undo">Nothing to undo in this app</string>
+    <string name="quick_off_no_field">Tap into a text field first</string>
+    <string name="quick_off_no_cleanup">No cleanup set up</string>
+    <string name="quick_off_command">Not for a voice command</string>
+    <string name="quick_off_cannot_pause">This speech recognition can\'t pause</string>
     <string name="toast_unexpected">Something went wrong. See Diagnostics for details.</string>
     <string name="toast_unexpected_try_again">Something went wrong. Hold the bubble and choose Try again.</string>
     <string name="toast_on_clipboard">Couldn\'t insert. Paste the text from the clipboard.</string>

@@ -33,6 +33,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -224,10 +225,13 @@ private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (
 /**
  * One step's page: a title - with [top] above it, for the one step that has a picture there -
  * a line under it, the step's own content scrolling if it must, and its buttons held at the
- * bottom where the thumb is. Content that goes on below the fold fades out over a button that
+ * bottom where the thumb is. Content that goes on below the fold fades out above a button that
  * shows more, so nothing is cut off without a sign (a small phone cut the welcome step's last
- * point). A [stage] - a picture between the line and the content - gives up height first: it
- * shrinks towards [stageHeights]' start before the page has to scroll.
+ * point). The button has a strip of its own under the content while the content is taller
+ * than the page - over it, it covered the practice step's hint (Pixel 9a, 2026-11-22). A
+ * [stage] - a picture between the line and the content - gives up height first: it shrinks
+ * towards [stageHeights]' start before the page has to scroll. [inset] keeps the content
+ * clear of something on the page's edge: the practice step's bubble.
  */
 @Composable
 internal fun StepPage(
@@ -236,6 +240,7 @@ internal fun StepPage(
     top: (@Composable ColumnScope.() -> Unit)? = null,
     stage: (@Composable (height: Dp) -> Unit)? = null,
     stageHeights: ClosedRange<Dp> = 0.dp..0.dp,
+    inset: PaddingValues = PaddingValues(0.dp),
     buttons: @Composable ColumnScope.() -> Unit,
     body: @Composable ColumnScope.() -> Unit,
 ) {
@@ -246,6 +251,11 @@ internal fun StepPage(
     var viewport by remember { mutableIntStateOf(0) }
     var content by remember { mutableIntStateOf(0) }
     var stageLaidOut by remember { mutableIntStateOf(-1) }
+    // The height between the line at the top and the buttons, strip included. Content counts
+    // as taller only by more than a rounding: a stage that fills the page lands on its height
+    // to the pixel, and the strip must not come and go with every layout.
+    var area by remember { mutableIntStateOf(0) }
+    val overflows = area > 0 && content - area > with(density) { OVERFLOW_SLACK.roundToPx() }
     val stageHeight = with(density) {
         if (stage == null || viewport == 0 || stageLaidOut < 0) {
             stageHeights.endInclusive
@@ -254,16 +264,18 @@ internal fun StepPage(
         }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { area = it.height }) {
             Column(
                 Modifier
                     .fillMaxSize()
+                    .padding(bottom = if (overflows) MORE_STRIP else 0.dp)
                     .onSizeChanged { viewport = it.height }
                     .verticalScroll(scroll)
                     // The content's own height, not stretched to the screen.
                     .wrapContentHeight(Alignment.Top)
                     .onSizeChanged { content = it.height }
-                    .padding(top = 8.dp, bottom = CONTENT_BOTTOM),
+                    .padding(top = 8.dp, bottom = CONTENT_BOTTOM)
+                    .padding(inset),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 top?.invoke(this)
@@ -295,25 +307,25 @@ internal fun StepPage(
 }
 
 /**
- * The sign that a step goes on below: the content fades into the page, and a small button
- * over it scrolls on by most of a screen. Gone once the end is in view.
+ * The sign that a step goes on below: the content fades into the page, and under it, in a
+ * strip of its own, a small button scrolls on by most of a screen. Gone once the end is in view.
  */
 @Composable
 private fun MoreBelow(shown: Boolean, scroll: ScrollState, viewport: Int, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val label = stringResource(R.string.step_more)
     AnimatedVisibility(shown, modifier, enter = fadeIn(tween(150)), exit = fadeOut(tween(150))) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(MORE_FADE)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, AmberPalette.Background))),
-        ) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(MORE_FADE)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, AmberPalette.Background))),
+            )
             // A finger's size to hit, the round button inside it as small as before.
             Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
-                    .size(48.dp)
+                    .size(MORE_STRIP)
                     .clip(CircleShape)
                     .clickable(onClickLabel = label) { scope.launch { scroll.animateScrollBy(viewport * 0.7f) } }
                     .semantics { contentDescription = label },
@@ -336,4 +348,10 @@ private fun MoreBelow(shown: Boolean, scroll: ScrollState, viewport: Int, modifi
 private val CONTENT_BOTTOM = 16.dp
 
 /** How tall the fade over content that goes on below is. */
-private val MORE_FADE = 48.dp
+private val MORE_FADE = 32.dp
+
+/** The strip under content taller than the page, for the button that shows more: a finger's size. */
+private val MORE_STRIP = 48.dp
+
+/** More than a layout's rounding: content taller than the page by this much needs the strip. */
+private val OVERFLOW_SLACK = 2.dp

@@ -12,6 +12,7 @@
     <string name="notification_recording_channel">Recording</string>
     <string name="notification_recording_channel_description">Shows while Embersay records, with a button to stop</string>
     <string name="notification_recording_title">Recording…</string>
+    <string name="notification_recording_text">Tap the bubble or Stop to finish</string>
     <string name="notification_recording_stop">Stop</string>
 
     <string name="update_channel_name">Updates</string>

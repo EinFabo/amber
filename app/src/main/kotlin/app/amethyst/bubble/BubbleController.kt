@@ -6,6 +6,7 @@ import android.animation.TimeAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -53,6 +54,8 @@ class BubbleController(
     private val quickMenu: (currentApp: String?) -> List<QuickSlot?>,
     /** Runs a quick menu action; false when it could not (the run moved on, nothing to do). */
     private val onQuickAction: (action: QuickAction, currentApp: String?) -> Boolean,
+    /** The thumb let go on a grey button: say why it cannot run. */
+    private val onQuickActionOff: (action: QuickAction, currentApp: String?) -> Unit,
     /** The bubble was let go and docked on [side], at [edgeY] along it ([BubbleSettings.edgeY]). */
     private val onMoved: (side: BubbleSide, edgeY: Float) -> Unit,
     /** The bubble was dropped on the hide target while this app was in front. */
@@ -99,6 +102,9 @@ class BubbleController(
     private val menuView = QuickMenuView(service)
     private var menuParams: WindowManager.LayoutParams? = null
 
+    /** The safe area last read off the menu's window, on Android 9 and 10 ([menuInsets]). */
+    private var knownMenuInsets: SafeArea? = null
+
     /** The open menu's slots, as they were when it opened. */
     private var menuSlots: List<QuickSlot?> = emptyList()
     private var hapticsEnabled = true
@@ -107,6 +113,9 @@ class BubbleController(
     private var textFieldFocused = false
     private var locked = false
     private var dictating = false
+
+    /** The notification shade or quick settings are pulled down ([app.amethyst.core.bubble.SystemShade]). */
+    private var shadeOpen = false
 
     /** The app in front, as far as the service can tell; the bubble stays out of hidden ones. */
     private var currentApp: String? = null
@@ -178,6 +187,7 @@ class BubbleController(
         }
 
         view.setOnTouchListener(TouchHandler())
+        keepBackGestureOff()
         // Start hidden when the bubble is only wanted with a text field; the first focus
         // event pops it in.
         shown = wantsVisible()
@@ -231,6 +241,19 @@ class BubbleController(
         }
         menuView.visibility = View.INVISIBLE
         menuView.onClosed = { menuView.visibility = View.INVISIBLE }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            // Android 9 and 10 read the safe area off this window ([menuInsets]); they arrive
+            // after a rotation, a moment later than the configuration. The bubble is put back
+            // only when they changed - not on every dispatch, which may come with the menu.
+            menuView.setOnApplyWindowInsetsListener { v, insets ->
+                val now = menuInsets()
+                if (now != knownMenuInsets) {
+                    knownMenuInsets = now
+                    v.post { replace() }
+                }
+                v.onApplyWindowInsets(insets)
+            }
+        }
         try {
             windows.addView(menuView, menu)
             menuParams = menu
@@ -348,10 +371,15 @@ class BubbleController(
     }
 
     /**
-     * The screen turned or changed size: the bubble goes back to its edge - the same side,
-     * the same share of the height. Measured again once the new size has settled.
+     * The screen turned or changed size, or the display size or font size changed: the bubble
+     * goes back to its edge - the same side, the same share of the height - at its size in
+     * the new pixels, and the menu takes the new sizes too. Until 0.35 both kept the pixels
+     * they were made with until the service connected again. Measured again once the new size
+     * has settled.
      */
     fun screenChanged() {
+        menuView.sizesChanged()
+        fitMenuWindow()
         replace()
         view.post { replace() }
     }
@@ -360,10 +388,41 @@ class BubbleController(
         val layoutParams = params ?: return
         if (touching) return
         moveAnimator?.cancel()
-        takePosition(settings, layoutParams.height)
+        val size = dp(settings.sizeDp)
+        layoutParams.width = size
+        layoutParams.height = size
+        takePosition(settings, size)
         layoutParams.x = targetX()
         layoutParams.y = targetY()
         update()
+    }
+
+    /**
+     * The menu's window over the whole screen as it is now. Its insets are the bars' and the
+     * cutout's on Android 9 and 10 ([safeArea]), so it follows a rotation at once rather than
+     * on the menu's next opening.
+     */
+    private fun fitMenuWindow() {
+        val menu = menuParams ?: return
+        val (width, height) = screenSize()
+        if (menu.width == width && menu.height == height) return
+        menu.width = width
+        menu.height = height
+        runCatching { windowManager?.updateViewLayout(menuView, menu) }
+            .onFailure { Log.w(TAG, "could not resize the quick menu", it) }
+    }
+
+    /**
+     * A drag that starts at the bubble on its edge is the bubble's, not Back's: the edge is where
+     * the gesture navigation's Back swipe begins, and pulling the bubble away from it went
+     * back in the app underneath. The whole bubble is kept out of the system's gestures
+     * (Android 10+), in the view's own coordinates - the window moving takes it along.
+     */
+    private fun keepBackGestureOff() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        view.addOnLayoutChangeListener { v, left, top, right, bottom, _, _, _, _ ->
+            v.systemGestureExclusionRects = listOf(Rect(0, 0, right - left, bottom - top))
+        }
     }
 
     /** Side and place from [from], in pixels for a bubble of [size] on this screen. */
@@ -459,8 +518,17 @@ class BubbleController(
         applyVisibility(immediate = false)
     }
 
+    /** The shade came down or went up again: the bubble leaves at once, and comes back with it gone. */
+    fun setShadeOpen(open: Boolean) {
+        if (open == shadeOpen) return
+        shadeOpen = open
+        Log.i(TAG, if (open) "notification shade open: bubble hidden" else "notification shade closed")
+        if (open) closeMenu()
+        applyVisibility(immediate = open)
+    }
+
     private fun wantsVisible(): Boolean =
-        BubbleVisibility.wanted(dictating, currentApp, settings, textFieldFocused, commandsOn, locked)
+        BubbleVisibility.wanted(dictating, currentApp, settings, textFieldFocused, commandsOn, locked, shadeOpen)
 
     /** The run in progress is a voice command; see [BubbleView.command]. */
     fun setCommand(on: Boolean) {
@@ -729,6 +797,8 @@ class BubbleController(
                     settleAfterMenu(layoutParams)
                     if (slot == null || !slot.enabled) {
                         haptic(Haptics.Kind.REJECT)
+                        // A grey button says why it is grey; an empty place has nothing to say.
+                        if (slot != null) onQuickActionOff(slot.action, currentApp)
                     } else {
                         Log.i(TAG, "quick menu: ${slot.action.name}")
                         haptic(if (onQuickAction(slot.action, currentApp)) Haptics.Kind.CONFIRM else Haptics.Kind.REJECT)
@@ -776,20 +846,13 @@ class BubbleController(
      * and not rebuilt under the finger; the action is checked again when it runs.
      */
     private fun openMenu(cx: Float, cy: Float) {
-        val windows = windowManager ?: return
-        val menu = menuParams ?: return
+        if (windowManager == null || menuParams == null) return
         menuSlots = quickMenu(currentApp)
         val fan = fanAt(cx, cy)
         gesture.fanShown(fan, menuSlots.map { it != null })
         haptic(Haptics.Kind.CLICK)
         // The screen may have turned since the window was added.
-        val (width, height) = screenSize()
-        if (menu.width != width || menu.height != height) {
-            menu.width = width
-            menu.height = height
-            runCatching { windows.updateViewLayout(menuView, menu) }
-                .onFailure { Log.w(TAG, "could not resize the quick menu", it) }
-        }
+        fitMenuWindow()
         menuView.side = side
         menuView.open(fan, menuSlots)
         menuView.visibility = View.VISIBLE
@@ -954,11 +1017,35 @@ class BubbleController(
             val area = SafeArea(bars.left, bars.top, bars.right, maxOf(bars.bottom, gestures.bottom))
             if (area != SafeArea()) return area
         }
-        // Android 9 and 10, or no insets known: the bars' usual sizes, the navigation bar at
-        // the bottom only in portrait (in landscape it may sit on either side).
+        // Android 9 and 10: the insets of the menu's window, which covers the whole screen -
+        // the navigation bar on whichever side it sits in landscape, and the cutout.
+        menuInsets()?.let { return it }
+        // No insets known: the bars' usual sizes, the navigation bar at the bottom only in
+        // portrait (in landscape it may sit on either side).
         val status = systemDimen("status_bar_height")
         val navigation = if (height > width) systemDimen("navigation_bar_height") else 0
         return SafeArea(top = status, bottom = navigation)
+    }
+
+    /**
+     * The bars (stable insets: there even while hidden) and the cutout as the menu's window
+     * gets them, whichever reaches further in on each side. Null while that window is not
+     * the screen's size ([fitMenuWindow]) or got none - then nothing is known.
+     */
+    @Suppress("DEPRECATION")
+    private fun menuInsets(): SafeArea? {
+        val menu = menuParams ?: return null
+        val (width, height) = screenSize()
+        if (menu.width != width || menu.height != height) return null
+        val insets = menuView.rootWindowInsets ?: return null
+        val cutout = insets.displayCutout
+        val area = SafeArea(
+            left = maxOf(insets.stableInsetLeft, cutout?.safeInsetLeft ?: 0),
+            top = maxOf(insets.stableInsetTop, cutout?.safeInsetTop ?: 0),
+            right = maxOf(insets.stableInsetRight, cutout?.safeInsetRight ?: 0),
+            bottom = maxOf(insets.stableInsetBottom, cutout?.safeInsetBottom ?: 0),
+        )
+        return area.takeIf { it != SafeArea() }
     }
 
     @SuppressLint("DiscouragedApi", "InternalInsetResource")

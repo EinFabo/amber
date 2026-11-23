@@ -61,6 +61,13 @@ interface EditableTarget {
      */
     val isSecret: Boolean get() = false
 
+    /**
+     * Writing the whole field back would lose what it holds besides plain text, or the field
+     * is no EditText ([FieldText.setTextFlattens]): pasting at the cursor goes before
+     * SET_TEXT, where the clipboard may be used.
+     */
+    val setTextFlattens: Boolean get() = false
+
     /** Contents after an attempt, for verification. Null when unreadable. */
     fun readBack(): String?
 }
@@ -142,6 +149,7 @@ class InsertionEngine(
         var copied = false
         committed = null
         setFragment = null
+        pasted = null
         cursorPutBack = false
 
         if (target == null) {
@@ -158,13 +166,11 @@ class InsertionEngine(
             return InsertionOutcome(InsertionStrategy.CLIPBOARD_ONLY, false, false, packageName, refused = verdict)
         }
 
-        val usesClipboard = setOf(InsertionStrategy.PASTE, InsertionStrategy.CLIPBOARD_ONLY)
         // Typing comes first whenever an input connection is there: it is how every keyboard
         // writes, so apps keep it. SET_TEXT can show the words and still lose them - Google
         // Keep's note body displayed a SET_TEXT write and dropped it on closing (Pixel 9a,
         // 2026-10-29). What worked last time only orders the fallbacks.
-        val order = (listOf(InsertionStrategy.COMMIT_TEXT) + memory.order(packageName).filter { it != InsertionStrategy.COMMIT_TEXT })
-            .filter { allowClipboard || it !in usesClipboard }
+        val order = fallbacks(memory.order(packageName), allowClipboard, pasteFirst = allowClipboard && target.setTextFlattens)
         val words = if ('\n' in text && !target.takesLineBreaks) TranscriptNormalizer.oneLine(text) else text
 
         for (strategy in order) {
@@ -185,8 +191,12 @@ class InsertionEngine(
 
                 InsertionStrategy.PASTE -> {
                     // Pasting needs the text on the clipboard first; that is also why a
-                    // failed paste still leaves the dictation recoverable.
-                    copied = clipboard.copy(words) || copied
+                    // failed paste still leaves the dictation recoverable. What typing would
+                    // type goes there - space and capital at the seam included - for a field
+                    // that gets the paste before SET_TEXT ([EditableTarget.setTextFlattens]).
+                    val clip = pasteFragment(target, words, options)
+                    pasted = clip
+                    copied = clipboard.copy(clip) || copied
                     copied && tryPaste(target, words)
                 }
 
@@ -203,11 +213,11 @@ class InsertionEngine(
                 // on the clipboard - for the next paste anywhere, and for any app allowed to
                 // read it. A clip that is the fallback ("copied, paste it yourself") never
                 // gets here: then nothing went into the field.
-                if (copied && clipboard.forget(words)) copied = false
+                if (copied && clipboard.forget(if (strategy == InsertionStrategy.PASTE) pasted ?: words else words)) copied = false
                 val fragment = when (strategy) {
                     InsertionStrategy.COMMIT_TEXT -> committed
                     InsertionStrategy.SET_TEXT -> setFragment
-                    InsertionStrategy.PASTE -> words
+                    InsertionStrategy.PASTE -> pasted ?: words
                     InsertionStrategy.CLIPBOARD_ONLY -> null
                 }
                 return InsertionOutcome(strategy, true, copied, packageName, fragment = fragment, cursorPutBack = cursorPutBack)
@@ -227,6 +237,9 @@ class InsertionEngine(
 
     /** What the last SET_TEXT added before the cursor, if it only added. */
     private var setFragment: String? = null
+
+    /** What the last paste put on the clipboard: the fragment, for [InsertionOutcome.fragment]. */
+    private var pasted: String? = null
 
     /** The last insertion found the cursor elsewhere and put it behind the words. */
     private var cursorPutBack = false
@@ -299,6 +312,30 @@ class InsertionEngine(
         if (!spliced.startsWith(before) || !spliced.endsWith(after)) return text.trim()
         return spliced.substring(before.length, spliced.length - after.length)
     }
+
+    /**
+     * The order to try: typing first whenever an input connection is there, then what worked
+     * last time ([memory]). [pasteFirst]: a paste goes before SET_TEXT, which would flatten
+     * the field ([EditableTarget.setTextFlattens]) - typing keeps the field as it is, so it
+     * stays first. Without [allowClipboard] neither paste nor the clipboard is tried.
+     */
+    private fun fallbacks(memory: List<InsertionStrategy>, allowClipboard: Boolean, pasteFirst: Boolean): List<InsertionStrategy> {
+        val usesClipboard = setOf(InsertionStrategy.PASTE, InsertionStrategy.CLIPBOARD_ONLY)
+        val rest = memory.filter { it != InsertionStrategy.COMMIT_TEXT && (allowClipboard || it !in usesClipboard) }
+        val ordered = if (pasteFirst && InsertionStrategy.PASTE in rest) {
+            listOf(InsertionStrategy.PASTE) + rest.filter { it != InsertionStrategy.PASTE }
+        } else {
+            rest
+        }
+        return listOf(InsertionStrategy.COMMIT_TEXT) + ordered
+    }
+
+    /**
+     * What a paste puts in: the words with their seam to the text before the cursor, as typing
+     * would ([commitFragment]); the plain words where the field cannot be read.
+     */
+    private fun pasteFragment(target: EditableTarget, text: String, options: SpliceOptions): String =
+        target.readField()?.let { commitFragment(it, text, options) }?.takeIf { it.isNotEmpty() } ?: text
 
     private fun trySetText(target: EditableTarget, text: String, options: SpliceOptions): Boolean {
         if (!target.isEditable) return false

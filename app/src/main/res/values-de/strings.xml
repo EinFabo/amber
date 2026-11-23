@@ -10,6 +10,7 @@
     <string name="notification_recording_channel">Aufnahme</string>
     <string name="notification_recording_channel_description">Wird angezeigt, solange Embersay aufnimmt, mit einer Taste zum Stoppen</string>
     <string name="notification_recording_title">Aufnahme läuft…</string>
+    <string name="notification_recording_text">Tippe zum Beenden auf die Bubble oder auf „Stoppen“</string>
     <string name="notification_recording_stop">Stoppen</string>
 
     <string name="update_channel_name">Updates</string>

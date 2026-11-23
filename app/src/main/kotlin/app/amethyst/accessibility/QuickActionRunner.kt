@@ -74,6 +74,17 @@ class QuickActionRunner(
         return ran
     }
 
+    /**
+     * The thumb let go on a grey button: the reason it is grey, in the message over the app
+     * ([app.amethyst.Messages]) - asked of the state now, so a button that could run by now
+     * says nothing.
+     */
+    fun off(action: QuickAction, currentApp: String?) {
+        val why = QuickActions.whyOff(action, context(currentApp)) ?: return
+        Log.i(TAG, "quick menu: ${action.name} is off, ${why.name}")
+        toast(Texts.quickOff(service, why))
+    }
+
     private fun done(message: Int, action: () -> Unit): Boolean {
         action()
         toast(service.getString(message))

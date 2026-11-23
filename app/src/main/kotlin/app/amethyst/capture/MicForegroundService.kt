@@ -109,9 +109,13 @@ class MicForegroundService : Service() {
         )
         val builder = Notification.Builder(this, CHANNEL_ID)
         // No tap target of its own: opening Embersay mid-dictation would take the focus away from
-        // the field the words are for.
+        // the field the words are for. Collapsed - as a notification of low importance is in
+        // the shade - Android shows the title and this line, not the actions; the line says
+        // how to finish, so the title alone is not all there is (Pixel 9a, 2026-11-22). A Stop
+        // visible while collapsed would take a media or custom layout, which this is not.
         builder
             .setContentTitle(getString(R.string.notification_recording_title))
+            .setContentText(getString(R.string.notification_recording_text))
             .setSmallIcon(R.drawable.ic_amber)
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)

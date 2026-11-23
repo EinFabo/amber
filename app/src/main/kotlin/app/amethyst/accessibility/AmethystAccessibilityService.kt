@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -27,6 +28,7 @@ import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldFocus
 import app.amethyst.core.bubble.FieldPresence
 import app.amethyst.core.bubble.SecretField
+import app.amethyst.core.bubble.SystemShade
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.RunMode
 import app.amethyst.core.insert.InputTarget
@@ -139,6 +141,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             onDoubleTap = { graph.dictation.commandInstead() },
             quickMenu = quickActions::slots,
             onQuickAction = quickActions::run,
+            onQuickActionOff = quickActions::off,
             onMoved = { side, edgeY ->
                 graph.bubbleEvents.tryEmit(BubbleEvent.Docked(side))
                 graph.appScope.launch {
@@ -227,6 +230,8 @@ class AmethystAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val fromKeyboard = event.packageName?.toString()?.let(::isKeyboard) == true
                 if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen, fromKeyboardApp = fromKeyboard)
+                // SystemUI's shade, or the app that came over it: is the shade still down?
+                if (event.packageName?.toString() == SYSTEM_UI || shadeOpen) checkShade()
                 event.packageName?.toString()?.let { pkg ->
                     if (pkg != packageName) foregroundPackage = pkg
                     // The keyboard and the system bars send window changes too; they are not
@@ -259,10 +264,13 @@ class AmethystAccessibilityService : AccessibilityService() {
             // Each one costs a getWindows() call; only the bubble and a message on screen need
             // the keyboard's edge, and a keyboard only comes, goes or changes size - a window
             // that changed its title, layer or focus is none of these.
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> if (mayMoveKeyboard(event.windowChanges)) {
-                if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
-                // A keyboard that came after the message would cover it, or put it on its keys.
-                pill.relayout()
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                if (mayMoveKeyboard(event.windowChanges)) {
+                    if (bubbleShown) keyboard?.windowsChanged(graph.dictation.isRunning, bubbleOnScreen)
+                    // A keyboard that came after the message would cover it, or put it on its keys.
+                    pill.relayout()
+                }
+                if (mayMoveShade(event.windowChanges)) checkShade()
             }
         }
     }
@@ -295,6 +303,37 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     /** Whether a window change of these kinds can be a keyboard coming, going or resizing; 0 says nothing. */
     private fun mayMoveKeyboard(changes: Int): Boolean = changes == 0 || changes and KEYBOARD_WINDOW_CHANGES != 0
+
+    /** Whether a window change of these kinds can be the shade coming down or going up; 0 says nothing. */
+    private fun mayMoveShade(changes: Int): Boolean = changes == 0 || changes and SHADE_WINDOW_CHANGES != 0
+
+    /** The notification shade or quick settings are down, as last seen ([checkShade]). */
+    private var shadeOpen = false
+
+    /**
+     * Looks whether the notification shade or quick settings are pulled down ([SystemShade])
+     * and tells the bubble, which steps aside while they are: an accessibility overlay lies
+     * above the shade, and the bubble covered the notifications' text (Pixel 9a, 2026-11-22).
+     * One getWindows() call; only while the bubble is switched on.
+     */
+    private fun checkShade() {
+        val controller = bubble ?: return
+        val open = bubbleShown && runCatching {
+            val bounds = Rect()
+            val seen = windows.map { window ->
+                window.getBoundsInScreen(bounds)
+                SystemShade.Window(
+                    system = window.type == AccessibilityWindowInfo.TYPE_SYSTEM,
+                    bounds = Box(bounds.left, bounds.top, bounds.right, bounds.bottom),
+                    inUse = window.isFocused || window.isActive,
+                    owner = { window.root?.packageName?.toString() },
+                )
+            }
+            SystemShade.open(seen, controller.screen())
+        }.getOrDefault(false)
+        shadeOpen = open
+        controller.setShadeOpen(open)
+    }
 
     private val bubbleShown: Boolean
         get() = graph.settings.value.bubble.enabled
@@ -587,7 +626,7 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     private companion object {
         const val TAG = "Embersay"
-        const val SYSTEM_UI = "com.android.systemui"
+        const val SYSTEM_UI = SystemShade.SYSTEM_UI
 
         /** Window id of a target known only through the input connection. */
         const val NO_WINDOW = -1
@@ -596,6 +635,13 @@ class AmethystAccessibilityService : AccessibilityService() {
         const val KEYBOARD_WINDOW_CHANGES = AccessibilityEvent.WINDOWS_CHANGE_ADDED or
             AccessibilityEvent.WINDOWS_CHANGE_REMOVED or
             AccessibilityEvent.WINDOWS_CHANGE_BOUNDS
+
+        /** The window changes the shade shows up as: its window shown, gone, resized, or taking the focus. */
+        const val SHADE_WINDOW_CHANGES = AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+            AccessibilityEvent.WINDOWS_CHANGE_REMOVED or
+            AccessibilityEvent.WINDOWS_CHANGE_BOUNDS or
+            AccessibilityEvent.WINDOWS_CHANGE_FOCUSED or
+            AccessibilityEvent.WINDOWS_CHANGE_ACTIVE
 
         /** Lines kept for Diagnostics → Keyboard, the keyboard's readings and these notes together. */
         const val NOTE_LINES = 40

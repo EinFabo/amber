@@ -4,6 +4,18 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.os.Build
 import android.os.Bundle
+import android.text.Spanned
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.BackgroundColorSpan
+import android.text.style.BulletSpan
+import android.text.style.ClickableSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.ImageSpan
+import android.text.style.QuoteSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StrikethroughSpan
+import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
@@ -16,6 +28,7 @@ import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
+import app.amethyst.core.insert.FieldText
 import app.amethyst.core.insert.FieldWindow
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionOutcome
@@ -310,9 +323,9 @@ class TextInserter(
             // is the only genuine "cannot read" case.
             if (!node.refresh()) return null
 
-            val existing = currentText()
             val start = node.textSelectionStart
             val end = node.textSelectionEnd
+            val existing = currentText(start, end)
             return if (start in 0..existing.length && end in 0..existing.length) {
                 FieldState(existing, start, end)
             } else {
@@ -354,18 +367,30 @@ class TextInserter(
 
         override fun readBack(): String? {
             if (!node.refresh()) return null
-            return currentText()
+            return currentText(node.textSelectionStart, node.textSelectionEnd)
         }
+
+        /**
+         * Links, mentions or formatting in the field's text, or a node that is no EditText:
+         * SET_TEXT would write it back as plain text ([FieldText.setTextFlattens]). Only the
+         * spans the user would miss count - not the spell checker's marks or the keyboard's
+         * underline, which every field being typed in carries and gets back by itself.
+         */
+        override val setTextFlattens: Boolean
+            get() {
+                val text = node.text
+                val formatted = text is Spanned && FORMATTING.any { text.getSpans(0, text.length, it).isNotEmpty() }
+                return FieldText.setTextFlattens(node.className, formatted)
+            }
 
         /**
          * An empty field reports null text, which must read as "" and not as unreadable -
          * otherwise dictation would never work into an empty field. And a field showing its
-         * placeholder reports that placeholder as its text, which must not be spliced onto.
+         * placeholder reports that placeholder as its text, which must not be spliced onto -
+         * whether it says so or only hands out its hint ([FieldText.contents]).
          */
-        private fun currentText(): String = when {
-            node.isShowingHintText -> ""
-            else -> node.text?.toString().orEmpty()
-        }
+        private fun currentText(selectionStart: Int, selectionEnd: Int): String =
+            FieldText.contents(node.text, node.hintText, node.isShowingHintText, selectionStart, selectionEnd)
     }
 
     /**
@@ -438,6 +463,21 @@ class TextInserter(
     companion object {
         private const val TAG = "Embersay"
         private const val MAX_NODES_SEARCHED = 1_500
+
+        /** Spans a plain SET_TEXT write loses that someone would miss: links and mentions, styles, pictures. */
+        private val FORMATTING = listOf(
+            ClickableSpan::class.java,
+            StyleSpan::class.java,
+            StrikethroughSpan::class.java,
+            ForegroundColorSpan::class.java,
+            BackgroundColorSpan::class.java,
+            TypefaceSpan::class.java,
+            RelativeSizeSpan::class.java,
+            AbsoluteSizeSpan::class.java,
+            QuoteSpan::class.java,
+            BulletSpan::class.java,
+            ImageSpan::class.java,
+        )
 
         /**
          * The input the service's input method is bound to, if input has started - only

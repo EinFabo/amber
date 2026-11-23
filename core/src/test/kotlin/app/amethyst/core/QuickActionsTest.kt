@@ -7,6 +7,7 @@ import app.amethyst.core.bubble.QuickMenuContext
 import app.amethyst.core.bubble.QuickMenuGeometry
 import app.amethyst.core.bubble.QuickMenuItem
 import app.amethyst.core.bubble.QuickMenuLayout
+import app.amethyst.core.bubble.QuickOff
 import app.amethyst.core.bubble.QuickSlot
 import app.amethyst.core.bubble.QuickPhase
 import app.amethyst.core.engine.EnginePresets
@@ -310,5 +311,55 @@ class QuickActionsTest {
         assertEquals(CleanupHere.NOT_SET_UP, QuickActions.cleanupHere(withCleanup(null), "com.whatsapp") { true })
         assertEquals(CleanupHere.NOT_SET_UP, QuickActions.cleanupHere(withCleanup(flash), "com.whatsapp") { false }, "its key is gone")
         assertEquals(CleanupHere.NOT_SET_UP, QuickActions.cleanupHere(withCleanup(flash), null) { true })
+    }
+
+    @Test
+    fun `a grey button has a reason, an enabled one none - in every state`() {
+        // Every idle item in some layout: nine items, four places each.
+        val layouts = QuickMenuItem.entries.map { it.id }.chunked(QuickMenuGeometry.SLOTS).map { QuickMenuLayout.idle(it) }
+        for (context in everyContext) {
+            for (slot in layouts.flatMap { QuickActions.slots(context, it) }) {
+                if (slot == null) continue
+                assertEquals(slot.enabled, QuickActions.whyOff(slot.action, context) == null, "${slot.action} in $context")
+            }
+        }
+    }
+
+    @Test
+    fun `the app's own buttons say they work only in another app`() {
+        val inAmber = idle.copy(otherAppInFront = false)
+        for (action in listOf(QuickAction.HIDE_HERE, QuickAction.STYLE_HERE, QuickAction.NEXT_STYLE, QuickAction.APP_PAGE, QuickAction.CLEANUP_OFF_HERE)) {
+            assertEquals(QuickOff.OTHER_APP_ONLY, QuickActions.whyOff(action, inAmber), action.name)
+        }
+    }
+
+    @Test
+    fun `without a dictation that comes first, before the missing field`() {
+        val nothing = idle.copy(hasLastDictation = false, canUndo = false, fieldFocused = false)
+        assertEquals(QuickOff.NO_DICTATION, QuickActions.whyOff(QuickAction.INSERT_AGAIN, nothing))
+        assertEquals(QuickOff.NO_DICTATION, QuickActions.whyOff(QuickAction.UNDO_LAST, nothing))
+        assertEquals(QuickOff.NO_DICTATION, QuickActions.whyOff(QuickAction.COPY_LAST, nothing))
+        assertEquals(QuickOff.NO_FIELD, QuickActions.whyOff(QuickAction.INSERT_AGAIN, idle.copy(fieldFocused = false)))
+        assertEquals(QuickOff.NO_FIELD, QuickActions.whyOff(QuickAction.UNDO_LAST, idle.copy(fieldFocused = false)))
+    }
+
+    @Test
+    fun `undo in another app than the last insertion has nothing to undo`() {
+        assertEquals(QuickOff.NOTHING_TO_UNDO, QuickActions.whyOff(QuickAction.UNDO_LAST, idle.copy(canUndo = false)))
+    }
+
+    @Test
+    fun `no cleanup set up greys the cleanup switch and the buttons that skip it`() {
+        assertEquals(QuickOff.NO_CLEANUP, QuickActions.whyOff(QuickAction.CLEANUP_OFF_HERE, idle.copy(cleanupHere = CleanupHere.NOT_SET_UP)))
+        val recording = idle.copy(phase = QuickPhase.RECORDING, cleanupPlanned = false)
+        assertEquals(QuickOff.NO_CLEANUP, QuickActions.whyOff(QuickAction.SEND_WITHOUT_CLEANUP, recording))
+        assertEquals(QuickOff.NO_CLEANUP, QuickActions.whyOff(QuickAction.KEEP_AS_RECOGNIZED, recording.copy(phase = QuickPhase.WORKING)))
+        assertEquals(QuickOff.NOT_FOR_COMMAND, QuickActions.whyOff(QuickAction.SEND_WITHOUT_CLEANUP, recording.copy(command = true)))
+    }
+
+    @Test
+    fun `a recording that cannot pause says so`() {
+        assertEquals(QuickOff.CANNOT_PAUSE, QuickActions.whyOff(QuickAction.PAUSE, idle.copy(phase = QuickPhase.RECORDING, canPause = false)))
+        assertNull(QuickActions.whyOff(QuickAction.PAUSE, idle.copy(phase = QuickPhase.RECORDING)))
     }
 }

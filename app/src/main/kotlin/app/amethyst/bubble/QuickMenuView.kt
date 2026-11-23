@@ -59,25 +59,38 @@ class QuickMenuView(context: Context) : View(context) {
     private val heat = Array(QuickMenuGeometry.SLOTS) { Tween() }
     private val dim = Tween()
 
-    private val density = resources.displayMetrics.density
-    private val orbRadius = ORB_DP * density / 2
+    // In the screen's pixels as they are now: a new display size or font size changes them
+    // without a new view ([sizesChanged]).
+    private var density = 1f
+    private var orbRadius = 0f
 
-    private val orb = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        setShadowLayer(6 * density, 0f, 3 * density, SHADOW)
-    }
+    private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = density
     }
     private val empty = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 1.5f * density
         color = EMPTY
-        pathEffect = DashPathEffect(floatArrayOf(4 * density, 3.5f * density), 0f)
     }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14f, resources.displayMetrics)
         typeface = Typeface.create(Typeface.DEFAULT, 600, false)
+    }
+
+    init {
+        sizesChanged()
+    }
+
+    /** Takes the display size and font size as they are now; the next frame is drawn in them. */
+    fun sizesChanged() {
+        val metrics = resources.displayMetrics
+        density = metrics.density
+        orbRadius = ORB_DP * density / 2
+        orb.setShadowLayer(6 * density, 0f, 3 * density, SHADOW)
+        rim.strokeWidth = density
+        empty.strokeWidth = 1.5f * density
+        empty.pathEffect = DashPathEffect(floatArrayOf(4 * density, 3.5f * density), 0f)
+        text.textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14f, metrics)
+        invalidate()
     }
     private val box = RectF()
     private val outEase = OvershootInterpolator(1.6f)

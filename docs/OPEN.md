@@ -23,8 +23,17 @@ Open for Fabi:
   Android's speech recognition under "Add speech recognition".
 - Built (item 30, 33, 37, 41, 42), to try on a phone: the dialogs before deleting a model or
   the whole history; Undo after removing an app's style, clearing diagnostics and a tap on a
-  recognition row; Home's failure line staying until the next tap. Not built from item 42: a
-  reason on the quick menu's grey buttons, bare HTTP codes in toasts.
+  recognition row; Home's failure line staying until the next tap. Not built from item 42: bare
+  HTTP codes in toasts.
+- Built (item 34, 35, 40, the grey buttons' reasons of 42, and the Pixel test of 2026-11-22),
+  to try on a phone: dragging the bubble off its edge with gesture navigation goes no Back; the
+  bubble and quick menu after a new display size or font size; a grey quick menu button says
+  why when let go on; the bubble gone while the notification shade or quick settings are down,
+  back once they are up; the practice step's text clear of the bubble and the "more" button
+  under the text; the recording notification's second line. Dictating into a field with links
+  or formatting (a mail draft, Google Docs) - pasted, not written back flat; a field that shows
+  its hint as text gets no words spliced onto it. Android 9/10 in landscape: the bubble clear
+  of the navigation bar on the side.
 - Note for item 22: `docs/PRIVACY.md` and both raw texts say a shared Diagnostics report "names
   the app each dictation went into" - true until the report replaces the names; change that
   line in all three with it.

@@ -90,6 +90,33 @@ enum class QuickAction(private val phases: Set<QuickPhase>) {
 /** One slot of the menu; a disabled one is shown greyed and does nothing, never moved. */
 data class QuickSlot(val action: QuickAction, val enabled: Boolean)
 
+/**
+ * Why a grey button of the quick menu cannot run, said when the thumb lets go on it - a buzz
+ * alone left people guessing ([QuickActions.whyOff]). The words are in the app's strings.
+ */
+enum class QuickOff {
+    /** Hiding, the cleanup switch and the styles belong to an app, and Embersay is in front. */
+    OTHER_APP_ONLY,
+
+    /** Nothing dictated since Embersay started, so nothing to insert or copy. */
+    NO_DICTATION,
+
+    /** There is a dictation, but the last insertion is not in the app in front. */
+    NOTHING_TO_UNDO,
+
+    /** Inserting and undoing need a text field with the cursor in it. */
+    NO_FIELD,
+
+    /** No cleanup would run here, so there is nothing to switch off or skip. */
+    NO_CLEANUP,
+
+    /** A voice command is never cleaned up. */
+    NOT_FOR_COMMAND,
+
+    /** Android's speech recognition holds the microphone, or the run is a command. */
+    CANNOT_PAUSE,
+}
+
 /** What the menu is built from, taken once when it opens. */
 data class QuickMenuContext(
     val phase: QuickPhase,
@@ -139,37 +166,71 @@ object QuickActions {
             else idleLayout.getOrNull(i)?.let { idleSlot(it, context) }
         }
         QuickPhase.RECORDING -> listOf(
-            QuickSlot(QuickAction.CANCEL, true),
-            QuickSlot(QuickAction.SEND_WITHOUT_CLEANUP, context.cleanupPlanned && !context.command),
-            QuickSlot(QuickAction.START_OVER, true),
-            if (context.paused) QuickSlot(QuickAction.RESUME, true) else QuickSlot(QuickAction.PAUSE, context.canPause),
+            slot(QuickAction.CANCEL, context),
+            slot(QuickAction.SEND_WITHOUT_CLEANUP, context),
+            slot(QuickAction.START_OVER, context),
+            slot(if (context.paused) QuickAction.RESUME else QuickAction.PAUSE, context),
         )
         QuickPhase.WORKING -> listOf(
-            QuickSlot(QuickAction.CANCEL, true),
-            QuickSlot(QuickAction.KEEP_AS_RECOGNIZED, context.cleanupPlanned && !context.command),
+            slot(QuickAction.CANCEL, context),
+            slot(QuickAction.KEEP_AS_RECOGNIZED, context),
             null,
             null,
         )
     }
 
     /** What [item] offers while idle, and whether it can run in [context]. */
-    private fun idleSlot(item: QuickMenuItem, context: QuickMenuContext): QuickSlot {
-        val otherApp = context.otherAppInFront
-        return when (item) {
-            QuickMenuItem.INSERT_AGAIN -> QuickSlot(QuickAction.INSERT_AGAIN, context.hasLastDictation && context.fieldFocused)
-            QuickMenuItem.UNDO_LAST -> QuickSlot(QuickAction.UNDO_LAST, context.canUndo && context.fieldFocused)
-            QuickMenuItem.CLEANUP_HERE -> QuickSlot(
-                if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE,
-                otherApp && context.cleanupHere != CleanupHere.NOT_SET_UP,
-            )
-            QuickMenuItem.COPY_LAST -> QuickSlot(QuickAction.COPY_LAST, context.hasLastDictation)
-            QuickMenuItem.HIDE_HERE -> QuickSlot(QuickAction.HIDE_HERE, otherApp)
-            QuickMenuItem.OPEN_AMBER -> QuickSlot(QuickAction.OPEN_AMBER, true)
-            // A style belongs to an app: in Amber itself there is none to change.
-            QuickMenuItem.STYLE_HERE -> QuickSlot(QuickAction.STYLE_HERE, otherApp)
-            QuickMenuItem.NEXT_STYLE -> QuickSlot(QuickAction.NEXT_STYLE, otherApp)
-            QuickMenuItem.APP_PAGE -> QuickSlot(QuickAction.APP_PAGE, otherApp)
+    private fun idleSlot(item: QuickMenuItem, context: QuickMenuContext): QuickSlot = slot(
+        when (item) {
+            QuickMenuItem.INSERT_AGAIN -> QuickAction.INSERT_AGAIN
+            QuickMenuItem.UNDO_LAST -> QuickAction.UNDO_LAST
+            QuickMenuItem.CLEANUP_HERE -> if (context.cleanupHere == CleanupHere.OFF) QuickAction.CLEANUP_ON_HERE else QuickAction.CLEANUP_OFF_HERE
+            QuickMenuItem.COPY_LAST -> QuickAction.COPY_LAST
+            QuickMenuItem.HIDE_HERE -> QuickAction.HIDE_HERE
+            QuickMenuItem.OPEN_AMBER -> QuickAction.OPEN_AMBER
+            QuickMenuItem.STYLE_HERE -> QuickAction.STYLE_HERE
+            QuickMenuItem.NEXT_STYLE -> QuickAction.NEXT_STYLE
+            QuickMenuItem.APP_PAGE -> QuickAction.APP_PAGE
+        },
+        context,
+    )
+
+    /** [action] greyed exactly when there is a reason it cannot run ([whyOff]). */
+    private fun slot(action: QuickAction, context: QuickMenuContext) = QuickSlot(action, whyOff(action, context) == null)
+
+    /**
+     * Why [action] cannot run in [context], or null when it can - the one rule for greying a
+     * button and for what the message says when the thumb lets go on a grey one. Where two
+     * reasons hold, the one to fix first: without any dictation, a text field would not help.
+     */
+    fun whyOff(action: QuickAction, context: QuickMenuContext): QuickOff? = when (action) {
+        QuickAction.INSERT_AGAIN -> when {
+            !context.hasLastDictation -> QuickOff.NO_DICTATION
+            !context.fieldFocused -> QuickOff.NO_FIELD
+            else -> null
         }
+        QuickAction.UNDO_LAST -> when {
+            !context.hasLastDictation && !context.canUndo -> QuickOff.NO_DICTATION
+            !context.canUndo -> QuickOff.NOTHING_TO_UNDO
+            !context.fieldFocused -> QuickOff.NO_FIELD
+            else -> null
+        }
+        QuickAction.COPY_LAST -> if (context.hasLastDictation) null else QuickOff.NO_DICTATION
+        QuickAction.CLEANUP_OFF_HERE, QuickAction.CLEANUP_ON_HERE -> when {
+            !context.otherAppInFront -> QuickOff.OTHER_APP_ONLY
+            context.cleanupHere == CleanupHere.NOT_SET_UP -> QuickOff.NO_CLEANUP
+            else -> null
+        }
+        // A style belongs to an app: in Amber itself there is none to change.
+        QuickAction.HIDE_HERE, QuickAction.STYLE_HERE, QuickAction.NEXT_STYLE, QuickAction.APP_PAGE ->
+            if (context.otherAppInFront) null else QuickOff.OTHER_APP_ONLY
+        QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.KEEP_AS_RECOGNIZED -> when {
+            context.command -> QuickOff.NOT_FOR_COMMAND
+            !context.cleanupPlanned -> QuickOff.NO_CLEANUP
+            else -> null
+        }
+        QuickAction.PAUSE -> if (context.canPause) null else QuickOff.CANNOT_PAUSE
+        QuickAction.OPEN_AMBER, QuickAction.TRY_AGAIN, QuickAction.CANCEL, QuickAction.START_OVER, QuickAction.RESUME -> null
     }
 
     /**

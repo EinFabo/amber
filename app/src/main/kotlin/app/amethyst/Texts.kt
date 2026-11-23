@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickMenuItem
+import app.amethyst.core.bubble.QuickOff
 import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
@@ -340,6 +341,19 @@ object Texts {
             QuickAction.STYLE_HERE -> R.string.quick_style_here
             QuickAction.NEXT_STYLE -> R.string.quick_next_style
             QuickAction.APP_PAGE -> R.string.quick_app_page
+        },
+    )
+
+    /** Why a grey button of the quick menu cannot run ([QuickOff]), when the thumb lets go on it. */
+    fun quickOff(context: Context, why: QuickOff): String = context.getString(
+        when (why) {
+            QuickOff.OTHER_APP_ONLY -> R.string.quick_off_other_app
+            QuickOff.NO_DICTATION -> R.string.quick_off_no_dictation
+            QuickOff.NOTHING_TO_UNDO -> R.string.quick_off_nothing_to_undo
+            QuickOff.NO_FIELD -> R.string.quick_off_no_field
+            QuickOff.NO_CLEANUP -> R.string.quick_off_no_cleanup
+            QuickOff.NOT_FOR_COMMAND -> R.string.quick_off_command
+            QuickOff.CANNOT_PAUSE -> R.string.quick_off_cannot_pause
         },
     )
 

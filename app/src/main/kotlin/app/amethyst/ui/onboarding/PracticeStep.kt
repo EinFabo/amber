@@ -2,6 +2,7 @@ package app.amethyst.ui.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,6 +30,7 @@ import app.amethyst.R
 import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.ui.reportsOwnField
 import app.amethyst.Texts
+import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.ModelDownload
@@ -98,6 +100,7 @@ internal fun PracticeStep(
     StepPage(
         title = stringResource(R.string.practice_title),
         lead = stringResource(R.string.practice_lead),
+        inset = if (noFlame == null) bubbleRoom(settings.bubble.side, settings.bubble.sizeDp) else PaddingValues(0.dp),
         buttons = {
             when {
                 noFlame == PracticeBlock.NO_SERVICE -> {
@@ -152,6 +155,23 @@ internal fun PracticeStep(
         BubbleHint(settings.bubble.side, wanted = Practice.pointsAtBubble(readiness, practice), quiet = practice to text)
     }
 }
+
+/**
+ * Room on the edge the bubble docks on, so it covers no word of the step: it sits there while
+ * the step is up, and lay on the end of the download line and of the hints (Pixel 9a,
+ * 2026-11-22). The page's own margin counts; the bubble's side is the screen's, whatever the
+ * reading direction.
+ */
+private fun bubbleRoom(side: BubbleSide, sizeDp: Int): PaddingValues {
+    val room = (sizeDp - PAGE_MARGIN_DP + BUBBLE_GAP_DP).coerceAtLeast(0).dp
+    return if (side == BubbleSide.LEFT) PaddingValues.Absolute(left = room) else PaddingValues.Absolute(right = room)
+}
+
+/** [StepPage]'s margin on both sides. */
+private const val PAGE_MARGIN_DP = 20
+
+/** Between the bubble and the text beside it. */
+private const val BUBBLE_GAP_DP = 4
 
 /** One try: the dot that ticks, what to do, and Skip on the one up next. */
 @Composable
