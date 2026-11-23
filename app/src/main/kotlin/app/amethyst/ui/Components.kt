@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -171,7 +172,7 @@ fun IconAction(
 ) {
     Box(
         modifier = modifier
-            .size(44.dp)
+            .size(ICON_ACTION_SIZE)
             .clip(CircleShape)
             .clickable(onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
@@ -181,6 +182,9 @@ fun IconAction(
         Canvas(Modifier.size(22.dp)) { glyph(ink) }
     }
 }
+
+/** An [IconAction]'s size: the smallest a finger hits reliably, the glyph inside as small as ever. */
+val ICON_ACTION_SIZE = 48.dp
 
 /** Gear for "settings", drawn as a ring with teeth so no icon library is needed. */
 val GearGlyph: androidx.compose.ui.graphics.drawscope.DrawScope.(Color) -> Unit = { color ->
@@ -263,10 +267,13 @@ fun ProgressLine(fraction: Float?, modifier: Modifier = Modifier) {
 fun ChoiceChip(label: String, note: String?, on: Boolean, onClick: () -> Unit) {
     Column(
         Modifier
+            // As tall as a finger needs, the words as small as before.
+            .heightIn(min = 48.dp)
             .clip(AmberShapes.Inner)
             .background(if (on) AmberPalette.Primary else AmberPalette.Surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             label,

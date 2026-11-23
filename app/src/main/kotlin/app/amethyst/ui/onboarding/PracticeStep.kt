@@ -1,11 +1,9 @@
 package app.amethyst.ui.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -95,64 +93,63 @@ internal fun PracticeStep(
     }
     DisposableEffect(Unit) { onDispose { keyboard?.hide() } }
 
-    // Above the keyboard, so the tasks and the buttons can still be reached while it is up.
-    Box(Modifier.imePadding()) {
-        StepPage(
-            title = stringResource(R.string.practice_title),
-            lead = stringResource(R.string.practice_lead),
-            buttons = {
-                when {
-                    noFlame == PracticeBlock.NO_SERVICE -> {
-                        ContinueButton(onSwitchServiceOn, stringResource(R.string.practice_switch_on))
-                        LaterButton(stringResource(R.string.not_now), onNext)
-                    }
-                    noFlame == PracticeBlock.BUBBLE_OFF -> {
-                        ContinueButton({ content.onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = true)) } }, stringResource(R.string.practice_show_bubble))
-                        LaterButton(stringResource(R.string.not_now), onNext)
-                    }
-                    practice.finished -> ContinueButton(onNext)
-                    else -> LaterButton(stringResource(R.string.not_now), onNext)
+    // Above the keyboard, so the tasks and the buttons can still be reached while it is up:
+    // the main screen keeps clear of it (AmethystScreens), this page needs nothing of its own.
+    StepPage(
+        title = stringResource(R.string.practice_title),
+        lead = stringResource(R.string.practice_lead),
+        buttons = {
+            when {
+                noFlame == PracticeBlock.NO_SERVICE -> {
+                    ContinueButton(onSwitchServiceOn, stringResource(R.string.practice_switch_on))
+                    LaterButton(stringResource(R.string.not_now), onNext)
                 }
-            },
-        ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(stringResource(R.string.practice_field), color = AmberPalette.Muted) },
-                minLines = 2,
-                shape = AmberShapes.Inner,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                colors = fieldColors(),
-                // The bubble comes for it below Android 13 too, where Android names no field for it.
-                modifier = Modifier.fillMaxWidth().reportsOwnField().focusRequester(focus).landingGlow(dictated),
-            )
-            when (noFlame) {
-                PracticeBlock.NO_SERVICE -> Hint(stringResource(R.string.practice_no_service), AmberPalette.Primary)
-                PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
-                else -> Unit
-            }
-            // A model for this phone is still on its way: said here, so a tap on the bubble that
-            // cannot recognize yet is no surprise (Fabi, 2026-11-15). The progress of the small
-            // one the tap waits for is on the tap's own row; the better one's, which the tap does
-            // not wait for, here.
-            content.pending?.let { PendingModelNote(it) }
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                PracticeTask.entries.forEach { task ->
-                    TaskRow(
-                        task = task,
-                        state = practice.state(task),
-                        // The flame's own absence is said once, above.
-                        block = Practice.blocked(task, readiness, practice).takeIf { noFlame == null },
-                        download = content.download,
-                        onSkip = { practice = practice.skip(task) }.takeIf { noFlame == null && task == practice.current },
-                        onAllowMicrophone = actions.requestMicrophone,
-                    )
+                noFlame == PracticeBlock.BUBBLE_OFF -> {
+                    ContinueButton({ content.onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = true)) } }, stringResource(R.string.practice_show_bubble))
+                    LaterButton(stringResource(R.string.not_now), onNext)
                 }
+                practice.finished -> ContinueButton(onNext)
+                else -> LaterButton(stringResource(R.string.not_now), onNext)
             }
-            if (practice.allDone) AllDoneLine()
-            // Nothing tried, nothing typed for a while: where the bubble is.
-            BubbleHint(settings.bubble.side, wanted = Practice.pointsAtBubble(readiness, practice), quiet = practice to text)
+        },
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text(stringResource(R.string.practice_field), color = AmberPalette.Muted) },
+            minLines = 2,
+            shape = AmberShapes.Inner,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            colors = fieldColors(),
+            // The bubble comes for it below Android 13 too, where Android names no field for it.
+            modifier = Modifier.fillMaxWidth().reportsOwnField().focusRequester(focus).landingGlow(dictated),
+        )
+        when (noFlame) {
+            PracticeBlock.NO_SERVICE -> Hint(stringResource(R.string.practice_no_service), AmberPalette.Primary)
+            PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
+            else -> Unit
         }
+        // A model for this phone is still on its way: said here, so a tap on the bubble that
+        // cannot recognize yet is no surprise (Fabi, 2026-11-15). The progress of the small
+        // one the tap waits for is on the tap's own row; the better one's, which the tap does
+        // not wait for, here.
+        content.pending?.let { PendingModelNote(it) }
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            PracticeTask.entries.forEach { task ->
+                TaskRow(
+                    task = task,
+                    state = practice.state(task),
+                    // The flame's own absence is said once, above.
+                    block = Practice.blocked(task, readiness, practice).takeIf { noFlame == null },
+                    download = content.download,
+                    onSkip = { practice = practice.skip(task) }.takeIf { noFlame == null && task == practice.current },
+                    onAllowMicrophone = actions.requestMicrophone,
+                )
+            }
+        }
+        if (practice.allDone) AllDoneLine()
+        // Nothing tried, nothing typed for a while: where the bubble is.
+        BubbleHint(settings.bubble.side, wanted = Practice.pointsAtBubble(readiness, practice), quiet = practice to text)
     }
 }
 

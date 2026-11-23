@@ -2,30 +2,7 @@ package app.amethyst.ui.screen
 
 import androidx.annotation.StringRes
 import app.amethyst.R
-
-/** Where a settings row leads. */
-enum class SettingsPage {
-    RECOGNITION,
-    CLEANUP,
-    OWN_WORDS,
-    BUBBLE,
-    PRIVACY,
-    HISTORY,
-    SECURITY_MODE,
-    QUICK_MENU,
-    COMMANDS,
-    APP_STYLES,
-    FALLBACK,
-    RECORDING,
-    INSERTING,
-    RELIABILITY,
-    STATS,
-    DIAGNOSTICS,
-    UPDATES,
-    LICENSES,
-    PRIVACY_POLICY,
-    ABOUT,
-}
+import app.amethyst.core.ui.SettingsPage
 
 /** The title over a page: the label of the row that leads to it. */
 @StringRes

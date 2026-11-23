@@ -6,6 +6,7 @@ import androidx.compose.ui.res.stringResource
 import app.amethyst.R
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.SettingsSummaries
+import app.amethyst.core.ui.SettingsPage
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.ui.AmberIcons

@@ -61,6 +61,7 @@ import app.amethyst.core.settings.SettingsLayout
 import app.amethyst.core.settings.SettingsSummaries
 import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.text.CleanupTrouble
+import app.amethyst.core.ui.SettingsPage
 import app.amethyst.core.update.ReleaseChannel
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales

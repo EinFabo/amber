@@ -66,6 +66,7 @@ import app.amethyst.engine.ParakeetState
 import app.amethyst.ui.AppSource
 import app.amethyst.ui.BackGlyph
 import app.amethyst.ui.GhostButton
+import app.amethyst.ui.ICON_ACTION_SIZE
 import app.amethyst.ui.IconAction
 import app.amethyst.ui.PendingModel
 import app.amethyst.ui.SetupActions
@@ -209,7 +210,7 @@ private fun StepLine(position: Pair<Int, Int>?, onBack: (() -> Unit)?, onSkip: (
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (onBack != null) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph) else Spacer(Modifier.size(44.dp))
+        if (onBack != null) IconAction(onClick = onBack, contentDescription = stringResource(R.string.back), glyph = BackGlyph) else Spacer(Modifier.size(ICON_ACTION_SIZE))
         Text(
             position?.let { (at, total) -> stringResource(R.string.step_of, at, total) }.orEmpty(),
             style = MaterialTheme.typography.labelLarge,
@@ -308,17 +309,24 @@ private fun MoreBelow(shown: Boolean, scroll: ScrollState, viewport: Int, modifi
                 .height(MORE_FADE)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, AmberPalette.Background))),
         ) {
+            // A finger's size to hit, the round button inside it as small as before.
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .size(32.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(AmberPalette.Elevated)
                     .clickable(onClickLabel = label) { scope.launch { scroll.animateScrollBy(viewport * 0.7f) } }
                     .semantics { contentDescription = label },
                 contentAlignment = Alignment.Center,
             ) {
-                ExpandChevron(expanded = false, color = AmberPalette.Text)
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .background(AmberPalette.Elevated, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ExpandChevron(expanded = false, color = AmberPalette.Text)
+                }
             }
         }
     }

@@ -52,11 +52,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Amber">
 
+        <!--
+          adjustResize: the keyboard's room reaches the screens, which keep clear of it
+          themselves (edge to edge, nothing is resized or panned). The predictive Back gesture
+          shows the page going as the finger moves (Android 14+; on Android 16 it is on anyway).
+        -->
         <activity
             android:name=".ui.MainActivity"
             android:configChanges="uiMode"
+            android:enableOnBackInvokedCallback="true"
             android:exported="true"
-            android:theme="@style/Theme.Amber">
+            android:theme="@style/Theme.Amber"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

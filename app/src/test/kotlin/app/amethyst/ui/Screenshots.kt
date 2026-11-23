@@ -44,7 +44,7 @@ import app.amethyst.ui.screen.FallbackScreen
 import app.amethyst.ui.screen.CleanupScreen
 import app.amethyst.ui.screen.RecognitionScreen
 import app.amethyst.ui.screen.HomeScreen
-import app.amethyst.ui.screen.SettingsPage
+import app.amethyst.core.ui.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.UpdatesScreen

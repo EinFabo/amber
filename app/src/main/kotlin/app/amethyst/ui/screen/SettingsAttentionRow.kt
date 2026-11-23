@@ -8,6 +8,7 @@ import app.amethyst.Texts
 import app.amethyst.core.settings.Attention
 import app.amethyst.core.settings.ReliabilityItem
 import app.amethyst.core.settings.Summary
+import app.amethyst.core.ui.SettingsPage
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.NavRow
 import app.amethyst.ui.SettingsGroup

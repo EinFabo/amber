@@ -1,6 +1,7 @@
 package app.amethyst.ui
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
@@ -11,28 +12,39 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,15 +52,27 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -87,6 +111,9 @@ import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.LanguageList
 import app.amethyst.core.settings.ThemeMode
 import app.amethyst.core.stats.StatsSummary
+import app.amethyst.core.ui.Navigation
+import app.amethyst.core.ui.Screen
+import app.amethyst.core.ui.SettingsPage
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
@@ -114,7 +141,6 @@ import app.amethyst.ui.screen.OwnWordsScreen
 import app.amethyst.ui.screen.RecordingScreen
 import app.amethyst.ui.screen.SecurityModeScreen
 import app.amethyst.ui.screen.ReliabilityScreen
-import app.amethyst.ui.screen.SettingsPage
 import app.amethyst.ui.screen.SettingsScreen
 import app.amethyst.ui.screen.StatsScreen
 import app.amethyst.ui.screen.PrivacyScreen
@@ -125,6 +151,7 @@ import app.amethyst.ui.screen.title
 import app.amethyst.ui.theme.AmberColors
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -384,16 +411,6 @@ class SetupActions(
     val openBattery: () -> Unit,
 )
 
-private sealed interface Screen {
-    /** The introduction; its step lives beside the stack, see [AmethystScreens]. */
-    data object Onboarding : Screen
-    data object Home : Screen
-    data object Settings : Screen
-    data class Page(val page: SettingsPage) : Screen
-    data class EngineDetail(val engineId: String) : Screen
-    data class AppStyle(val packageName: String) : Screen
-}
-
 /**
  * The title over a screen: the name on the row that led there - an app's page is titled with
  * the app, a speech recognition's with its name.
@@ -440,10 +457,19 @@ private fun AmethystScreens(
     onInstallLanguage: (String?) -> Unit,
     introduce: Boolean,
 ) {
-    // A back stack: Home → Settings → a page → an engine, and back the same way. A fresh
-    // install starts in the introduction instead of Home.
-    var stack by remember { mutableStateOf(listOf(if (introduce) Screen.Onboarding else Screen.Home)) }
+    // A back stack: Home → Settings → a page → an engine, and back the same way (Navigation).
+    // Saved, so a rotation, split screen, a new font size or Android ending the app in the
+    // background comes back to the same screen instead of Home.
+    var stack by rememberSaveable(stateSaver = STACK_SAVER) { mutableStateOf(Navigation.start(introduce)) }
     val screen = stack.last()
+    // Each place in the stack keeps its own state while a screen above covers it - where a page
+    // was scrolled to, what was typed - and gives it up once it is left (Navigation.keys).
+    val entries = rememberSaveableStateHolder()
+    var keptStack by remember { mutableStateOf(stack) }
+    LaunchedEffect(stack) {
+        Navigation.forgotten(keptStack, stack).forEach(entries::removeState)
+        keptStack = stack
+    }
 
     // The quick menu's "App page": that page, with the way back through the app styles and
     // Settings. Never into the introduction - it is finished first. Only to a page there is:
@@ -454,9 +480,7 @@ private fun AmethystScreens(
         val hasPage = withTimeoutOrNull(APP_PAGE_WAIT_MS) {
             graph.settings.first { AppProfiles.forPackage(it.profiles, appPage) != null }
         } != null
-        if (hasPage && Screen.Onboarding !in stack) {
-            stack = listOf(Screen.Home, Screen.Settings, Screen.Page(SettingsPage.APP_STYLES), Screen.AppStyle(appPage))
-        }
+        if (hasPage) stack = Navigation.toAppPage(stack, appPage)
         onAppPageOpened()
     }
     // Saved, so a trip to Android's settings that recreates the activity comes back to it.
@@ -555,8 +579,17 @@ private fun AmethystScreens(
         if (!opened) Toast.makeText(context, context.getString(R.string.no_browser, url), Toast.LENGTH_LONG).show()
     }
 
+    // The page Back's gesture draws aside (its Navigation.topKey) and how far, 0..1; null when
+    // none is. Kept after a Back until the page has gone, so it leaves from where the finger
+    // let go of it.
+    var dragged by remember { mutableStateOf<String?>(null) }
+    var dragEdge by remember { mutableIntStateOf(BackEventCompat.EDGE_LEFT) }
+    val dragProgress = remember { Animatable(0f) }
+    val gestureScope = rememberCoroutineScope()
+
     fun open(next: Screen) {
-        stack = stack + next
+        dragged = null
+        stack = Navigation.open(stack, next)
     }
 
     // What the cleanup's service list needs, wherever it shows: Settings → Cleanup, the
@@ -597,20 +630,51 @@ private fun AmethystScreens(
     }
 
     fun back() {
-        if (stack.size > 1) stack = stack.dropLast(1)
+        stack = Navigation.back(stack)
     }
 
-    BackHandler(enabled = stack.size > 1) { back() }
+    // With "Remove animations" on the phone the screens change at once and the gesture moves
+    // nothing, as the other moving parts of the app do (Timeline).
+    val animate = remember { ValueAnimator.areAnimatorsEnabled() }
+
+    // Back's gesture (Android 14+) draws the page aside as the finger moves; let go, it goes
+    // back, or settles where it was when the gesture is called off. Before Android 14, and for
+    // the Back button, the flow ends at once and only the going back is left.
+    PredictiveBackHandler(enabled = stack.size > 1) { progress ->
+        val key = Navigation.topKey(stack)
+        dragProgress.snapTo(0f)
+        dragged = key
+        try {
+            progress.collect { event ->
+                dragEdge = event.swipeEdge
+                if (animate) dragProgress.snapTo(event.progress)
+            }
+            back()
+            gestureScope.launch {
+                delay(SCREEN_OUT_MS.toLong())
+                if (dragged == key) dragged = null
+            }
+        } catch (cancelled: CancellationException) {
+            gestureScope.launch {
+                dragProgress.animateTo(0f, spring())
+                if (dragged == key) dragged = null
+            }
+            throw cancelled
+        }
+    }
     BackHandler(enabled = screen == Screen.Onboarding && Onboarding.previous(step, settings, path) != null) {
         Onboarding.previous(step, settings, path)?.let { step = it }
     }
 
     AmberBackground {
+        // Clear of the status and navigation bars, a camera cutout (landscape) and the keyboard,
+        // so a field being typed in is never under it: the pages shrink above it and scroll the
+        // field into view. Taken here once, so a page asking for the keyboard's room again
+        // (PracticeStep) gets none twice.
         Column(
             Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             // The introduction draws its own line: where you are, Back and Skip.
             if (screen != Screen.Onboarding) {
@@ -624,359 +688,380 @@ private fun AmethystScreens(
                 )
             }
 
+            val shift = with(LocalDensity.current) { SCREEN_SHIFT.roundToPx() }
+            val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             AnimatedContent(
-                targetState = screen,
-                // A plain cross-fade; screens do not slide or bounce.
-                transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+                targetState = stack,
+                // Only a new screen on top moves; the stack changing under it does not.
+                contentKey = Navigation::topKey,
+                transitionSpec = { screenChange(Navigation.isBack(initialState, targetState), shift, rtl, animate) },
                 label = "screen",
                 modifier = Modifier.fillMaxSize(),
-            ) { current ->
-                when (current) {
-                    Screen.Onboarding -> {
-                        val records by graph.memory.log.records.collectAsStateWithLifecycle()
-                        OnboardingScreen(
-                            step = step,
-                            settings = settings,
-                            setup = setup,
-                            actions = actions,
-                            content = OnboardingContent(
-                                phone = phone,
-                                metered = graph.modelDownloads.metered(),
-                                parakeet = parakeetState,
-                                whisper = whisperStates,
-                                waitingFor = waitingFor,
-                                onChooseEngine = { option, mobileData ->
-                                    useEngine(option)
-                                    graph.modelDownloads.start(option, mobileData)
-                                },
-                                onWaitForWifi = { option ->
-                                    useEngine(option)
-                                    graph.modelDownloads.waitForWifi(option)
-                                },
-                                onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
+            ) { shown ->
+                val current = shown.last()
+                val key = Navigation.topKey(shown)
+                entries.SaveableStateProvider(key) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                if (dragged != key) return@graphicsLayer
+                                val at = dragProgress.value
+                                // Smaller, and moving with the finger, away from the edge it came from.
+                                val scale = 1f - BACK_SCALE * at
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = (if (dragEdge == BackEventCompat.EDGE_LEFT) 1 else -1) * shift * at
+                            },
+                    ) {
+                        when (current) {
+                            Screen.Onboarding -> {
+                                val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                OnboardingScreen(
+                                    step = step,
+                                    settings = settings,
+                                    setup = setup,
+                                    actions = actions,
+                                    content = OnboardingContent(
+                                        phone = phone,
+                                        metered = graph.modelDownloads.metered(),
+                                        parakeet = parakeetState,
+                                        whisper = whisperStates,
+                                        waitingFor = waitingFor,
+                                        onChooseEngine = { option, mobileData ->
+                                            useEngine(option)
+                                            graph.modelDownloads.start(option, mobileData)
+                                        },
+                                        onWaitForWifi = { option ->
+                                            useEngine(option)
+                                            graph.modelDownloads.waitForWifi(option)
+                                        },
+                                        onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
+                                        download = download,
+                                        apps = apps,
+                                        onUpdateSettings = ::updateSettings,
+                                        bubbleEvents = graph.bubbleEvents,
+                                        hasLastDictation = DictationLog.lastDictation(records) != null,
+                                        // No way from the introduction to a server's own page.
+                                        cleanup = introductionCleanup,
+                                        pending = pending,
+                                        nudge = nudge,
+                                    ),
+                                    onStep = { step = it },
+                                    onFinish = {
+                                        if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
+                                        stack = Navigation.start(introduce = false)
+                                    },
+                                    path = path,
+                                    onPath = { chosen ->
+                                        path = chosen
+                                        // Only a new install is given anything here: on a replay both
+                                        // leave every choice as it is and just walk through the steps.
+                                        if (chosen == OnboardingPath.QUICK) graph.firstRun.quick(finish = false) else graph.firstRun.appStyles()
+                                        Onboarding.next(OnboardingStep.WELCOME, settings, chosen)?.let { step = it }
+                                    },
+                                    onSkipAll = {
+                                        // What Quick decides, without asking for anything: Home shows
+                                        // what is still missing. On a replay it only leaves.
+                                        graph.firstRun.quick(finish = true)
+                                        stack = Navigation.start(introduce = false)
+                                    },
+                                )
+                            }
+
+                            Screen.Home -> HomeScreen(
+                                setup = setup,
+                                actions = actions,
+                                settings = settings,
+                                dictationState = graph.dictation.state,
+                                stats = stats,
                                 download = download,
-                                apps = apps,
-                                onUpdateSettings = ::updateSettings,
-                                bubbleEvents = graph.bubbleEvents,
-                                hasLastDictation = DictationLog.lastDictation(records) != null,
-                                // No way from the introduction to a server's own page.
-                                cleanup = introductionCleanup,
                                 pending = pending,
                                 nudge = nudge,
-                            ),
-                            onStep = { step = it },
-                            onFinish = {
-                                if (!settings.onboardingDone) updateSettings { it.copy(onboardingDone = true) }
-                                stack = listOf(Screen.Home)
-                            },
-                            path = path,
-                            onPath = { chosen ->
-                                path = chosen
-                                // Only a new install is given anything here: on a replay both
-                                // leave every choice as it is and just walk through the steps.
-                                if (chosen == OnboardingPath.QUICK) graph.firstRun.quick(finish = false) else graph.firstRun.appStyles()
-                                Onboarding.next(OnboardingStep.WELCOME, settings, chosen)?.let { step = it }
-                            },
-                            onSkipAll = {
-                                // What Quick decides, without asking for anything: Home shows
-                                // what is still missing. On a replay it only leaves.
-                                graph.firstRun.quick(finish = true)
-                                stack = listOf(Screen.Home)
-                            },
-                        )
-                    }
-
-                    Screen.Home -> HomeScreen(
-                        setup = setup,
-                        actions = actions,
-                        settings = settings,
-                        dictationState = graph.dictation.state,
-                        stats = stats,
-                        download = download,
-                        pending = pending,
-                        nudge = nudge,
-                        lastDictation = lastDictation,
-                        historyCount = historyCount,
-                        onOpenHistory = { open(Screen.Page(SettingsPage.HISTORY)) },
-                        historyOffer = HistoryOffer.shows(settings),
-                        onHistoryOffer = { on -> updateSettings { if (on) HistoryOffer.accept(it) else HistoryOffer.decline(it) } },
-                        canTryAgain = canTryAgainHome,
-                        onTryAgain = { graph.dictation.tryAgain(inAmber = true) },
-                        onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
-                        onStopTest = { graph.dictation.stop() },
-                        onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
-                        onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
-                        onOpenStats = { open(Screen.Page(SettingsPage.STATS)) },
-                        onOpenActiveEngine = { open(Screen.EngineDetail(settings.activeEngineId)) },
-                        onInstallLanguage = { onInstallLanguage(settings.activeEngine?.let(LanguageList::forDictation)) },
-                        onUseLocalWhisper = {
-                            val preset = EnginePresets.LOCAL_WHISPER
-                            if (settings.engines.none { it.id == preset.id }) {
-                                updateSettings {
-                                    it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())))
-                                }
-                            }
-                            open(Screen.EngineDetail(preset.id))
-                        },
-                        update = build?.let { UpdatePolicy.forHome(it.channel, settings.updates, it.version) },
-                        onDownloadUpdate = { notice -> openUrl(notice.url) },
-                        onDismissUpdate = { notice ->
-                            updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
-                        },
-                        onDismissOldAmber = { updateSettings { it.copy(ui = it.ui.copy(oldAmberDismissed = true)) } },
-                    )
-
-                    Screen.Settings -> SettingsScreen(
-                        settings = settings,
-                        setup = setup,
-                        version = build?.version.orEmpty(),
-                        releaseChannel = build?.channel,
-                        onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
-                        onOpen = { page -> open(Screen.Page(page)) },
-                        cleanupTrouble = cleanupTrouble,
-                    )
-
-                    is Screen.Page -> {
-                        // The pages that show model lists ask Amber PCs and Servers for theirs.
-                        if (current.page == SettingsPage.RECOGNITION || current.page == SettingsPage.CLEANUP) {
-                            LaunchedEffect(current.page) { graph.amberCatalogs.refreshAll() }
-                        }
-                        when (current.page) {
-                            SettingsPage.RECOGNITION -> RecognitionScreen(
-                                settings = settings,
-                                hasKeyFor = { alias -> graph.secretStore.has(alias) },
-                                medianWaitMs = stats.medianWaitMs,
-                                onUpdateSettings = ::updateSettings,
-                                onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
-                                onOpenFallback = { open(Screen.Page(SettingsPage.FALLBACK)) },
-                            )
-                            SettingsPage.CLEANUP -> CleanupScreen(settings = settings, access = cleanupAccess)
-                            SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
-                            SettingsPage.OWN_WORDS -> OwnWordsScreen(settings, ::updateSettings)
-                            SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
-                            SettingsPage.INSERTING -> TextScreen(settings, ::updateSettings)
-                            SettingsPage.APP_STYLES -> AppStylesScreen(
-                                settings, ::updateSettings,
-                                apps = apps,
-                                usage = appUsage,
-                                onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
+                                lastDictation = lastDictation,
+                                historyCount = historyCount,
+                                onOpenHistory = { open(Screen.Page(SettingsPage.HISTORY)) },
+                                historyOffer = HistoryOffer.shows(settings),
+                                onHistoryOffer = { on -> updateSettings { if (on) HistoryOffer.accept(it) else HistoryOffer.decline(it) } },
+                                canTryAgain = canTryAgainHome,
+                                onTryAgain = { graph.dictation.tryAgain(inAmber = true) },
+                                onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
+                                onStopTest = { graph.dictation.stop() },
+                                onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },
                                 onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
-                            )
-                            SettingsPage.BUBBLE -> BubbleScreen(
-                                settings, ::updateSettings,
-                                onOpenQuickMenu = { open(Screen.Page(SettingsPage.QUICK_MENU)) },
-                                apps = apps,
-                                usage = appUsage,
-                            )
-                            SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
-                            SettingsPage.HISTORY -> {
-                                // Opened: what is past its time goes, the rest is opened - only
-                                // here, while the phone is unlocked. Counted too: what cannot be
-                                // opened can still be deleted.
-                                val opened by produceState(emptyList<HistoryEntry>() to 0, historyKeep, historyChanges) {
-                                    value = withContext(Dispatchers.IO) { graph.history.entries(historyKeep).let { it to graph.history.count(historyKeep) } }
-                                }
-                                val (entries, keptCount) = opened
-                                val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
-                                val canTryAgain = remember(keptChanges) { graph.memory.kept.hasRecording }
-                                HistoryScreen(
-                                    settings = settings,
-                                    entries = entries,
-                                    appName = apps::label,
-                                    onKeepChange = { keep -> updateSettings { it.copy(privacy = it.privacy.copy(history = keep)) } },
-                                    onCopy = { text ->
-                                        // From Android 13 the system confirms a copy itself.
-                                        if (OwnClipboard.copy(context, text) && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                            Toast.makeText(context, R.string.dictation_copied, Toast.LENGTH_SHORT).show()
+                                onOpenStats = { open(Screen.Page(SettingsPage.STATS)) },
+                                onOpenActiveEngine = { open(Screen.EngineDetail(settings.activeEngineId)) },
+                                onInstallLanguage = { onInstallLanguage(settings.activeEngine?.let(LanguageList::forDictation)) },
+                                onUseLocalWhisper = {
+                                    val preset = EnginePresets.LOCAL_WHISPER
+                                    if (settings.engines.none { it.id == preset.id }) {
+                                        updateSettings {
+                                            it.withEngine(EngineConfig.fromPreset(preset, languageTag = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())))
                                         }
-                                    },
-                                    onShare = { text ->
-                                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                                        runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                                    },
-                                    onDeleteAll = { graph.deleteHistory() },
-                                    count = keptCount,
-                                    canTryAgain = canTryAgain,
-                                    onTryAgain = { graph.dictation.tryAgain(forHistory = true) },
-                                )
-                            }
-                            // Switched on, the graph forgets what is kept now.
-                            SettingsPage.PRIVACY -> PrivacyScreen(settings, onOpen = { page -> open(Screen.Page(page)) })
-                            SettingsPage.SECURITY_MODE -> SecurityModeScreen(settings) { on ->
-                                updateSettings { it.copy(privacy = it.privacy.copy(securityMode = on)) }
-                            }
-                            SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
-                            SettingsPage.STATS -> StatsScreen(
-                                settings = settings,
-                                stats = stats,
-                                today = today,
-                                engineName = { id -> settings.engines.firstOrNull { it.id == id }?.let { Texts.engineName(context, it) } ?: id },
-                                appName = apps::label,
-                                onUpdateSettings = ::updateSettings,
-                                onClear = { graph.clearStats() },
+                                    }
+                                    open(Screen.EngineDetail(preset.id))
+                                },
+                                update = build?.let { UpdatePolicy.forHome(it.channel, settings.updates, it.version) },
+                                onDownloadUpdate = { notice -> openUrl(notice.url) },
+                                onDismissUpdate = { notice ->
+                                    updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
+                                },
+                                onDismissOldAmber = { updateSettings { it.copy(ui = it.ui.copy(oldAmberDismissed = true)) } },
                             )
-                            SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
-                            SettingsPage.LICENSES -> LicensesScreen()
-                            SettingsPage.PRIVACY_POLICY -> PrivacyPolicyScreen(onOpenUrl = ::openUrl)
-                            SettingsPage.UPDATES -> {
-                                val checking by graph.updates.checking.collectAsStateWithLifecycle()
-                                // "3 hours ago" moves on while the page is open.
-                                val now by produceState(System.currentTimeMillis()) {
-                                    while (true) {
-                                        delay(UPDATES_CLOCK_MS)
-                                        value = System.currentTimeMillis()
-                                    }
+
+                            Screen.Settings -> SettingsScreen(
+                                settings = settings,
+                                setup = setup,
+                                version = build?.version.orEmpty(),
+                                releaseChannel = build?.channel,
+                                onThemeChange = { theme -> updateSettings { it.copy(ui = it.ui.copy(theme = theme)) } },
+                                onOpen = { page -> open(Screen.Page(page)) },
+                                cleanupTrouble = cleanupTrouble,
+                            )
+
+                            is Screen.Page -> {
+                                // The pages that show model lists ask Amber PCs and Servers for theirs.
+                                if (current.page == SettingsPage.RECOGNITION || current.page == SettingsPage.CLEANUP) {
+                                    LaunchedEffect(current.page) { graph.amberCatalogs.refreshAll() }
                                 }
-                                build?.let { info ->
-                                    UpdatesScreen(
+                                when (current.page) {
+                                    SettingsPage.RECOGNITION -> RecognitionScreen(
                                         settings = settings,
-                                        channel = info.channel,
-                                        installedVersion = info.version,
-                                        checking = checking,
-                                        now = now,
+                                        hasKeyFor = { alias -> graph.secretStore.has(alias) },
+                                        medianWaitMs = stats.medianWaitMs,
                                         onUpdateSettings = ::updateSettings,
-                                        onCheckNow = { graph.updates.checkNow() },
-                                        onOpenUrl = ::openUrl,
+                                        onOpenEngine = { engineId -> open(Screen.EngineDetail(engineId)) },
+                                        onOpenFallback = { open(Screen.Page(SettingsPage.FALLBACK)) },
                                     )
-                                }
-                            }
-                            SettingsPage.DIAGNOSTICS -> {
-                                val records by graph.memory.log.records.collectAsStateWithLifecycle()
-                                val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
-                                val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
-                                DiagnosticsScreen(
-                                    records = records,
-                                    keyboardLog = keyboardLog,
-                                    otherAmbers = setup.otherAmbers,
-                                    onOpenAccessibility = actions.openAccessibilityList,
-                                    onClear = {
-                                        graph.memory.log.clear()
-                                        graph.keyboardLog.value = emptyList()
-                                    },
-                                    appTitle = "Embersay $version".trim(), // English: the report's heading
-                                    // The security mode never writes the clipboard.
-                                    canCopy = SecurityMode.mayCopy(settings),
-                                )
-                            }
-                            SettingsPage.ABOUT -> {
-                                val records by graph.memory.log.records.collectAsStateWithLifecycle()
-                                AboutScreen(
-                                    settings = settings,
-                                    diagnosticsCount = records.size,
-                                    version = build?.version.orEmpty(),
-                                    releaseChannel = build?.channel,
-                                    onOpen = { page -> open(Screen.Page(page)) },
-                                    onReplayIntroduction = {
-                                        // On top of this page, the flag left alone: Back on the first
-                                        // step returns here, and leaving halfway changes nothing.
-                                        step = OnboardingStep.WELCOME
-                                        open(Screen.Onboarding)
-                                    },
-                                )
-                            }
-                        }
-                    }
-
-                    is Screen.AppStyle -> {
-                        // No profile: an app listed for its hidden bubble only (or one just added
-                        // and not stored yet). Its page shows what a profile would start with;
-                        // the first change there makes one.
-                        val label = remember(current.packageName) { apps.label(current.packageName) }
-                        val profile = settings.profiles.firstOrNull { it.packageName == current.packageName }
-                            ?: AppProfile(current.packageName, label)
-                        // Its cleanup picker lists what Amber PCs and Servers offer.
-                        LaunchedEffect(current.packageName) { graph.amberCatalogs.refreshAll() }
-                        AppStyleScreen(
-                            profile = profile,
-                            settings = settings,
-                            access = cleanupAccess,
-                            modelReady = graph::modelReady,
-                            onUpdateSettings = ::updateSettings,
-                            onRemoved = ::back,
-                        )
-                    }
-
-                    is Screen.EngineDetail -> {
-                        val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
-                        val config = settings.engines.firstOrNull { it.id == current.engineId }
-                        if (config == null) {
-                            // Not in the settings yet (just added) or deleted from under us;
-                            // decide in an effect, never during composition.
-                            LaunchedEffect(current.engineId) {
-                                delay(ENGINE_APPEAR_GRACE_MS)
-                                if (graph.settings.value.engines.none { it.id == current.engineId }) back()
-                            }
-                        } else {
-                            LaunchedEffect(config.id) { graph.amberCatalogs.refresh(config) }
-                            EngineDetailScreen(
-                                config = config,
-                                catalog = settings.catalogFor(config),
-                                active = config.id == settings.activeEngineId,
-                                // Read once per engine, not on every recomposition: this is a
-                                // decrypt out of EncryptedSharedPreferences.
-                                storedKey = remember(config.apiKeyAlias) {
-                                    graph.secretStore.get(config.apiKeyAlias)
-                                },
-                                whisperModels = whisperStates,
-                                onSaveKey = { alias, value ->
-                                    if (value.isBlank()) {
-                                        graph.secretStore.clear(alias)
-                                    } else {
-                                        graph.secretStore.put(alias, value)
-                                        graph.keySaved(alias)
+                                    SettingsPage.CLEANUP -> CleanupScreen(settings = settings, access = cleanupAccess)
+                                    SettingsPage.FALLBACK -> FallbackScreen(settings, ::updateSettings)
+                                    SettingsPage.OWN_WORDS -> OwnWordsScreen(settings, ::updateSettings)
+                                    SettingsPage.RECORDING -> RecordingScreen(settings, ::updateSettings)
+                                    SettingsPage.INSERTING -> TextScreen(settings, ::updateSettings)
+                                    SettingsPage.APP_STYLES -> AppStylesScreen(
+                                        settings, ::updateSettings,
+                                        apps = apps,
+                                        usage = appUsage,
+                                        onOpenApp = { pkg -> open(Screen.AppStyle(pkg)) },
+                                        onOpenCleanup = { open(Screen.Page(SettingsPage.CLEANUP)) },
+                                    )
+                                    SettingsPage.BUBBLE -> BubbleScreen(
+                                        settings, ::updateSettings,
+                                        onOpenQuickMenu = { open(Screen.Page(SettingsPage.QUICK_MENU)) },
+                                        apps = apps,
+                                        usage = appUsage,
+                                    )
+                                    SettingsPage.QUICK_MENU -> QuickMenuScreen(settings, ::updateSettings)
+                                    SettingsPage.HISTORY -> {
+                                        // Opened: what is past its time goes, the rest is opened - only
+                                        // here, while the phone is unlocked. Counted too: what cannot be
+                                        // opened can still be deleted.
+                                        val opened by produceState(emptyList<HistoryEntry>() to 0, historyKeep, historyChanges) {
+                                            value = withContext(Dispatchers.IO) { graph.history.entries(historyKeep).let { it to graph.history.count(historyKeep) } }
+                                        }
+                                        val (entries, keptCount) = opened
+                                        val keptChanges by graph.memory.kept.changes.collectAsStateWithLifecycle()
+                                        val canTryAgain = remember(keptChanges) { graph.memory.kept.hasRecording }
+                                        HistoryScreen(
+                                            settings = settings,
+                                            entries = entries,
+                                            appName = apps::label,
+                                            onKeepChange = { keep -> updateSettings { it.copy(privacy = it.privacy.copy(history = keep)) } },
+                                            onCopy = { text ->
+                                                // From Android 13 the system confirms a copy itself.
+                                                if (OwnClipboard.copy(context, text) && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                                    Toast.makeText(context, R.string.dictation_copied, Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            onShare = { text ->
+                                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                                                runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                                            },
+                                            onDeleteAll = { graph.deleteHistory() },
+                                            count = keptCount,
+                                            canTryAgain = canTryAgain,
+                                            onTryAgain = { graph.dictation.tryAgain(forHistory = true) },
+                                        )
                                     }
-                                },
-                                // The app's scope too: the screen saves typed fields as it
-                                // goes away, the moment its own scope is cancelled.
-                                onSave = { updated: EngineConfig ->
-                                    graph.appScope.launch {
-                                        graph.settingsStore.update { it.withEngine(updated) }
-                                        // Once stored, so the answer finds the engine at its new
-                                        // address. A new address is asked at once, the same one
-                                        // once a minute.
-                                        graph.amberCatalogs.refresh(updated)
+                                    // Switched on, the graph forgets what is kept now.
+                                    SettingsPage.PRIVACY -> PrivacyScreen(settings, onOpen = { page -> open(Screen.Page(page)) })
+                                    SettingsPage.SECURITY_MODE -> SecurityModeScreen(settings) { on ->
+                                        updateSettings { it.copy(privacy = it.privacy.copy(securityMode = on)) }
                                     }
-                                },
-                                onActivate = { updateSettings { FirstRun.chosen(it, config.id) } },
-                                cleanupOnly = Servers.cleanupOnly(settings, config),
-                                onDelete = {
-                                    // Its key goes with it, unless another server keeps it
-                                    // under the same name: a server added again later starts
-                                    // without one.
-                                    config.apiKeyAlias?.let { alias ->
-                                        if (settings.engines.none { it.id != config.id && it.apiKeyAlias == alias }) graph.secretStore.clear(alias)
+                                    SettingsPage.COMMANDS -> VoiceCommandsScreen(settings, ::updateSettings)
+                                    SettingsPage.STATS -> StatsScreen(
+                                        settings = settings,
+                                        stats = stats,
+                                        today = today,
+                                        engineName = { id -> settings.engines.firstOrNull { it.id == id }?.let { Texts.engineName(context, it) } ?: id },
+                                        appName = apps::label,
+                                        onUpdateSettings = ::updateSettings,
+                                        onClear = { graph.clearStats() },
+                                    )
+                                    SettingsPage.RELIABILITY -> ReliabilityScreen(setup, actions)
+                                    SettingsPage.LICENSES -> LicensesScreen()
+                                    SettingsPage.PRIVACY_POLICY -> PrivacyPolicyScreen(onOpenUrl = ::openUrl)
+                                    SettingsPage.UPDATES -> {
+                                        val checking by graph.updates.checking.collectAsStateWithLifecycle()
+                                        // "3 hours ago" moves on while the page is open.
+                                        val now by produceState(System.currentTimeMillis()) {
+                                            while (true) {
+                                                delay(UPDATES_CLOCK_MS)
+                                                value = System.currentTimeMillis()
+                                            }
+                                        }
+                                        build?.let { info ->
+                                            UpdatesScreen(
+                                                settings = settings,
+                                                channel = info.channel,
+                                                installedVersion = info.version,
+                                                checking = checking,
+                                                now = now,
+                                                onUpdateSettings = ::updateSettings,
+                                                onCheckNow = { graph.updates.checkNow() },
+                                                onOpenUrl = ::openUrl,
+                                            )
+                                        }
                                     }
-                                    updateSettings { current ->
-                                        val remaining = current.engines.filterNot { it.id == config.id }
-                                        current.copy(
-                                            engines = remaining,
-                                            serverCatalogs = current.serverCatalogs - config.id,
-                                            // Never Claude: it recognizes no speech.
-                                            activeEngineId = if (current.activeEngineId == config.id) {
-                                                Servers.nextActive(remaining)
-                                            } else {
-                                                current.activeEngineId
+                                    SettingsPage.DIAGNOSTICS -> {
+                                        val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                        val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+                                        val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
+                                        DiagnosticsScreen(
+                                            records = records,
+                                            keyboardLog = keyboardLog,
+                                            otherAmbers = setup.otherAmbers,
+                                            onOpenAccessibility = actions.openAccessibilityList,
+                                            onClear = {
+                                                graph.memory.log.clear()
+                                                graph.keyboardLog.value = emptyList()
+                                            },
+                                            appTitle = "Embersay $version".trim(), // English: the report's heading
+                                            // The security mode never writes the clipboard.
+                                            canCopy = SecurityMode.mayCopy(settings),
+                                        )
+                                    }
+                                    SettingsPage.ABOUT -> {
+                                        val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                        AboutScreen(
+                                            settings = settings,
+                                            diagnosticsCount = records.size,
+                                            version = build?.version.orEmpty(),
+                                            releaseChannel = build?.channel,
+                                            onOpen = { page -> open(Screen.Page(page)) },
+                                            onReplayIntroduction = {
+                                                // On top of this page, the flag left alone: Back on the first
+                                                // step returns here, and leaving halfway changes nothing.
+                                                step = OnboardingStep.WELCOME
+                                                open(Screen.Onboarding)
                                             },
                                         )
                                     }
-                                    back()
-                                },
-                                onTest = { candidate ->
-                                    tester.test(candidate).also { result ->
-                                        if (result is ConnectionTester.Result.Ok) graph.amberCatalogs.refresh(candidate, force = true)
+                                }
+                            }
+
+                            is Screen.AppStyle -> {
+                                // No profile: an app listed for its hidden bubble only (or one just added
+                                // and not stored yet). Its page shows what a profile would start with;
+                                // the first change there makes one.
+                                val label = remember(current.packageName) { apps.label(current.packageName) }
+                                val profile = settings.profiles.firstOrNull { it.packageName == current.packageName }
+                                    ?: AppProfile(current.packageName, label)
+                                // Its cleanup picker lists what Amber PCs and Servers offer.
+                                LaunchedEffect(current.packageName) { graph.amberCatalogs.refreshAll() }
+                                AppStyleScreen(
+                                    profile = profile,
+                                    settings = settings,
+                                    access = cleanupAccess,
+                                    modelReady = graph::modelReady,
+                                    onUpdateSettings = ::updateSettings,
+                                    onRemoved = ::back,
+                                )
+                            }
+
+                            is Screen.EngineDetail -> {
+                                val tinfoilLog by graph.tinfoilLog.collectAsStateWithLifecycle()
+                                val config = settings.engines.firstOrNull { it.id == current.engineId }
+                                if (config == null) {
+                                    // Not in the settings yet (just added) or deleted from under us;
+                                    // decide in an effect, never during composition.
+                                    LaunchedEffect(current.engineId) {
+                                        delay(ENGINE_APPEAR_GRACE_MS)
+                                        if (graph.settings.value.engines.none { it.id == current.engineId }) back()
                                     }
-                                },
-                                onDownloadModel = { spec -> graph.whisperModels.download(spec) },
-                                onImportModel = { uri -> graph.whisperModels.import(uri) },
-                                onCancelModel = { id -> graph.whisperModels.cancel(id) },
-                                onDeleteModel = { id -> graph.whisperModels.delete(id) },
-                                enclaveLog = tinfoilLog,
-                                onVerifyEnclave = { url -> graph.tinfoilVerifier.verify(url, forceFresh = true) },
-                                parakeetState = parakeetState,
-                                onDownloadParakeet = { graph.parakeetModels.download() },
-                                onCancelParakeet = { graph.parakeetModels.cancel() },
-                                onDeleteParakeet = { graph.parakeetModels.delete() },
-                            )
+                                } else {
+                                    LaunchedEffect(config.id) { graph.amberCatalogs.refresh(config) }
+                                    EngineDetailScreen(
+                                        config = config,
+                                        catalog = settings.catalogFor(config),
+                                        active = config.id == settings.activeEngineId,
+                                        // Read once per engine, not on every recomposition: this is a
+                                        // decrypt out of EncryptedSharedPreferences.
+                                        storedKey = remember(config.apiKeyAlias) {
+                                            graph.secretStore.get(config.apiKeyAlias)
+                                        },
+                                        whisperModels = whisperStates,
+                                        onSaveKey = { alias, value ->
+                                            if (value.isBlank()) {
+                                                graph.secretStore.clear(alias)
+                                            } else {
+                                                graph.secretStore.put(alias, value)
+                                                graph.keySaved(alias)
+                                            }
+                                        },
+                                        // The app's scope too: the screen saves typed fields as it
+                                        // goes away, the moment its own scope is cancelled.
+                                        onSave = { updated: EngineConfig ->
+                                            graph.appScope.launch {
+                                                graph.settingsStore.update { it.withEngine(updated) }
+                                                // Once stored, so the answer finds the engine at its new
+                                                // address. A new address is asked at once, the same one
+                                                // once a minute.
+                                                graph.amberCatalogs.refresh(updated)
+                                            }
+                                        },
+                                        onActivate = { updateSettings { FirstRun.chosen(it, config.id) } },
+                                        cleanupOnly = Servers.cleanupOnly(settings, config),
+                                        onDelete = {
+                                            // Its key goes with it, unless another server keeps it
+                                            // under the same name: a server added again later starts
+                                            // without one.
+                                            config.apiKeyAlias?.let { alias ->
+                                                if (settings.engines.none { it.id != config.id && it.apiKeyAlias == alias }) graph.secretStore.clear(alias)
+                                            }
+                                            updateSettings { current ->
+                                                val remaining = current.engines.filterNot { it.id == config.id }
+                                                current.copy(
+                                                    engines = remaining,
+                                                    serverCatalogs = current.serverCatalogs - config.id,
+                                                    // Never Claude: it recognizes no speech.
+                                                    activeEngineId = if (current.activeEngineId == config.id) {
+                                                        Servers.nextActive(remaining)
+                                                    } else {
+                                                        current.activeEngineId
+                                                    },
+                                                )
+                                            }
+                                            back()
+                                        },
+                                        onTest = { candidate ->
+                                            tester.test(candidate).also { result ->
+                                                if (result is ConnectionTester.Result.Ok) graph.amberCatalogs.refresh(candidate, force = true)
+                                            }
+                                        },
+                                        onDownloadModel = { spec -> graph.whisperModels.download(spec) },
+                                        onImportModel = { uri -> graph.whisperModels.import(uri) },
+                                        onCancelModel = { id -> graph.whisperModels.cancel(id) },
+                                        onDeleteModel = { id -> graph.whisperModels.delete(id) },
+                                        enclaveLog = tinfoilLog,
+                                        onVerifyEnclave = { url -> graph.tinfoilVerifier.verify(url, forceFresh = true) },
+                                        parakeetState = parakeetState,
+                                        onDownloadParakeet = { graph.parakeetModels.download() },
+                                        onCancelParakeet = { graph.parakeetModels.cancel() },
+                                        onDeleteParakeet = { graph.parakeetModels.delete() },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -984,6 +1069,25 @@ private fun AmethystScreens(
         }
     }
 }
+
+/**
+ * How one screen gives way to the next: the new one comes a short way from the side and
+ * settles in, the old one fades as it moves a little the other way - forward from the end of
+ * the line, Back from its start, as the introduction's steps do. With animations off, at once.
+ */
+private fun screenChange(back: Boolean, shift: Int, rtl: Boolean, animate: Boolean): ContentTransform {
+    if (!animate) return EnterTransition.None togetherWith ExitTransition.None
+    val from = (if (back) -1 else 1) * (if (rtl) -1 else 1)
+    val settle = tween<IntOffset>(SCREEN_IN_MS, easing = LinearOutSlowInEasing)
+    return (fadeIn(tween(SCREEN_IN_MS, easing = LinearOutSlowInEasing)) + slideInHorizontally(settle) { from * shift }) togetherWith
+        (fadeOut(tween(SCREEN_OUT_MS)) + slideOutHorizontally(tween(SCREEN_OUT_MS)) { -from * shift / 3 })
+}
+
+/** The screen stack in Android's saved state, as Navigation writes it. */
+private val STACK_SAVER = listSaver<List<Screen>, String>(
+    save = { Navigation.save(it) },
+    restore = { Navigation.restore(it) },
+)
 
 @Composable
 internal fun TopBar(
@@ -1006,11 +1110,17 @@ internal fun TopBar(
         if (wordmark) {
             Box(Modifier.weight(1f)) { Wordmark() }
         } else {
+            // A long app or server name takes a second line and then ends in "…"; it is the
+            // page's heading for screen readers.
             Text(
                 title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = AmberPalette.Text,
-                modifier = Modifier.weight(1f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() },
             )
         }
         if (showSettings) IconAction(onClick = onSettings, contentDescription = stringResource(R.string.title_settings), glyph = GearGlyph)
@@ -1018,6 +1128,16 @@ internal fun TopBar(
 }
 
 private const val ENGINE_APPEAR_GRACE_MS = 500L
+
+/** How far a screen comes from the side as it opens, and how far Back's gesture draws it aside. */
+private val SCREEN_SHIFT = 30.dp
+
+/** How long a new screen takes to settle in, and the old one to go. */
+private const val SCREEN_IN_MS = 220
+private const val SCREEN_OUT_MS = 100
+
+/** How much smaller Back's gesture makes the page at its end. */
+private const val BACK_SCALE = 0.1f
 
 /** How long an app page asked for by the quick menu may take to appear in the settings. */
 private const val APP_PAGE_WAIT_MS = 2_000L
