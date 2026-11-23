@@ -143,7 +143,7 @@ class OpenAiCompatibleEngineTest {
             .transcribe(audio)
         val failure = assertIs<SttFailure>(unauthorized.exceptionOrNull())
         assertEquals(401, failure.statusCode)
-        assertEquals(Problem.KeyRejected, failure.problem)
+        assertEquals(Problem.KeyRejected("Tinfoil (Enclave)"), failure.problem)
 
         val notFound = engine(FakeHttpTransport.json("nope", 404)).transcribe(audio)
         assertEquals(Problem.AddressNotFound, assertIs<SttFailure>(notFound.exceptionOrNull()).problem)

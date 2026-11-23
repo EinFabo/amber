@@ -93,7 +93,7 @@ class CleanupTrouble {
          * key (401, 403), no credit (402, or the server saying so), a model it does not know.
          */
         fun causeOf(problem: Problem): Cause? = when (problem) {
-            Problem.KeyRejected -> Cause.KEY_REFUSED
+            is Problem.KeyRejected -> Cause.KEY_REFUSED
             is Problem.NoCredit -> Cause.NO_CREDIT
             is Problem.CleanupModelUnknown, is Problem.ModelNotOnServer -> Cause.UNKNOWN_MODEL
             is Problem.CleanupFailed -> when (problem.code) {

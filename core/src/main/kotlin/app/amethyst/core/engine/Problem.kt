@@ -14,7 +14,8 @@ sealed interface Problem {
     data class AnswerUnreadable(val service: String) : Problem
     data class NoConnection(val service: String) : Problem
     data class NoAnswerInTime(val service: String) : Problem
-    data object KeyRejected : Problem
+    /** [service] refused the API key (HTTP 401 or 403, or the error says so). */
+    data class KeyRejected(val service: String) : Problem
 
     /** HTTP 404: the address is wrong. */
     data object AddressNotFound : Problem

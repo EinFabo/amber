@@ -93,7 +93,7 @@ class ReadyFallbackTest {
     private val serverText = Result.success(text("Okay, danke.", "server"))
     private val localText = Result.success(text("okay danke", "local"))
     private val offline = SttFailure(Problem.NoConnection("test"), "unknown host", cause = IOException("unknown host"))
-    private val refusedKey = SttFailure(Problem.KeyRejected, "HTTP 401", statusCode = 401)
+    private val refusedKey = SttFailure(Problem.KeyRejected("Groq"), "HTTP 401", statusCode = 401)
     private val recoverable: (Throwable?) -> SttFailure? = { Fallback.recoverable(it, TrustLevel.CLOUD, FallbackMode.AUTOMATIC) }
 
     @Test

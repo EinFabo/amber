@@ -49,7 +49,7 @@
     <string name="quick_done_no_cleanup">Sending without cleanup</string>
     <string name="quick_done_start_over">Recording again from the start</string>
     <string name="quick_done_as_recognized">Keeping the text as recognized</string>
-    <string name="quick_done_paused">Paused. Tap the bubble to send.</string>
+    <string name="quick_done_paused">Paused. Tap the bubble to insert.</string>
     <string name="quick_done_resumed">Listening again</string>
     <string name="quick_done_cleanup_on">Cleanup on in %1$s</string>
     <string name="quick_done_cleanup_off">Cleanup off in %1$s</string>

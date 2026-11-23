@@ -44,7 +44,7 @@ internal object ServerRefusal {
         val said = parse(body)
         val named = setOf(said.code.lowercase(), said.type.lowercase())
         return when {
-            named.any { it in KEY_CODES } -> Problem.KeyRejected
+            named.any { it in KEY_CODES } -> Problem.KeyRejected(service)
             // A refused key stays a refused key, whatever else the answer mentions.
             status == 401 || status == 403 -> null
             status == 402 || named.any { it in CREDIT_CODES } || NO_CREDIT.containsMatchIn(said.message) -> Problem.NoCredit(service)

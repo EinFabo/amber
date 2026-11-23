@@ -27,7 +27,7 @@
     <string name="theme_system">Wie das Handy</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
-    <string name="theme_bubble_note">Die Bubble und ihr Schnellmenü behalten ihre Farben.</string>
+    <string name="theme_bubble_note">Die Bubble und ihr Schnellmenü behalten ihre Farben</string>
     <string name="recognition_group_phone">Auf dem Handy</string>
     <string name="recognition_group_enclave">Geprüfte Enklave</string>
     <string name="recognition_group_server">Server</string>
@@ -57,7 +57,7 @@
     <string name="text_inserting">Einfügen</string>
     <string name="recording_while_speaking">Lange Diktate</string>
     <string name="recording_during">Ton und Vibration</string>
-    <string name="inserting_subtitle">Der Text passt sich an das an, was schon im Feld steht.</string>
+    <string name="inserting_subtitle">Der Text passt sich an das an, was schon im Feld steht</string>
     <string name="inserting_spaces">Leerzeichen setzen</string>
     <string name="inserting_spaces_note">Ein Leerzeichen nach dem Wort vor dem Cursor</string>
     <string name="inserting_capitals">Satzanfänge großschreiben</string>
@@ -111,7 +111,7 @@
     <string name="updates_all_releases">Alle Versionen</string>
     <string name="updates_all_releases_summary">Was sich in jeder Version geändert hat</string>
     <string name="test_field">Testfeld</string>
-    <string name="test_field_note">Ein Testdiktat landet hier, wie in jeder anderen App.</string>
+    <string name="test_field_note">Ein Testdiktat landet hier, wie in jeder anderen App</string>
     <string name="test_field_placeholder">Tippe auf die Bubble und sprich …</string>
     <string name="diag_filter_all">Alle</string>
     <string name="diag_filter_dictations">Diktate</string>

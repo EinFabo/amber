@@ -1456,12 +1456,13 @@ class DictationController(
     /**
      * Recognition failed for [error]: said, and - for a dictation whose recording is here and
      * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
-     * which the toast then names as the way out.
+     * which the toast then names as the way out, unless the message names a fix to make first
+     * ([KeptDictation.toastSaysTryAgain]).
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
         // Not a problem Amber knows (null): nothing says another go would help.
         val problem = (error as? SttFailure)?.problem
-        if (problem != null && keepForRetry(problem)) {
+        if (problem != null && keepForRetry(problem) && KeptDictation.toastSaysTryAgain(problem)) {
             fail(
                 failureOf(error),
                 remedy = remedyOf(error),

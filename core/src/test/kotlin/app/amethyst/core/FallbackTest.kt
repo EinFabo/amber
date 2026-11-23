@@ -37,7 +37,7 @@ class FallbackTest {
 
     @Test
     fun `a refused key, a switched-off fallback or a local engine are not`() {
-        assertNull(Fallback.recoverable(SttFailure(Problem.KeyRejected, "HTTP 401", statusCode = 401), TrustLevel.CLOUD, FallbackMode.AUTOMATIC))
+        assertNull(Fallback.recoverable(SttFailure(Problem.KeyRejected("Groq"), "HTTP 401", statusCode = 401), TrustLevel.CLOUD, FallbackMode.AUTOMATIC))
         assertNull(Fallback.recoverable(offline, TrustLevel.CLOUD, FallbackMode.OFF))
         assertNull(Fallback.recoverable(offline, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC))
         assertNull(Fallback.recoverable(SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty"), TrustLevel.CLOUD, FallbackMode.AUTOMATIC))

@@ -30,7 +30,7 @@ class CleanupTroubleTest {
 
     @Test
     fun `a refused key, no credit or an unknown model need the user`() {
-        assertEquals(Cause.KEY_REFUSED, CleanupTrouble.causeOf(Problem.KeyRejected))
+        assertEquals(Cause.KEY_REFUSED, CleanupTrouble.causeOf(Problem.KeyRejected("Groq")))
         assertEquals(Cause.KEY_REFUSED, CleanupTrouble.causeOf(Problem.CleanupFailed(401)))
         assertEquals(Cause.KEY_REFUSED, CleanupTrouble.causeOf(Problem.CleanupFailed(403)))
         assertEquals(Cause.NO_CREDIT, CleanupTrouble.causeOf(Problem.CleanupFailed(402)))
@@ -83,17 +83,17 @@ class CleanupTroubleTest {
 
     @Test
     fun `the trouble goes when the cleanup is turned off or another service or model takes its place`() {
-        trouble.failed(Problem.KeyRejected, "Groq", llama)
+        trouble.failed(Problem.KeyRejected("Groq"), "Groq", llama)
         trouble.settingsChanged(settings)
         assertEquals(llama, trouble.open.value?.choice)
         trouble.settingsChanged(settings.copy(cleanup = llama9))
         assertNull(trouble.open.value)
 
-        trouble.failed(Problem.KeyRejected, "Groq", llama)
+        trouble.failed(Problem.KeyRejected("Groq"), "Groq", llama)
         trouble.settingsChanged(settings.copy(cleanup = null))
         assertNull(trouble.open.value)
 
-        trouble.failed(Problem.KeyRejected, "Groq", llama)
+        trouble.failed(Problem.KeyRejected("Groq"), "Groq", llama)
         trouble.settingsChanged(settings.copy(cleanup = CleanupChoice("openai", "llama")))
         assertNull(trouble.open.value)
     }
@@ -110,11 +110,11 @@ class CleanupTroubleTest {
 
     @Test
     fun `saving that service's key again clears it, and a new failure is said again`() {
-        assertEquals(Open(Cause.KEY_REFUSED, "Groq", llama), trouble.failed(Problem.KeyRejected, "Groq", llama))
+        assertEquals(Open(Cause.KEY_REFUSED, "Groq", llama), trouble.failed(Problem.KeyRejected("Groq"), "Groq", llama))
         trouble.keySaved(listOf("openai"))
         assertEquals(llama, trouble.open.value?.choice)
         trouble.keySaved(listOf("groq"))
         assertNull(trouble.open.value)
-        assertEquals(Open(Cause.KEY_REFUSED, "Groq", llama), trouble.failed(Problem.KeyRejected, "Groq", llama))
+        assertEquals(Open(Cause.KEY_REFUSED, "Groq", llama), trouble.failed(Problem.KeyRejected("Groq"), "Groq", llama))
     }
 }

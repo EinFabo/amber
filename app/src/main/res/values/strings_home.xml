@@ -34,7 +34,7 @@
     <string name="home_finish_setup">Finish the setup above first.</string>
     <string name="home_tap_and_speak">Tap and speak. The text appears in the test field.</string>
     <string name="home_opening_mic">Opening microphone…</string>
-    <string name="home_paused">Paused. Tap to send.</string>
+    <string name="home_paused">Paused. Tap to insert.</string>
     <string name="home_listening">Listening. Tap to stop.</string>
     <string name="home_writing">Writing…</string>
     <string name="home_done">Inserted</string>

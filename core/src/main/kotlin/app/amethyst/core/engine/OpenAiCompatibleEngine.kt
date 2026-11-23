@@ -202,7 +202,7 @@ class OpenAiCompatibleEngine(
         // What the body names comes first: a retired model answers 404 like a wrong address,
         // an account without credit 429 like too many requests ([ServerRefusal]).
         val problem = ServerRefusal.problem(response.code, body, modelId, displayName) ?: when (response.code) {
-            401, 403 -> Problem.KeyRejected
+            401, 403 -> Problem.KeyRejected(displayName)
             404 -> Problem.AddressNotFound
             413 -> Problem.RecordingTooLong
             422 -> Problem.AudioFormatRefused

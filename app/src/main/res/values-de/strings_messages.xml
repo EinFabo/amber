@@ -5,14 +5,14 @@
     <string name="problem_answer_unreadable">Antwort von „%1$s“ unlesbar.</string>
     <string name="problem_no_connection">Keine Verbindung zu „%1$s“.</string>
     <string name="problem_no_answer_in_time">Keine Antwort von „%1$s“.</string>
-    <string name="problem_key_rejected">API-Schlüssel abgelehnt.</string>
+    <string name="problem_key_rejected">„%1$s“ lehnt den API-Schlüssel ab. Prüfe oder ersetze ihn.</string>
     <string name="problem_address_not_found">Adresse nicht gefunden.</string>
     <string name="problem_model_not_on_server">„%1$s“ hat kein %2$s.</string>
     <string name="problem_recording_too_long">Aufnahme zu lang für diesen Dienst.</string>
     <string name="problem_audio_format_refused">Der Dienst lehnt das Audioformat ab.</string>
     <string name="problem_rate_limited">Zu viele Anfragen. Warte kurz.</string>
-    <string name="problem_service_down">Dienst antwortet nicht (%1$d).</string>
-    <string name="problem_server_error">„%2$s“ lehnt ab (%1$d).</string>
+    <string name="problem_service_down">Dienst antwortet nicht (Code %1$d).</string>
+    <string name="problem_server_error">„%2$s“ lehnt ab (Code %1$d).</string>
     <string name="problem_out_of_memory">Zu wenig Arbeitsspeicher für das Modell.</string>
     <string name="problem_local_model_failed">Das Modell lief nicht. Lade es in den Einstellungen neu herunter.</string>
     <string name="problem_processor_too_old">Prozessor zu alt für Whisper. Parakeet oder ein Server gehen.</string>
@@ -30,7 +30,7 @@
     <string name="problem_enclave_other_address">Die geprüfte Enklave ist nicht an deiner Adresse.</string>
     <string name="problem_enclave_cannot_bind">Diese Verbindung lässt sich nicht an die Enklave binden.</string>
     <string name="problem_unencrypted_refused">Öffentliche Adressen gehen nur mit https. Nichts gesendet.</string>
-    <string name="problem_cleanup_failed">Die Bereinigung hat nicht geklappt (Code %1$d).</string>
+    <string name="problem_cleanup_failed">Bereinigung fehlgeschlagen: %1$s (Code %2$d).</string>
     <string name="problem_no_credit">Kein Guthaben mehr bei „%1$s“.</string>
     <string name="problem_cleanup_declined">„%1$s“ lehnte die Bereinigung ab. Der Text blieb unverändert.</string>
     <string name="problem_cleanup_model_unknown">Bereinigung fehlgeschlagen: Modell %1$s unbekannt.</string>
@@ -47,6 +47,15 @@
     <string name="problem_recognizer_busy">Die Spracherkennung ist beschäftigt.</string>
     <string name="problem_recognizer_crashed">Die Spracherkennung von Android ist abgestürzt.</string>
     <string name="problem_recognition_failed">Die Spracherkennung ist fehlgeschlagen.</string>
+
+    <string name="http_reason_key_refused">API-Schlüssel abgelehnt</string>
+    <string name="http_reason_no_credit">kein Guthaben mehr</string>
+    <string name="http_reason_not_found">auf dem Server nicht gefunden</string>
+    <string name="http_reason_too_large">zu groß für den Server</string>
+    <string name="http_reason_too_many">zu viele Anfragen</string>
+    <string name="http_reason_too_slow">Server zu langsam</string>
+    <string name="http_reason_server_down">Server nicht verfügbar</string>
+    <string name="http_reason_refused">Anfrage abgelehnt</string>
 
     <string name="issue_no_model_selected">Kein Modell ausgewählt.</string>
     <string name="issue_not_supported">Diese Spracherkennung wird nicht unterstützt.</string>
@@ -69,7 +78,7 @@
     <string name="file_no_model_installed">Kein Modell installiert.</string>
     <string name="file_not_enough_storage">Nicht genug Speicher: %1$d&#160;MB nötig.</string>
     <string name="file_not_enough_storage_free">Nicht genug Speicher: %1$d&#160;MB nötig, %2$d&#160;MB frei.</string>
-    <string name="file_server_answered">Der Download-Server hat die Anfrage abgelehnt (Code %1$d).</string>
+    <string name="file_server_answered">Download fehlgeschlagen: %1$s (Code %2$d).</string>
     <string name="file_empty_answer">Leere Antwort vom Server.</string>
     <string name="file_no_connection">Keine Verbindung.</string>
     <string name="file_cannot_open">Die Datei lässt sich nicht öffnen.</string>

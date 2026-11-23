@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="cleanup_who">Wer den Text bereinigt</string>
-    <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor Embersay ihn einfügt.</string>
+    <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor Embersay ihn einfügt</string>
     <string name="cleanup_off_note">Der Text wird unverändert eingefügt</string>
     <string name="cleanup_addition">Eigene Anweisung</string>
-    <string name="cleanup_addition_subtitle">Gilt für alle Apps und steht vor der eigenen Anweisung einer App.</string>
+    <string name="cleanup_addition_subtitle">Gilt für alle Apps und steht vor der eigenen Anweisung einer App</string>
     <string name="cleanup_addition_label">Eigene Anweisung (optional)</string>
     <string name="cleanup_addition_placeholder">z. B. Zahlen als Ziffern schreiben</string>
     <string name="char_count">%1$d / %2$d</string>
@@ -40,21 +40,21 @@
     <string name="cleanup_model_example">Der Name des Modells, wie der Server es nennt, zum Beispiel llama3.2.</string>
     <string name="cleanup_edit_server">Server bearbeiten</string>
     <string name="fallback_who">Wer einspringt</string>
-    <string name="fallback_who_subtitle">Wenn der Server eine Aufnahme nicht annimmt.</string>
+    <string name="fallback_who_subtitle">Wenn der Server eine Aufnahme nicht annimmt</string>
     <string name="fallback_automatic">Automatisch</string>
     <string name="fallback_automatic_note">Erst Parakeet, dann Whisper, wenn heruntergeladen</string>
     <string name="fallback_off_note">Das Diktat schlägt fehl</string>
     <string name="fallback_less_private">%1$s ist weniger privat als %2$s und springt deshalb nicht ein. Das Diktat schlägt dann fehl.</string>
     <string name="fallback_ready">Vorab bereit</string>
-    <string name="fallback_ready_subtitle">Das Handy springt schneller ein.</string>
+    <string name="fallback_ready_subtitle">Das Handy springt schneller ein</string>
     <string name="fallback_prepare">Beim Sprechen auf dem Handy vorbereiten</string>
     <string name="fallback_prepare_note">Braucht Prozessor und Akku, während du diktierst. Nur mit einem heruntergeladenen Modell.</string>
     <string name="fallback_prepare_on">Braucht der Server viel länger als sonst, nimmt Embersay den Text vom Handy.</string>
     <string name="style_title">Stil</string>
-    <string name="style_subtitle">Wie der Text in %1$s klingt.</string>
+    <string name="style_subtitle">Wie der Text in %1$s klingt</string>
     <string name="style_instruction">Eigene Anweisung (optional)</string>
     <string name="style_instruction_placeholder">z. B. duzen, mit meinem Vornamen unterschreiben</string>
-    <string name="style_cleanup_subtitle">Wer den Text in %1$s bereinigt.</string>
+    <string name="style_cleanup_subtitle">Wer den Text in %1$s bereinigt</string>
     <string name="style_default">Standard</string>
     <string name="style_default_off">Aus: Text unverändert, wie in jeder App</string>
     <string name="style_own_model">Eigenes Modell</string>
@@ -62,7 +62,7 @@
     <string name="style_own_not_ready_default">Die eigene Bereinigung dieser App ist nicht bereit. Embersay nimmt den Standard.</string>
     <string name="style_own_not_ready_none">Die eigene Bereinigung dieser App ist nicht bereit. Der Text wird nicht bereinigt.</string>
     <string name="style_needs_cleanup">Ohne Bereinigung gilt der Stil nicht. Der Text wird unverändert eingefügt.</string>
-    <string name="style_recognition_subtitle">Wer deine Stimme in %1$s zu Text macht.</string>
+    <string name="style_recognition_subtitle">Wer deine Stimme in %1$s zu Text macht</string>
     <string name="style_recognition_default">Wie in jeder App</string>
     <string name="style_recognition_none">Keine gewählt</string>
     <string name="style_recognition_engine_not_ready">Nicht bereit. Richte sie unter Spracherkennung ein.</string>
@@ -76,9 +76,9 @@
     <string name="chunking">Schon beim Sprechen erkennen</string>
     <string name="chunking_note">Nur Spracherkennung auf dem Handy</string>
     <string name="styles_your_apps">Deine Apps</string>
-    <string name="styles_note_cleanup">Jede App bekommt den Text in ihrem eigenen Stil.</string>
-    <string name="styles_note_own">Nur Apps mit einem eigenen Modell werden bereinigt.</string>
-    <string name="styles_note_none">Stile brauchen ein Modell für die Bereinigung.</string>
+    <string name="styles_note_cleanup">Jede App bekommt den Text in ihrem eigenen Stil</string>
+    <string name="styles_note_own">Nur Apps mit einem eigenen Modell werden bereinigt</string>
+    <string name="styles_note_none">Stile brauchen ein Modell für die Bereinigung</string>
     <string name="styles_add_app">App hinzufügen</string>
     <string name="apps_which_app">Welche App?</string>
     <string name="apps_bubble_hidden">Bubble ausgeblendet</string>
@@ -97,7 +97,7 @@
     <string name="add">Hinzufügen</string>
     <string name="apps_search">Apps suchen</string>
     <string name="apps_loading">Apps werden geladen …</string>
-    <string name="apps_no_match">Keine App passt zu „%1$s“.</string>
+    <string name="apps_no_match">Keine App passt zu „%1$s“</string>
     <string name="apps_all_added">Alle Apps sind schon hinzugefügt.</string>
     <string name="apps_where_you_dictate">Wo du diktierst</string>
     <string name="apps_all">Alle Apps</string>

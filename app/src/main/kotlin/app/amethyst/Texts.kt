@@ -10,6 +10,7 @@ import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.HttpReason
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
@@ -50,7 +51,7 @@ object Texts {
             is Problem.AnswerUnreadable -> getString(R.string.problem_answer_unreadable, catalog(this, problem.service))
             is Problem.NoConnection -> getString(R.string.problem_no_connection, catalog(this, problem.service))
             is Problem.NoAnswerInTime -> getString(R.string.problem_no_answer_in_time, catalog(this, problem.service))
-            Problem.KeyRejected -> getString(R.string.problem_key_rejected)
+            is Problem.KeyRejected -> getString(R.string.problem_key_rejected, catalog(this, problem.service))
             Problem.AddressNotFound -> getString(R.string.problem_address_not_found)
             is Problem.ModelNotOnServer -> getString(R.string.problem_model_not_on_server, catalog(this, problem.service), problem.model)
             Problem.RecordingTooLong -> getString(R.string.problem_recording_too_long)
@@ -84,7 +85,7 @@ object Texts {
             Problem.EnclaveOtherAddress -> getString(R.string.problem_enclave_other_address)
             Problem.EnclaveCannotBind -> getString(R.string.problem_enclave_cannot_bind)
             Problem.UnencryptedRefused -> getString(R.string.problem_unencrypted_refused)
-            is Problem.CleanupFailed -> getString(R.string.problem_cleanup_failed, problem.code)
+            is Problem.CleanupFailed -> getString(R.string.problem_cleanup_failed, httpReason(this, HttpReason.of(problem.code)), problem.code)
             is Problem.CleanupDeclined -> getString(R.string.problem_cleanup_declined, catalog(this, problem.service))
             is Problem.NoCredit -> getString(R.string.problem_no_credit, catalog(this, problem.service))
             is Problem.CleanupModelUnknown -> getString(R.string.problem_cleanup_model_unknown, problem.model)
@@ -103,6 +104,20 @@ object Texts {
             Problem.RecognitionFailed -> getString(R.string.problem_recognition_failed)
         }
     }
+
+    /** What an HTTP status means, in a few words to go before its code: "API key rejected (error 401)". */
+    private fun httpReason(context: Context, reason: HttpReason): String = context.getString(
+        when (reason) {
+            HttpReason.KEY_REFUSED -> R.string.http_reason_key_refused
+            HttpReason.NO_CREDIT -> R.string.http_reason_no_credit
+            HttpReason.NOT_FOUND -> R.string.http_reason_not_found
+            HttpReason.TOO_LARGE -> R.string.http_reason_too_large
+            HttpReason.TOO_MANY -> R.string.http_reason_too_many
+            HttpReason.TOO_SLOW -> R.string.http_reason_too_slow
+            HttpReason.SERVER_DOWN -> R.string.http_reason_server_down
+            HttpReason.REFUSED -> R.string.http_reason_refused
+        },
+    )
 
     /** What keeps the cleanup from running, in a few words: "Groq key refused". */
     fun cleanupTrouble(context: Context, open: CleanupTrouble.Open): String = context.getString(
@@ -153,7 +168,15 @@ object Texts {
             is FileProblem.NotEnoughStorage -> problem.freeMb
                 ?.let { getString(R.string.file_not_enough_storage_free, problem.neededMb, it) }
                 ?: getString(R.string.file_not_enough_storage, problem.neededMb)
-            is FileProblem.ServerAnswered -> getString(R.string.file_server_answered, problem.code)
+            is FileProblem.ServerAnswered -> getString(
+                R.string.file_server_answered,
+                // A download needs no key and costs nothing: a refusal for those is just a refusal.
+                when (val reason = HttpReason.of(problem.code)) {
+                    HttpReason.KEY_REFUSED, HttpReason.NO_CREDIT, HttpReason.TOO_LARGE -> httpReason(this, HttpReason.REFUSED)
+                    else -> httpReason(this, reason)
+                },
+                problem.code,
+            )
             FileProblem.EmptyAnswer -> getString(R.string.file_empty_answer)
             FileProblem.NoConnection -> getString(R.string.file_no_connection)
             FileProblem.CannotOpen -> getString(R.string.file_cannot_open)

@@ -34,7 +34,7 @@ class KeptDictationTest {
 
     @Test
     fun `expire gives the memory back without anyone asking`() {
-        kept.keepRecording(audio(1.0), Problem.KeyRejected)
+        kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq"))
         now += KeptDictation.KEEP_MS
         kept.expire()
         assertNull(kept.expiresAt())
@@ -43,7 +43,7 @@ class KeptDictationTest {
     @Test
     fun `a failure that goes away by itself or by a fix in Settings is worth trying again`() {
         for (why in listOf(
-            Problem.NoConnection("Groq"), Problem.NoAnswerInTime("Groq"), Problem.KeyRejected, Problem.NoApiKey("Groq"),
+            Problem.NoConnection("Groq"), Problem.NoAnswerInTime("Groq"), Problem.KeyRejected("Groq"), Problem.NoApiKey("Groq"),
             Problem.NoCredit("Groq"), Problem.ServerError(500, "Groq"), Problem.ServiceDown(503), Problem.RateLimited,
             Problem.ModelNotOnServer("whisper-large-v3", "Groq"), Problem.AddressNotFound, Problem.AnswerUnreadable("Groq"), null,
         )) {
@@ -67,6 +67,15 @@ class KeptDictationTest {
     }
 
     @Test
+    fun `the toast points to Try again, except after a refused key, which names its fix`() {
+        assertTrue(KeptDictation.toastSaysTryAgain(Problem.NoConnection("Groq")))
+        assertTrue(KeptDictation.toastSaysTryAgain(null))
+        assertFalse(KeptDictation.toastSaysTryAgain(Problem.KeyRejected("Groq")))
+        assertTrue(KeptDictation.worthTryingAgain(Problem.KeyRejected("Groq")), "the recording is still kept")
+        assertFalse(KeptDictation.toastSaysTryAgain(Problem.NothingRecognized))
+    }
+
+    @Test
     fun `a retry that fails for good leaves the kept recording and its time as they were`() {
         val audio = audio(2.0)
         kept.keepRecording(audio, Problem.NoConnection("Groq"))
@@ -82,7 +91,7 @@ class KeptDictationTest {
     fun `only the last one is kept`() {
         val first = audio(1.0)
         val second = audio(2.0)
-        kept.keepRecording(first, Problem.KeyRejected)
+        kept.keepRecording(first, Problem.KeyRejected("Groq"))
         now += 1_000
         kept.keepRecording(second, null)
         assertSame(second, kept.recording())
@@ -91,14 +100,14 @@ class KeptDictationTest {
 
     @Test
     fun `a recording longer than five and a half minutes is not kept, nor an empty one`() {
-        assertFalse(kept.keepRecording(audio(KeptDictation.MAX_RECORDING_MS / 1000.0 + 1), Problem.KeyRejected))
-        assertFalse(kept.keepRecording(PcmAudio(ShortArray(0)), Problem.KeyRejected))
-        assertTrue(kept.keepRecording(audio(300.0), Problem.KeyRejected))
+        assertFalse(kept.keepRecording(audio(KeptDictation.MAX_RECORDING_MS / 1000.0 + 1), Problem.KeyRejected("Groq")))
+        assertFalse(kept.keepRecording(PcmAudio(ShortArray(0)), Problem.KeyRejected("Groq")))
+        assertTrue(kept.keepRecording(audio(300.0), Problem.KeyRejected("Groq")))
     }
 
     @Test
     fun `a dictation whose words came drops it`() {
-        kept.keepRecording(audio(1.0), Problem.KeyRejected)
+        kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq"))
         kept.textRecognized()
         assertNull(kept.recording())
         assertFalse(kept.hasRecording)
@@ -106,20 +115,20 @@ class KeptDictationTest {
 
     @Test
     fun `clear forgets it`() {
-        kept.keepRecording(audio(1.0), Problem.KeyRejected)
+        kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq"))
         kept.clear()
         assertNull(kept.recording())
     }
 
     @Test
     fun `keeping off forgets it at once and keeps nothing until it is on again`() {
-        kept.keepRecording(audio(1.0), Problem.KeyRejected)
+        kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq"))
         kept.keeping = false
         assertNull(kept.recording())
-        assertFalse(kept.keepRecording(audio(1.0), Problem.KeyRejected))
+        assertFalse(kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq")))
         assertNull(kept.recording())
         kept.keeping = true
-        assertTrue(kept.keepRecording(audio(1.0), Problem.KeyRejected))
+        assertTrue(kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq")))
     }
 
     private fun dictation(text: String, at: Long, failed: Boolean = false) = DictationRecord(
@@ -163,7 +172,7 @@ class KeptDictationTest {
     @Test
     fun `every change is counted for a screen that shows it`() {
         val before = kept.changes.value
-        kept.keepRecording(audio(1.0), Problem.KeyRejected)
+        kept.keepRecording(audio(1.0), Problem.KeyRejected("Groq"))
         kept.textRecognized()
         assertEquals(before + 2, kept.changes.value)
         // Nothing kept: nothing changes.

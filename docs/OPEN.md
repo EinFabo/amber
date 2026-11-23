@@ -23,8 +23,13 @@ Open for Fabi:
   Android's speech recognition under "Add speech recognition".
 - Built (item 30, 33, 37, 41, 42), to try on a phone: the dialogs before deleting a model or
   the whole history; Undo after removing an app's style, clearing diagnostics and a tap on a
-  recognition row; Home's failure line staying until the next tap. Not built from item 42: bare
-  HTTP codes in toasts.
+  recognition row; Home's failure line staying until the next tap.
+- Built (item 39 and the HTTP codes of 42), to try on a phone: "Paused. Tap to insert." on Home
+  and in the quick menu's message; in German "Embersay hört zu" / "Embersay schreibt …" on Home
+  and no full stop after a single note or status (`check_strings.py` now flags one); a refused
+  API key names the service and the fix ("Groq rejected the API key. Check or replace it."),
+  and its toast says that instead of "Try again"; a cleanup or download that fails with an HTTP
+  status says why before the code ("Cleanup failed: API key rejected (error 401).").
 - Built (item 34, 35, 40, the grey buttons' reasons of 42, and the Pixel test of 2026-11-22),
   to try on a phone: dragging the bubble off its edge with gesture navigation goes no Back; the
   bubble and quick menu after a new display size or font size; a grey quick menu button says
@@ -116,9 +121,8 @@ score 6.5/10). Built on the same day, not yet on a phone:
       "Recognize in parts" are two names for one thing; the bubble size and opacity values sit
       differently; the Cleanup page's privacy note in orange; the skipped-introduction download
       note sits loose between cards; History's failed-dictation card aligns its icon
-      differently; the quick menu's long `gesture_hold_note`; bare HTTP codes in failure
-      toasts and the developer wording of a test result ("The test clip contains no speech
-      ..."); the German "nahm das Mikrofon". Spoken punctuation stays on by default: "Punkt 2"
+      differently; the quick menu's long `gesture_hold_note`; the developer wording of a test
+      result ("The test clip contains no speech ..."); the German "nahm das Mikrofon". Spoken punctuation stays on by default: "Punkt 2"
       was fixed in rc4.
 - To try on a phone: the notification is gone from the status bar after the update (and the
   old channel from Android's list); Home's "Try again" after a failed test dictation; the

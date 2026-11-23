@@ -146,8 +146,8 @@ class ClaudeCleanupTest {
 
     @Test
     fun `a rejected key`() = runTest {
-        assertEquals(Problem.KeyRejected, problemOf(error(401, "authentication_error", "invalid x-api-key")))
-        assertEquals(Problem.KeyRejected, problemOf(error(403, "permission_error", "Your API key does not have permission")))
+        assertEquals(Problem.KeyRejected("Claude"), problemOf(error(401, "authentication_error", "invalid x-api-key")))
+        assertEquals(Problem.KeyRejected("Claude"), problemOf(error(403, "permission_error", "Your API key does not have permission")))
     }
 
     @Test

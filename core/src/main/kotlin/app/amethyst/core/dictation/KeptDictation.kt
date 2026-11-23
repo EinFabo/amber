@@ -159,7 +159,7 @@ class KeptDictation(
             is Problem.ServiceDown,
             Problem.RateLimited,
             is Problem.NoApiKey,
-            Problem.KeyRejected,
+            is Problem.KeyRejected,
             is Problem.NoCredit,
             is Problem.ModelNotOnServer,
             Problem.AddressNotFound,
@@ -167,5 +167,13 @@ class KeptDictation(
             -> true
             else -> false
         }
+
+        /**
+         * Whether the toast after [why] names "Try again" as the way out, for a recording kept by
+         * [worthTryingAgain]. Not after a refused key: it is refused again until the user fixes
+         * it, so its toast names that fix instead - "Try again" stays in the quick menu and on
+         * Home for afterwards. `tools/check_strings.py` reads the problems left out here.
+         */
+        fun toastSaysTryAgain(why: Problem?): Boolean = worthTryingAgain(why) && why !is Problem.KeyRejected
     }
 }

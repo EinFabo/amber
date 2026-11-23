@@ -1,7 +1,7 @@
 """Checks the app's texts: English (values/) and German (values-de/) hold the same strings
 with the same placeholders, the raw texts (raw/, raw-de/) come in both languages, toasts fit in two lines, the Compose screens carry no English
-sentence of their own, no text uses " - " as a dash, and no German text a word the glossary
-rules out.
+sentence of their own, no text uses " - " as a dash, no German text a word the glossary
+rules out, and no German single fragment ends in a full stop where the English has none.
 
 Usage: python3 -I tools/check_strings.py
 
@@ -74,10 +74,12 @@ for name in sorted(en.keys() & de.keys()):
 # toast says the way out first, in about 60-70 characters, and the reason goes to Diagnostics.
 # Checked: the strings named here, those whose name starts with one of the prefixes, and the
 # composed ones - a reason put before a way out - with each reason that comes with them. A
-# placeholder counts as a name of PLACEHOLDER_CHARS characters.
+# placeholder counts as a name of PLACEHOLDER_CHARS characters, a number (%d) as NUMBER_CHARS:
+# in a toast the only numbers are HTTP status codes.
 TOAST_LIMIT = 70
 COMPOSED_LIMIT = 75
 PLACEHOLDER_CHARS = 10
+NUMBER_CHARS = 3
 TOAST_PREFIXES = ("toast_", "problem_", "capture_", "quick_done_", "undo_")
 TOASTS = {
     "dictation_mic_permission", "dictation_mic_not_opened", "dictation_no_field", "dictation_not_inserted_here",
@@ -91,17 +93,22 @@ TOASTS = {
     "download_at_start",
 }
 # The reasons a kept recording's toast names before "Try again" (DictationController.failRecognition):
-# every problem KeptDictation.worthTryingAgain keeps a recording for, with the string Texts.problem
-# says it with - read from the code, so a problem added there is measured here too.
+# every problem KeptDictation.worthTryingAgain keeps a recording for, but those whose toast names
+# a fix instead (KeptDictation.toastSaysTryAgain), with the string Texts.problem says it with -
+# read from the code, so a problem added there is measured here too.
 def retry_reasons():
     kept = (root / "core/src/main/kotlin/app/amethyst/core/dictation/KeptDictation.kt").read_text(encoding="utf-8")
     body = re.search(r"fun worthTryingAgain\(why: Problem\?\): Boolean = when \(why\) \{(.*?)-> true", kept, re.S)
-    if not body:
-        errors.append("KeptDictation.worthTryingAgain: its list of problems could not be read")
+    toast = re.search(r"fun toastSaysTryAgain\(why: Problem\?\): Boolean = worthTryingAgain\(why\)(.*)", kept)
+    if not body or not toast:
+        errors.append("KeptDictation.worthTryingAgain or toastSaysTryAgain: its list of problems could not be read")
         return []
+    own_fix = set(re.findall(r"why !is Problem\.(\w+)", toast.group(1)))
     texts = (root / "app/src/main/kotlin/app/amethyst/Texts.kt").read_text(encoding="utf-8")
     reasons = []
     for problem in re.findall(r"Problem\.(\w+)", body.group(1)):
+        if problem in own_fix:
+            continue
         said = re.search(r"Problem\." + problem + r" -> getString\(R\.string\.(\w+)", texts)
         if said:
             reasons.append(said.group(1))
@@ -115,13 +122,18 @@ COMPOSED = {
     "toast_try_again": RETRY_REASONS,
     # The cleanup that did not run, with what stands in its way (Texts.cleanupTrouble).
     "toast_cleanup_did_not_run": ["cleanup_trouble_key", "cleanup_trouble_credit", "cleanup_trouble_model"],
+    # A cleanup's HTTP failure, with what its status means (Texts.httpReason).
+    "problem_cleanup_failed": sorted(n for n in en if n.startswith("http_reason_")),
 }
 
 
 def shown(text):
     """The text as a toast shows it, a placeholder as a name of PLACEHOLDER_CHARS characters."""
     text = re.sub(r"\\(['\"@?])", r"\1", text)
-    return PLACEHOLDER.sub(lambda m: "%" if m.group(0) == "%%" else "x" * PLACEHOLDER_CHARS, text)
+    return PLACEHOLDER.sub(
+        lambda m: "%" if m.group(0) == "%%" else "1" * NUMBER_CHARS if m.group(0).endswith("d") else "x" * PLACEHOLDER_CHARS,
+        text,
+    )
 
 
 for lang, texts in (("values", en), ("values-de", de)):
@@ -218,6 +230,19 @@ for lang, texts in (("values", en), ("values-de", de)):
             if " - " in text:
                 errors.append(f"{lang}: {name} uses \" - \" as a dash: \"{text[:60]}\"")
 
+# No full stop after a single fragment (GLOSSARY.md, German punctuation): a German text of one
+# sentence or fragment that ends in "." where its English ends without one - a note, a status,
+# a short message. Two sentences or more keep their full stops, and so does a text whose English
+# has one.
+SENTENCE_BREAK = re.compile(r"[.!?:]\s")
+for name in sorted(en.keys() & de.keys()):
+    for quantity, text in de[name].items():
+        english = en[name].get(quantity) or en[name].get("other") or next(iter(en[name].values()))
+        text = text.strip()
+        if text.endswith(".") and not text.endswith("..") and not english.strip().endswith(".") \
+                and not SENTENCE_BREAK.search(text[:-1]):
+            errors.append(f"values-de: {name} is one fragment and ends in a full stop the English has not: \"{text[:60]}\"")
+
 # German words the glossary's "Not (DE)" column rules out. An entry with a remark in
 # brackets depends on its sense and is left to the reader; "Einrichtung" is right for the
 # setup on Home, wrong elsewhere, so the script cannot tell either.
@@ -243,4 +268,4 @@ if errors:
     for e in errors:
         print("  -", e)
     sys.exit(1)
-print(f"OK: {len(en)} texts in English and German with the same placeholders; toasts within {TOAST_LIMIT} characters; no English sentence in the screens; no dash chains, no ruled-out German words.")
+print(f"OK: {len(en)} texts in English and German with the same placeholders; toasts within {TOAST_LIMIT} characters; no English sentence in the screens; no dash chains, no ruled-out German words, no full stop after a single German fragment.")

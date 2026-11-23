@@ -121,7 +121,7 @@ class ClaudeCleanup(
         val message = error?.get("message")?.jsonPrimitive?.contentOrNull.orEmpty()
         val code = response.code
         val problem = when {
-            code == 401 || code == 403 -> Problem.KeyRejected
+            code == 401 || code == 403 -> Problem.KeyRejected(service)
             code == 402 || type == "billing_error" || BILLING.containsMatchIn(message) -> Problem.NoCredit(service)
             // The address is Anthropic's own, so a 404 is the model ("model: claude-..."), as
             // is a 400 about the model field.

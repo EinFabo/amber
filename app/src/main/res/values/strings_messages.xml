@@ -7,14 +7,14 @@
     <string name="problem_answer_unreadable">%1$s sent an unreadable answer.</string>
     <string name="problem_no_connection">No connection to %1$s.</string>
     <string name="problem_no_answer_in_time">%1$s didn\'t answer in time.</string>
-    <string name="problem_key_rejected">API key rejected.</string>
+    <string name="problem_key_rejected">%1$s rejected the API key. Check or replace it.</string>
     <string name="problem_address_not_found">Server address not found.</string>
     <string name="problem_model_not_on_server">%1$s doesn\'t offer %2$s.</string>
     <string name="problem_recording_too_long">The recording is too long for this service.</string>
     <string name="problem_audio_format_refused">The service doesn\'t accept this audio format.</string>
     <string name="problem_rate_limited">Too many requests. Wait a moment.</string>
     <string name="problem_service_down">Service down (error %1$d).</string>
-    <string name="problem_server_error">%2$s failed (error %1$d).</string>
+    <string name="problem_server_error">%2$s refused (error %1$d).</string>
     <string name="problem_out_of_memory">Not enough memory to run the model on this phone.</string>
     <string name="problem_local_model_failed">The model on this phone failed. Download it again in Settings.</string>
     <string name="problem_processor_too_old">This processor is too old for Whisper. Use Parakeet or a server.</string>
@@ -32,7 +32,7 @@
     <string name="problem_enclave_other_address">The verified enclave isn\'t at the address you entered.</string>
     <string name="problem_enclave_cannot_bind">Couldn\'t secure the connection to the enclave.</string>
     <string name="problem_unencrypted_refused">Unencrypted connection to a public address blocked. Use https.</string>
-    <string name="problem_cleanup_failed">The cleanup failed (error %1$d).</string>
+    <string name="problem_cleanup_failed">Cleanup failed: %1$s (error %2$d).</string>
     <string name="problem_no_credit">No credit left at “%1$s”.</string>
     <string name="problem_cleanup_declined">%1$s declined the cleanup. The text was inserted as recognized.</string>
     <string name="problem_cleanup_model_unknown">Cleanup failed. The server has no model %1$s.</string>
@@ -49,6 +49,17 @@
     <string name="problem_recognizer_busy">Speech recognition is busy.</string>
     <string name="problem_recognizer_crashed">Android\'s speech recognition crashed.</string>
     <string name="problem_recognition_failed">Speech recognition failed.</string>
+
+    <!-- What an HTTP status means (Texts.httpReason), put after "Cleanup failed:" or "Download
+         failed:" and before the code: a fragment, lower case where the language allows. -->
+    <string name="http_reason_key_refused">API key rejected</string>
+    <string name="http_reason_no_credit">no credit left</string>
+    <string name="http_reason_not_found">not found on the server</string>
+    <string name="http_reason_too_large">too large for the server</string>
+    <string name="http_reason_too_many">too many requests</string>
+    <string name="http_reason_too_slow">server too slow</string>
+    <string name="http_reason_server_down">server down or busy</string>
+    <string name="http_reason_refused">request refused</string>
 
     <string name="issue_no_model_selected">No model selected.</string>
     <string name="issue_not_supported">This speech recognition isn\'t supported.</string>
@@ -71,7 +82,7 @@
     <string name="file_no_model_installed">No model installed.</string>
     <string name="file_not_enough_storage">Not enough storage: %1$d MB needed.</string>
     <string name="file_not_enough_storage_free">Not enough storage: %1$d MB needed, %2$d MB free.</string>
-    <string name="file_server_answered">The download server refused the request (error %1$d).</string>
+    <string name="file_server_answered">Download failed: %1$s (error %2$d).</string>
     <string name="file_empty_answer">The server sent an empty response.</string>
     <string name="file_no_connection">No connection.</string>
     <string name="file_cannot_open">Couldn\'t open the file.</string>

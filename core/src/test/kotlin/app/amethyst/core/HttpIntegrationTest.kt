@@ -125,7 +125,7 @@ class HttpIntegrationTest {
             engine().transcribe(speechLikeAudio()).exceptionOrNull(),
         )
         assertEquals(401, failure.statusCode)
-        assertEquals(Problem.KeyRejected, failure.problem)
+        assertEquals(Problem.KeyRejected("Eigener Server"), failure.problem)
         assertContains(failure.technical, "invalid api key")
     }
 

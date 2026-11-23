@@ -108,14 +108,14 @@ class ServerRefusalTest {
     @Test
     fun `a refused key stays a refused key and never falls back silently`() = runTest {
         val wrongKey = failure(401, """{"error":{"message":"Incorrect API key provided.","type":"invalid_request_error","code":"invalid_api_key"}}""")
-        assertEquals(Problem.KeyRejected, wrongKey.problem)
+        assertEquals(Problem.KeyRejected("Groq"), wrongKey.problem)
         assertFalse(mayFallBack(wrongKey))
         // Also when the answer speaks of the model, or of credit.
         val noAccess = failure(403, """{"error":{"message":"You do not have access to model whisper-1; insufficient quota.","code":"model_not_found"}}""")
-        assertEquals(Problem.KeyRejected, noAccess.problem)
+        assertEquals(Problem.KeyRejected("Groq"), noAccess.problem)
         assertFalse(mayFallBack(noAccess))
         // And when a server answers a bad key with another status.
-        assertEquals(Problem.KeyRejected, failure(400, """{"error":{"message":"bad key","code":"invalid_api_key"}}""").problem)
+        assertEquals(Problem.KeyRejected("Groq"), failure(400, """{"error":{"message":"bad key","code":"invalid_api_key"}}""").problem)
     }
 
     @Test
@@ -132,7 +132,7 @@ class ServerRefusalTest {
         assertFalse(gone.serviceUnavailable)
         assertNotNull(Fallback.recoverable(gone, TrustLevel.ENCLAVE_VERIFIED, FallbackMode.ENGINE))
         assertNull(Fallback.recoverable(gone, TrustLevel.CLOUD, FallbackMode.OFF), "the fallback is off")
-        assertFalse(SttFailure(Problem.KeyRejected, "HTTP 401", statusCode = 401).serverCannotServe)
+        assertFalse(SttFailure(Problem.KeyRejected("Groq"), "HTTP 401", statusCode = 401).serverCannotServe)
         assertFalse(SttFailure(Problem.RateLimited, "HTTP 429", statusCode = 429).serverCannotServe)
     }
 }

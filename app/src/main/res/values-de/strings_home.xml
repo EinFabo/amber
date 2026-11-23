@@ -34,9 +34,9 @@
     <string name="home_finish_setup">Schließe zuerst die Einrichtung oben ab.</string>
     <string name="home_tap_and_speak">Tippe und sprich. Der Text landet im Testfeld.</string>
     <string name="home_opening_mic">Mikrofon wird geöffnet …</string>
-    <string name="home_paused">Pausiert. Tippe zum Senden.</string>
-    <string name="home_listening">Hört zu. Tippe zum Stoppen.</string>
-    <string name="home_writing">Schreibt …</string>
+    <string name="home_paused">Pausiert. Tippe zum Einfügen.</string>
+    <string name="home_listening">Embersay hört zu. Tippe zum Stoppen.</string>
+    <string name="home_writing">Embersay schreibt …</string>
     <string name="home_done">Eingefügt</string>
     <string name="home_done_clipboard">In der Zwischenablage</string>
     <string name="home_command">Befehl: %1$s</string>
@@ -44,9 +44,9 @@
     <string name="home_use_whisper">Whisper auf dem Handy nutzen</string>
     <string name="home_download_model">Modell herunterladen</string>
     <string name="setup_title">Einrichtung</string>
-    <string name="setup_subtitle">Zwei Schritte, dann funktioniert die Bubble in jeder App.</string>
+    <string name="setup_subtitle">Zwei Schritte, dann funktioniert die Bubble in jeder App</string>
     <string name="setup_microphone">Mikrofon</string>
-    <string name="setup_microphone_note">Embersay nimmt nur auf, während du diktierst.</string>
+    <string name="setup_microphone_note">Embersay nimmt nur auf, während du diktierst</string>
     <string name="setup_accessibility">Bedienungshilfe</string>
     <string name="setup_accessibility_tried">Noch nicht an. Schalte %1$s ein und erlaube es.</string>
     <string name="setup_accessibility_note">Zeigt die Bubble und fügt den Text ins aktive Feld ein</string>
@@ -76,7 +76,7 @@
     <string name="stats_since">Gezählt seit</string>
     <string name="stats_costs">Serverkosten, geschätzt</string>
     <string name="stats_time_saved">Gesparte Zeit</string>
-    <string name="stats_time_saved_subtitle">Wie lange du in deinem Tempo getippt hättest, verglichen mit der Zeit fürs Sprechen und Warten.</string>
+    <string name="stats_time_saved_subtitle">Wie lange du in deinem Tempo getippt hättest, verglichen mit der Zeit fürs Sprechen und Warten</string>
     <string name="stats_typing_speed">Dein Tipptempo</string>
     <string name="stats_clear">Statistik löschen</string>
     <string name="stats_clear_title">Statistik löschen?</string>

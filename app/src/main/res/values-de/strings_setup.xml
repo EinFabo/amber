@@ -29,7 +29,7 @@
     <string name="switch_on_step1_note">In der Liste, falls Android eine zeigt</string>
     <string name="switch_on_step2">Schalte „%1$s verwenden“ ein</string>
     <string name="switch_on_step3">Tippe auf „Zulassen“</string>
-    <string name="switch_on_step3_note">Embersay kommt von selbst hierher zurück.</string>
+    <string name="switch_on_step3_note">Embersay kommt von selbst hierher zurück</string>
     <string name="where_allow">Zulassen</string>
     <string name="where_as_text">Die Schritte in Worten</string>
     <string name="where_hide_text">Schritte ausblenden</string>
@@ -38,7 +38,7 @@
     <string name="restricted_step1">Öffne die App-Info von Embersay</string>
     <string name="restricted_step1_note">Mit dem Knopf unten</string>
     <string name="restricted_step2">Tippe oben rechts auf ⋮</string>
-    <string name="restricted_step2_note">Der nächste Eintrag erscheint erst, nachdem du den Schalter ausprobiert hast.</string>
+    <string name="restricted_step2_note">Der nächste Eintrag erscheint erst, nachdem du den Schalter ausprobiert hast</string>
     <string name="restricted_step3">Tippe auf „Eingeschränkte Einstellungen zulassen“</string>
     <string name="restricted_step3_note">Bestätige, falls Android fragt</string>
     <string name="where_restricted_item">Eingeschränkte Einstellungen zulassen</string>
@@ -56,13 +56,13 @@
     <string name="welcome_skip">Einführung überspringen</string>
     <string name="welcome_ways">„Schnell einrichten“ wählt, was zu diesem Handy passt.</string>
     <string name="welcome_every_app">In jeder App</string>
-    <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist.</string>
+    <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist</string>
     <string name="welcome_private">Privat von Anfang an</string>
-    <string name="welcome_private_note">Deine Stimme bleibt auf diesem Handy, außer du wählst einen Server.</string>
+    <string name="welcome_private_note">Deine Stimme bleibt auf diesem Handy, außer du wählst einen Server</string>
     <string name="welcome_android">Du entscheidest, wohin deine Stimme geht</string>
     <string name="welcome_android_note">Hier ist es die Spracherkennung von Android, die sie an ihren Hersteller senden kann</string>
     <string name="welcome_only_dictating">Nur während du diktierst</string>
-    <string name="welcome_only_dictating_note">Sonst ist das Mikrofon aus.</string>
+    <string name="welcome_only_dictating_note">Sonst ist das Mikrofon aus</string>
     <string name="access_title">Lass Embersay für dich schreiben</string>
     <string name="access_lead_locked">Noch nicht an. Wenn Android den Schalter gesperrt hat, geht es so weiter.</string>
     <string name="access_lead_waiting">Noch nicht an. Das sind drei Schritte.</string>
@@ -73,7 +73,7 @@
     <string name="mic_lead">Embersay nimmt nur auf, während du diktierst. Die Bubble leuchtet, solange sie zuhört.</string>
     <string name="mic_where">Deine Aufnahme geht nur an die Spracherkennung, die du nutzt. Mit Bereinigung geht der erkannte Text an die Bereinigung, die du gewählt hast. Deine Diktate bleiben standardmäßig 24&#160;Stunden verschlüsselt auf dem Handy; das kannst du unter Einstellungen → Privatsphäre → Verlauf ändern.</string>
     <string name="continue_without">Ohne weiter</string>
-    <string name="mic_allowed">Erlaubt.</string>
+    <string name="mic_allowed">Erlaubt</string>
     <string name="mic_not_allowed">Noch nicht erlaubt. Wenn Android nicht mehr fragt, erlaube es in der App-Info von Embersay unter Berechtigungen → Mikrofon.</string>
     <string name="open_app_settings">App-Einstellungen öffnen</string>
     <string name="cleanup_step_title">Den Text bereinigen?</string>
@@ -143,8 +143,8 @@
     <string name="practice_bubble_left">Die Bubble ist am linken Rand, über der Tastatur.</string>
     <string name="practice_bubble_right">Die Bubble ist am rechten Rand, über der Tastatur.</string>
     <string name="practice_done_drag">Geschafft. Schiebe die Bubble dorthin, wo du sie haben willst.</string>
-    <string name="practice_done">Geschafft.</string>
-    <string name="practice_skipped">Übersprungen.</string>
+    <string name="practice_done">Geschafft</string>
+    <string name="practice_skipped">Übersprungen</string>
     <string name="practice_allow_mic">Mikrofon erlauben</string>
     <string name="practice_tap">Tippen zum Diktieren</string>
     <string name="practice_hold">Halten für das Schnellmenü</string>
@@ -171,7 +171,7 @@
     <string name="engine_step_recommended">Empfohlen für dieses Handy</string>
     <string name="engine_step_keeps_going">Du kannst weitermachen, der Download läuft im Hintergrund.</string>
     <string name="engine_step_waits">Wartet auf WLAN und lädt dann von selbst herunter. Du kannst weitermachen.</string>
-    <string name="engine_step_ready">Heruntergeladen und bereit.</string>
+    <string name="engine_step_ready">Heruntergeladen und bereit</string>
     <string name="engine_step_no_download">kein Download</string>
     <string name="engine_step_in_settings">in den Einstellungen einrichten</string>
     <string name="engine_step_download_size">%1$s Download</string>
