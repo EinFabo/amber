@@ -100,7 +100,7 @@
     <string name="ready_step_title">Keep Embersay ready</string>
     <string name="ready_step_lead">Optional. Without this, some phones cut off the microphone in the background.</string>
     <string name="done_title">All set</string>
-    <string name="done_title_downloading">The model is still downloading</string>
+    <string name="done_title_model_missing">The model isn\'t on the phone yet</string>
     <string name="done_lead">You can change all of this in Settings. Open Embersay and tap the gear at the top right.</string>
     <string name="done_android_leaves">Android\'s speech recognition may send your voice to its maker (Google, on most phones). You can choose another in Settings → Speech recognition.</string>
     <string name="done_choose_another">Choose another</string>

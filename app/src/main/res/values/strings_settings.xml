@@ -33,6 +33,7 @@
     <string name="recognition_group_server">Server</string>
     <string name="recognition_add">Add speech recognition</string>
     <string name="recognition_switched">%1$s is in use now</string>
+    <string name="recognition_kept">%1$s stays in use, the better model won\'t be downloaded</string>
     <string name="recognition_cleanup_only">Only used for the cleanup</string>
     <string name="recording_ending">Stopping</string>
     <string name="recording_auto_stop">Stop on silence</string>

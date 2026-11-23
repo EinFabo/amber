@@ -203,10 +203,12 @@ internal fun DoneStep(
     val rows = rememberRowsIn(6)
     // A model still on its way - also in the moment before its first byte - shows on the bubble's rim.
     val downloaded = if (pending == null) DownloadNotice.share(download) else DownloadNotice.share(pending.download) ?: 0f.takeIf { pending.download == null && !pending.failed }
-    // "All set" only once a dictation works: while its model is still on its way, the title says so.
+    // "All set" only once a dictation works: while its model is still on its way, the title says
+    // it is not here yet - not "downloading", since it may wait for Wi-Fi or have stopped (the
+    // note under the recognition row says which).
     val ready = FirstRun.readyAtDone(pending?.stage, download)
     StepPage(
-        title = stringResource(if (ready) R.string.done_title else R.string.done_title_downloading),
+        title = stringResource(if (ready) R.string.done_title else R.string.done_title_model_missing),
         lead = stringResource(R.string.done_lead),
         top = { DoneOrb(downloaded) },
         buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },

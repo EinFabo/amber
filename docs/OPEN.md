@@ -21,6 +21,10 @@ Open for Fabi:
   recording goes; on the A20e (no on-device recognizer) the welcome step's second point, the
   done step's note with "Choose another", Home's recognition row, and the "Cloud" badge on
   Android's speech recognition under "Add speech recognition".
+- Built (item 30, 33, 37, 41, 42), to try on a phone: the dialogs before deleting a model or
+  the whole history; Undo after removing an app's style, clearing diagnostics and a tap on a
+  recognition row; Home's failure line staying until the next tap. Not built from item 42: a
+  reason on the quick menu's grey buttons, bare HTTP codes in toasts.
 - Note for item 22: `docs/PRIVACY.md` and both raw texts say a shared Diagnostics report "names
   the app each dictation went into" - true until the report replaces the names; change that
   line in all three with it.
@@ -90,19 +94,21 @@ score 6.5/10). Built on the same day, not yet on a phone:
 - [x] History and Security mode as one "Privacy" row with both on its page.
 - [x] Groq's and OpenAI's pages: the address field and hint behind "Other address".
 - [x] The speech recognition list: a chevron instead of an amber "Open" on every row.
-- [ ] Not built from the review: one icon with three meanings (History, introduction, Try
-      again; Subject on licenses and history rows); the app page titled "App" and "Remove
-      Keep"; Groq's page still says "Settings complete." and has a Save button beside the
-      autosave; the Recording page's "Recognize while speaking" / "Recognize in parts" are
-      two names for one thing; the "Per app" header over a single row; the bubble size and
-      opacity values sit differently; the Cleanup page's privacy note in orange; the German
-      Reliability banner wraps; the skipped-introduction download note sits loose between
-      cards; History's failed-dictation card aligns its icon differently; "All set" while the
-      model still downloads; the quick menu's long `gesture_hold_note`; bare HTTP codes in
-      failure toasts and the developer wording of a test result ("The test clip contains no
-      speech ..."); the German "nahm das Mikrofon"; Home's cleanup row still names "Tinfoil
-      (Enclave)" above the "Verified enclave" badge; other model suffixes ("Voxtral Small
-      24B", "Whisper base"). Spoken punctuation stays on by default: "Punkt 2" was fixed in rc4.
+- [x] Built 2026-11-23 (store review item 42): History, the introduction and Try again have
+      icons of their own; a server's page (Groq's too) saves by itself, without a Save button
+      and "Settings complete."; no "Per app" header over the single row; the German
+      Reliability banner fits one line; the introduction's last step no longer says "All set"
+      while the model is not on the phone; Home names "Tinfoil" above the "Verified enclave"
+      badge; model names without suffixes ("Voxtral", "Whisper").
+- [ ] Not built from the review: Subject as the icon on licenses and history rows; the app
+      page titled "App" and "Remove Keep"; the Recording page's "Recognize while speaking" /
+      "Recognize in parts" are two names for one thing; the bubble size and opacity values sit
+      differently; the Cleanup page's privacy note in orange; the skipped-introduction download
+      note sits loose between cards; History's failed-dictation card aligns its icon
+      differently; the quick menu's long `gesture_hold_note`; bare HTTP codes in failure
+      toasts and the developer wording of a test result ("The test clip contains no speech
+      ..."); the German "nahm das Mikrofon". Spoken punctuation stays on by default: "Punkt 2"
+      was fixed in rc4.
 - To try on a phone: the notification is gone from the status bar after the update (and the
   old channel from Android's list); Home's "Try again" after a failed test dictation; the
   quick menu's names on a small screen and near the top or bottom edge (tilted fan); the
@@ -118,10 +124,10 @@ score 6.5/10). Built on the same day, not yet on a phone:
 - [x] The introduction's quick menu note in three short sentences; test results "The model
       works." / "The connection works." without the test clip; "Eine andere App braucht das
       Mikrofon"; failure messages say what happened before the code ("„Groq“ lehnt ab (Code 403)").
-- [ ] Still open from the review: Groq's "Settings complete." beside a Save button and
-      autosave, "All set" while the model downloads, Home's "Tinfoil (Enclave)" over the
-      "Verified enclave" badge, model suffixes, "App" / "Remove Keep", the German Reliability
-      banner, and the layout points (one icon with three meanings, alignment, orange note).
+- [ ] Still open from the review: "App" / "Remove Keep" and the layout points (alignment,
+      orange note). Built 2026-11-23 (store review item 42): Groq's one way of saving, no "All
+      set" while the model is missing, "Tinfoil" on Home, model names without suffixes, the
+      German Reliability banner, an icon each for History, the introduction and Try again.
 
 ## Fixes looked at, not built (2026-11-18)
 
@@ -216,8 +222,8 @@ After a research round (settings UX, Learn more, English and German copy, the pr
       column; `tools/check_strings.py` now fails on " - " and on ruled-out German words.
 - [ ] Left: negation and number words are checked for German and English only; the catalog's
       prices could say "per dictation"; "Recognize while speaking" (Recording) and "Prepare on
-      the phone while you speak" (fallback) are two names for close ideas; a tap on a
-      recognition row switches it at once (an undo would be kinder); Diagnostics under About.
+      the phone while you speak" (fallback) are two names for close ideas; Diagnostics under About.
+- [x] A tap on a recognition row still switches it at once, now with Undo (store review item 42).
 
 ## Testing rc2 on the Pixel (2026-11-22) - fixed in rc3
 

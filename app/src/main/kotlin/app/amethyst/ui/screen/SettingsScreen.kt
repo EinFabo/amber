@@ -262,13 +262,22 @@ fun RecognitionScreen(
     /**
      * A tap on a row makes it the active recognition at once, with Undo: the one before comes
      * back, with the first run's plan as it was (a model on its way wanted again). No Undo where
-     * the small stand-in model goes with the tap: nothing would be left to come back to.
+     * the small stand-in model goes with the tap: nothing would be left to come back to. The row
+     * already in use changes nothing - unless it is the stand-in, whose tap lets the better
+     * model's download go: that gets its Undo too.
      */
     fun choose(engine: EngineConfig) {
         val before = settings
+        if (!app.amethyst.core.onboarding.FirstRun.changes(before, engine.id)) return
         onUpdateSettings { app.amethyst.core.onboarding.FirstRun.chosen(it, engine.id) }
-        if (engine.id == before.activeEngineId || !app.amethyst.core.onboarding.FirstRun.canUnchoose(before, engine.id)) return
-        undo.offer(context.getString(R.string.recognition_switched, Texts.recognitionRowName(context, engine))) {
+        if (!app.amethyst.core.onboarding.FirstRun.canUnchoose(before, engine.id)) return
+        val name = Texts.recognitionRowName(context, engine)
+        val message = if (engine.id == before.activeEngineId) {
+            context.getString(R.string.recognition_kept, name)
+        } else {
+            context.getString(R.string.recognition_switched, name)
+        }
+        undo.offer(message) {
             onUpdateSettings { app.amethyst.core.onboarding.FirstRun.unchosen(it, before) }
         }
     }

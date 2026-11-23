@@ -520,6 +520,21 @@ class FirstRunTest {
     }
 
     @Test
+    fun `a tap on the row already in use changes something only where it ends the first run's plan`() {
+        // Nothing waits: the tap changes nothing, and there is nothing to undo.
+        assertFalse(FirstRun.changes(fresh, fresh.activeEngineId))
+        // The small model stands in and is the active row: the tap makes it theirs and lets
+        // parakeet's download go - a change, and one that can be taken back.
+        val small = FirstRun.settle(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), ready = true, TEST_PHONE)
+        assertEquals(whisper, small.activeEngineId)
+        assertTrue(FirstRun.changes(small, whisper))
+        assertTrue(FirstRun.canUnchoose(small, whisper))
+        assertEquals(small, FirstRun.unchosen(FirstRun.chosen(small, whisper), before = small))
+        // Another row always changes the active one.
+        assertTrue(FirstRun.changes(small, android))
+    }
+
+    @Test
     fun `undoing a choice whose earlier recognition is gone keeps the chosen one`() {
         val before = fresh.withEngine(EngineConfig.fromPreset(EnginePresets.GROQ)).copy(activeEngineId = EnginePresets.GROQ.id)
         val chosen = FirstRun.chosen(before, android)

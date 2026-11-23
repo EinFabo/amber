@@ -100,7 +100,7 @@
     <string name="ready_step_title">Embersay bereithalten</string>
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
-    <string name="done_title_downloading">Das Modell wird noch heruntergeladen</string>
+    <string name="done_title_model_missing">Das Modell ist noch nicht auf dem Handy</string>
     <string name="done_lead">Alles lässt sich in den Einstellungen ändern. Du findest sie über das Zahnrad oben rechts in Embersay.</string>
     <string name="done_android_leaves">Die Spracherkennung von Android kann deine Stimme an ihren Hersteller senden (auf den meisten Handys Google). Unter Einstellungen → Spracherkennung kannst du eine andere wählen.</string>
     <string name="done_choose_another">Andere wählen</string>

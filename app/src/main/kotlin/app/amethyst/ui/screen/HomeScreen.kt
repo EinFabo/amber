@@ -41,6 +41,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.amethyst.R
 import app.amethyst.ui.ShowsDictatedText
@@ -230,6 +232,10 @@ private fun OrbArea(
             else -> failure = null
         }
     }
+    // Leaving the app counts as leaving Home: Home stays composed while Embersay is in the
+    // background, but the state is not collected then - a bubble dictation meanwhile would go
+    // unseen, and the old reason (and "Try again" for the newer recording) would still be shown.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { failure = null }
     val status = failure?.takeIf { dictation == DictationState.Idle } ?: dictation
     fun tapped(action: () -> Unit): () -> Unit = {
         failure = null

@@ -203,6 +203,13 @@ object FirstRun {
     fun canUnchoose(settings: AmethystSettings, engineId: String): Boolean = leftover(chosen(settings, engineId)) == null
 
     /**
+     * Whether a tap on [engineId] in Settings changes anything ([chosen]). A tap on the row
+     * already in use usually does not - but on the small model while it stands in it makes the
+     * model theirs and lets the better one's download go, which is worth an Undo too.
+     */
+    fun changes(settings: AmethystSettings, engineId: String): Boolean = chosen(settings, engineId) != settings
+
+    /**
      * Whether the introduction's last step may say "All set": not while a dictation still waits
      * for a model - the one the first run fetches ([stage]) when no other recognition stands in,
      * or the active recognition's own download ([activeDownload]), running or held.
