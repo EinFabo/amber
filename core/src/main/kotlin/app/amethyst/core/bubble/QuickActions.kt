@@ -110,6 +110,9 @@ enum class QuickOff {
     /** No cleanup would run here, so there is nothing to switch off or skip. */
     NO_CLEANUP,
 
+    /** The cleanup is switched off for the app in front, so there is none to skip. */
+    CLEANUP_OFF_HERE,
+
     /** A voice command is never cleaned up. */
     NOT_FOR_COMMAND,
 
@@ -226,6 +229,8 @@ object QuickActions {
             if (context.otherAppInFront) null else QuickOff.OTHER_APP_ONLY
         QuickAction.SEND_WITHOUT_CLEANUP, QuickAction.KEEP_AS_RECOGNIZED -> when {
             context.command -> QuickOff.NOT_FOR_COMMAND
+            // Switched off here with the menu's own switch: "none set up" would be wrong.
+            !context.cleanupPlanned && context.cleanupHere == CleanupHere.OFF -> QuickOff.CLEANUP_OFF_HERE
             !context.cleanupPlanned -> QuickOff.NO_CLEANUP
             else -> null
         }

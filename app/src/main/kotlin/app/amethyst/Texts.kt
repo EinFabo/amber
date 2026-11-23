@@ -352,6 +352,7 @@ object Texts {
             QuickOff.NOTHING_TO_UNDO -> R.string.quick_off_nothing_to_undo
             QuickOff.NO_FIELD -> R.string.quick_off_no_field
             QuickOff.NO_CLEANUP -> R.string.quick_off_no_cleanup
+            QuickOff.CLEANUP_OFF_HERE -> R.string.quick_off_cleanup_off_here
             QuickOff.NOT_FOR_COMMAND -> R.string.quick_off_command
             QuickOff.CANNOT_PAUSE -> R.string.quick_off_cannot_pause
         },

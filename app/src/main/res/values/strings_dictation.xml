@@ -65,7 +65,8 @@
     <string name="quick_off_no_dictation">No dictation yet</string>
     <string name="quick_off_nothing_to_undo">Nothing to undo in this app</string>
     <string name="quick_off_no_field">Tap into a text field first</string>
-    <string name="quick_off_no_cleanup">No cleanup set up</string>
+    <string name="quick_off_no_cleanup">No cleanup runs here</string>
+    <string name="quick_off_cleanup_off_here">Cleanup is off in this app</string>
     <string name="quick_off_command">Not for a voice command</string>
     <string name="quick_off_cannot_pause">This speech recognition can\'t pause</string>
     <string name="toast_unexpected">Something went wrong. See Diagnostics for details.</string>

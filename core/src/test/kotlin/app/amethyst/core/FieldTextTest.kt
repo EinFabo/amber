@@ -39,4 +39,13 @@ class FieldTextTest {
         assertFalse(FieldText.setTextFlattens(FieldText.EDIT_TEXT, hasSpans = false))
         assertFalse(FieldText.setTextFlattens(null, hasSpans = false), "an unknown class says nothing")
     }
+
+    @Test
+    fun `the framework's autocomplete fields are plain EditTexts that name themselves`() {
+        // Android 15's AutoCompleteTextView (search boxes, address fields) and every
+        // MultiAutoCompleteTextView (recipient fields) report their own class name.
+        assertFalse(FieldText.setTextFlattens("android.widget.AutoCompleteTextView", hasSpans = false))
+        assertFalse(FieldText.setTextFlattens("android.widget.MultiAutoCompleteTextView", hasSpans = false))
+        assertTrue(FieldText.setTextFlattens("android.widget.AutoCompleteTextView", hasSpans = true))
+    }
 }

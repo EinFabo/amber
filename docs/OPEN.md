@@ -29,7 +29,9 @@ Open for Fabi:
   to try on a phone: dragging the bubble off its edge with gesture navigation goes no Back; the
   bubble and quick menu after a new display size or font size; a grey quick menu button says
   why when let go on; the bubble gone while the notification shade or quick settings are down,
-  back once they are up; the practice step's text clear of the bubble and the "more" button
+  back once they are up - and still there with an Android chat bubble (Messages) opened, its
+  reply field tapped: that window is SystemUI's too, full-screen and focusable while open, and
+  `SystemShade` would take it for the shade if Android reports it in use; the practice step's text clear of the bubble and the "more" button
   under the text; the recording notification's second line. Dictating into a field with links
   or formatting (a mail draft, Google Docs) - pasted, not written back flat; a field that shows
   its hint as text gets no words spliced onto it. Android 9/10 in landscape: the bubble clear

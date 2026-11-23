@@ -358,6 +358,13 @@ class QuickActionsTest {
     }
 
     @Test
+    fun `a cleanup switched off in this app is said so, not that none is set up`() {
+        val recording = idle.copy(phase = QuickPhase.RECORDING, cleanupPlanned = false, cleanupHere = CleanupHere.OFF)
+        assertEquals(QuickOff.CLEANUP_OFF_HERE, QuickActions.whyOff(QuickAction.SEND_WITHOUT_CLEANUP, recording))
+        assertEquals(QuickOff.CLEANUP_OFF_HERE, QuickActions.whyOff(QuickAction.KEEP_AS_RECOGNIZED, recording.copy(phase = QuickPhase.WORKING)))
+    }
+
+    @Test
     fun `a recording that cannot pause says so`() {
         assertEquals(QuickOff.CANNOT_PAUSE, QuickActions.whyOff(QuickAction.PAUSE, idle.copy(phase = QuickPhase.RECORDING, canPause = false)))
         assertNull(QuickActions.whyOff(QuickAction.PAUSE, idle.copy(phase = QuickPhase.RECORDING)))

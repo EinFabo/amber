@@ -10,6 +10,17 @@ object FieldText {
     const val EDIT_TEXT = "android.widget.EditText"
 
     /**
+     * The framework's EditTexts that report a name of their own: AutoCompleteTextView from
+     * Android 15 on (search boxes, address fields, Material's dropdowns) and
+     * MultiAutoCompleteTextView (recipient fields). Plain fields, written back as well as any.
+     */
+    private val PLAIN_EDIT_TEXTS = setOf(
+        EDIT_TEXT,
+        "android.widget.AutoCompleteTextView",
+        "android.widget.MultiAutoCompleteTextView",
+    )
+
+    /**
      * The text a field holds, without its placeholder: a field showing its hint reports the
      * hint as its text, and the words would be spliced onto "Message" or "Type a note". Most
      * fields say so ([showingHint]); some only hand out text equal to their [hint]. That counts
@@ -28,11 +39,11 @@ object FieldText {
     /**
      * Writing the whole field back (ACTION_SET_TEXT) would flatten it: its text carries spans
      * someone would miss ([hasSpans]: links, mentions, formatting) that a plain string
-     * replaces, or the node is not an EditText at all ([className]) - a rich editor of its
-     * own, which may take the write as a new document. Such a field gets the words pasted at
-     * the cursor instead, when the clipboard may be used ([InsertionEngine]). An unknown class
-     * says nothing.
+     * replaces, or the node is not an EditText at all ([className], [PLAIN_EDIT_TEXTS]) - a
+     * rich editor of its own, which may take the write as a new document. Such a field gets
+     * the words pasted at the cursor instead, when the clipboard may be used
+     * ([InsertionEngine]). An unknown class says nothing.
      */
     fun setTextFlattens(className: CharSequence?, hasSpans: Boolean): Boolean =
-        hasSpans || (className != null && className.toString() != EDIT_TEXT)
+        hasSpans || (className != null && className.toString() !in PLAIN_EDIT_TEXTS)
 }

@@ -225,6 +225,35 @@ class InsertionEngineTest {
     }
 
     @Test
+    fun `a failed paste followed by set text takes the pasted clip off again`() {
+        val target = FakeTarget(initialText = "Hi", setTextFlattens = true, pasteWorks = false)
+        val clipboard = ForgettingClipboard(target)
+        val outcome = InsertionEngine(StrategyMemory(), clipboard, pause = {}).insert(target, "Anna")
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertEquals(listOf(" Anna"), clipboard.forgotten, "what was copied - seam included - is what comes off")
+        assertFalse(outcome.copiedToClipboard)
+    }
+
+    @Test
+    fun `a paste that went first only for a rich field leaves the app's method as it was`() {
+        val memory = StrategyMemory()
+        val rich = FakeTarget(initialText = "Hi", setTextFlattens = true)
+        assertEquals(InsertionStrategy.PASTE, engine(rich, memory).insert(rich, "Anna").strategy)
+        assertEquals(emptyMap(), memory.snapshot())
+
+        val plain = FakeTarget(initialText = "Hi")
+        val outcome = engine(plain, memory).insert(plain, "Anna")
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy, "a plain field of the same app is still written directly")
+        assertEquals(0, plain.pasteCalls)
+
+        val remembered = StrategyMemory(mapOf("com.whatsapp" to InsertionStrategy.SET_TEXT))
+        val again = FakeTarget(initialText = "Hi", setTextFlattens = true)
+        engine(again, remembered).insert(again, "Anna")
+        assertEquals(mapOf("com.whatsapp" to InsertionStrategy.SET_TEXT), remembered.snapshot())
+    }
+
+    @Test
     fun `falls through when set text refuses outright`() {
         val target = FakeTarget(setTextRefuses = true)
         val outcome = engine(target).insert(target, "Hallo")

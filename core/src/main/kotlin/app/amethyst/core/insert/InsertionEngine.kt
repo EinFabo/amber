@@ -147,6 +147,9 @@ class InsertionEngine(
     ): InsertionOutcome {
         val packageName = target?.packageName ?: UNKNOWN_PACKAGE
         var copied = false
+        // What went on the clipboard last, to take exactly that off again: a paste copies the
+        // words with their seam, and after a failed paste another method may have put them in.
+        var clip: String? = null
         committed = null
         setFragment = null
         pasted = null
@@ -170,7 +173,8 @@ class InsertionEngine(
         // writes, so apps keep it. SET_TEXT can show the words and still lose them - Google
         // Keep's note body displayed a SET_TEXT write and dropped it on closing (Pixel 9a,
         // 2026-10-29). What worked last time only orders the fallbacks.
-        val order = fallbacks(memory.order(packageName), allowClipboard, pasteFirst = allowClipboard && target.setTextFlattens)
+        val pasteFirst = allowClipboard && target.setTextFlattens
+        val order = fallbacks(memory.order(packageName), allowClipboard, pasteFirst)
         val words = if ('\n' in text && !target.takesLineBreaks) TranscriptNormalizer.oneLine(text) else text
 
         for (strategy in order) {
@@ -194,26 +198,38 @@ class InsertionEngine(
                     // failed paste still leaves the dictation recoverable. What typing would
                     // type goes there - space and capital at the seam included - for a field
                     // that gets the paste before SET_TEXT ([EditableTarget.setTextFlattens]).
-                    val clip = pasteFragment(target, words, options)
-                    pasted = clip
-                    copied = clipboard.copy(clip) || copied
-                    copied && tryPaste(target, words)
+                    val fragment = pasteFragment(target, words, options)
+                    pasted = fragment
+                    val onClipboard = clipboard.copy(fragment)
+                    if (onClipboard) {
+                        copied = true
+                        clip = fragment
+                    }
+                    onClipboard && tryPaste(target, words)
                 }
 
                 InsertionStrategy.CLIPBOARD_ONLY -> {
-                    copied = clipboard.copy(words) || copied
+                    if (clipboard.copy(words)) {
+                        copied = true
+                        clip = words
+                    }
                     false
                 }
             }
 
             if (inserted) {
-                memory.recordSuccess(packageName, strategy)
-                onMemoryChanged(memory)
+                // A paste that went first only because this one field would be flattened says
+                // nothing about the app: remembered, it would go before SET_TEXT in every plain
+                // field of it too, and every dictation there would pass the clipboard.
+                if (!(pasteFirst && strategy == InsertionStrategy.PASTE)) {
+                    memory.recordSuccess(packageName, strategy)
+                    onMemoryChanged(memory)
+                }
                 // The clip was only the way in: left there, every dictation pasted would stay
                 // on the clipboard - for the next paste anywhere, and for any app allowed to
                 // read it. A clip that is the fallback ("copied, paste it yourself") never
                 // gets here: then nothing went into the field.
-                if (copied && clipboard.forget(if (strategy == InsertionStrategy.PASTE) pasted ?: words else words)) copied = false
+                if (copied && clip != null && clipboard.forget(clip)) copied = false
                 val fragment = when (strategy) {
                     InsertionStrategy.COMMIT_TEXT -> committed
                     InsertionStrategy.SET_TEXT -> setFragment
