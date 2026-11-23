@@ -21,9 +21,9 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
 - API keys you type in, encrypted with a key in Android's keystore. A key is only ever sent
   to the address it was typed for.
 - Statistics: for each dictation the time, the app you dictated in, the number of words and
-  how long it took - not what you said. You can clear them under Settings → Statistics.
+  how long it took - not what you said. You can clear them under Settings → Privacy → Statistics.
 - History: your recent dictations - their text, the app and the time - kept on this phone
-  for 24 hours unless you change it (off, 24 hours or 7 days, under Settings → History) or
+  for 24 hours unless you change it (off, 24 hours or 7 days, under Settings → Privacy → History) or
   switch on the security mode. An install from before the history starts with it off and is
   offered it once on Home. The text and the app are encrypted; the time is not, so what is past
   its time can be deleted while the phone is locked. The keys - one per day - are in Android's
@@ -40,12 +40,12 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   the report. The list on the phone shows the apps' names.
 - Speech models you download.
 
-With the security mode on (Settings → Security mode), Embersay keeps none of a dictation's
+With the security mode on (Settings → Privacy → Security mode), Embersay keeps none of a dictation's
 words once it is in the field: no recording to try again, no last dictation, no history, no text
 in Diagnostics (only how many characters and words it had, and its language, and not the app),
 no record of how text went into each app; it never puts text on the clipboard, and its own
 screens are kept out of screenshots and Recents. The statistics still keep each dictation's
-time, word count and length, without the app - switch them off under Settings → Statistics to
+time, word count and length, without the app - switch them off under Settings → Privacy → Statistics to
 keep none of it. Switching the mode on deletes what is kept at that moment; each start with the
 mode on removes app names an interrupted switch may have left. Until Embersay has read its settings
 after a start, it acts as if the mode were on. It does not hide that Embersay is installed, it
@@ -114,7 +114,7 @@ this may send your voice to its maker.
 - Update check: a copy of Embersay installed from a file from GitHub asks api.github.com once
   a day whether a newer release is out. The request carries nothing about you or your phone
   beyond what any web request does. A copy installed by an app store never asks. You can
-  switch the check off under Settings → Updates.
+  switch the check off under Settings → About Embersay → Updates.
 - Model lists: Embersay asks the servers you added which models they offer.
 - Tinfoil's proof: before a recording or a text goes to Tinfoil, Embersay fetches the
   server's attestation document from that server and checks it on the phone - the hardware

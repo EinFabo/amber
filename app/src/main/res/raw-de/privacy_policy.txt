@@ -22,9 +22,9 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
   Android. Ein Schlüssel wird nur an die Adresse gesendet, für die er eingegeben wurde.
 - Statistik: für jedes Diktat die Uhrzeit, die App, in der du diktiert hast, die Zahl der Wörter
   und wie lange es gedauert hat, nicht was du gesagt hast. Du kannst sie unter Einstellungen →
-  Statistik löschen.
+  Privatsphäre → Statistik löschen.
 - Verlauf: deine letzten Diktate (ihr Text, die App und die Uhrzeit), 24 Stunden auf dem Handy
-  behalten, außer du änderst das (aus, 24 Stunden oder 7 Tage, unter Einstellungen → Verlauf)
+  behalten, außer du änderst das (aus, 24 Stunden oder 7 Tage, unter Einstellungen → Privatsphäre → Verlauf)
   oder schaltest den Sicherheitsmodus ein. Eine Installation von vor dem Verlauf beginnt mit ihm
   aus und bekommt ihn einmal auf der ersten Seite von Embersay angeboten. Text und App sind
   verschlüsselt, die Uhrzeit nicht, damit Abgelaufenes auch bei gesperrtem Handy gelöscht werden
@@ -43,13 +43,13 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
   ganzen Bericht dieselbe. Die Liste auf dem Handy zeigt die Namen der Apps.
 - Sprachmodelle, die du herunterlädst.
 
-Mit dem Sicherheitsmodus (Einstellungen → Sicherheitsmodus) behält Embersay keines der Wörter
+Mit dem Sicherheitsmodus (Einstellungen → Privatsphäre → Sicherheitsmodus) behält Embersay keines der Wörter
 eines Diktats, sobald es im Feld ist: keine Aufnahme zum nochmal Versuchen, kein letztes Diktat,
 keinen Verlauf, keinen Text in der Diagnose (nur wie viele Zeichen und Wörter es hatte und seine
 Sprache, und nicht die App), keine Aufzeichnung, wie Text in welche App kam; es legt nie Text in
 die Zwischenablage, und seine eigenen Bildschirme bleiben aus Screenshots und den letzten Apps
 heraus. Die Statistik behält weiter Uhrzeit, Wortzahl und Dauer jedes Diktats, ohne die App;
-schalte sie unter Einstellungen → Statistik aus, um nichts davon zu behalten. Das Einschalten des
+schalte sie unter Einstellungen → Privatsphäre → Statistik aus, um nichts davon zu behalten. Das Einschalten des
 Modus löscht, was in dem Moment behalten ist; jeder Start mit eingeschaltetem Modus entfernt
 App-Namen, die ein unterbrochenes Umschalten hinterlassen haben kann. Bis Embersay nach einem
 Start seine Einstellungen gelesen hat, verhält es sich, als wäre der Modus an. Er verbirgt nicht,
@@ -122,7 +122,7 @@ dass sie deine Stimme an ihren Hersteller senden kann.
 - Suche nach Updates: Eine Kopie von Embersay, die aus einer Datei von GitHub installiert wurde,
   fragt einmal am Tag bei api.github.com, ob eine neuere Version da ist. Die Anfrage enthält nichts
   über dich oder dein Handy außer dem, was jede Anfrage im Web enthält. Eine Kopie aus einem
-  App-Store fragt nie. Du kannst die Suche unter Einstellungen → Updates ausschalten.
+  App-Store fragt nie. Du kannst die Suche unter Einstellungen → Über Embersay → Updates ausschalten.
 - Modell-Listen: Embersay fragt die Server, die du hinzugefügt hast, welche Modelle sie anbieten.
 - Der Nachweis von Tinfoil: Bevor eine Aufnahme oder ein Text an Tinfoil geht, holt Embersay das
   Attestierungsdokument des Servers von diesem Server und prüft es auf dem Handy; der Bericht der
