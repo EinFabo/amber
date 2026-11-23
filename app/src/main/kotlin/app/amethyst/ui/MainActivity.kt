@@ -49,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -460,14 +461,18 @@ private fun AmethystScreens(
     // A back stack: Home → Settings → a page → an engine, and back the same way (Navigation).
     // Saved, so a rotation, split screen, a new font size or Android ending the app in the
     // background comes back to the same screen instead of Home.
-    var stack by rememberSaveable(stateSaver = STACK_SAVER) { mutableStateOf(Navigation.start(introduce)) }
+    var stack by rememberSaveable(stateSaver = stackSaver(introduce)) { mutableStateOf(Navigation.start(introduce)) }
     val screen = stack.last()
     // Each place in the stack keeps its own state while a screen above covers it - where a page
     // was scrolled to, what was typed - and gives it up once it is left (Navigation.keys).
     val entries = rememberSaveableStateHolder()
+    // The places on screen now: a page taken off the stack stays while it slides out. Its state
+    // goes only once it has gone (below, as it leaves the composition) - given up earlier, the
+    // same page opened again while still sliding out would come back unable to keep its state.
+    val shownKeys = remember { mutableSetOf<String>() }
     var keptStack by remember { mutableStateOf(stack) }
     LaunchedEffect(stack) {
-        Navigation.forgotten(keptStack, stack).forEach(entries::removeState)
+        Navigation.forgotten(keptStack, stack).filterNot(shownKeys::contains).forEach(entries::removeState)
         keptStack = stack
     }
 
@@ -634,8 +639,9 @@ private fun AmethystScreens(
     }
 
     // With "Remove animations" on the phone the screens change at once and the gesture moves
-    // nothing, as the other moving parts of the app do (Timeline).
-    val animate = remember { ValueAnimator.areAnimatorsEnabled() }
+    // nothing, as the other moving parts of the app do (Timeline). Asked each time: turning it on
+    // changes no configuration, so Amber may stay open across it.
+    fun animate() = ValueAnimator.areAnimatorsEnabled()
 
     // Back's gesture (Android 14+) draws the page aside as the finger moves; let go, it goes
     // back, or settles where it was when the gesture is called off. Before Android 14, and for
@@ -647,7 +653,7 @@ private fun AmethystScreens(
         try {
             progress.collect { event ->
                 dragEdge = event.swipeEdge
-                if (animate) dragProgress.snapTo(event.progress)
+                if (animate()) dragProgress.snapTo(event.progress)
             }
             back()
             gestureScope.launch {
@@ -694,13 +700,21 @@ private fun AmethystScreens(
                 targetState = stack,
                 // Only a new screen on top moves; the stack changing under it does not.
                 contentKey = Navigation::topKey,
-                transitionSpec = { screenChange(Navigation.isBack(initialState, targetState), shift, rtl, animate) },
+                transitionSpec = { screenChange(Navigation.isBack(initialState, targetState), shift, rtl, animate()) },
                 label = "screen",
                 modifier = Modifier.fillMaxSize(),
             ) { shown ->
                 val current = shown.last()
                 val key = Navigation.topKey(shown)
                 entries.SaveableStateProvider(key) {
+                    DisposableEffect(key) {
+                        shownKeys += key
+                        onDispose {
+                            shownKeys -= key
+                            // Gone from the screen and from the stack: left, not just covered.
+                            if (key !in Navigation.keys(stack)) entries.removeState(key)
+                        }
+                    }
                     Box(
                         Modifier
                             .fillMaxSize()
@@ -1083,10 +1097,10 @@ private fun screenChange(back: Boolean, shift: Int, rtl: Boolean, animate: Boole
         (fadeOut(tween(SCREEN_OUT_MS)) + slideOutHorizontally(tween(SCREEN_OUT_MS)) { -from * shift / 3 })
 }
 
-/** The screen stack in Android's saved state, as Navigation writes it. */
-private val STACK_SAVER = listSaver<List<Screen>, String>(
+/** The screen stack in Android's saved state, as Navigation writes it; unreadable, it starts over. */
+private fun stackSaver(introduce: Boolean) = listSaver<List<Screen>, String>(
     save = { Navigation.save(it) },
-    restore = { Navigation.restore(it) },
+    restore = { Navigation.restore(it, introduce) },
 )
 
 @Composable

@@ -6,7 +6,6 @@ import app.amethyst.core.ui.SettingsPage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavigationTest {
@@ -75,25 +74,28 @@ class NavigationTest {
             Screen.AppStyle("org.chat"),
             Screen.Onboarding,
         )
-        assertEquals(stack, Navigation.restore(Navigation.save(stack)))
-        assertEquals(deep, Navigation.restore(Navigation.save(deep)))
+        assertEquals(stack, Navigation.restore(Navigation.save(stack), introduce = false))
+        assertEquals(deep, Navigation.restore(Navigation.save(deep), introduce = false))
     }
 
     @Test
     fun `an engine id with a slash in it is kept whole`() {
         val stack = listOf(Screen.Home, Screen.EngineDetail("server/a:b"))
-        assertEquals(stack, Navigation.restore(Navigation.save(stack)))
+        assertEquals(stack, Navigation.restore(Navigation.save(stack), introduce = false))
     }
 
     @Test
     fun `a saved stack that cannot be read starts over instead of failing`() {
-        assertNull(Navigation.restore(null))
-        assertNull(Navigation.restore(emptyList()))
-        assertNull(Navigation.restore(listOf("home", "page/NO_SUCH_PAGE")))
-        assertNull(Navigation.restore(listOf("home", "somewhere")))
-        assertNull(Navigation.restore(listOf("home", "engine/")))
+        val home = Navigation.start(introduce = false)
+        assertEquals(home, Navigation.restore(null, introduce = false))
+        assertEquals(home, Navigation.restore(emptyList(), introduce = false))
+        assertEquals(home, Navigation.restore(listOf("home", "page/NO_SUCH_PAGE"), introduce = false))
+        assertEquals(home, Navigation.restore(listOf("home", "somewhere"), introduce = false))
+        assertEquals(home, Navigation.restore(listOf("home", "engine/"), introduce = false))
         // Every stack starts at Home or in the introduction.
-        assertNull(Navigation.restore(listOf("settings")))
+        assertEquals(home, Navigation.restore(listOf("settings"), introduce = false))
+        // A fresh install starts in the introduction, as it would without a saved stack.
+        assertEquals(Navigation.start(introduce = true), Navigation.restore(listOf("somewhere"), introduce = true))
     }
 
     @Test

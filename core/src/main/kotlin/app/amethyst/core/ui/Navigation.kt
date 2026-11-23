@@ -56,10 +56,14 @@ object Navigation {
     fun save(stack: List<Screen>): List<String> = stack.map(::name)
 
     /**
-     * The stack [save] wrote, or null when it cannot be read whole - then the app starts as it
-     * would anyway ([start]) instead of failing. Every stack starts at Home or in the introduction.
+     * The stack [save] wrote, or - when it cannot be read whole - the one the app starts with
+     * anyway ([start]) instead of failing. Never null: Compose keeps a null from a state's saver
+     * as the state itself rather than falling back to its first value, and the screen would
+     * crash on it. Every stack starts at Home or in the introduction.
      */
-    fun restore(saved: List<String>?): List<Screen>? {
+    fun restore(saved: List<String>?, introduce: Boolean): List<Screen> = read(saved) ?: start(introduce)
+
+    private fun read(saved: List<String>?): List<Screen>? {
         if (saved.isNullOrEmpty()) return null
         val stack = saved.map { parse(it) ?: return null }
         return stack.takeIf { it.first() == Screen.Home || it.first() == Screen.Onboarding }
