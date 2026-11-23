@@ -4,7 +4,6 @@ import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.net.CleartextRefusedException
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.Transcript
-import kotlinx.coroutines.flow.Flow
 
 /**
  * One way of turning audio into text. Everything behind this interface is swappable at
@@ -25,11 +24,6 @@ interface SttEngine {
     suspend fun warmUp(): Result<Unit> = Result.success(Unit)
 
     fun close() {}
-}
-
-/** An engine that can emit interim text while the user is still speaking. */
-interface StreamingSttEngine : SttEngine {
-    fun stream(audio: Flow<PcmAudio>, options: TranscribeOptions = TranscribeOptions()): Flow<Transcript>
 }
 
 data class EngineCapabilities(

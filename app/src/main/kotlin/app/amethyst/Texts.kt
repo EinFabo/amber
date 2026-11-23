@@ -9,6 +9,7 @@ import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.core.engine.FallbackNotice
 import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.HttpReason
 import app.amethyst.core.engine.ModelDownload
@@ -335,6 +336,26 @@ object Texts {
     /** [engineName] without its bracketed note: "Tinfoil (Enklave)" becomes "Tinfoil". */
     fun engineShortName(context: Context, engine: EngineConfig): String =
         SettingsSummaries.shortName(engineName(context, engine))
+
+    /**
+     * The toast when [by] recognized a recording [from] did not ([FallbackNotice]). A server
+     * that cannot serve is named with what it said, short: only the user can put it right.
+     */
+    fun fallbackNotice(context: Context, notice: FallbackNotice, by: EngineConfig, from: EngineConfig?): String = with(context) {
+        val name = engineName(this, by)
+        when (notice) {
+            FallbackNotice.ServerTooSlow -> getString(R.string.fallback_server_too_slow)
+            is FallbackNotice.ServerRefused -> when (val said = notice.problem) {
+                is Problem.NoCredit -> getString(R.string.fallback_no_credit, catalog(this, said.service), name)
+                is Problem.ModelNotOnServer -> getString(R.string.fallback_model_gone, catalog(this, said.service), name)
+                else -> problem(this, said)
+            }
+            FallbackNotice.NoConnection -> getString(R.string.fallback_no_connection, name)
+            FallbackNotice.NoAnswerOnPhone -> getString(R.string.fallback_no_answer_on_phone)
+            // Only after a server failed, where the server it stood in for is known.
+            FallbackNotice.OtherServer -> getString(R.string.fallback_other_server, from?.let { engineName(this, it) }.orEmpty(), name)
+        }
+    }
 
     /**
      * A speech recognition in a list that says where it runs beside it ([RecognitionRows.name]):

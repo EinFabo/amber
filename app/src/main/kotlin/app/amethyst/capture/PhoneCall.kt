@@ -1,5 +1,6 @@
 package app.amethyst.capture
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioManager
 
@@ -19,6 +20,9 @@ class PhoneCall(context: Context) {
     fun on(): Boolean = runCatching { audio?.mode in CALL_MODES }.getOrDefault(false)
 
     private companion object {
+        // The newer modes are plain ints copied in at compile time; an older Android never
+        // reports them, so listing them there is harmless.
+        @SuppressLint("InlinedApi")
         val CALL_MODES = setOf(
             AudioManager.MODE_RINGTONE,
             AudioManager.MODE_IN_CALL,

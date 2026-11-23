@@ -187,9 +187,11 @@ android {
     }
 
     lint {
-        // Stage 1 is verified by assembling and running on a device; lint findings are
-        // reported in CI but must not block producing an installable APK.
-        abortOnError = false
+        // Blocking: an error fails the build, in CI too. What was already there is listed in
+        // lint-baseline.xml (./gradlew :app:updateLintBaseline), so only new findings show -
+        // fix those, do not add them to the baseline.
+        abortOnError = true
+        baseline = file("lint-baseline.xml")
     }
 }
 

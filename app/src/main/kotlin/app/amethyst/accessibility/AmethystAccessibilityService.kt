@@ -23,6 +23,7 @@ import app.amethyst.Graph
 import app.amethyst.R
 import app.amethyst.bubble.BubbleController
 import app.amethyst.DebugLog
+import app.amethyst.core.apps.AppInFront
 import app.amethyst.core.bubble.Box
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.FieldFocus
@@ -107,6 +108,9 @@ class AmethystAccessibilityService : AccessibilityService() {
     @Volatile
     var appInFront: String? = null
         private set
+
+    /** Which window is the app the user is in ([AppInFront]): only Amber's main screen counts of its own. */
+    private val inFrontRule by lazy { AppInFront(ownPackage = packageName, ownMainScreen = MainActivity::class.java.name) }
 
     /** A field that takes dictation has focus - not a password, PIN or number field. */
     @Volatile
@@ -234,15 +238,10 @@ class AmethystAccessibilityService : AccessibilityService() {
                 if (event.packageName?.toString() == SYSTEM_UI || shadeOpen) checkShade()
                 event.packageName?.toString()?.let { pkg ->
                     if (pkg != packageName) foregroundPackage = pkg
-                    // The keyboard and the system bars send window changes too; they are not
-                    // the app the user is in. Neither are Amber's own overlays - the hide
-                    // target, a toast, the microphone helper: taken for the app in front, they
-                    // switched off drag-to-hide for the next drag and let the bubble back into
-                    // hidden apps. Only Amber's main screen counts.
-                    val ownOverlay = pkg == packageName && event.className?.toString() != MainActivity::class.java.name
-                    if (pkg != SYSTEM_UI && !fromKeyboard && !ownOverlay) {
-                        appInFront = pkg
-                        inFront(pkg)
+                    // Not the keyboard, the system bars or one of Amber's overlays ([AppInFront]).
+                    inFrontRule.afterWindowChange(pkg, event.className?.toString(), fromKeyboard)?.let { app ->
+                        appInFront = app
+                        inFront(app)
                     }
                 }
                 // Switching apps or closing a dialog sends no focus event for the field that
@@ -272,6 +271,9 @@ class AmethystAccessibilityService : AccessibilityService() {
                 }
                 if (mayMoveShade(event.windowChanges)) checkShade()
             }
+
+            // The service asks for no other kind (accessibility_service_config.xml).
+            else -> Unit
         }
     }
 
@@ -287,7 +289,7 @@ class AmethystAccessibilityService : AccessibilityService() {
 
     /** An app the user is in, for [app.amethyst.core.apps.AppsSeenInFront] - never Amber, never a home screen. */
     private fun noteSeenInFront(pkg: String) {
-        if (pkg != packageName && !Launcher.isHome(this, pkg)) graph.appsSeenInFront.add(pkg)
+        if (inFrontRule.worthNoting(pkg) { Launcher.isHome(this, it) }) graph.appsSeenInFront.add(pkg)
     }
 
     /**
@@ -297,8 +299,15 @@ class AmethystAccessibilityService : AccessibilityService() {
      * once when the quick menu opens, not on every event.
      */
     fun appInFrontNow(): String? = runCatching {
-        windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused }
-            ?.root?.packageName?.toString()
+        inFrontRule.focused(
+            windows.map { window ->
+                AppInFront.Window(
+                    application = window.type == AccessibilityWindowInfo.TYPE_APPLICATION,
+                    focused = window.isFocused,
+                    owner = { window.root?.packageName?.toString() },
+                )
+            },
+        )
     }.getOrNull()?.also(::noteSeenInFront)
 
     /** Whether a window change of these kinds can be a keyboard coming, going or resizing; 0 says nothing. */

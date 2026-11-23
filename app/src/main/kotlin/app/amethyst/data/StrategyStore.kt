@@ -1,5 +1,6 @@
 package app.amethyst.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.StrategyMemory
@@ -33,7 +34,11 @@ class StrategyStore(context: Context, private val writing: () -> Boolean = { tru
         }.apply()
     }
 
-    /** Forgets every app, in memory and in the file. Blocking: not on the main thread. */
+    /**
+     * Forgets every app, in memory and in the file. Blocking: not on the main thread. commit,
+     * not apply: the security mode wants the apps gone from the file when this returns.
+     */
+    @SuppressLint("ApplySharedPref")
     fun forget() {
         memory.clear()
         prefs.edit().clear().commit()

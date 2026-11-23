@@ -61,6 +61,7 @@ import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.Fallback
+import app.amethyst.core.engine.FallbackNotice
 import app.amethyst.core.engine.ListenCallbacks
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.Problem
@@ -1362,11 +1363,12 @@ class DictationController(
         appLabels: () -> List<String>,
     ): Transcript? {
         val ready = prepared.takeUnless { command }
-        val chunking = !command && chunked != null && outcome.chunks > 0
+        // Chunks only count for a dictation that made some.
+        val chunks = chunked.takeIf { !command && outcome.chunks > 0 }
         // What is left to recognize after the stop: with chunks, only the unfinished
         // ones and the tail.
-        val pendingMs = if (chunking) {
-            chunked!!.pendingAudioMs + (outcome.tail?.durationMs ?: 0L)
+        val pendingMs = if (chunks != null) {
+            chunks.pendingAudioMs + (outcome.tail?.durationMs ?: 0L)
         } else {
             outcome.audio.durationMs
         }
@@ -1402,21 +1404,22 @@ class DictationController(
             },
         )
         // Each chunk done is a real step of the recognition.
-        if (chunking && pendingMs > 0) {
-            chunked!!.onChunkDone = { left -> wait.report(WaitProgress.Step.RECOGNIZE, 1f - left.toFloat() / pendingMs, upTo = 1f) }
+        if (chunks != null && pendingMs > 0) {
+            chunks.onChunkDone = { left -> wait.report(WaitProgress.Step.RECOGNIZE, 1f - left.toFloat() / pendingMs, upTo = 1f) }
         }
         _state.value = DictationState.Transcribing(wait)
         trace?.transcribingStarts()
         trace?.connection = connectionWarmUp?.describe()
         val startedAt = SystemClock.elapsedRealtime()
         var passes = 1
-        var tookOver: ReadyFallback.Outcome.Local? = null
+        // The text prepared on the phone that stood in, and the engine that prepared it.
+        var tookOver: Pair<ReadyFallback.Outcome.Local, EngineConfig>? = null
         val result = when {
-            chunking -> chunked!!.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunked.chunkCount }
+            chunks != null -> chunks.finish(outcome.tail, outcome.audio).also { trace?.chunks = chunks.chunkCount }
             command -> recognizeCommand(engine, outcome.audio, options, appLabels).also { passes = it.passes }.result
             ready != null -> when (val race = raceWithPrepared(engine, serverOptions, outcome, ready, uploadMs + recognizeMs)) {
                 is ReadyFallback.Outcome.Server -> race.result
-                is ReadyFallback.Outcome.Local -> Result.success(race.transcript).also { tookOver = race }
+                is ReadyFallback.Outcome.Local -> Result.success(race.transcript).also { tookOver = race to ready.config }
             }
             else -> engine.transcribe(outcome.audio, serverOptions)
         }
@@ -1435,7 +1438,7 @@ class DictationController(
             trace?.whisperScheduling = graph.whisperRuntime.schedulingSummary()
             trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
         }
-        tookOver?.let { local -> return tookOverFromServer(local, ready!!.config, engine.capabilities.trustLevel) }
+        tookOver?.let { (local, config) -> return tookOverFromServer(local, config, engine.capabilities.trustLevel) }
         // No signal, a timeout, a server down: the recording is still here, so another
         // engine can take it instead of the dictation being lost - not the one prepared
         // alongside, whose text did not come.
@@ -1643,27 +1646,8 @@ class DictationController(
         val refused = local.serverFailure?.takeIf { it.serverCannotServe }
         val why = if (local.serverTooSlow) "server too slow" else refused?.let(::cannotServe) ?: "server unreachable"
         trace?.fallback = "$why, recognized by ${config.displayName} during the recording, label $trust"
-        val name = Texts.engineName(context, config)
-        val message = when {
-            local.serverTooSlow -> context.getString(R.string.fallback_server_too_slow)
-            // What the server said, in full: the fallback must not hide that it needs the user.
-            refused != null -> refusedButRecognized(refused.problem, name)
-            trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
-            // A read timeout or a 5xx came after the upload: the recording may be the server's.
-            else -> context.getString(R.string.fallback_no_answer_on_phone)
-        }
-        graph.messages.show(message)
+        graph.messages.show(Texts.fallbackNotice(context, FallbackNotice.afterRace(local, trust), by = config, from = primary))
         return transcript.copy(trustLevel = trust)
-    }
-
-    /**
-     * The fallback's toast after a server that cannot serve ([SttFailure.serverCannotServe]):
-     * what the server said, short - only the user can put it right - and who recognized instead.
-     */
-    private fun refusedButRecognized(problem: Problem, by: String): String = when (problem) {
-        is Problem.NoCredit -> context.getString(R.string.fallback_no_credit, Texts.catalog(context, problem.service), by)
-        is Problem.ModelNotOnServer -> context.getString(R.string.fallback_model_gone, Texts.catalog(context, problem.service), by)
-        else -> Texts.problem(context, problem)
     }
 
     /** For Diagnostics: a server that answered but cannot serve - what it said, in English, without its body. */
@@ -1797,16 +1781,8 @@ class DictationController(
                 fellBackFrom = primary.id
                 val why = if (cause.serverCannotServe) cannotServe(cause) else "server unreachable"
                 trace?.fallback = "$why, recognized by ${config.displayName}, label $trust"
-                val local = transcript.trustLevel == TrustLevel.ON_DEVICE
-                val name = Texts.engineName(context, config)
-                val message = when {
-                    // What the server said, in full: the fallback must not hide that it needs the user.
-                    cause.serverCannotServe -> refusedButRecognized(cause.problem, name)
-                    trust == TrustLevel.ON_DEVICE -> context.getString(R.string.fallback_no_connection, name)
-                    local -> context.getString(R.string.fallback_no_answer_on_phone)
-                    else -> context.getString(R.string.fallback_other_server, Texts.engineName(context, primary), name)
-                }
-                graph.messages.show(message)
+                val notice = FallbackNotice.afterFailure(cause, trust, recognizedOnPhone = transcript.trustLevel == TrustLevel.ON_DEVICE)
+                graph.messages.show(Texts.fallbackNotice(context, notice, by = config, from = primary))
                 return transcript.copy(trustLevel = trust)
             }
         }

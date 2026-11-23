@@ -58,6 +58,10 @@ jobs:
       - name: Check internal references
         run: python3 -I tools/check_refs.py
 
+      # English and German alike, and no English sentence left in a screen's code.
+      - name: Check app texts
+        run: python3 -I tools/check_strings.py
+
       - name: Core unit tests
         run: ./gradlew :core:test
 
@@ -67,9 +71,13 @@ jobs:
       - name: Type-check Android sources against android-all
         run: tools/typecheck-android.sh
 
+      # Blocking: findings from before are in app/lint-baseline.xml, a new error fails the build.
       - name: Lint
         run: ./gradlew :app:lintDebug
-        continue-on-error: true
+
+      # The JVM tests of :app: what needs Android classes, run under Robolectric.
+      - name: App unit tests
+        run: ./gradlew :app:testDebugUnitTest
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
@@ -94,4 +102,14 @@ jobs:
         with:
           name: core-test-report
           path: core/build/reports/tests/test
+          if-no-files-found: ignore
+
+      - name: Upload app test and lint reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: app-reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest
+            app/build/reports/lint-results-debug.html
           if-no-files-found: ignore

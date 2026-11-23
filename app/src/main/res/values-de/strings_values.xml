@@ -5,10 +5,6 @@
     <string name="summary_none_selected">Keine gewählt</string>
     <string name="summary_on_bubble_off">An · die Bubble ist aus</string>
     <string name="summary_apps_none">Noch keine</string>
-    <plurals name="summary_apps">
-        <item quantity="one">%d App</item>
-        <item quantity="other">%d Apps</item>
-    </plurals>
     <plurals name="summary_styles">
         <item quantity="one">%d Stil</item>
         <item quantity="other">%d Stile</item>

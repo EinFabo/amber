@@ -15,9 +15,6 @@
     <string name="trust_place_on_device">Your voice stays on this phone.</string>
     <string name="trust_place_enclave">Sent only after the protected server\'s code is checked.</string>
     <string name="trust_place_cloud">Sent to a server without extra privacy guarantees.</string>
-    <string name="trust_went_on_device">The recording stayed on this phone.</string>
-    <string name="trust_went_enclave">The recording went to a protected server whose code was checked.</string>
-    <string name="trust_went_cloud">The recording went to a server without extra privacy guarantees.</string>
     <string name="learn_more">Learn more</string>
     <string name="expanded">Expanded</string>
     <string name="collapsed">Collapsed</string>

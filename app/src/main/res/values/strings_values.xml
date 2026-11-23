@@ -7,10 +7,6 @@
     <string name="summary_none_selected">None selected</string>
     <string name="summary_on_bubble_off">On · the bubble is off</string>
     <string name="summary_apps_none">None yet</string>
-    <plurals name="summary_apps">
-        <item quantity="one">%d app</item>
-        <item quantity="other">%d apps</item>
-    </plurals>
     <plurals name="summary_styles">
         <item quantity="one">%d style</item>
         <item quantity="other">%d styles</item>

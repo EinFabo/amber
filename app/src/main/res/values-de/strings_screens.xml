@@ -14,9 +14,6 @@
     <string name="trust_place_on_device">Deine Stimme verlässt das Handy nicht.</string>
     <string name="trust_place_enclave">Wird erst gesendet, wenn der Code der Enklave geprüft ist.</string>
     <string name="trust_place_cloud">Geht an einen Server, ohne weitere Garantie.</string>
-    <string name="trust_went_on_device">Die Aufnahme hat das Handy nicht verlassen.</string>
-    <string name="trust_went_enclave">Die Aufnahme ging an eine Enklave, deren Nachweis geprüft wurde.</string>
-    <string name="trust_went_cloud">Die Aufnahme ging an einen Server, ohne weitere Garantie.</string>
     <string name="learn_more">Mehr erfahren</string>
     <string name="expanded">Ausgeklappt</string>
     <string name="collapsed">Eingeklappt</string>

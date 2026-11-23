@@ -1,5 +1,6 @@
 package app.amethyst.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -81,7 +82,12 @@ class SecretStore(context: Context) {
         null
     }
 
-    /** The plain file an older version fell back to: its keys go into the encrypted store, the file goes. */
+    /**
+     * The plain file an older version fell back to: its keys go into the encrypted store, the file goes.
+     * commit, not apply: the plain keys are wiped before the file is deleted, and a write still
+     * pending in the background could bring the file back.
+     */
+    @SuppressLint("ApplySharedPref")
     private fun migratePlainFile(context: Context) {
         val plain = context.getSharedPreferences(LEGACY_PLAIN_FILE, Context.MODE_PRIVATE)
         val entries = plain.all

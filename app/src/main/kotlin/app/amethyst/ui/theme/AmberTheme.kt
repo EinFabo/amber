@@ -168,15 +168,6 @@ fun TrustLevel.placeExplanation(): String = stringResource(
     },
 )
 
-@Composable
-fun TrustLevel.badgeExplanation(): String = stringResource(
-    when (this) {
-        TrustLevel.ON_DEVICE -> R.string.trust_went_on_device
-        TrustLevel.ENCLAVE_VERIFIED -> R.string.trust_went_enclave
-        TrustLevel.CLOUD -> R.string.trust_went_cloud
-    },
-)
-
 private fun colorScheme(colors: AmberColors): ColorScheme {
     val base = if (colors.dark) darkColorScheme() else lightColorScheme()
     return base.copy(
