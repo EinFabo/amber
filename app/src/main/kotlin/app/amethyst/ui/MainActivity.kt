@@ -834,6 +834,8 @@ private fun AmethystScreens(
                                 }
 
                                 Screen.Home -> HomeScreen(
+                                    languagePack = FirstRun.languagePack(settings, graph.firstRun.languagePack.collectAsStateWithLifecycle().value, FirstRunSetup.phoneTag()),
+                                    checkLanguagePack = graph.firstRun::checkLanguagePack,
                                     setup = setup,
                                     actions = actions,
                                     settings = settings,
@@ -989,7 +991,6 @@ private fun AmethystScreens(
                                         }
                                         SettingsPage.DIAGNOSTICS -> {
                                             val records by graph.memory.log.records.collectAsStateWithLifecycle()
-                                    val languagePack by graph.firstRun.languagePack.collectAsStateWithLifecycle()
                                             val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
                                             val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                                             DiagnosticsScreen(
@@ -1015,7 +1016,6 @@ private fun AmethystScreens(
                                         }
                                         SettingsPage.ABOUT -> {
                                             val records by graph.memory.log.records.collectAsStateWithLifecycle()
-                                    val languagePack by graph.firstRun.languagePack.collectAsStateWithLifecycle()
                                             AboutScreen(
                                                 settings = settings,
                                                 diagnosticsCount = records.size,

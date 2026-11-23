@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -44,15 +45,21 @@ fun PrivacyPolicyScreen(
 ) {
     val context = LocalContext.current
     // The text kept across a rotation: read again, the page would be short for a moment and
-    // lose its place. Empty when it could not be read.
+    // lose its place. Empty when it could not be read. Kept with the language it was read in:
+    // a change of the phone's language recreates the page too, and brings the saved text back -
+    // in the old language, which then is read again in the new one.
+    val language = LocalConfiguration.current.locales[0].toLanguageTag()
     var read by rememberSaveable { mutableStateOf(text) }
-    LaunchedEffect(Unit) {
-        if (read != null) return@LaunchedEffect
+    var readIn by rememberSaveable { mutableStateOf<String?>(null) }
+    val current = read?.takeIf { text != null || readIn == language }
+    LaunchedEffect(language) {
+        if (current != null) return@LaunchedEffect
         read = withContext(Dispatchers.IO) {
             runCatching { context.resources.openRawResource(R.raw.privacy_policy).bufferedReader().use { it.readText() } }.getOrDefault("")
         }
+        readIn = language
     }
-    val blocks = remember(read) { read?.let(PrivacyPolicy::parse) }
+    val blocks = remember(current) { current?.let(PrivacyPolicy::parse) }
     SubPage(modifier, readable = true) {
         PrivacyPolicy.webAddress()?.let { url ->
             GhostButton(stringResource(R.string.privacy_policy_web), { onOpenUrl(url) })

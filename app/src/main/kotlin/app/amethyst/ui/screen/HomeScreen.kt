@@ -48,6 +48,7 @@ import app.amethyst.R
 import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.insert.InsertionStrategy
@@ -81,6 +82,8 @@ import app.amethyst.ui.PendingModel
 import app.amethyst.ui.PendingModelNote
 import app.amethyst.ui.StatusRow
 import app.amethyst.ui.TrustBadge
+import app.amethyst.ui.onboarding.LanguagePackNote
+import app.amethyst.ui.onboarding.LanguagePackWatch
 import app.amethyst.ui.engineName
 import app.amethyst.ui.theme.AmberPalette
 import kotlinx.coroutines.flow.StateFlow
@@ -133,6 +136,13 @@ fun HomeScreen(
     onTryAgain: () -> Unit = {},
     /** Home's card about the old Amber, dismissed: it stays away while that app's service is off. */
     onDismissOldAmber: () -> Unit = {},
+    /**
+     * Android's offline pack for the language its recognition hears, while that is the active
+     * one and Android said ([app.amethyst.core.onboarding.FirstRun.languagePack]).
+     */
+    languagePack: LanguagePack? = null,
+    /** Asks Android again about that pack; null where there is nothing to ask. */
+    checkLanguagePack: suspend () -> LanguagePack? = { null },
 ) {
     val testField = remember { FocusRequester() }
 
@@ -173,6 +183,11 @@ fun HomeScreen(
 
         // Said here too: someone who skipped the introduction never saw its last step.
         if (pending != null) PendingModelNote(pending, Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
+        // Android's recognition without its language pack fails every dictation, and the toast
+        // over other apps sends the user here: the way to the pack stays until it is there, not
+        // only under a failure, which is gone after a few seconds. Asked again on every return.
+        LanguagePackWatch(settings.activeEngine, checkLanguagePack)
+        LanguagePackNote(languagePack, onInstallLanguage, onOpenRecognition, Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
 
         // Collected here, not at the root: the amplitude changes 50 times a second while
         // listening, and only the flame and its status line need to follow it.

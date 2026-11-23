@@ -1460,8 +1460,8 @@ class DictationController(
      * Recognition failed for [error]: said, and - for a dictation whose recording is here and
      * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
      * which the toast then names as the way out; after a refused key, once the fix it names
-     * first is made ([KeptDictation.toastSaysTryAgain]). A missing language pack's toast names
-     * its way out instead: Embersay, where Home gets it.
+     * first is made ([KeptDictation.toastSaysTryAgain]). A missing language pack's toast over
+     * another app names its way out instead: Embersay, where Home gets it.
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
         // Not a problem Amber knows (null): nothing says another go would help.
@@ -1472,8 +1472,12 @@ class DictationController(
             problem is Problem.KeyRejected -> { it -> Texts.keyRejectedTryAgain(it, problem) }
             else -> null
         }
-        // A missing language pack is got in Embersay, not in the app in front: its toast says where.
-        val wayOut: Words? = say(R.string.toast_get_language_pack).takeIf { remedyOf(error) == SttFailure.Remedy.INSTALL_LANGUAGE }
+        // A missing language pack is got in Embersay, not in the app in front: its toast says
+        // where. Not for a dictation in Embersay itself - Home's test field, the introduction's
+        // practice - whose page shows "Get language pack" under the same message; and only
+        // where Home can ask Android about the pack and keep the way to it (Android 13 and up).
+        val namesHome = targetApp() != context.packageName && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        val wayOut: Words? = say(R.string.toast_get_language_pack).takeIf { remedyOf(error) == SttFailure.Remedy.INSTALL_LANGUAGE && namesHome }
         fail(failureOf(error), remedy = remedyOf(error), brief = brief ?: wayOut ?: failureOf(error), details = details)
     }
 
