@@ -1,11 +1,14 @@
 package app.amethyst.core
 
 import app.amethyst.core.engine.EngineOption
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.onboarding.DoneState
 import app.amethyst.core.onboarding.FirstRun
+import app.amethyst.core.onboarding.LanguagePackAnswer
 import app.amethyst.core.onboarding.PendingStage
 import app.amethyst.core.onboarding.PendingVerdict
 import app.amethyst.core.onboarding.QuickPlan
@@ -544,14 +547,61 @@ class FirstRunTest {
 
     @Test
     fun `the last step says all set only when a dictation needs no model still on its way`() {
-        assertTrue(FirstRun.readyAtDone(stage = null, activeDownload = null))
-        assertFalse(FirstRun.readyAtDone(stage = null, activeDownload = ModelDownload.Running(10, 100)))
-        assertFalse(FirstRun.readyAtDone(stage = null, activeDownload = ModelDownload.WaitingForWifi))
+        assertEquals(DoneState.READY, FirstRun.atDone(stage = null, activeDownload = null))
+        assertEquals(DoneState.MODEL_MISSING, FirstRun.atDone(stage = null, activeDownload = ModelDownload.Running(10, 100)))
+        assertEquals(DoneState.MODEL_MISSING, FirstRun.atDone(stage = null, activeDownload = ModelDownload.WaitingForWifi))
         // Another recognition hears the dictations meanwhile.
-        assertTrue(FirstRun.readyAtDone(PendingStage.SMALL_STANDS_IN, activeDownload = null))
-        assertTrue(FirstRun.readyAtDone(PendingStage.ANDROID_STANDS_IN, activeDownload = null))
+        assertEquals(DoneState.READY, FirstRun.atDone(PendingStage.SMALL_STANDS_IN, activeDownload = null))
+        assertEquals(DoneState.READY, FirstRun.atDone(PendingStage.ANDROID_STANDS_IN, activeDownload = null))
         // A dictation waits for this model.
-        assertFalse(FirstRun.readyAtDone(PendingStage.SMALL_FIRST, activeDownload = null))
-        assertFalse(FirstRun.readyAtDone(PendingStage.OWN, activeDownload = ModelDownload.Retrying))
+        assertEquals(DoneState.MODEL_MISSING, FirstRun.atDone(PendingStage.SMALL_FIRST, activeDownload = null))
+        assertEquals(DoneState.MODEL_MISSING, FirstRun.atDone(PendingStage.OWN, activeDownload = ModelDownload.Retrying))
+    }
+
+    @Test
+    fun `the last step says all set only when android has the language pack`() {
+        assertEquals(DoneState.READY, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.INSTALLED))
+        assertEquals(DoneState.LANGUAGE_PACK_MISSING, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.MISSING))
+        assertEquals(DoneState.LANGUAGE_PACK_DOWNLOADING, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.DOWNLOADING))
+        assertEquals(DoneState.LANGUAGE_UNSUPPORTED, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.UNSUPPORTED))
+        // Settings from 0.33: Android's recognition stands in, and needs its pack for that.
+        assertEquals(DoneState.LANGUAGE_PACK_MISSING, FirstRun.atDone(PendingStage.ANDROID_STANDS_IN, activeDownload = null, pack = LanguagePack.MISSING))
+    }
+
+    @Test
+    fun `where no model fits the quick setup fetches android's missing language pack at once`() {
+        val plan = FirstRun.plan(phone(ramMb = 4_000, whisperCpu = false), nothingReady)
+        assertEquals(QuickPlan(EngineOption.ANDROID, null), plan)
+        assertTrue(FirstRun.fetchesLanguagePack(plan, LanguagePack.MISSING))
+        // On the phone, on its way, not to be had, or not known: nothing to start.
+        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.INSTALLED))
+        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.DOWNLOADING))
+        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.UNSUPPORTED))
+        assertFalse(FirstRun.fetchesLanguagePack(plan, null))
+        // A model is what the quick setup picked: Android's pack is none of its business.
+        assertFalse(FirstRun.fetchesLanguagePack(viaSmall, LanguagePack.MISSING))
+    }
+
+    @Test
+    fun `the language pack asked about is the one the active android recognition hears`() {
+        assertEquals("de-DE", FirstRun.languagePackTag(fresh, defaultTag = "fr-FR"))
+        // None set: it hears the phone's language.
+        val none = fresh.withEngine(fresh.engines.single().copy(languageTag = null))
+        assertEquals("fr-FR", FirstRun.languagePackTag(none, defaultTag = "fr-FR"))
+        // Any other recognition has no pack of Android's.
+        val small = FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE)
+        assertNull(FirstRun.languagePackTag(small, defaultTag = "fr-FR"))
+    }
+
+    @Test
+    fun `an answer counts only for what the active recognition hears now`() {
+        val missing = LanguagePackAnswer("de-DE", LanguagePack.MISSING)
+        assertEquals(LanguagePack.MISSING, FirstRun.languagePack(fresh, missing, defaultTag = "de-DE"))
+        // Its language changed since: that answer is about another pack.
+        val english = fresh.withEngine(fresh.engines.single().copy(languageTag = "en-US"))
+        assertNull(FirstRun.languagePack(english, missing, defaultTag = "de-DE"))
+        // Another recognition chosen since: no pack of Android's to wait for.
+        assertNull(FirstRun.languagePack(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), missing, defaultTag = "de-DE"))
+        assertNull(FirstRun.languagePack(fresh, null, defaultTag = "de-DE"))
     }
 }

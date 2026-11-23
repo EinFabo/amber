@@ -1,13 +1,16 @@
 package app.amethyst.core.onboarding
 
 import app.amethyst.core.engine.EngineAdvice
+import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.EngineConfig
+import app.amethyst.core.settings.LanguageList
 
 /**
  * The speech recognition the quick setup decides on: [now] hears the first dictation, and
@@ -59,6 +62,27 @@ enum class PendingStage {
     /** The active recognition's own model is on its way; a dictation waits for it. */
     OWN,
 }
+
+/** What the introduction's last step says: whether a dictation works now, and if not, what it waits for ([FirstRun.atDone]). */
+enum class DoneState {
+    /** "All set". */
+    READY,
+
+    /** The model a dictation needs is still on its way. */
+    MODEL_MISSING,
+
+    /** Android's recognition has no offline pack for its language yet; Android can fetch it. */
+    LANGUAGE_PACK_MISSING,
+
+    /** Android is fetching that pack. */
+    LANGUAGE_PACK_DOWNLOADING,
+
+    /** Android's recognition has no pack for this language at all: another recognition is the way. */
+    LANGUAGE_UNSUPPORTED,
+}
+
+/** What Android said about the offline pack for [tag] - asked for the language the active recognition hears ([FirstRun.languagePackTag]). */
+data class LanguagePackAnswer(val tag: String, val pack: LanguagePack)
 
 /**
  * What a new install is given without being asked - by the quick setup, and by skipping the
@@ -210,15 +234,52 @@ object FirstRun {
     fun changes(settings: AmethystSettings, engineId: String): Boolean = chosen(settings, engineId) != settings
 
     /**
-     * Whether the introduction's last step may say "All set": not while a dictation still waits
-     * for a model - the one the first run fetches ([stage]) when no other recognition stands in,
-     * or the active recognition's own download ([activeDownload]), running or held.
+     * What the introduction's last step says. "All set" only once a dictation works: not while
+     * it still waits for a model - the one the first run fetches ([stage]) when no other
+     * recognition stands in, or the active recognition's own download ([activeDownload]),
+     * running or held - nor while Android's recognition lacks the offline pack for its
+     * language ([pack], as [languagePack] reads it; null where nobody could ask).
      */
-    fun readyAtDone(stage: PendingStage?, activeDownload: ModelDownload?): Boolean = when (stage) {
-        null -> activeDownload == null
-        PendingStage.SMALL_STANDS_IN, PendingStage.ANDROID_STANDS_IN -> true
-        PendingStage.SMALL_FIRST, PendingStage.OWN -> false
+    fun atDone(stage: PendingStage?, activeDownload: ModelDownload?, pack: LanguagePack? = null): DoneState {
+        val modelThere = when (stage) {
+            null -> activeDownload == null
+            PendingStage.SMALL_STANDS_IN, PendingStage.ANDROID_STANDS_IN -> true
+            PendingStage.SMALL_FIRST, PendingStage.OWN -> false
+        }
+        return when {
+            !modelThere -> DoneState.MODEL_MISSING
+            pack == LanguagePack.MISSING -> DoneState.LANGUAGE_PACK_MISSING
+            pack == LanguagePack.DOWNLOADING -> DoneState.LANGUAGE_PACK_DOWNLOADING
+            pack == LanguagePack.UNSUPPORTED -> DoneState.LANGUAGE_UNSUPPORTED
+            else -> DoneState.READY
+        }
     }
+
+    /**
+     * The language whose offline pack Android is asked about: the one the active recognition
+     * hears, when that is Android's - [defaultTag], the phone's, where none is set for it, as
+     * the recognition itself does. Null for any other recognition: it needs no pack of Android's.
+     */
+    fun languagePackTag(settings: AmethystSettings, defaultTag: String): String? {
+        val active = settings.activeEngine?.takeIf { it.kind == EngineKind.ANDROID_ON_DEVICE } ?: return null
+        return LanguageList.forDictation(active) ?: defaultTag
+    }
+
+    /**
+     * The pack the active recognition needs, by [answer] - only if the answer is about what it
+     * hears now: one asked before another recognition or language was chosen says nothing.
+     */
+    fun languagePack(settings: AmethystSettings, answer: LanguagePackAnswer?, defaultTag: String): LanguagePack? =
+        answer?.takeIf { it.tag == languagePackTag(settings, defaultTag) }?.pack
+
+    /**
+     * Whether the quick setup starts the language pack's download at once: it picked Android's
+     * recognition - where no model fits - and Android can fetch the pack it lacks. Without it
+     * every dictation would fail ("This language isn't installed"), so it is not left for Home
+     * to offer after the first failure. Android asks before it downloads.
+     */
+    fun fetchesLanguagePack(plan: QuickPlan, pack: LanguagePack?): Boolean =
+        plan.now == EngineOption.ANDROID && pack == LanguagePack.MISSING
 
     /** [option] added if missing, with its model, and made the active recognition. */
     private fun activate(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings {

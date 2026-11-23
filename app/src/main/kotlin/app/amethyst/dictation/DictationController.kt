@@ -1460,7 +1460,8 @@ class DictationController(
      * Recognition failed for [error]: said, and - for a dictation whose recording is here and
      * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
      * which the toast then names as the way out; after a refused key, once the fix it names
-     * first is made ([KeptDictation.toastSaysTryAgain]).
+     * first is made ([KeptDictation.toastSaysTryAgain]). A missing language pack's toast names
+     * its way out instead: Embersay, where Home gets it.
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
         // Not a problem Amber knows (null): nothing says another go would help.
@@ -1471,7 +1472,9 @@ class DictationController(
             problem is Problem.KeyRejected -> { it -> Texts.keyRejectedTryAgain(it, problem) }
             else -> null
         }
-        fail(failureOf(error), remedy = remedyOf(error), brief = brief ?: failureOf(error), details = details)
+        // A missing language pack is got in Embersay, not in the app in front: its toast says where.
+        val wayOut: Words? = say(R.string.toast_get_language_pack).takeIf { remedyOf(error) == SttFailure.Remedy.INSTALL_LANGUAGE }
+        fail(failureOf(error), remedy = remedyOf(error), brief = brief ?: wayOut ?: failureOf(error), details = details)
     }
 
     /**

@@ -137,6 +137,10 @@ internal fun PracticeStep(
         // one the tap waits for is on the tap's own row; the better one's, which the tap does
         // not wait for, here.
         content.pending?.let { PendingModelNote(it) }
+        // Android's recognition without its language pack fails every tap: the way to the pack,
+        // here where the tap is tried, not only on Home after the first failure.
+        LanguagePackWatch(settings.activeEngine, content.checkLanguagePack)
+        LanguagePackNote(content.languagePack, content.onGetLanguagePack, content.onOpenRecognition)
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             PracticeTask.entries.forEach { task ->
                 TaskRow(

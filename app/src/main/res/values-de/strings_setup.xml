@@ -101,6 +101,12 @@
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
     <string name="done_title_model_missing">Das Modell ist noch nicht auf dem Handy</string>
+    <string name="done_title_language_pack">Das Sprachpaket ist noch nicht auf dem Handy</string>
+    <string name="done_title_language_pack_downloading">Das Sprachpaket wird heruntergeladen</string>
+    <string name="done_title_language_unsupported">Android erkennt diese Sprache nicht</string>
+    <string name="language_pack_missing">Die Spracherkennung von Android braucht das Sprachpaket, bevor du diktieren kannst. Android fragt vor dem Download.</string>
+    <string name="language_pack_downloading">Android lädt das Sprachpaket herunter. Sobald es da ist, kannst du diktieren.</string>
+    <string name="language_pack_unsupported">Die Spracherkennung von Android erkennt diese Sprache nicht auf dem Handy. Unter Einstellungen → Spracherkennung kannst du eine andere wählen.</string>
     <string name="done_lead">Alles lässt sich in den Einstellungen ändern. Du findest sie über das Zahnrad oben rechts in Embersay.</string>
     <string name="done_android_leaves">Die Spracherkennung von Android kann deine Stimme an ihren Hersteller senden (auf den meisten Handys Google). Unter Einstellungen → Spracherkennung kannst du eine andere wählen.</string>
     <string name="done_choose_another">Andere wählen</string>

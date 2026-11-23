@@ -7,9 +7,11 @@ import android.util.Log
 import app.amethyst.apps.LauncherList
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.GateDecision
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.FirstRunWatch
+import app.amethyst.core.onboarding.LanguagePackAnswer
 import app.amethyst.core.onboarding.ModelFetch
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.data.PhoneLocales
@@ -17,12 +19,15 @@ import app.amethyst.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 
 /**
  * What a new install is given without being asked ([FirstRun]), done with what only the phone
@@ -59,7 +64,39 @@ class FirstRunSetup(
             store.update { current -> FirstRun.quick(current, plan, installed, PhoneLocales.tags(), finish).also { after = it } }
             val fetch = plan.downloads.joinToString(" then ") { it.name }.ifEmpty { "nothing" }
             Log.i(TAG, "first run: ${plan.now.name} now, ${plan.later?.name ?: "nothing"} later, $fetch to fetch, ${after?.profiles?.size ?: 0} app style(s)")
+            // Android's recognition, picked where no model fits, fails every dictation without
+            // the offline pack for its language: asked for at once, while the user is here.
+            val picked = after ?: return@launch
+            val pack = checkLanguagePack(picked)
+            if (FirstRun.fetchesLanguagePack(plan, pack)) {
+                val tag = FirstRun.languagePackTag(picked, phoneTag()) ?: return@launch
+                val asked = withContext(Dispatchers.Main) { AndroidOnDeviceEngine.requestLanguageDownload(context, tag) }
+                Log.i(TAG, "first run: Android's language pack for $tag is missing - ${if (asked) "its download asked for" else "Android refused to fetch it"}")
+            }
         }
+    }
+
+    private val _languagePack = MutableStateFlow<LanguagePackAnswer?>(null)
+
+    /**
+     * What Android said last about the offline pack of the language its recognition hears, for
+     * the introduction's last steps ([FirstRun.languagePack] tells whether it still counts).
+     */
+    val languagePack: StateFlow<LanguagePackAnswer?> = _languagePack.asStateFlow()
+
+    /**
+     * Asks Android again about the active recognition's language pack ([languagePack]) - once
+     * its download dialog is closed, while the pack downloads. The pack, or null where the
+     * active recognition is not Android's on-device one or Android does not say.
+     */
+    suspend fun checkLanguagePack(): LanguagePack? = checkLanguagePack(loaded.filterNotNull().first())
+
+    private suspend fun checkLanguagePack(settings: AmethystSettings): LanguagePack? {
+        val tag = FirstRun.languagePackTag(settings, phoneTag()) ?: return null
+        val pack = AndroidOnDeviceEngine.languagePack(context, tag) ?: return null
+        if (_languagePack.value?.pack != pack) Log.i(TAG, "Android's language pack for $tag: $pack")
+        _languagePack.value = LanguagePackAnswer(tag, pack)
+        return pack
     }
 
     /** Styles for the known apps on this phone, for the way through the introduction that asks everything. */
@@ -107,6 +144,9 @@ class FirstRunSetup(
 
     companion object {
         private const val TAG = "Embersay"
+
+        /** The language Android's recognition hears where none is set for it ([AndroidOnDeviceEngine]). */
+        fun phoneTag(): String = Locale.getDefault().toLanguageTag()
 
         /**
          * What is weighed to suggest a recognition: memory, room for models, the CPU, Android's

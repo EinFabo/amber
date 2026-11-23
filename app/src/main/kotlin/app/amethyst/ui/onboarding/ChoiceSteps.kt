@@ -18,8 +18,10 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.onboarding.CleanupServices
+import app.amethyst.core.onboarding.DoneState
 import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.settings.AmethystSettings
@@ -187,9 +189,10 @@ internal fun ReliabilityStep(setup: SetupState, actions: SetupActions, onNext: (
  * The bubble finishing over the title ([DoneOrb]), then, row after row, what was chosen - or,
  * on the quick way, decided for this phone - and where to change it;
  * "Try it" leads to the flame on Home. A recognition whose model is still on its way is named
- * with one line on what happens until then ([PendingModelNote]). Android's recognition where it
- * may send the voice to its maker - what the quick setup picks where no model fits - is said
- * under its row, with the way to another ([onOpenRecognition]).
+ * with one line on what happens until then ([PendingModelNote]). Android's recognition - what
+ * the quick setup picks where no model fits - without the offline pack for its language is
+ * said under its row with the way to the pack ([LanguagePackNote]); where it may send the voice
+ * to its maker, that is said there, with the way to another ([onOpenRecognition]).
  */
 @Composable
 internal fun DoneStep(
@@ -198,6 +201,9 @@ internal fun DoneStep(
     pending: PendingModel?,
     nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
     onOpenRecognition: () -> Unit = {},
+    languagePack: LanguagePack? = null,
+    checkLanguagePack: suspend () -> LanguagePack? = { null },
+    onGetLanguagePack: () -> Unit = {},
     onFinish: () -> Unit,
 ) {
     val rows = rememberRowsIn(6)
@@ -205,10 +211,19 @@ internal fun DoneStep(
     val downloaded = if (pending == null) DownloadNotice.share(download) else DownloadNotice.share(pending.download) ?: 0f.takeIf { pending.download == null && !pending.failed }
     // "All set" only once a dictation works: while its model is still on its way, the title says
     // it is not here yet - not "downloading", since it may wait for Wi-Fi or have stopped (the
-    // note under the recognition row says which).
-    val ready = FirstRun.readyAtDone(pending?.stage, download)
+    // note under the recognition row says which). The same for Android's language pack.
+    LanguagePackWatch(settings.activeEngine, checkLanguagePack)
+    val state = FirstRun.atDone(pending?.stage, download, languagePack)
     StepPage(
-        title = stringResource(if (ready) R.string.done_title else R.string.done_title_model_missing),
+        title = stringResource(
+            when (state) {
+                DoneState.READY -> R.string.done_title
+                DoneState.MODEL_MISSING -> R.string.done_title_model_missing
+                DoneState.LANGUAGE_PACK_MISSING -> R.string.done_title_language_pack
+                DoneState.LANGUAGE_PACK_DOWNLOADING -> R.string.done_title_language_pack_downloading
+                DoneState.LANGUAGE_UNSUPPORTED -> R.string.done_title_language_unsupported
+            },
+        ),
         lead = stringResource(R.string.done_lead),
         top = { DoneOrb(downloaded) },
         buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },
@@ -231,7 +246,9 @@ internal fun DoneStep(
             Modifier.rowIn(rows, 0),
         )
         if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1), progress = true)
-        else if (settings.activeEngine.mayGoToMaker()) {
+        else if (languagePack != null && languagePack != LanguagePack.INSTALLED) {
+            LanguagePackNote(languagePack, onGetLanguagePack, onOpenRecognition, Modifier.rowIn(rows, 1))
+        } else if (settings.activeEngine.mayGoToMaker()) {
             Column(Modifier.rowIn(rows, 1), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Hint(stringResource(R.string.done_android_leaves), AmberPalette.Primary)
                 GhostButton(stringResource(R.string.done_choose_another), onOpenRecognition)

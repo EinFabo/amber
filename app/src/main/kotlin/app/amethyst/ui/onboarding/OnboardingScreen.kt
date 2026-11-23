@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.engine.EngineOption
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
@@ -142,7 +143,10 @@ fun OnboardingScreen(
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
                 OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
-                OnboardingStep.DONE -> DoneStep(settings, content.download, content.pending, content.nudge, content.onOpenRecognition, onFinish)
+                OnboardingStep.DONE -> DoneStep(
+                    settings, content.download, content.pending, content.nudge, content.onOpenRecognition,
+                    content.languagePack, content.checkLanguagePack, content.onGetLanguagePack, onFinish,
+                )
             }
         }
     }
@@ -183,6 +187,15 @@ class OnboardingContent(
     val pending: PendingModel? = null,
     /** Where to try the bubble for real, for the last step; null once a dictation went into another app. */
     val nudge: app.amethyst.core.onboarding.RealAppNudge? = null,
+    /**
+     * Android's offline pack for the language its recognition hears, while that is the active
+     * one and Android said ([app.amethyst.core.onboarding.FirstRun.languagePack]); for the practice and last steps.
+     */
+    val languagePack: LanguagePack? = null,
+    /** Asks Android again about that pack; null where there is nothing to ask. */
+    val checkLanguagePack: suspend () -> LanguagePack? = { null },
+    /** Android's download of that pack, as Home's "Get language pack" starts it. */
+    val onGetLanguagePack: () -> Unit = {},
 )
 
 /**

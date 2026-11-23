@@ -9,11 +9,15 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.speech.RecognitionListener
+import android.speech.RecognitionSupport
+import android.speech.RecognitionSupportCallback
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import androidx.annotation.RequiresApi
 import app.amethyst.core.engine.EngineCapabilities
 import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ListenCallbacks
 import app.amethyst.core.engine.ListenStop
 import app.amethyst.core.engine.SelfCapturingSttEngine
@@ -25,6 +29,7 @@ import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import kotlin.coroutines.resume
 
@@ -256,6 +261,64 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
         fun detectOnDeviceSpeech(context: Context) {
             onDeviceSpeech = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }.getOrDefault(false)
+        }
+
+        /** How long Android may take to say which language packs it has; a recognizer that does not answer says nothing. */
+        private const val SUPPORT_ANSWER_MS = 5_000L
+
+        /**
+         * Whether the on-device recognizer has the offline pack for [languageTag], is fetching
+         * it, could fetch it, or has none for it ([LanguagePack.of]). Null below Android 13,
+         * where there is no on-device recognizer to ask, and where it does not answer.
+         */
+        suspend fun languagePack(context: Context, languageTag: String): LanguagePack? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+            // Every SpeechRecognizer call checks that it comes from the main thread.
+            return withContext(Dispatchers.Main) {
+                if (!runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }.getOrDefault(false)) return@withContext null
+                withTimeoutOrNull(SUPPORT_ANSWER_MS) { askSupport(context, languageTag) }
+            }
+        }
+
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        private suspend fun askSupport(context: Context, languageTag: String): LanguagePack? = suspendCancellableCoroutine { continuation ->
+            val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            val main = Handler(Looper.getMainLooper())
+            var destroyed = false
+            // Main thread only: the answer comes on the main executor, a cancellation is posted there.
+            fun destroy() {
+                if (destroyed) return
+                destroyed = true
+                runCatching { recognizer.destroy() }
+            }
+            fun answer(pack: LanguagePack?) {
+                destroy()
+                if (continuation.isActive) continuation.resume(pack)
+            }
+            continuation.invokeOnCancellation { main.post(::destroy) }
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+            val asked = runCatching {
+                recognizer.checkRecognitionSupport(
+                    intent,
+                    context.mainExecutor,
+                    object : RecognitionSupportCallback {
+                        override fun onSupportResult(support: RecognitionSupport) = answer(
+                            LanguagePack.of(
+                                languageTag,
+                                installed = support.installedOnDeviceLanguages,
+                                pending = support.pendingOnDeviceLanguages,
+                                supported = support.supportedOnDeviceLanguages,
+                            ),
+                        )
+
+                        override fun onError(error: Int) {
+                            Log.i(TAG, "the on-device recognizer did not say which language packs it has (error $error)")
+                            answer(null)
+                        }
+                    },
+                )
+            }
+            if (asked.isFailure) answer(null)
         }
 
         /**

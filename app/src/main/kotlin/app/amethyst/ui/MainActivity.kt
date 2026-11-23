@@ -124,6 +124,7 @@ import app.amethyst.core.ui.SettingsPage
 import app.amethyst.core.update.UpdatePolicy
 import app.amethyst.data.PhoneLocales
 import app.amethyst.engine.AndroidOnDeviceEngine
+import app.amethyst.engine.FirstRunSetup
 import app.amethyst.engine.ModelDownloads
 import app.amethyst.engine.ParakeetState
 import app.amethyst.ui.AndroidAppSource
@@ -775,6 +776,7 @@ private fun AmethystScreens(
                             if (current == Screen.Home || current == Screen.Onboarding || secretsReady) when (current) {
                                 Screen.Onboarding -> {
                                     val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                    val languagePack by graph.firstRun.languagePack.collectAsStateWithLifecycle()
                                     OnboardingScreen(
                                         step = step,
                                         settings = settings,
@@ -805,6 +807,9 @@ private fun AmethystScreens(
                                             secretsReady = secretsReady,
                                             pending = pending,
                                             nudge = nudge,
+                                            languagePack = FirstRun.languagePack(settings, languagePack, FirstRunSetup.phoneTag()),
+                                            checkLanguagePack = graph.firstRun::checkLanguagePack,
+                                            onGetLanguagePack = { onInstallLanguage(settings.activeEngine?.let(LanguageList::forDictation)) },
                                         ),
                                         onStep = { step = it },
                                         onFinish = {
@@ -984,6 +989,7 @@ private fun AmethystScreens(
                                         }
                                         SettingsPage.DIAGNOSTICS -> {
                                             val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                    val languagePack by graph.firstRun.languagePack.collectAsStateWithLifecycle()
                                             val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
                                             val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                                             DiagnosticsScreen(
@@ -1009,6 +1015,7 @@ private fun AmethystScreens(
                                         }
                                         SettingsPage.ABOUT -> {
                                             val records by graph.memory.log.records.collectAsStateWithLifecycle()
+                                    val languagePack by graph.firstRun.languagePack.collectAsStateWithLifecycle()
                                             AboutScreen(
                                                 settings = settings,
                                                 diagnosticsCount = records.size,
