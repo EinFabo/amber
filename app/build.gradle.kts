@@ -116,6 +116,10 @@ android {
             // rebuilt (README, "Reproducible builds"; tools/check-reproducible.sh).
             isCrunchPngs = false
             signingConfig = signingConfigs.findByName("release")
+            // The native libraries' symbol tables go into the bundle (BUNDLE-METADATA), so Play
+            // Console can name the function a native crash happened in. The APK is not touched:
+            // its libraries ship as they are built either way.
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
         }
     }
 
@@ -161,7 +165,7 @@ android {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
         // Compressed instead of stored: the APK is installed by hand after a download, where
         // download size matters more than the few MB of extra space the unpacked copy takes
-        // on the device.
+        // on the device. Play's bundle stores its libraries instead (onVariants below).
         dex.useLegacyPackaging = true
         jniLibs.useLegacyPackaging = true
         // libonnxruntime.so reaches the build twice: from the ONNX Runtime AAR (the copy that
@@ -257,6 +261,13 @@ androidComponents.onVariants { variant ->
     // The java sources, not sources.kotlin: the Kotlin plugin compiles .kt files from AGP's java
     // source directories, generated ones included, but ignores generated kotlin ones.
     variant.sources.java?.addGeneratedSourceDirectory(copySherpaKotlinApi, CopyKotlinSources::outputDir)
+    // The APKs Play makes from the bundle keep the native libraries uncompressed: Play
+    // compresses the download itself, and the phone then maps them from the APK instead of
+    // unpacking a second copy (about 20 MB less on the device, faster installs and updates).
+    // Only the bundle's setting:
+    // the APKs built here (GitHub, F-Droid's rebuild of them) stay compressed and byte for byte
+    // what tools/check-reproducible.sh compares.
+    variant.packaging.jniLibs.useLegacyPackagingFromBundle.set(false)
 }
 
 // Checked when the app is built, not when Gradle configures - :core's tests need no AAR.

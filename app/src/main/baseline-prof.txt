@@ -1,0 +1,124 @@
+# Baseline profile for Embersay's own code: the classes and methods a start runs, compiled ahead
+# of time at install (Play, adb install) or by profileinstaller a moment after the first start
+# (an APK installed by hand). The libraries bring their own profiles (Compose, coroutines); this
+# file adds ours, which would otherwise run interpreted until the phone's background compile
+# picks them up days later.
+#
+# Hand-written, in the human-readable format AGP merges into assets/dexopt/baseline.prof
+# (https://developer.android.com/topic/performance/baselineprofiles/manually-create-measure).
+#   L...;            the class is loaded at start (its initialisation goes into the image)
+#   H S P            the method is hot / runs at start / runs after start
+#   Foo**->**(**)**  every method of Foo and of the classes whose name begins with Foo: its
+#                    companion, its nested classes, its lambdas (Foo$..., Foo$$ExternalSynthetic...)
+#                    and, for a file, FooKt with its composables
+# Rules that match nothing (code R8 removed or inlined) are dropped by the build, not an error.
+#
+# Covered: the process start (AmethystApp, Graph, the stores it opens), Embersay's screen
+# opening on Home and Settings, and the accessibility service connecting with the bubble -
+# which is the start most users see: Android restarts the service's process and the bubble has
+# to answer the first tap. Not covered on purpose: the introduction (seen once), the dictation
+# pipeline and the speech runtimes (they run after a tap, by then warm, and their time is in
+# native code), downloads and the secondary screens.
+
+# ---- Process start ----------------------------------------------------------------------------
+
+HSPLapp/amethyst/AmethystApp**->**(**)**
+Lapp/amethyst/AmethystApp**;
+HSPLapp/amethyst/Graph**->**(**)**
+Lapp/amethyst/Graph**;
+HSPLapp/amethyst/StatsView;->**(**)**
+HSPLapp/amethyst/Messages**->**(**)**
+HSPLapp/amethyst/DebugLog**->**(**)**
+
+# The stores the graph opens: settings, statistics, history, insertion strategies, estimates.
+HSPLapp/amethyst/data/**->**(**)**
+Lapp/amethyst/data/**;
+
+# Built while the graph is made, or right after it on the IO pool.
+HSPLapp/amethyst/engine/AndroidOnDeviceEngine**->**(**)**
+HSPLapp/amethyst/engine/NativeWhisperRuntime**->**(**)**
+HSPLapp/amethyst/engine/SherpaRuntime**->**(**)**
+HSPLapp/amethyst/engine/OpusEncoder**->**(**)**
+HSPLapp/amethyst/engine/FirstRunSetup**->**(**)**
+HSPLapp/amethyst/engine/ModelDownloads**->**(**)**
+HSPLapp/amethyst/apps/LauncherList**->**(**)**
+HSPLapp/amethyst/update/UpdateChecker**->**(**)**
+HSPLapp/amethyst/dictation/DictationController**->**(**)**
+HSPLapp/amethyst/dictation/DictationState**->**(**)**
+Lapp/amethyst/dictation/DictationState**;
+HSPLapp/amethyst/accessibility/ReturnToAmber**->**(**)**
+
+# :core, as far as a start reads it: the settings decoded from the store, the statistics summed
+# up, the dictation memory, which screen comes first, and the privacy questions asked of them.
+HSPLapp/amethyst/core/settings/**->**(**)**
+Lapp/amethyst/core/settings/**;
+HSPLapp/amethyst/core/stats/**->**(**)**
+HSPLapp/amethyst/core/dictation/DictationMemory**->**(**)**
+HSPLapp/amethyst/core/dictation/KeptDictation**->**(**)**
+HSPLapp/amethyst/core/dictation/DictationLog**->**(**)**
+HSPLapp/amethyst/core/privacy/SecurityMode**->**(**)**
+HSPLapp/amethyst/core/ui/**->**(**)**
+Lapp/amethyst/core/ui/**;
+HSPLapp/amethyst/core/onboarding/FirstRun**->**(**)**
+HSPLapp/amethyst/core/onboarding/Onboarding**->**(**)**
+HSPLapp/amethyst/core/onboarding/OtherAmbers**->**(**)**
+HSPLapp/amethyst/core/onboarding/RealAppNudge**->**(**)**
+HSPLapp/amethyst/core/update/UpdatePolicy**->**(**)**
+HSPLapp/amethyst/core/history/HistoryKeep**->**(**)**
+HSPLapp/amethyst/core/history/HistoryOffer**->**(**)**
+HSPLapp/amethyst/core/engine/ModelRelease**->**(**)**
+HSPLapp/amethyst/core/engine/RecognitionEstimate**->**(**)**
+HSPLapp/amethyst/core/engine/EngineRouting**->**(**)**
+HSPLapp/amethyst/core/apps/AppsSeenInFront**->**(**)**
+
+# ---- Embersay's screen: MainActivity, Home, Settings ------------------------------------------
+
+HSPLapp/amethyst/ui/MainActivity**->**(**)**
+Lapp/amethyst/ui/MainActivity**;
+HSPLapp/amethyst/ui/SetupActions;->**(**)**
+HSPLapp/amethyst/SecureWindow**->**(**)**
+HSPLapp/amethyst/Texts**->**(**)**
+HSPLapp/amethyst/ui/theme/**->**(**)**
+Lapp/amethyst/ui/theme/**;
+# What the first frame checks and draws: the setup snapshot, the background, the orb and the
+# building blocks every page is made of.
+HSPLapp/amethyst/ui/Setup**->**(**)**
+Lapp/amethyst/ui/Setup**;
+HSPLapp/amethyst/ui/ComponentsKt**->**(**)**
+HSPLapp/amethyst/ui/BackgroundKt**->**(**)**
+HSPLapp/amethyst/ui/WordmarkKt**->**(**)**
+HSPLapp/amethyst/ui/DictateOrb**->**(**)**
+HSPLapp/amethyst/ui/AmberIcons**->**(**)**
+HSPLapp/amethyst/ui/PendingModel**->**(**)**
+HSPLapp/amethyst/ui/ShowsDictatedText**->**(**)**
+HSPLapp/amethyst/ui/OwnField**->**(**)**
+HSPLapp/amethyst/ui/Undo**->**(**)**
+HSPLapp/amethyst/ui/AndroidAppSource**->**(**)**
+HSPLapp/amethyst/ui/AppSource**->**(**)**
+HSPLapp/amethyst/ui/WordsKt**->**(**)**
+HSPLapp/amethyst/ui/SettingsRowsKt**->**(**)**
+HSPLapp/amethyst/ui/screen/HomeScreenKt**->**(**)**
+# SettingsScreenKt, SettingsAttentionRowKt and SettingsPage's helpers.
+HSPLapp/amethyst/ui/screen/Settings**->**(**)**
+HSPLapp/amethyst/ui/screen/ComposableSingletons$Settings**->**(**)**
+
+# ---- The accessibility service connecting, and the bubble -------------------------------------
+
+HSPLapp/amethyst/accessibility/AmethystAccessibilityService**->**(**)**
+Lapp/amethyst/accessibility/AmethystAccessibilityService**;
+HSPLapp/amethyst/accessibility/TextInserter**->**(**)**
+HSPLapp/amethyst/accessibility/FieldEditor**->**(**)**
+HSPLapp/amethyst/accessibility/CommandExecutor**->**(**)**
+HSPLapp/amethyst/accessibility/QuickActionRunner**->**(**)**
+HSPLapp/amethyst/accessibility/KeyboardTracker**->**(**)**
+HSPLapp/amethyst/accessibility/DefaultKeyboard**->**(**)**
+HSPLapp/amethyst/accessibility/ScreenAwake**->**(**)**
+HSPLapp/amethyst/accessibility/MessagePill**->**(**)**
+# The bubble: attached, drawn, dragged and tapped from the first moment the service is up.
+HSPLapp/amethyst/bubble/**->**(**)**
+Lapp/amethyst/bubble/**;
+HSPLapp/amethyst/core/bubble/**->**(**)**
+Lapp/amethyst/core/bubble/**;
+HSPLapp/amethyst/core/dictation/BubbleTap**->**(**)**
+HSPLapp/amethyst/core/commands/RunMode**->**(**)**
+HSPLapp/amethyst/core/insert/InputTarget**->**(**)**

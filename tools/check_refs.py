@@ -95,8 +95,43 @@ for m in re.finditer(r'android:(?:resource|drawable|icon|theme)="@(\w+)/(\w+)"',
     if kind in ('mipmap', 'xml', 'drawable', 'style', 'string') and name not in res_ids.get(kind, set()):
         errors.append(f"AndroidManifest.xml: missing @{kind}/{name}")
 
+# Baseline profile rules (app/src/main/baseline-prof.txt): a class renamed or moved leaves its
+# rule matching nothing, and the build drops such a rule without a word - the start just gets
+# slower again. Each rule has to name a class (or a prefix, Foo**, or a package, pkg/**) that
+# the sources declare: top-level types, file facades (FooKt) and Compose's singletons.
+profile = root / 'app/src/main/baseline-prof.txt'
+rules = 0
+if profile.exists():
+    jvm = set()
+    for p in kt:
+        if '/src/main/' not in p.as_posix():
+            continue
+        pkg = pkg_of[p].replace('.', '/')
+        facade = p.stem + 'Kt'
+        jvm.update({f"{pkg}/{facade}", f"{pkg}/ComposableSingletons${facade}"})
+        for line in p.read_text().splitlines():
+            if line and not line[0].isspace():
+                jvm.update(f"{pkg}/{m.group(1)}" for m in type_re.finditer(line))
+    for n, line in enumerate(profile.read_text().splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        m = re.match(r'[HSP]*L([^;]+?)(?:;|->|$)', line)
+        if not m or not m.group(1).startswith('app/amethyst/'):
+            errors.append(f"baseline-prof.txt:{n}: not a rule for Embersay's code: {line}")
+            continue
+        rules += 1
+        spec = m.group(1)
+        if spec.endswith('**'):
+            found = any(name.startswith(spec[:-2]) for name in jvm)
+        else:
+            found = spec in jvm
+        if not found:
+            errors.append(f"baseline-prof.txt:{n}: {spec} matches no class in the sources")
+
 if errors:
     print(f"{len(errors)} PROBLEM(S):")
     for e in errors: print("  -", e)
     sys.exit(1)
-print(f"OK: {len(kt)} Kotlin files; all internal imports, resource ids and manifest classes resolve.")
+print(f"OK: {len(kt)} Kotlin files; all internal imports, resource ids and manifest classes resolve, "
+      f"and all {rules} baseline profile rules name a class.")
