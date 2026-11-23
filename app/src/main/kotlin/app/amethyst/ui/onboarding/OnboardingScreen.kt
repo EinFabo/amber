@@ -136,7 +136,8 @@ fun OnboardingScreen(
                 OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, onward)
                 OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, onward)
                 OnboardingStep.ENGINE -> EngineStep(settings, content, onward)
-                OnboardingStep.CLEANUP -> CleanupStep(settings, content) { after -> nextFrom(current, after) }
+                // Blank the moment the secret store may still be building after a cold start.
+                OnboardingStep.CLEANUP -> if (content.secretsReady) CleanupStep(settings, content) { after -> nextFrom(current, after) }
                 OnboardingStep.APP_STYLES -> AppStylesStep(settings, content, onward)
                 OnboardingStep.BUBBLE -> BubbleStep(settings, content, onward)
                 OnboardingStep.PRACTICE -> PracticeStep(settings, setup, actions, content, { onStep(OnboardingStep.ACCESSIBILITY) }, onward)
@@ -176,6 +177,8 @@ class OnboardingContent(
     val hasLastDictation: Boolean = false,
     /** What the cleanup step's service list needs: keys, settings, a server's models, a key's test. */
     val cleanup: CleanupAccess,
+    /** The secret store is built, so the cleanup step may ask it which keys are stored without building it on the main thread. */
+    val secretsReady: Boolean = true,
     /** The recognition chosen for this phone that still waits for its model, for the last step. */
     val pending: PendingModel? = null,
     /** Where to try the bubble for real, for the last step; null once a dictation went into another app. */

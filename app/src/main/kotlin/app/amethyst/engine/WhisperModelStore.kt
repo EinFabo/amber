@@ -58,10 +58,13 @@ class WhisperModelStore(
     private val http by lazy(newHttp)
 
     /**
-     * Downloads, copies and the discard of a cancelled download's part take turns: they share
-     * the slot's `.part`, and a download cut by a cancel only stops at its next chunk.
+     * Per slot, downloads, copies and the discard of a cancelled download's part take turns:
+     * they share the slot's `.part`, and a download cut by a cancel only stops at its next
+     * chunk. One lock per slot, so different models still download and copy side by side.
      */
-    private val files = Mutex()
+    private val files: Map<String, Mutex> = slotIds().associateWith { Mutex() }
+
+    private fun filesOf(id: String): Mutex = files.getValue(id)
 
     /** The server as a download sees it; "identity" so a byte position means the same on both sides. */
     private fun server(id: String) = DownloadTransport { url, from ->
@@ -87,7 +90,7 @@ class WhisperModelStore(
         slots = ModelSlots(
             scope = scope,
             dispatcher = Dispatchers.IO,
-            ids = WhisperModels.all.map { it.id } + WhisperModels.IMPORTED_ID,
+            ids = slotIds(),
             inspect = ::readState,
         )
         states = slots.states
@@ -109,7 +112,7 @@ class WhisperModelStore(
     }
 
     fun download(spec: WhisperModelSpec) = slots.run(spec.id, context.getString(R.string.slot_downloading)) { report, isCancelled ->
-        files.withLock {
+        filesOf(spec.id).withLock {
             val target = fileFor(spec.id)
             val free = directory.apply { mkdirs() }.usableSpace
             val needed = ModelInstall.missingBytes(spec, target)
@@ -150,7 +153,7 @@ class WhisperModelStore(
             if (known == null && size != null && size > WhisperModelFile.MAX_IMPORT_BYTES) {
                 return@run Result.failure(ModelFileException(FileProblem.TooLarge(WhisperModelFile.MAX_IMPORT_BYTES / 1_000_000)))
             }
-            files.withLock {
+            filesOf(id).withLock {
                 val input = context.contentResolver.openInputStream(uri)
                     ?: return@withLock Result.failure(ModelFileException(FileProblem.CannotOpen))
                 input.use { install(it, id, known, size, report, isCancelled) }
@@ -165,7 +168,7 @@ class WhisperModelStore(
         calls.remove(id)?.cancel()
         slots.cancel(id)
         // After the download that was cut has ended, before one started afterwards begins.
-        scope.launch(Dispatchers.IO) { files.withLock { ModelInstall.discardKept(fileFor(id)) } }
+        scope.launch(Dispatchers.IO) { filesOf(id).withLock { ModelInstall.discardKept(fileFor(id)) } }
     }
 
     fun delete(id: String) {
@@ -199,6 +202,8 @@ class WhisperModelStore(
             Log.i(TAG, "whisper model $id installed: ${info.sizeName}, multilingual=${info.multilingual}")
             info to fileFor(id).length()
         }
+
+    private fun slotIds(): List<String> = WhisperModels.all.map { it.id } + WhisperModels.IMPORTED_ID
 
     private fun readState(id: String): SlotState =
         ModelInstall.inspect(fileFor(id)).fold(

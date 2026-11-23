@@ -1430,7 +1430,8 @@ Needs
       a 24-hour wait to install. Hits installs of our release APKs and F-Droid alike. Register;
       a Play developer account carries the verification (see Play below).
 - [ ] **Downloads that survive.** The model download runs only while the process lives;
-      Whisper starts over after a break. Android 14+: a user-initiated data transfer job with
+      after a break both Whisper and Parakeet go on where they stopped (Range). What remains is
+      surviving the end of the process - Android 14+: a user-initiated data transfer job with
       a progress notification ("Model ready - dictate now").
 - [ ] **History, undo, keep a failed recording** (Quality of life above) - the everyday safety net.
 - [ ] Later, not now: **a way without the accessibility service** (a voice IME/RecognitionService

@@ -520,8 +520,10 @@ private fun AmethystScreens(
     val testContext = LocalContext.current
     val tester = remember(graph, testContext) { ConnectionTester(graph, testContext) }
     val settings by graph.settings.collectAsStateWithLifecycle()
-    // Every screen but Home asks the secret store whether keys are stored; they wait the moment
-    // it may still be building after a cold start rather than build it on the main thread.
+    // The screens with keys ask the secret store whether one is stored; they wait the moment it
+    // may still be building after a cold start rather than build it on the main thread. Home and
+    // the introduction show at once - a fresh install starts there, when building the store
+    // takes longest - and only the introduction's cleanup step waits.
     val secretsReady by graph.secretStoreReady.collectAsStateWithLifecycle()
     val statList by graph.stats.all.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -770,7 +772,7 @@ private fun AmethystScreens(
                                     translationX = (if (dragEdge == BackEventCompat.EDGE_LEFT) 1 else -1) * shift * at
                                 },
                         ) {
-                            if (current == Screen.Home || secretsReady) when (current) {
+                            if (current == Screen.Home || current == Screen.Onboarding || secretsReady) when (current) {
                                 Screen.Onboarding -> {
                                     val records by graph.memory.log.records.collectAsStateWithLifecycle()
                                     OnboardingScreen(
@@ -800,6 +802,7 @@ private fun AmethystScreens(
                                             hasLastDictation = DictationLog.lastDictation(records) != null,
                                             // No way from the introduction to a server's own page.
                                             cleanup = introductionCleanup,
+                                            secretsReady = secretsReady,
                                             pending = pending,
                                             nudge = nudge,
                                         ),
