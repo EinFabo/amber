@@ -61,18 +61,29 @@ object AmberAddress {
      * the new address. The key itself is returned in [Move]s, for the app to put into its
      * encrypted store first.
      *
-     * Known by the key's shape alone ([split]: twenty of Amber's 31 characters as the whole
-     * first path segment, then nothing or `v1`), not by a model list: a server that was off
+     * Known by the key's shape ([split]: twenty of Amber's 31 characters as the whole first
+     * path segment, then nothing or `v1`), not only by a model list: a server that was off
      * since it was added has none stored, and its key would stay in the address - in every
      * request line and every log that keeps paths.
+     *
+     * But the shape alone never overwrites a key: an old Amber kept its key in the address and
+     * none in the store. A server with another key stored under its alias ([storedKey]) and no
+     * model list saying it is Amber is someone else's - a proxy whose path merely looks like a
+     * key - and stays as it is. The key already stored being this very one is a move half done
+     * (the store written, then a crash before the address was): it goes on.
      */
-    fun movePathKeys(settings: AmethystSettings): Pair<AmethystSettings, List<Move>> {
+    fun movePathKeys(
+        settings: AmethystSettings,
+        storedKey: (alias: String) -> String? = { null },
+    ): Pair<AmethystSettings, List<Move>> {
         val moves = mutableListOf<Move>()
         var catalogs = settings.serverCatalogs
         val engines = settings.engines.map { engine ->
             if (!Servers.isServer(engine)) return@map engine
             val split = split(engine.baseUrl) ?: return@map engine
             val alias = engine.apiKeyAlias ?: "key.${engine.id}"
+            val stored = storedKey(alias)
+            if (stored != null && stored != split.key && settings.catalogFor(engine) == null) return@map engine
             moves += Move(engine.id, alias, split.key)
             catalogs[engine.id]?.let { stored ->
                 catalogs = catalogs + (engine.id to stored.copy(address = AmberCatalog.fingerprint(split.baseUrl)))

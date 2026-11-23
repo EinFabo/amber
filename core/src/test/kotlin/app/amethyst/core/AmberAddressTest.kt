@@ -83,6 +83,29 @@ class AmberAddressTest {
     }
 
     @Test
+    fun `another server whose path looks like a key keeps its address and its own stored key`() {
+        // An own OpenAI-compatible proxy: its real key in the store, no Amber model list.
+        val proxy = Servers.newServer("server-1", null).copy(baseUrl = "https://proxy.example/$key/v1")
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(proxy)
+        val (kept, moves) = AmberAddress.movePathKeys(settings) { alias -> "sk-real".takeIf { alias == "key.server-1" } }
+        assertEquals(emptyList(), moves)
+        assertSame(settings, kept)
+    }
+
+    @Test
+    fun `a move half done goes on, and a listed amber server moves whatever is stored`() {
+        val old = "http://192.168.1.20:8765/$key/v1"
+        val unlisted = Servers.newServer("server-1", null).copy(baseUrl = old)
+        // The key reached the store, then the app stopped before the address was written.
+        val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(unlisted)
+        assertEquals(listOf(AmberAddress.Move("server-1", "key.server-1", key)), AmberAddress.movePathKeys(settings) { key }.second)
+        // Its model list says Amber: the key in its address is the one that counts.
+        val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS))
+        val listed = settings.copy(serverCatalogs = mapOf(unlisted.id to StoredCatalog.of(old, pc)))
+        assertEquals(listOf(AmberAddress.Move("server-1", "key.server-1", key)), AmberAddress.movePathKeys(listed) { "something-else" }.second)
+    }
+
+    @Test
     fun `a path that only looks a bit like a key stays`() {
         for (path in listOf(
             "http://nas:8000/v1",

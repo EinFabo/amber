@@ -949,7 +949,7 @@ class DictationController(
                 commandRecorded = true
                 val steps = commandSteps
                 graph.memory.log.recordFailure(
-                    "Stopped by a tap.", engineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, appLabel = runAppLabel(),
+                    "Stopped by a tap.", engineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, appLabels = runAppLabels(),
                     details = if (steps == null) listOf("stopped by a tap before the command ran")
                     else steps.apply { note("stopped by a tap") }.lines,
                 )
@@ -1158,7 +1158,7 @@ class DictationController(
         graph.memory.log.recordFailure(
             "Paused for more than ${RecordingPause.MAX_PAUSE_MS / 60_000} minutes with nothing recorded - the recording ended.",
             timing = trace?.summary(namesApps = graph.memory.log.namesApps),
-            appLabel = runAppLabel(),
+            appLabels = runAppLabels(),
         )
         _state.value = DictationState.Idle
     }
@@ -1741,11 +1741,18 @@ class DictationController(
         Resources.getSystem().configuration.locales.takeUnless { it.isEmpty }?.get(0)?.language
 
     /**
-     * The name the run's app has in Amber, which its timing may use ("WhatsApp's own speech
-     * recognition"): a copied report gives it the same alias as the app's package
+     * The names the run's apps have in Amber, each with its package, which its timing may use:
+     * the app it started in ("WhatsApp's own speech recognition") and the one its cleanup was
+     * chosen for ("cleanup off for Signal") - after a switch with no field focused at the start,
+     * another app. A copied report gives each the alias of its package
      * ([app.amethyst.core.dictation.AppAliases]).
      */
-    private fun runAppLabel(): String? = AppProfiles.forPackage(graph.settings.value.profiles, runPackage)?.label
+    private fun runAppLabels(): Map<String, String> {
+        val profiles = graph.settings.value.profiles
+        return listOfNotNull(runPackage, trace?.cleanupPackage).distinct()
+            .mapNotNull { pkg -> AppProfiles.forPackage(profiles, pkg)?.label?.let { it to pkg } }
+            .toMap()
+    }
 
     /**
      * The installed apps' launcher labels, for a bare app name: taken once per command when the
@@ -1836,6 +1843,7 @@ class DictationController(
         val decision = CleanupRouting.decide(settings, target, fellBackFrom) { graph.secretStore.has(it) }
         // May name the app (its style's label), so the trace keeps it apart from the rest.
         trace?.cleanupNote = decision.note
+        trace?.cleanupPackage = target
         val choice = decision.choice ?: return transcript
         val skip = skipCleanup
         if (skip.isCompleted) {
@@ -1984,7 +1992,7 @@ class DictationController(
             if (stoppedByTap && !commandRecorded) {
                 commandRecorded = true
                 steps.note("stopped by a tap")
-                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabel())
+                graph.memory.log.recordCommand(heard, CommandOutcome.Refused("Stopped by a tap."), transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabels())
             }
             throw e
         }
@@ -1996,7 +2004,7 @@ class DictationController(
             }),
         )
         commandRecorded = true
-        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabel())
+        graph.memory.log.recordCommand(heard, outcome, transcript.engineId, trace?.summary(namesApps = graph.memory.log.namesApps), steps.lines, runAppLabels())
         if (outcome !is CommandOutcome.Done) {
             // Logged just above, with what was heard.
             fail(plain(outcome.message), transcript.engineId, record = false, logAs = "command not done")
@@ -2176,7 +2184,7 @@ class DictationController(
             targetPackage = insertion.targetPackage,
             note = inserter.lastTrace,
             timing = trace?.summary(namesApps = graph.memory.log.namesApps),
-            appLabel = runAppLabel(),
+            appLabels = runAppLabels(),
         )
         trace?.let { Log.i(TAG, "dictation timing: ${it.summary(namesApps = DebugLog.enabled)}") }
         loudness?.summary()?.let { Log.i(TAG, "bubble level: $it") }
@@ -2342,9 +2350,9 @@ class DictationController(
                 val steps = commandSteps ?: CommandTrace()
                 details.forEach(steps::note)
                 commandRecorded = true
-                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, details = steps.lines, appLabel = runAppLabel())
+                graph.memory.log.recordFailure(logged, engineId ?: runEngineId, trace?.summary(namesApps = graph.memory.log.namesApps), command = true, details = steps.lines, appLabels = runAppLabels())
             } else {
-                graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text, appLabel = runAppLabel())
+                graph.memory.log.recordFailure(logged, engineId, trace?.summary(namesApps = graph.memory.log.namesApps), text = text, appLabels = runAppLabels())
                 // Words that did not go in are a dictation too: the history keeps them.
                 if (history && text.isNotBlank()) graph.keepInHistory(text, startTarget?.packageName)
                 if (text.isNotBlank()) wordsKept()

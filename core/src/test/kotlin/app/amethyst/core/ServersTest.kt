@@ -129,12 +129,26 @@ class ServersTest {
         val plain = own.copy(baseUrl = "http://192.168.1.20:8000/v1")
         assertFalse(KeyBinding.allows(plain))
         assertEquals(listOf(ConfigIssue.KeyForOtherAddress("https://192.168.1.20")), EngineConfigValidator.validate(plain, hasApiKey = true))
-        // Given over http, it stays there too: no quiet move to https either way.
         val lan = KeyBinding.bind(plain)
         assertTrue(KeyBinding.allows(lan))
-        assertFalse(KeyBinding.allows(lan.copy(baseUrl = "https://192.168.1.20/v1")))
         // Another host: the host is all it takes to say where the key belongs.
         assertEquals("192.168.1.20", KeyBinding.shown(lan.copy(baseUrl = "https://elsewhere.example/v1")))
+    }
+
+    @Test
+    fun `a key given over http follows its host to https and is bound there from then on`() {
+        // A LAN server put behind TLS, the key not typed again.
+        val lan = KeyBinding.bind(Servers.newServer("server-000002", null).copy(baseUrl = "http://192.168.1.20:8080/v1", modelId = "large-v3"))
+        assertEquals("http", lan.keyScheme)
+        val tls = lan.copy(baseUrl = "https://192.168.1.20:8443/v1")
+        assertTrue(KeyBinding.allows(tls))
+        assertEquals(emptyList(), EngineConfigValidator.validate(tls, hasApiKey = true))
+        // The next read binds it to https: back to http, it stays behind.
+        val upgraded = KeyBinding.bindIfUnbound(tls)
+        assertEquals("https", upgraded.keyScheme)
+        assertFalse(KeyBinding.allows(upgraded.copy(baseUrl = "http://192.168.1.20:8080/v1")))
+        // Still over http, nothing changes.
+        assertSame(lan, KeyBinding.bindIfUnbound(lan))
     }
 
     @Test

@@ -139,7 +139,9 @@ object Servers {
  * ([EngineConfig.keyHost], [EngineConfig.keyScheme]); a request to any other host - or over
  * http to the host it was given for over https - goes without it, and the engine says the key
  * must be entered again. So a changed address - a typo, a pasted link, someone else's hand -
- * never takes the key along, nor sends it unencrypted.
+ * never takes the key along, nor sends it unencrypted. The other way is no risk: a key given
+ * over http goes to the same host over https too (a LAN server put behind TLS keeps its key),
+ * and is bound to https from then on.
  *
  * Unbound is a key only while its server has no address at all: nothing can be sent then.
  * Every read of the settings and every write binds the rest ([bindIfUnbound]), so a key is
@@ -148,15 +150,15 @@ object Servers {
 object KeyBinding {
 
     /**
-     * Whether [engine]'s key may go to its address: bound to that host and scheme, or not
-     * bound at all (no address yet, see above). A key bound before schemes were goes to its
-     * host over either until the settings are read again, which completes it.
+     * Whether [engine]'s key may go to its address: bound to that host - and, given over https,
+     * going over https - or not bound at all (no address yet, see above). A key bound before
+     * schemes were goes to its host over either until the settings are read again, which
+     * completes it.
      */
     fun allows(engine: EngineConfig): Boolean {
         val bound = engine.keyHost ?: return true
         if (!bound.equals(EnginePresets.hostOf(engine.baseUrl), ignoreCase = true)) return false
-        val scheme = engine.keyScheme ?: return true
-        return scheme.equals(schemeOf(engine.baseUrl), ignoreCase = true)
+        return !engine.keyScheme.equals(HTTPS, ignoreCase = true) || schemeOf(engine.baseUrl) == HTTPS
     }
 
     /**
@@ -180,18 +182,24 @@ object KeyBinding {
     /**
      * Binds a key that has no host yet to the address it is used with (schema 12, and keys
      * stored without one), and gives a key bound to this host before schemes were the scheme it
-     * has been going over. A key bound to another host stays as it is: it waits to be typed again.
+     * has been going over. A key given over http whose host is now reached over https is bound
+     * to https: once its server has TLS, a pasted http address no longer takes it along. A key
+     * bound to another host stays as it is: it waits to be typed again.
      */
     fun bindIfUnbound(engine: EngineConfig): EngineConfig {
         if (engine.apiKeyAlias == null) return engine
         val host = EnginePresets.hostOf(engine.baseUrl) ?: return engine
+        val scheme = schemeOf(engine.baseUrl)
         return when {
             engine.keyHost == null -> bind(engine)
-            engine.keyScheme == null && engine.keyHost.equals(host, ignoreCase = true) ->
-                schemeOf(engine.baseUrl)?.let { engine.copy(keyScheme = it) } ?: engine
+            !engine.keyHost.equals(host, ignoreCase = true) -> engine
+            engine.keyScheme == null -> scheme?.let { engine.copy(keyScheme = it) } ?: engine
+            scheme == HTTPS && !engine.keyScheme.equals(HTTPS, ignoreCase = true) -> engine.copy(keyScheme = HTTPS)
             else -> engine
         }
     }
+
+    private const val HTTPS = "https"
 
     /** "https" or "http" of [baseUrl], lower case; null for an address without a scheme. */
     fun schemeOf(baseUrl: String?): String? {

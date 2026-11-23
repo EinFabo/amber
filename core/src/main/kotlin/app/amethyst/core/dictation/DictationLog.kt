@@ -53,8 +53,8 @@ class DictationLog(
         note: String? = null,
         /** Where the time went, one line. */
         timing: String? = null,
-        /** The app's name in Amber, when [timing] may name it ([DictationRecord.appLabel]). */
-        appLabel: String? = null,
+        /** The apps' names in Amber [timing] may use, each with its package ([DictationRecord.appLabels]). */
+        appLabels: Map<String, String> = emptyMap(),
     ) = add(
         DictationRecord(
             text = transcript.text,
@@ -68,7 +68,7 @@ class DictationLog(
             atMillis = clock(),
             note = note,
             timing = timing,
-            appLabel = appLabel,
+            appLabels = appLabels,
         ),
     )
 
@@ -83,7 +83,7 @@ class DictationLog(
         command: Boolean = false,
         details: List<String> = emptyList(),
         text: String = "",
-        appLabel: String? = null,
+        appLabels: Map<String, String> = emptyMap(),
     ) = add(
         DictationRecord(
             text = text,
@@ -98,7 +98,7 @@ class DictationLog(
             timing = timing,
             command = command,
             details = details,
-            appLabel = appLabel,
+            appLabels = appLabels,
         ),
     )
 
@@ -112,7 +112,7 @@ class DictationLog(
         engineId: String?,
         timing: String? = null,
         details: List<String> = emptyList(),
-        appLabel: String? = null,
+        appLabels: Map<String, String> = emptyMap(),
     ) = add(
         DictationRecord(
             text = heard,
@@ -128,7 +128,7 @@ class DictationLog(
             timing = timing,
             command = true,
             details = details,
-            appLabel = appLabel,
+            appLabels = appLabels,
         ),
     )
 
@@ -191,11 +191,13 @@ data class DictationRecord(
      */
     val shape: TextShape? = null,
     /**
-     * The name the app the run was for has in Amber ([app.amethyst.core.settings.AppProfile.label]),
-     * when its [timing] may name it - "WhatsApp's own speech recognition": a shared report gives
-     * it the alias of [targetPackage] ([AppAliases]).
+     * The names the run's apps have in Amber ([app.amethyst.core.settings.AppProfile.label]),
+     * each with its package, when its [timing] may use them - "WhatsApp's own speech
+     * recognition" for the app the run started in, "cleanup off for Signal" for the one whose
+     * field got the text, which may be another: a shared report gives each label the alias of
+     * its package ([AppAliases]).
      */
-    val appLabel: String? = null,
+    val appLabels: Map<String, String> = emptyMap(),
 ) {
     val failed: Boolean get() = error != null
 
@@ -208,7 +210,7 @@ data class DictationRecord(
      */
     fun withoutWords(): DictationRecord {
         // A command's note is what came of it, not a field's trace.
-        val anonymous = copy(text = "", targetPackage = null, appLabel = null, note = note.takeIf { command })
+        val anonymous = copy(text = "", targetPackage = null, appLabels = emptyMap(), note = note.takeIf { command })
         if (text.isBlank()) return anonymous
         val words = listOf(text)
         return anonymous.copy(

@@ -66,7 +66,7 @@ class DiagnosticsReportTest {
         log.recordSuccess(
             Transcript("Bin gleich da", engineId = "groq", trustLevel = TrustLevel.CLOUD, latencyMs = 500), InsertionStrategy.PASTE, inserted = true,
             targetPackage = "com.whatsapp", note = "focus: EditText in com.whatsapp → PASTE",
-            timing = "speech recognition Groq, WhatsApp's own · recording 1.2 s", appLabel = "WhatsApp",
+            timing = "speech recognition Groq, WhatsApp's own · recording 1.2 s", appLabels = mapOf("WhatsApp" to "com.whatsapp"),
         )
         now = at - 2_000
         log.recordFailure(
@@ -81,7 +81,7 @@ class DiagnosticsReportTest {
         now = at
         log.recordSuccess(
             Transcript("Gut", engineId = "groq", trustLevel = TrustLevel.CLOUD, latencyMs = 500), InsertionStrategy.PASTE, inserted = true,
-            targetPackage = "com.whatsapp", timing = "cleanup off for WhatsApp · could not reach api.groq.com", appLabel = "WhatsApp",
+            targetPackage = "com.whatsapp", timing = "cleanup off for WhatsApp · could not reach api.groq.com", appLabels = mapOf("WhatsApp" to "com.whatsapp"),
         )
         val text = report(log.records.value)
         for (name in listOf("com.whatsapp", "WhatsApp", "org.telegram", "com.android.systemui")) assertFalse(name in text, "$name in:\n$text")
@@ -96,6 +96,28 @@ class DiagnosticsReportTest {
     }
 
     @Test
+    fun `a label of an app the text did not go into gets its own package's alias`() {
+        // Started in WhatsApp with no field focused, spoken into Signal - whose cleanup is off -
+        // and the insertion failed: Signal is neither the target nor the run's first app.
+        now = at - 1_000
+        log.recordSuccess(
+            Transcript("Gut", engineId = "groq", trustLevel = TrustLevel.CLOUD, latencyMs = 500), InsertionStrategy.PASTE, inserted = true,
+            targetPackage = "org.thoughtcrime.securesms",
+        )
+        now = at
+        log.recordFailure(
+            "Not inserted: no text field found", engineId = "groq", text = "Hallo",
+            timing = "speech recognition Groq, WhatsApp's own · cleanup off for Signal",
+            appLabels = mapOf("WhatsApp" to "com.whatsapp", "Signal" to "org.thoughtcrime.securesms"),
+        )
+        val text = report(log.records.value)
+        for (name in listOf("WhatsApp", "Signal", "org.thoughtcrime")) assertFalse(name in text, "$name in:\n$text")
+        assertTrue("timing: speech recognition Groq, app 1's own · cleanup off for app 2\n" in text, text)
+        // Signal's package, in the older record, is the same app as its label.
+        assertTrue("14:02:30  groq · 500 ms · PASTE · app 2\n" in text, text)
+    }
+
+    @Test
     fun `the screen keeps the app's name`() {
         log.recordSuccess(Transcript("Gut", engineId = "groq", trustLevel = TrustLevel.CLOUD, latencyMs = 500), InsertionStrategy.PASTE, inserted = true, targetPackage = "com.whatsapp")
         assertTrue("com.whatsapp" in DiagnosticsReport.anonymous(log.records.value.single()).summary)
@@ -106,11 +128,11 @@ class DiagnosticsReportTest {
         log.keepsWords = false
         log.recordSuccess(
             Transcript("Gut", engineId = "groq", trustLevel = TrustLevel.CLOUD, latencyMs = 500), InsertionStrategy.PASTE, inserted = true,
-            targetPackage = "com.whatsapp", appLabel = "WhatsApp",
+            targetPackage = "com.whatsapp", appLabels = mapOf("WhatsApp" to "com.whatsapp"),
         )
         val record = log.records.value.single()
         assertEquals(null, record.targetPackage)
-        assertEquals(null, record.appLabel)
+        assertEquals(emptyMap(), record.appLabels)
     }
 
     @Test

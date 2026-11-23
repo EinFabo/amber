@@ -233,10 +233,13 @@ class Graph(app: Application) {
      */
     private suspend fun moveAmberPathKeys() {
         try {
-            val (_, moves) = AmberAddress.movePathKeys(settingsStore.settings.first())
+            // What is stored under each alias decides with the key's shape: a server with
+            // another key already there is not an old Amber, and keeps both.
+            val stored = { alias: String -> secretStore.get(alias) }
+            val (_, moves) = AmberAddress.movePathKeys(settingsStore.settings.first(), stored)
             if (moves.isEmpty()) return
             moves.forEach { move -> secretStore.put(move.alias, move.key) }
-            settingsStore.update { AmberAddress.movePathKeys(it).first }
+            settingsStore.update { AmberAddress.movePathKeys(it, stored).first }
             // Never the address or the key: only that it happened.
             android.util.Log.i("Embersay", "moved the key out of ${moves.size} Embersay server address(es)")
         } catch (e: kotlinx.coroutines.CancellationException) {

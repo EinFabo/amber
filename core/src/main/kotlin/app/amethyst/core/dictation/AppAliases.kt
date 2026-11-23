@@ -6,9 +6,9 @@ package app.amethyst.core.dictation
  * into is theirs - but "the same app again" is often the clue, so every name keeps one alias for
  * the whole report. The screen keeps the names: it is the phone's owner who reads it.
  *
- * Names come from the records: the package a dictation went into, the label its app has in
- * Amber ("WhatsApp's own speech recognition" in the timing) - which takes the alias of that
- * package - and the packages the field trace names ("EditText in com.whatsapp", "input
+ * Names come from the records: the package a dictation went into, the labels the run's apps
+ * have in Amber ("WhatsApp's own speech recognition" in the timing) - each takes the alias of
+ * its own package - and the packages the field trace names ("EditText in com.whatsapp", "input
  * connection (com.whatsapp)"), whichever app's field it found.
  */
 class AppAliases(records: List<DictationRecord>) {
@@ -21,10 +21,7 @@ class AppAliases(records: List<DictationRecord>) {
     private var count = 0
 
     init {
-        for (record in records) {
-            val pkg = record.targetPackage ?: continue
-            record.appLabel?.let { packageOf.putIfAbsent(it, pkg) }
-        }
+        for (record in records) record.appLabels.forEach { (label, pkg) -> packageOf.putIfAbsent(label, pkg) }
     }
 
     /** "app N" for [name] - a package or a label - the same one every time in this report. */
@@ -35,7 +32,7 @@ class AppAliases(records: List<DictationRecord>) {
 
     /** [lines] of [record] with every app it names as its alias. */
     fun lines(record: DictationRecord, lines: List<String>): List<String> {
-        val known = listOfNotNull(record.targetPackage, record.appLabel)
+        val known = listOfNotNull(record.targetPackage) + record.appLabels.keys
         return lines.map { line(it, known) }
     }
 

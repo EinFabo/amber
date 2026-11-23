@@ -53,6 +53,12 @@ internal class RunTrace(val route: String) {
     /** Why the cleanup went the way it did, when there is a story; may name the app. */
     var cleanupNote: String? = null
 
+    /**
+     * The app the cleanup was chosen for, whose label [cleanupNote] may use: the one whose field
+     * gets the text, which may not be the one the run started in.
+     */
+    var cleanupPackage: String? = null
+
     /** The enclave that answered, when the engine names one (Tinfoil). */
     var servedBy: String? = null
 
