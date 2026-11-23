@@ -314,3 +314,31 @@ split `AmethystScreens`; a smaller onnxruntime build; Tinfoil as an on-demand mo
 Compose BOM update and Material 3 Expressive springs; native inference in an isolated process;
 replace `security-crypto`; live text at the bubble; a "bubble gone?" self-check for OEMs that
 disconnect accessibility services; multi-display support.
+
+## Phase 8 - found on the emulator (Android 16, x86_64 with arm64 translation, 2026-11-23)
+
+56. **Quick setup picks Android's recognition without its language pack** (high). Where no
+    local model fits (the emulator: 4 GB, no dot product), `FirstRunSetup` plans ANDROID
+    ("first run: ANDROID now, nothing later, nothing to fetch"), but the on-device recognizer
+    has no offline pack for the phone's language: every dictation fails with "This language
+    isn't installed for offline use", the done step still says "All set", and the practice
+    step and the bubble's message offer no way out (only Home has "Get language pack", which
+    works: Android shows its own 62 MB download dialog). Fix: on API 33+ ask the recognizer
+    (`checkRecognitionSupport`) whether the language is installed when Quick setup picks
+    ANDROID; if not, trigger the download right then (`triggerModelDownload`, as Home's
+    button does) and let the done step say the language pack is still needed / downloading
+    instead of "All set"; the message in the practice step and over other apps names the way
+    out ("... Open Embersay to get the language pack." EN/DE, within the 70-character rule).
+    Decision logic in `:core` with tests (FirstRun/EngineAdvice).
+57. **The privacy policy names old paths.** "Settings → Statistics" and "Settings → History"
+    are now "Settings → Privacy → Statistics / History" - in `docs/PRIVACY.md` and both raw
+    texts (EN, DE). Check every other path the policy names against the app.
+58. **Reliability shows twice in Settings** - the banner on top ("Reliability: 1 step left")
+    and the row in the Embersay group. Show the banner only, or the row's status only - one
+    place (the earlier rule was "the row on top only where the Reliability row is hidden").
+59. **Long text pages in landscape** - the privacy policy (and other text pages: licenses,
+    diagnostics) run across the full 2400 px width; give the content a readable max width
+    (~640 dp, centered) on wide windows. The policy page loses its scroll position on
+    rotation: keep it (rememberSaveable / the stack's state holder).
+60. **Diagnostics: "Text zeigen" wraps to two lines** in German beside the time and badge;
+    let the row wrap the action below or shorten the label (EN/DE).
