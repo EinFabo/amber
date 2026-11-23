@@ -71,7 +71,7 @@ jobs:
       - name: Type-check Android sources against android-all
         run: tools/typecheck-android.sh
 
-      # Blocking: findings from before are in app/lint-baseline.xml, a new error fails the build.
+      # Blocking: findings from before are in app/lint-baseline.xml, a new error or warning fails the build.
       - name: Lint
         run: ./gradlew :app:lintDebug
 

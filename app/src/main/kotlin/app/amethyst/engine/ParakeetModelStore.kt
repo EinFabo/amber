@@ -46,6 +46,8 @@ class ParakeetModelStore(
     /** noBackupFilesDir: hundreds of MB of model have no business in a cloud backup. */
     val dir = File(context.noBackupFilesDir, "models/${ParakeetModel.ID}")
 
+    private val room = ModelRoom(context, dir)
+
     private val _state = MutableStateFlow(currentState())
     val state: StateFlow<ParakeetState> = _state
 
@@ -96,9 +98,9 @@ class ParakeetModelStore(
         fun report(state: ParakeetState) {
             if (turn.get() == mine) _state.value = state
         }
-        val free = dir.apply { mkdirs() }.usableSpace
+        val free = room.available()
         val needed = ParakeetModel.missingBytes(dir)
-        if (free < needed + SPACE_MARGIN_BYTES) {
+        if (free < needed + SPACE_MARGIN_BYTES || !room.claim(needed + SPACE_MARGIN_BYTES)) {
             report(ParakeetState.Failed(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000)))
             return
         }

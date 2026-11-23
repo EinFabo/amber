@@ -116,10 +116,10 @@ class FirstRunSetup(
             val memory = ActivityManager.MemoryInfo()
             context.getSystemService(ActivityManager::class.java)?.getMemoryInfo(memory)
             // Where the stores put models (noBackupFilesDir/models), so the free space is theirs.
-            val models = File(context.noBackupFilesDir, "models").apply { mkdirs() }
+            val models = ModelRoom(context, File(context.noBackupFilesDir, "models"))
             return PhoneFacts(
                 totalRamMb = memory.totalMem / 1_000_000,
-                freeStorageMb = models.usableSpace / 1_000_000,
+                freeStorageMb = models.available() / 1_000_000,
                 whisperCpu = WhisperNative.cpuSupported(),
                 androidOnDevice = AndroidOnDeviceEngine.onDeviceSpeech,
                 androidRecognizer = runCatching { SpeechRecognizer.isRecognitionAvailable(context) }.getOrDefault(false),

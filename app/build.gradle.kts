@@ -187,11 +187,16 @@ android {
     }
 
     lint {
-        // Blocking: an error fails the build, in CI too. What was already there is listed in
-        // lint-baseline.xml (./gradlew :app:updateLintBaseline), so only new findings show -
-        // fix those, do not add them to the baseline.
+        // Blocking: an error fails the build, in CI too, and a warning counts as one - otherwise a
+        // fixed warning (an obsolete SDK check, an unused text) could come back unnoticed. What
+        // was already there is listed in lint-baseline.xml (./gradlew :app:updateLintBaseline),
+        // so only new findings show - fix those, do not add them to the baseline.
         abortOnError = true
+        warningsAsErrors = true
         baseline = file("lint-baseline.xml")
+        // Newer versions of a dependency or of AGP get published whenever, and versions are
+        // moved on purpose: reported, but they do not turn a green build red overnight.
+        informational += setOf("GradleDependency", "AndroidGradlePluginVersion")
     }
 }
 

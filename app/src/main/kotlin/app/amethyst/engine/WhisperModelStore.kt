@@ -48,6 +48,8 @@ class WhisperModelStore(
     /** noBackupFilesDir: hundreds of MB of model have no business in a cloud backup. */
     private val directory = File(context.noBackupFilesDir, "models")
 
+    private val room = ModelRoom(context, directory)
+
     private val slots: ModelSlots
 
     val states: StateFlow<Map<String, SlotState>>
@@ -114,9 +116,9 @@ class WhisperModelStore(
     fun download(spec: WhisperModelSpec) = slots.run(spec.id, context.getString(R.string.slot_downloading)) { report, isCancelled ->
         filesOf(spec.id).withLock {
             val target = fileFor(spec.id)
-            val free = directory.apply { mkdirs() }.usableSpace
+            val free = room.available()
             val needed = ModelInstall.missingBytes(spec, target)
-            if (free < needed + SPACE_MARGIN_BYTES) {
+            if (free < needed + SPACE_MARGIN_BYTES || !room.claim(needed + SPACE_MARGIN_BYTES)) {
                 return@withLock Result.failure(
                     ModelFileException(FileProblem.NotEnoughStorage(needed / 1_000_000, free / 1_000_000)),
                 )

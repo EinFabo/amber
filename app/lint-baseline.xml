@@ -387,39 +387,6 @@
     </issue>
 
     <issue
-        id="UsableSpace"
-        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
-        errorLine1="                freeStorageMb = models.usableSpace / 1_000_000,"
-        errorLine2="                                       ~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/app/amethyst/engine/FirstRunSetup.kt"
-            line="122"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="UsableSpace"
-        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
-        errorLine1="        val free = dir.apply { mkdirs() }.usableSpace"
-        errorLine2="                                          ~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/app/amethyst/engine/ParakeetModelStore.kt"
-            line="99"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="UsableSpace"
-        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
-        errorLine1="            val free = directory.apply { mkdirs() }.usableSpace"
-        errorLine2="                                                    ~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/app/amethyst/engine/WhisperModelStore.kt"
-            line="117"
-            column="53"/>
-    </issue>
-
-    <issue
         id="IconDuplicates"
         message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
         <location
