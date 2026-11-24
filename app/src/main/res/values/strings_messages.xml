@@ -21,6 +21,8 @@
     <string name="problem_processor_too_old">This processor is too old for Whisper. Use Parakeet or a server.</string>
     <string name="problem_whisper_model_missing">The selected Whisper model isn\'t downloaded yet.</string>
     <string name="problem_parakeet_model_missing">The Parakeet model isn\'t downloaded yet.</string>
+    <string name="problem_model_damaged">The model on this phone is damaged. Download it again in Settings.</string>
+    <string name="problem_model_being_checked">The model on this phone is being checked. Try again in a moment.</string>
     <string name="problem_not_supported">This speech recognition isn\'t supported.</string>
     <string name="problem_not_ready">%1$s isn\'t ready yet. %2$s</string>
     <string name="problem_records_by_itself">%1$s records on its own and can\'t take a recording.</string>
@@ -93,5 +95,6 @@
     <string name="file_cut_short">This model file is incomplete: it ends before the model does. Copy it again or download it again.</string>
     <string name="file_too_large">This file is larger than %1$d MB, more than any Whisper model for a phone.</string>
     <string name="file_other">Download failed.</string>
+    <string name="file_model_damaged">The model file is damaged and is not used.</string>
     <string name="issue_key_for_other_address">This API key belongs to %1$s. Enter it again for this address.</string>
 </resources>

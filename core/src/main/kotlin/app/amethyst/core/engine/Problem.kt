@@ -39,6 +39,18 @@ sealed interface Problem {
     data object ProcessorTooOld : Problem
     data object WhisperModelMissing : Problem
     data object ParakeetModelMissing : Problem
+
+    /**
+     * The model on the phone is damaged ([ModelLoadGuard]): it is not loaded, and its page offers
+     * to download it again.
+     */
+    data object ModelDamaged : Problem
+
+    /**
+     * The model on the phone failed, or the app ended while loading it, and its files are being
+     * checked ([ModelLoadGuard]): back in a moment.
+     */
+    data object ModelBeingChecked : Problem
     data object NotSupported : Problem
     data class NotReady(val service: String, val issues: List<ConfigIssue>) : Problem
     data class RecordsByItself(val service: String) : Problem
@@ -135,6 +147,9 @@ sealed interface FileProblem {
 
     /** A file larger than any Whisper model for a phone ([maxMb] megabytes). */
     data class TooLarge(val maxMb: Long) : FileProblem
+
+    /** A model on the phone whose files no longer match ([ModelLoadGuard]): download it again. */
+    data object Damaged : FileProblem
     data object Other : FileProblem
 
     companion object {

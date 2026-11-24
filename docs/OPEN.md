@@ -25,6 +25,21 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   and the message says so ("Didn't hear anything. Speak closer to the phone, or Try again.").
   Try on a phone: auto-stop off, tap the bubble and stay quiet for 8 s, then speak - it keeps
   listening; stay quiet for 13 s and then hold the bubble and choose Try again.
+- **A4, a damaged model file no longer crashes the app on every dictation.** A small marker
+  (`noBackupFilesDir/model-guard`) is written before a model's native load and deleted after it.
+  A marker still there at the next start (less than 24 h old) means the app died inside the load:
+  the model is not loaded again, its files are checked against the catalog's hash in the
+  background, and Diagnostics name it ("The app ended while loading the model ..."). Intact files
+  are used again (a kill for memory, a reboot). Broken ones are deleted, and the model page shows
+  "The model file is damaged and is not used." with "Download again" (a picked Whisper file has
+  no hash: "Choose a model file"). The same check runs when a model fails twice in a row
+  (`LocalModelFailed`, no success in between). Until then a dictation says "The model on this
+  phone is being checked. Try again in a moment.", and after it "The model on this phone is
+  damaged. Download it again in Settings."; a kept recording stays kept. Try on a phone: with a
+  small Whisper model downloaded, overwrite some bytes past its first 64 KB, where its word list
+  and tensor names are (`run-as com.embersay.debug dd if=/dev/urandom of=... bs=1 seek=70000
+  count=4096 conv=notrunc`). Dictate twice (or once, if the app closes); the model page and
+  Diagnostics should then say it is damaged. Download again, and dictate.
 
 ## Store review 2026-11-22
 

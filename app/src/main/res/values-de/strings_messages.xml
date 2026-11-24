@@ -19,6 +19,8 @@
     <string name="problem_processor_too_old">Prozessor zu alt für Whisper. Parakeet oder ein Server gehen.</string>
     <string name="problem_whisper_model_missing">Das gewählte Whisper-Modell ist noch nicht heruntergeladen.</string>
     <string name="problem_parakeet_model_missing">Das Parakeet-Modell ist noch nicht heruntergeladen.</string>
+    <string name="problem_model_damaged">Das Modell ist beschädigt. Lade es in den Einstellungen neu herunter.</string>
+    <string name="problem_model_being_checked">Das Modell auf dem Handy wird geprüft. Versuche es gleich nochmal.</string>
     <string name="problem_not_supported">Diese Spracherkennung wird nicht unterstützt.</string>
     <string name="problem_not_ready">„%1$s“ ist noch nicht bereit. %2$s</string>
     <string name="problem_records_by_itself">„%1$s“ nimmt selbst auf und kann keine Aufnahme annehmen.</string>
@@ -89,5 +91,6 @@
     <string name="file_cut_short">Diese Modelldatei ist unvollständig: Sie endet, bevor das Modell zu Ende ist. Kopiere oder lade sie noch einmal.</string>
     <string name="file_too_large">Die Datei ist größer als %1$d MB, mehr als jedes Whisper-Modell für ein Handy.</string>
     <string name="file_other">Download fehlgeschlagen.</string>
+    <string name="file_model_damaged">Die Modelldatei ist beschädigt und wird nicht verwendet.</string>
     <string name="issue_key_for_other_address">Der API-Schlüssel gehört zu %1$s. Gib ihn für diese Adresse noch einmal ein.</string>
 </resources>

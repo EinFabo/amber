@@ -19,7 +19,10 @@ import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineRouting
 import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ModelLoadGuard
+import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.ModelRelease
+import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.WhisperModels
@@ -74,6 +77,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class AmethystApp : Application() {
 
@@ -89,6 +93,8 @@ class AmethystApp : Application() {
         // The ready notification is gone since 0.35 (the microphone service runs only while it
         // records): its channels leave Android's list with the update.
         graph.appScope.launch(Dispatchers.IO) { MicForegroundService.dropOldChannels(this@AmethystApp) }
+        // A model whose load the last process died in is not loaded again before it is checked.
+        graph.appScope.launch(Dispatchers.IO) { graph.checkModelsAtStart() }
     }
 
     /**
@@ -204,13 +210,20 @@ class Graph(app: Application) {
     /** The stored settings once they are read: what a one-off look at them suspends for. */
     private suspend fun storedSettings(): AmethystSettings = loadedSettings.filterNotNull().first()
 
-    val whisperRuntime = NativeWhisperRuntime(app)
+    /**
+     * The markers around each model's native load, and the models under suspicion
+     * ([ModelLoadGuard]). In noBackupFilesDir, beside the models: they say something about these
+     * files on this phone only. Reads nothing until first asked.
+     */
+    val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"))
 
-    val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime) { httpTransport.downloadClient() } }
+    val whisperRuntime = NativeWhisperRuntime(app, modelMarks)
 
-    val sherpaRuntime = SherpaRuntime()
+    val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime, modelMarks) { httpTransport.downloadClient() } }
 
-    val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime) { httpTransport.downloadClient() } }
+    val sherpaRuntime = SherpaRuntime(modelMarks)
+
+    val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime, modelMarks) { httpTransport.downloadClient() } }
 
     /** The introduction's downloads, and whether the active engine is still waiting for one. */
     val modelDownloads: ModelDownloads by lazy { ModelDownloads(app, appScope, parakeetModels, whisperModels) }
@@ -574,6 +587,63 @@ class Graph(app: Application) {
      */
     fun engineFor(packageName: String?): EngineRouting.Decision =
         EngineRouting.decide(settings.value, packageName, { secretStore.has(it) }, ::modelReady)
+
+    /**
+     * At the start, on the IO pool: a model whose native load the last process died in is
+     * suspect ([ModelLoadGuard.verdictAtStart]) - Diagnostics name it - and every suspect model
+     * still unchecked, that one or one whose check an earlier process did not finish, has its
+     * files checked now.
+     */
+    fun checkModelsAtStart() {
+        for (left in modelMarks.leftAtStart()) {
+            modelNote("The app ended while loading the model ${left.modelId}. It is not loaded again until its files are checked.")
+        }
+        modelMarks.checking().forEach(::checkModel)
+    }
+
+    /**
+     * [engine]'s model on the phone failed for [problem]. Twice in a row for
+     * [Problem.LocalModelFailed] ([ModelLoadGuard.afterFailure]) and it is suspect: not loaded
+     * again, and its files are checked.
+     */
+    suspend fun modelFailed(engine: EngineConfig, problem: Problem) {
+        val id = modelIdOf(engine) ?: return
+        val verdict = withContext(Dispatchers.IO) { modelMarks.failed(id, problem) }
+        if (verdict !is ModelLoadGuard.Verdict.Damaged) return
+        modelNote("The model $id failed ${ModelLoadGuard.FAILURES_IN_A_ROW} times in a row. It is not loaded again until its files are checked.")
+        checkModel(id)
+    }
+
+    /** [engine]'s model on the phone recognized: its failures start over ([ModelLoadGuard.afterFailure]). */
+    suspend fun modelWorked(engine: EngineConfig) {
+        val id = modelIdOf(engine) ?: return
+        withContext(Dispatchers.IO) { modelMarks.worked(id) }
+    }
+
+    /** The id [ModelLoadMarks] knows [engine]'s model on the phone by; null for an engine elsewhere. */
+    private fun modelIdOf(engine: EngineConfig): String? = when (engine.kind) {
+        EngineKind.LOCAL_SHERPA -> ParakeetModel.ID
+        EngineKind.WHISPER_CPP -> engine.modelId ?: WhisperModels.default.id
+        else -> null
+    }
+
+    /** Checks the files of the suspect model [id] in the background; Diagnostics say what came of it. */
+    private fun checkModel(id: String) {
+        appScope.launch(Dispatchers.IO) {
+            val health = if (id == ParakeetModel.ID) parakeetModels.recheck() else whisperModels.recheck(id)
+            when (health) {
+                null -> modelNote("The files of the model $id checked out. It is used again.")
+                ModelLoadGuard.Health.DAMAGED -> modelNote("The model $id is damaged. Download it again on its page.")
+                ModelLoadGuard.Health.CHECKING -> Unit
+            }
+        }
+    }
+
+    /** A line about a model's health for logcat and Diagnostics: its id and what happened, nothing else. */
+    private fun modelNote(line: String) {
+        android.util.Log.w("Embersay", line)
+        runCatching { memory.log.recordFailure(line) }
+    }
 
     /** Whether a model on the phone is downloaded; an engine elsewhere needs none. */
     fun modelReady(config: EngineConfig): Boolean = when (config.kind) {

@@ -3,6 +3,8 @@ package app.amethyst.engine
 import android.content.Context
 import android.util.Log
 import app.amethyst.core.engine.FileProblem
+import app.amethyst.core.engine.ModelLoadGuard
+import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.download.DownloadAnswer
 import app.amethyst.core.engine.download.DownloadTransport
 import app.amethyst.core.engine.sherpa.ParakeetModel
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,11 +37,16 @@ sealed interface ParakeetState {
  * file cut off halfway is continued where it stopped ([ParakeetModel.download]) - after a lost
  * connection, a failure, or the end of the process. Only a cancel lets go of the unfinished
  * part.
+ *
+ * A model under suspicion ([ModelLoadGuard]) is not ready: while its files are checked
+ * ([recheck]), and once found damaged, which it shows as [FileProblem.Damaged] until a download
+ * has brought the broken files anew.
  */
 class ParakeetModelStore(
     context: Context,
     private val scope: CoroutineScope,
     private val runtime: SherpaRuntime,
+    private val marks: ModelLoadMarks,
     /** The app's HTTP client made for downloads ([app.amethyst.core.net.OkHttpTransport.downloadClient]); asked on the first download. */
     newHttp: () -> OkHttpClient,
 ) {
@@ -81,7 +89,10 @@ class ParakeetModelStore(
         )
     }
 
-    fun isReady(): Boolean = ParakeetModel.isComplete(dir)
+    fun isReady(): Boolean = health() == null && ParakeetModel.isComplete(dir)
+
+    /** Null while nothing points at its files; else checking or damaged ([ModelLoadGuard]). */
+    fun health(): ModelLoadGuard.Health? = marks.health(ParakeetModel.ID)
 
     /** The model's bytes on the phone, unfinished files included - for whether a failed try got anywhere. */
     fun bytesOnPhone(): Long = ParakeetModel.TOTAL_BYTES - ParakeetModel.missingBytes(dir)
@@ -123,6 +134,9 @@ class ParakeetModelStore(
             done += file.sizeBytes
         }
         Log.i(TAG, "parakeet model installed")
+        // Every file is whole and checked now: a damaged model is fine again. One still being
+        // checked is left to its check, which may find a file this run did not fetch.
+        if (health() == ModelLoadGuard.Health.DAMAGED) marks.clear(ParakeetModel.ID)
         report(currentState())
     }
 
@@ -146,14 +160,42 @@ class ParakeetModelStore(
         scope.launch(Dispatchers.IO) {
             files.withLock {
                 runtime.whileUnloaded { dir.deleteRecursively() }
+                marks.clear(ParakeetModel.ID)
                 // A cancelled download that only just ended may have shown its files again.
                 if (job?.isActive != true) _state.value = ParakeetState.Missing
             }
         }
     }
 
-    private fun currentState(): ParakeetState =
-        if (ParakeetModel.isComplete(dir)) ParakeetState.Ready(ParakeetModel.TOTAL_BYTES) else ParakeetState.Missing
+    /**
+     * Checks the files of a suspect model against their pinned hashes ([ModelLoadGuard]) - off
+     * the main thread, after a download or delete that runs. Broken files are deleted, so the
+     * next download fetches only them; all whole, the model is used again. The health it ends
+     * in, or the one it had when it was not being checked.
+     */
+    suspend fun recheck(): ModelLoadGuard.Health? = withContext(Dispatchers.IO) {
+        files.withLock {
+            val before = health()
+            if (before != ModelLoadGuard.Health.CHECKING) return@withLock before
+            val broken = ParakeetModel.brokenFiles(dir)
+            // Nothing of it left on the phone: nothing to be damaged either.
+            val gone = ParakeetModel.FILES.none { File(dir, it.name).exists() }
+            val health = if (gone) null else ModelLoadGuard.afterCheck(hashMatches = broken.isEmpty())
+            if (health != null) {
+                Log.w(TAG, "parakeet files damaged: ${broken.joinToString { it.name }}")
+                runtime.whileUnloaded { broken.forEach { File(dir, it.name).delete() } }
+            }
+            marks.checked(ParakeetModel.ID, health)
+            if (job?.isActive != true) _state.value = currentState()
+            health
+        }
+    }
+
+    private fun currentState(): ParakeetState = when {
+        health() == ModelLoadGuard.Health.DAMAGED -> ParakeetState.Failed(FileProblem.Damaged)
+        ParakeetModel.isComplete(dir) -> ParakeetState.Ready(ParakeetModel.TOTAL_BYTES)
+        else -> ParakeetState.Missing
+    }
 
     private companion object {
         const val TAG = "Embersay"

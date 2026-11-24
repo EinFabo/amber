@@ -47,6 +47,7 @@
     <string name="model_pick_file_hint">Schon von FUTO heruntergeladen? Wähle die .bin-Datei. Embersay erkennt und prüft sie.</string>
     <string name="model_pick_file_trust">Wähle nur Modelldateien aus Quellen, denen du vertraust.</string>
     <string name="download">Herunterladen</string>
+    <string name="download_again">Neu herunterladen</string>
     <string name="model_busy">%1$s … %2$s</string>
     <string name="model_in_use">Aktiv</string>
     <string name="use">Nutzen</string>

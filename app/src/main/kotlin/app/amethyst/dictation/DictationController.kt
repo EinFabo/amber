@@ -1457,6 +1457,7 @@ class DictationController(
         // fallback below, or "Try again" later, loads into the room it held - never two.
         val onPhone = engine.capabilities.trustLevel == TrustLevel.ON_DEVICE
         if (onPhone) (result.exceptionOrNull() as? SttFailure)?.let { releaseFailedModel(runRouting?.engine, it) }
+        if (onPhone) runRouting?.engine?.let { countModel(it, result) }
         // No signal, a timeout, a server down, a model on the phone that gave up: the
         // recording is still here, so another engine can take it instead of the dictation
         // being lost - not the one prepared alongside, whose text did not come.
@@ -1822,6 +1823,26 @@ class DictationController(
     }
 
     /**
+     * What came of [config]'s model on the phone, for [app.amethyst.core.engine.ModelLoadGuard]: one that failed twice
+     * in a row is not loaded again until its files are checked ([Graph.modelFailed]), and a
+     * success starts the count over. After [releaseFailedModel], so a check that deletes a
+     * broken file finds the model let go of. Nothing for an engine elsewhere; a trouble with
+     * the guard's files never costs the dictation.
+     */
+    private suspend fun countModel(config: EngineConfig, result: Result<*>) {
+        try {
+            when (val error = result.exceptionOrNull()) {
+                null -> graph.modelWorked(config)
+                is SttFailure -> graph.modelFailed(config, error.problem)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "counting the model's result failed: ${e::class.java.name}")
+        }
+    }
+
+    /**
      * The fallback the user chose (by default the best local model that is ready - Parakeet,
      * then Whisper) for a recording the server - or the model on the phone - could not take,
      * from [candidates] ([fallbacksFor]). Null when none is ready or none recognized it; the
@@ -1849,6 +1870,7 @@ class DictationController(
                 runCatching { other.close() }
             }
             (result.exceptionOrNull() as? SttFailure)?.let { releaseFailedModel(config, it) }
+            countModel(config, result)
             result.getOrNull()?.let { transcript ->
                 // A read timeout or a 5xx came after the upload: the recording may be the
                 // first server's too - and the label says so, as it says the fallback's own.

@@ -65,6 +65,8 @@ object Texts {
             Problem.ProcessorTooOld -> getString(R.string.problem_processor_too_old)
             Problem.WhisperModelMissing -> getString(R.string.problem_whisper_model_missing)
             Problem.ParakeetModelMissing -> getString(R.string.problem_parakeet_model_missing)
+            Problem.ModelDamaged -> getString(R.string.problem_model_damaged)
+            Problem.ModelBeingChecked -> getString(R.string.problem_model_being_checked)
             Problem.NotSupported -> getString(R.string.problem_not_supported)
             is Problem.NotReady -> getString(
                 R.string.problem_not_ready,
@@ -187,6 +189,7 @@ object Texts {
             FileProblem.NotWhisper -> getString(R.string.file_not_whisper)
             FileProblem.CutShort -> getString(R.string.file_cut_short)
             is FileProblem.TooLarge -> getString(R.string.file_too_large, problem.maxMb)
+            FileProblem.Damaged -> getString(R.string.file_model_damaged)
             FileProblem.Other -> getString(R.string.file_other)
         }
     }

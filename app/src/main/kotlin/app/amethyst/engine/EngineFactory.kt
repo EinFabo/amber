@@ -10,6 +10,7 @@ import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.KeyBinding
+import app.amethyst.core.engine.ModelLoadGuard
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.ServerProviders
@@ -122,11 +123,7 @@ class EngineFactory(
                 )
             } else {
                 Result.failure(
-                    SttFailure(
-                        problem = Problem.WhisperModelMissing,
-                        technical = "WHISPER_CPP model $modelId is not usable",
-                        remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
-                    ),
+                    notUsable(whisperModels.health(modelId), Problem.WhisperModelMissing, "WHISPER_CPP model $modelId is not usable"),
                 )
             }
         }
@@ -142,13 +139,7 @@ class EngineFactory(
                 ),
             )
         } else {
-            Result.failure(
-                SttFailure(
-                    problem = Problem.ParakeetModelMissing,
-                    technical = "LOCAL_SHERPA model missing",
-                    remedy = SttFailure.Remedy.DOWNLOAD_MODEL,
-                ),
-            )
+            Result.failure(notUsable(parakeetModels.health(), Problem.ParakeetModelMissing, "LOCAL_SHERPA model missing"))
         }
 
         EngineKind.ELEVENLABS_REALTIME -> Result.failure(
@@ -213,6 +204,17 @@ class EngineFactory(
                 ownWords = settings.words.own,
             )
         }
+    }
+
+    /**
+     * A model on the phone that cannot be used: [missing] when it is not downloaded, else what
+     * [health] says - damaged, and downloaded again on its page, or being checked
+     * ([app.amethyst.core.engine.ModelLoadGuard]) and back in a moment.
+     */
+    private fun notUsable(health: ModelLoadGuard.Health?, missing: Problem, technical: String): SttFailure = when (health) {
+        ModelLoadGuard.Health.DAMAGED -> SttFailure(Problem.ModelDamaged, "$technical: damaged", remedy = SttFailure.Remedy.DOWNLOAD_MODEL)
+        ModelLoadGuard.Health.CHECKING -> SttFailure(Problem.ModelBeingChecked, "$technical: its files are being checked")
+        null -> SttFailure(missing, technical, remedy = SttFailure.Remedy.DOWNLOAD_MODEL)
     }
 
     private fun incomplete(config: EngineConfig, problems: List<ConfigIssue>): Result<SttEngine> =

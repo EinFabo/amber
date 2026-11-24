@@ -4,6 +4,7 @@ import app.amethyst.core.audio.LongAudio
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.ChunkedTranscription
 import app.amethyst.core.engine.EngineCapabilities
+import app.amethyst.core.engine.ModelLoadGuard
 import app.amethyst.core.engine.SttEngine
 import app.amethyst.core.engine.download.DownloadTransport
 import app.amethyst.core.engine.download.FileDownload
@@ -58,6 +59,12 @@ object ParakeetModel {
      */
     fun download(file: FileSpec, dir: File, transport: DownloadTransport): FileDownload =
         FileDownload(url(file), File(dir, file.name), file.sizeBytes, file.sha256, transport)
+
+    /**
+     * The files in [dir] that do not match their pinned size and hash - read whole, 670 MB:
+     * off the main thread. For a model suspected of damage ([ModelLoadGuard]).
+     */
+    fun brokenFiles(dir: File): List<FileSpec> = FILES.filterNot { ModelLoadGuard.matches(File(dir, it.name), it.sizeBytes, it.sha256) }
 
     /** The files that are not in place yet. */
     fun missing(dir: File): List<FileSpec> = FILES.filter { File(dir, it.name).length() != it.sizeBytes }

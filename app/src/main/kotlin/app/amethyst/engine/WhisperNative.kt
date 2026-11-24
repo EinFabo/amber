@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.PerformanceHintManager
 import android.os.Process
 import android.util.Log
+import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.whisper.WhisperRuntime
 import app.amethyst.core.engine.whisper.WhisperRuntimeException
 import app.amethyst.core.engine.whisper.WhisperTimings
@@ -68,8 +69,12 @@ internal object WhisperNative {
  * priority (see patch-whisper.cmake), and while a transcription runs a performance hint
  * session (ADPF) tells the system the work is late, which raises clocks and moves it to big
  * cores on devices that support it.
+ *
+ * The native load runs inside [marks]' marker ([ModelLoadMarks.loading]): whisper.cpp asserts
+ * on some damage and aborts the process, and the marker left behind keeps the next start from
+ * loading the file again before it is checked.
  */
-class NativeWhisperRuntime(context: Context) : WhisperRuntime {
+class NativeWhisperRuntime(context: Context, private val marks: ModelLoadMarks) : WhisperRuntime {
 
     private val lock = Any()
     private var handle = 0L
@@ -108,7 +113,8 @@ class NativeWhisperRuntime(context: Context) : WhisperRuntime {
 
             releaseLocked()
             val started = System.currentTimeMillis()
-            handle = WhisperNative.load(modelPath, defaultThreads())
+            // A slot's file is named by its id ([WhisperModelStore.fileFor]).
+            handle = marks.loading(file.nameWithoutExtension) { WhisperNative.load(modelPath, defaultThreads()) }
             loadedPath = modelPath
             loadedStamp = stamp
             Log.i(TAG, "whisper context ready in ${System.currentTimeMillis() - started} ms")

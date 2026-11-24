@@ -2,6 +2,7 @@ package app.amethyst.engine
 
 import android.os.Process
 import android.util.Log
+import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.sherpa.TransducerRuntime
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -21,8 +22,12 @@ import java.util.concurrent.Executors
  * Runs on its own thread at display priority, like Whisper: through the bubble the process is
  * only a bound accessibility service, and onnxruntime's worker threads inherit the priority of
  * the thread that creates them.
+ *
+ * The native load runs inside [marks]' marker ([ModelLoadMarks.loading]): a damaged file can
+ * make sherpa-onnx abort the process, and the marker left behind keeps the next start from
+ * loading it again before its files are checked.
  */
-class SherpaRuntime : TransducerRuntime {
+class SherpaRuntime(private val marks: ModelLoadMarks) : TransducerRuntime {
 
     private val lock = Any()
     private var recognizer: OfflineRecognizer? = null
@@ -62,7 +67,8 @@ class SherpaRuntime : TransducerRuntime {
                 ),
                 decodingMethod = "greedy_search",
             )
-            recognizer = OfflineRecognizer(config = config)
+            // The model's directory is named by its id ([ParakeetModelStore.dir]).
+            recognizer = marks.loading(File(modelDir).name) { OfflineRecognizer(config = config) }
             loadedDir = modelDir
             Log.i(TAG, "parakeet ready in ${System.currentTimeMillis() - started} ms")
         }

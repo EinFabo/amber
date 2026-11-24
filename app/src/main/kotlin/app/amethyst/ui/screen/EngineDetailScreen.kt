@@ -62,6 +62,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
+import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.ServerProvider
@@ -596,6 +597,8 @@ private fun WhisperModelsCard(
                 onDownload = { picker.launch(arrayOf("*/*")) },
                 onCancel = { onCancel(WhisperModels.IMPORTED_ID) },
                 onDelete = { deleting = WhisperModels.IMPORTED_ID to title },
+                // A picked file is not downloaded: a damaged one is picked anew.
+                againLabel = stringResource(R.string.model_pick_file),
             )
         }
 
@@ -619,6 +622,8 @@ private fun ModelRow(
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
+    /** The button that brings a damaged model anew ([FileProblem.Damaged]). */
+    againLabel: String = stringResource(R.string.download_again),
 ) {
     val ready = state is SlotState.Ready
     Column(
@@ -681,7 +686,18 @@ private fun ModelRow(
                         GhostButton(stringResource(R.string.delete), onDelete, color = AmberPalette.Error)
                     }
 
-                    is SlotState.Failed -> {
+                    is SlotState.Failed -> if (current.problem == FileProblem.Damaged) {
+                        // Not loaded again until it is brought anew; or it goes, for the room.
+                        Hint(words(current.problem), AmberPalette.Error)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            PrimaryButton(againLabel, onDownload, modifier = Modifier.weight(1f, fill = false))
+                            Spacer(Modifier.weight(1f))
+                            GhostButton(stringResource(R.string.delete), onDelete, color = AmberPalette.Error)
+                        }
+                    } else {
                         Hint(words(current.problem), AmberPalette.Error)
                         GhostButton(stringResource(R.string.try_again), onDownload)
                     }
@@ -748,7 +764,12 @@ private fun ParakeetCard(
                 Hint(stringResource(R.string.parakeet_ready), AmberPalette.TrustOnDevice)
                 GhostButton(stringResource(R.string.delete), { deleting = true }, color = AmberPalette.Error)
             }
-            is ParakeetState.Failed -> {
+            is ParakeetState.Failed -> if (state.problem == FileProblem.Damaged) {
+                // Not loaded again until the broken files are downloaded anew; or it goes, for the room.
+                Hint(words(state.problem), AmberPalette.Error)
+                PrimaryButton(stringResource(R.string.download_again), onDownload)
+                GhostButton(stringResource(R.string.delete), { deleting = true }, color = AmberPalette.Error)
+            } else {
                 Hint(words(state.problem), AmberPalette.Error)
                 GhostButton(stringResource(R.string.try_again), onDownload)
             }
