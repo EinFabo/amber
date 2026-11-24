@@ -117,6 +117,14 @@ class BubbleController(
     /** The notification shade or quick settings are pulled down ([app.amethyst.core.bubble.SystemShade]). */
     private var shadeOpen = false
 
+    /**
+     * The dictation listens, not paused: the fire throws sparks - but only while the bubble is
+     * on the screen ([updateSparks]). Their window is its own and stays attached when the
+     * bubble vanishes, so with the shade down they kept rising over the notifications
+     * (Pixel 9a, 2026-11-23).
+     */
+    private var listening = false
+
     /** The app in front, as far as the service can tell; the bubble stays out of hidden ones. */
     private var currentApp: String? = null
     private var shown = false
@@ -554,7 +562,7 @@ class BubbleController(
      * screen - before anything is drawn in it.
      */
     private fun showSparks() {
-        if (capturing || sparkView.visibility == View.VISIBLE) return
+        if (capturing || !shown || sparkView.visibility == View.VISIBLE) return
         val sparks = sparkParams ?: return
         val bubble = params ?: return
         if (followBubble(sparks, bubble) && attached) {
@@ -562,6 +570,13 @@ class BubbleController(
                 .onFailure { Log.w(TAG, "could not move the spark overlay", it) }
         }
         sparkView.visibility = View.VISIBLE
+    }
+
+    /** Sparks fly while the dictation listens and the bubble is on the screen to throw them. */
+    private fun updateSparks() {
+        val on = listening && shown
+        if (on) showSparks()
+        sparkView.listening = on
     }
 
     /** Where the bubble is on screen while it shows - a dispatched gesture keeps clear of it. */
@@ -593,6 +608,8 @@ class BubbleController(
                 // Ember arrives alight: one spark once the bubble is mostly in.
                 view.removeCallbacks(sparkAfterAppear)
                 view.postDelayed(sparkAfterAppear, APPEAR_SPARK_DELAY_MS)
+                // Back from behind the shade mid-dictation: the fire goes on.
+                updateSparks()
             }
         } else if (shown) {
             // Never pull the bubble out from under a finger.
@@ -602,6 +619,8 @@ class BubbleController(
             }
             shown = false
             view.removeCallbacks(sparkAfterAppear)
+            // No new sparks either, while it is away: a dictation goes on behind the shade.
+            updateSparks()
             sparkView.extinguish()
             view.vanish {
                 // A focus may have arrived during the animation.
@@ -637,9 +656,8 @@ class BubbleController(
         view.limitLeft = (state as? DictationState.Listening)?.limitLeft
         if (state is DictationState.Transcribing) view.work = state.progress
         // Paused, the fire throws no sparks.
-        val listening = state is DictationState.Listening && !state.paused
-        if (listening) showSparks()
-        sparkView.listening = listening
+        listening = state is DictationState.Listening && !state.paused
+        updateSparks()
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
             is DictationState.Done, is DictationState.Commanded -> haptic(Haptics.Kind.CONFIRM)
