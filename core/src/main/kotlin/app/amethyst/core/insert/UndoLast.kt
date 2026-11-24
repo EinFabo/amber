@@ -13,14 +13,77 @@ object UndoLast {
     /** The last insertion that can be undone: in which app, and exactly what went in. */
     data class Insertion(val packageName: String, val fragment: String)
 
+    /** What the text before the cursor says about the last insertion. */
+    sealed interface Match {
+        /** It ends with the dictation: [chars] characters to delete, seam included. */
+        data class Found(val chars: Int) : Match
+
+        /**
+         * It ends like the dictation but stops before the dictation's start: the field holds
+         * less than that, or the read handed back only part of the text before the cursor.
+         */
+        data object TooShort : Match
+
+        /** It no longer ends with the dictation (or there was nothing to look for). */
+        data object Different : Match
+    }
+
     /**
      * How many characters before the cursor to delete, or null when [beforeCursor] no longer
-     * ends with [insertion]'s text. Letter case may differ: a field may capitalize on its own.
+     * ends with [insertion]'s text ([match]).
      */
-    fun charsToDelete(beforeCursor: String, insertion: Insertion): Int? {
+    fun charsToDelete(beforeCursor: String, insertion: Insertion): Int? =
+        (match(beforeCursor, insertion) as? Match.Found)?.chars
+
+    /**
+     * Whether [beforeCursor] still ends with [insertion]'s text, read from the cursor back.
+     * Letter case may differ: a field may capitalize on its own. Spacing may too, as it may
+     * when the insertion is checked ([Landed]): a field may turn a space into a line break or
+     * a no-break space, or two spaces into one - and a long dictation, several chunks joined,
+     * is where that happens. So a run of whitespace in the dictation matches any run in the
+     * field, but never none: words run together are a change. At the dictation's two ends a
+     * field may have dropped the whitespace (a search field trimming) - at its start only where
+     * the field begins, since elsewhere the seam to the user's own text is gone - and never
+     * more is taken there than the dictation had, so the user's own spaces stay.
+     */
+    fun match(beforeCursor: String, insertion: Insertion): Match {
         val fragment = insertion.fragment
-        if (fragment.isEmpty() || beforeCursor.length < fragment.length) return null
-        return if (beforeCursor.endsWith(fragment, ignoreCase = true)) fragment.length else null
+        if (fragment.isBlank()) return Match.Different
+        val coreEnd = fragment.indexOfLast { !it.isWhitespace() } + 1
+        val coreStart = fragment.indexOfFirst { !it.isWhitespace() }
+        var j = beforeCursor.length
+        // The dictation's trailing whitespace: up to as much as it had, none is fine.
+        j = skipWhitespace(beforeCursor, j, limit = fragment.length - coreEnd)
+        var i = coreEnd
+        while (i > coreStart) {
+            val c = fragment[i - 1]
+            if (c.isWhitespace()) {
+                while (i > coreStart && fragment[i - 1].isWhitespace()) i--
+                val from = j
+                j = skipWhitespace(beforeCursor, j, limit = Int.MAX_VALUE)
+                if (j == 0 && from == 0) return Match.TooShort
+                if (j == from) return Match.Different
+                continue
+            }
+            if (j == 0) return Match.TooShort
+            if (!c.equals(beforeCursor[j - 1], ignoreCase = true)) return Match.Different
+            i--
+            j--
+        }
+        // The seam before the dictation: where the field begins it may be gone.
+        if (coreStart > 0 && j > 0) {
+            val from = j
+            j = skipWhitespace(beforeCursor, j, limit = coreStart)
+            if (j == from) return Match.Different
+        }
+        return Match.Found(beforeCursor.length - j)
+    }
+
+    /** [end] moved back over at most [limit] whitespace characters of [text]. */
+    private fun skipWhitespace(text: String, end: Int, limit: Int): Int {
+        var j = end
+        while (j > 0 && end - j < limit && text[j - 1].isWhitespace()) j--
+        return j
     }
 
     /**

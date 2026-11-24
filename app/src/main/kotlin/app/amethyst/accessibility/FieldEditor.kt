@@ -4,9 +4,9 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.InputMethod
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
-import app.amethyst.DebugLog
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.commands.CommandOutcome
 import app.amethyst.core.commands.CommandTrace
@@ -56,32 +56,76 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
      * Takes [last] out of the field with the cursor again - only in its app, never in a password
      * field, and only while it still stands right before the cursor ([UndoLast]). Through the
      * input connection where there is one (as a keyboard deletes), else by rewriting the node.
-     * Never logs the text, only how many characters.
+     * Where the connection hands back less than the dictation, the node - which holds the whole
+     * field - decides. Every outcome is logged with its path and lengths, never the text.
      */
     suspend fun undo(last: UndoLast.Insertion): Undo {
-        val field = find() ?: return Undo.FAILED
-        if (field.secret) return Undo.FAILED
+        val length = last.fragment.length
+        val field = find() ?: return undone(Undo.FAILED, "no field has the cursor")
+        if (field.secret) return undone(Undo.FAILED, "a password field")
         val keys = field.keys
-        val around = keys?.surrounding(last.fragment.length + UNDO_MARGIN)
-        if (keys != null && around != null) {
-            if (around.packageName != null && around.packageName != last.packageName) return Undo.CHANGED
-            val chars = UndoLast.charsToDelete(around.surrounding.beforeCursor(), last) ?: return Undo.CHANGED
-            val before = around.surrounding.beforeCursor()
-            keys.deleteBefore(chars)
-            val changed = verified(keys) { after -> after.beforeCursor() != before }
-            DebugLog.i(TAG) { "undo via the input connection: $chars characters, ${if (changed) "taken" else "not taken"}" }
-            return if (changed) Undo.DONE else Undo.FAILED
+        // What the connection read before the cursor, when that stopped short of the dictation.
+        var shortRead: String? = null
+        if (keys != null) {
+            val around = keys.surrounding(length + UNDO_MARGIN)
+            if (around == null) {
+                Log.i(TAG, "undo: the input connection handed back no text, trying the node")
+            } else {
+                if (around.packageName != null && around.packageName != last.packageName) {
+                    return undone(Undo.CHANGED, "the input connection is another app's field")
+                }
+                val before = around.surrounding.beforeCursor()
+                when (val match = UndoLast.match(before, last)) {
+                    is UndoLast.Match.Found -> return deleteBefore(keys, before, match.chars, length, "")
+                    UndoLast.Match.Different -> return undone(
+                        Undo.CHANGED,
+                        "via the input connection, the ${before.length} characters before the cursor no longer end with the $length of the dictation",
+                    )
+                    UndoLast.Match.TooShort -> {
+                        shortRead = before
+                        Log.i(TAG, "undo: the input connection read ${before.length} characters before the cursor, the dictation has $length - trying the node")
+                    }
+                }
+            }
         }
-        val node = field.node ?: return Undo.FAILED
-        if (node.packageName?.toString() != last.packageName) return Undo.CHANGED
-        val state = read(node) ?: return Undo.FAILED
+        val node = field.node
+            ?: return undone(Undo.FAILED, if (shortRead != null) "the input connection read too little, and no node to check" else "no node for the field")
+        if (node.packageName?.toString() != last.packageName) return undone(Undo.CHANGED, "the node is another app's field")
+        val state = read(node) ?: return undone(Undo.FAILED, "the node could not be read")
         val start = minOf(state.selectionStart, state.selectionEnd).coerceIn(0, state.text.length)
         val end = maxOf(state.selectionStart, state.selectionEnd).coerceIn(0, state.text.length)
-        if (start != end) return Undo.CHANGED
-        val chars = UndoLast.charsToDelete(state.text.substring(0, start), last) ?: return Undo.CHANGED
+        if (start != end) return undone(Undo.CHANGED, "the node has ${end - start} characters selected")
+        val chars = when (val match = UndoLast.match(state.text.substring(0, start), last)) {
+            is UndoLast.Match.Found -> match.chars
+            UndoLast.Match.TooShort -> return undone(Undo.CHANGED, "via the node, the $start characters before the cursor are fewer than the $length of the dictation")
+            UndoLast.Match.Different -> return undone(Undo.CHANGED, "via the node, the $start characters before the cursor no longer end with the $length of the dictation")
+        }
+        // The connection only read too little; the node shows all of it there. Deleted as a
+        // keyboard would, which every app keeps - the end it read matched the dictation too.
+        if (keys != null && shortRead != null) return deleteBefore(keys, shortRead, chars, length, ", counted on the node")
         val result = FieldState(state.text.removeRange(start - chars, start), start - chars)
-        DebugLog.i(TAG) { "undo via the node: $chars characters" }
-        return if (write(node, result, "undone", CommandTrace()) is CommandOutcome.Done) Undo.DONE else Undo.FAILED
+        val written = write(node, result, "undone", CommandTrace()) is CommandOutcome.Done
+        return undone(if (written) Undo.DONE else Undo.FAILED, "via the node, $chars characters for the $length of the dictation, ${if (written) "written" else "refused"}")
+    }
+
+    /**
+     * Deletes [chars] before the cursor through the connection, and checks the text before it
+     * changed. The check reads less than [before] may hold (a dictation of over a thousand
+     * characters): unchanged, it reads [before]'s end.
+     */
+    private suspend fun deleteBefore(keys: Keys, before: String, chars: Int, length: Int, how: String): Undo {
+        keys.deleteBefore(chars)
+        val changed = verified(keys) { after -> after.beforeCursor().let { it.isEmpty() || !before.endsWith(it) } }
+        return undone(
+            if (changed) Undo.DONE else Undo.FAILED,
+            "via the input connection$how, $chars characters for the $length of the dictation, ${if (changed) "taken" else "not taken"}",
+        )
+    }
+
+    /** One line per "Undo last", whatever came of it - the path and lengths, never the text. */
+    private fun undone(result: Undo, how: String): Undo {
+        Log.i(TAG, "undo ${result.name.lowercase()}: $how")
+        return result
     }
 
     /**
