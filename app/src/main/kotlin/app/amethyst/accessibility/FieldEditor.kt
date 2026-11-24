@@ -56,8 +56,9 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
      * Takes [last] out of the field with the cursor again - only in its app, never in a password
      * field, and only while it still stands right before the cursor ([UndoLast]). Through the
      * input connection where there is one (as a keyboard deletes), else by rewriting the node.
-     * Where the connection hands back less than the dictation, the node - which holds the whole
-     * field - decides. Every outcome is logged with its path and lengths, never the text.
+     * Where the connection's read stopped before the field's start ([UndoLast.cutShort]) and so
+     * before the dictation's, the node - which holds the whole field - decides. Every outcome is
+     * logged with its path and lengths, never the text.
      */
     suspend fun undo(last: UndoLast.Insertion): Undo {
         val length = last.fragment.length
@@ -67,7 +68,8 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
         // What the connection read before the cursor, when that stopped short of the dictation.
         var shortRead: String? = null
         if (keys != null) {
-            val around = keys.surrounding(length + UNDO_MARGIN)
+            val asked = maxOf(length + UNDO_MARGIN, TEXT_AROUND)
+            val around = keys.surrounding(asked)
             if (around == null) {
                 Log.i(TAG, "undo: the input connection handed back no text, trying the node")
             } else {
@@ -75,13 +77,22 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
                     return undone(Undo.CHANGED, "the input connection is another app's field")
                 }
                 val before = around.surrounding.beforeCursor()
-                when (val match = UndoLast.match(before, last)) {
+                // An empty read, or one from the field's start, is no short read: fewer characters
+                // than the dictation there means the field changed, or the focused node is another
+                // field than the connection's - the node's count would delete the wrong text.
+                val cut = UndoLast.cutShort(before, around.surrounding.offset, asked)
+                when (val match = UndoLast.match(before, last, fieldStart = !cut)) {
                     is UndoLast.Match.Found -> return deleteBefore(keys, before, match.chars, length, "")
                     UndoLast.Match.Different -> return undone(
                         Undo.CHANGED,
                         "via the input connection, the ${before.length} characters before the cursor no longer end with the $length of the dictation",
                     )
-                    UndoLast.Match.TooShort -> {
+                    UndoLast.Match.TooShort -> if (!cut) {
+                        return undone(
+                            Undo.CHANGED,
+                            "via the input connection, the ${before.length} characters before the cursor (read from offset ${around.surrounding.offset}) are fewer than the $length of the dictation",
+                        )
+                    } else {
                         shortRead = before
                         Log.i(TAG, "undo: the input connection read ${before.length} characters before the cursor, the dictation has $length - trying the node")
                     }
@@ -111,11 +122,12 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
     /**
      * Deletes [chars] before the cursor through the connection, and checks the text before it
      * changed. The check reads less than [before] may hold (a dictation of over a thousand
-     * characters): unchanged, it reads [before]'s end.
+     * characters): unchanged, it reads [before]'s end. Nothing left before the cursor proves
+     * the delete only where there was something before it.
      */
     private suspend fun deleteBefore(keys: Keys, before: String, chars: Int, length: Int, how: String): Undo {
         keys.deleteBefore(chars)
-        val changed = verified(keys) { after -> after.beforeCursor().let { it.isEmpty() || !before.endsWith(it) } }
+        val changed = verified(keys) { after -> after.beforeCursor().let { before.isNotEmpty() && (it.isEmpty() || !before.endsWith(it)) } }
         return undone(
             if (changed) Undo.DONE else Undo.FAILED,
             "via the input connection$how, $chars characters for the $length of the dictation, ${if (changed) "taken" else "not taken"}",

@@ -45,8 +45,10 @@ object UndoLast {
      * field may have dropped the whitespace (a search field trimming) - at its start only where
      * the field begins, since elsewhere the seam to the user's own text is gone - and never
      * more is taken there than the dictation had, so the user's own spaces stay.
+     * [fieldStart] says [beforeCursor] begins where the field does; a read that began inside it
+     * cannot show a seam it stops at, so a dictation reaching its very start is [Match.TooShort].
      */
-    fun match(beforeCursor: String, insertion: Insertion): Match {
+    fun match(beforeCursor: String, insertion: Insertion, fieldStart: Boolean = true): Match {
         val fragment = insertion.fragment
         if (fragment.isBlank()) return Match.Different
         val coreEnd = fragment.indexOfLast { !it.isWhitespace() } + 1
@@ -71,6 +73,7 @@ object UndoLast {
             j--
         }
         // The seam before the dictation: where the field begins it may be gone.
+        if (coreStart > 0 && j == 0 && !fieldStart) return Match.TooShort
         if (coreStart > 0 && j > 0) {
             val from = j
             j = skipWhitespace(beforeCursor, j, limit = coreStart)
@@ -78,6 +81,16 @@ object UndoLast {
         }
         return Match.Found(beforeCursor.length - j)
     }
+
+    /**
+     * Whether a read of the text before the cursor ([read], [asked] characters asked for)
+     * stopped before the field's start, so the field may hold more than it shows: it began
+     * inside the field ([offset] past 0), or - where it began is unknown ([offset] below 0) -
+     * it handed back all that was asked. One that began at the field's start shows all there
+     * is, and an empty one shows nothing: neither says the dictation lies beyond it.
+     */
+    fun cutShort(read: String, offset: Int, asked: Int): Boolean =
+        read.isNotEmpty() && (offset > 0 || offset < 0 && read.length >= asked)
 
     /** [end] moved back over at most [limit] whitespace characters of [text]. */
     private fun skipWhitespace(text: String, end: Int, limit: Int): Int {

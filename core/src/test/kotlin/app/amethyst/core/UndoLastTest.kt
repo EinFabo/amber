@@ -85,4 +85,30 @@ class UndoLastTest {
         assertEquals(Match.TooShort, UndoLast.match("vier.", last))
         assertEquals(Match.Different, UndoLast.match("abc", UndoLast.Insertion("x", "")))
     }
+
+    @Test
+    fun `only a read that began inside the field was cut short`() {
+        // Began 40 characters into the field: there is more before it.
+        assertEquals(true, UndoLast.cutShort("um vier.", offset = 40, asked = 1_000))
+        // Began where the field begins: the field holds no more than that.
+        assertEquals(false, UndoLast.cutShort("um vier.", offset = 0, asked = 1_000))
+        // Where it began unknown: cut short only if it handed back all that was asked for.
+        assertEquals(false, UndoLast.cutShort("um vier.", offset = -1, asked = 1_000))
+        assertEquals(true, UndoLast.cutShort("x".repeat(1_000), offset = -1, asked = 1_000))
+        // An empty read says nothing about the field - not even another field's emptiness.
+        assertEquals(false, UndoLast.cutShort("", offset = 40, asked = 1_000))
+        assertEquals(false, UndoLast.cutShort("", offset = -1, asked = 0))
+    }
+
+    @Test
+    fun `a read cut at the dictation's first word cannot see its seam`() {
+        val cut = "bis morgen um vier."
+        // The field begins there: its seam trimmed, all of it goes.
+        assertEquals(Match.Found(cut.length), UndoLast.match(cut, last))
+        // The read began there: the seam's space (or the user's text run into it) lies beyond.
+        assertEquals(Match.TooShort, UndoLast.match(cut, last, fieldStart = false))
+        // Anything the read shows of the seam is checked as always.
+        assertEquals(Match.Found(20), UndoLast.match(" $cut", last, fieldStart = false))
+        assertEquals(Match.Different, UndoLast.match("x$cut", last, fieldStart = false))
+    }
 }

@@ -757,9 +757,10 @@ class DictationController(
      * cursor ([UndoLast]); says what happened in a toast. False when there is nothing to undo.
      */
     fun undoLast(): Boolean {
-        if (isRunning) return false
-        val last = graph.memory.lastInsertion ?: return false
-        val service = graph.accessibilityService ?: return false
+        // Each refusal logged too: only a haptic tells the user, and logcat must say why.
+        if (isRunning) return false.also { Log.i(TAG, "undo not run: a dictation is running") }
+        val last = graph.memory.lastInsertion ?: return false.also { Log.i(TAG, "undo not run: nothing to undo") }
+        val service = graph.accessibilityService ?: return false.also { Log.i(TAG, "undo not run: no accessibility service") }
         scope.launch {
             val result = service.fieldEditor.undo(last)
             if (result == FieldEditor.Undo.DONE) graph.memory.undone()
