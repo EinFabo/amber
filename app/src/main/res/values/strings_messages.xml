@@ -12,6 +12,7 @@
     <string name="problem_model_not_on_server">%1$s doesn\'t offer %2$s.</string>
     <string name="problem_recording_too_long">The recording is too long for this service.</string>
     <string name="problem_audio_format_refused">The service doesn\'t accept this audio format.</string>
+    <string name="problem_cancelled">Stopped</string>
     <string name="problem_rate_limited">Too many requests. Wait a moment.</string>
     <string name="problem_service_down">Service down (error %1$d).</string>
     <string name="problem_server_error">%2$s refused (error %1$d).</string>

@@ -10,6 +10,9 @@ sealed interface Problem {
     /** The audio reached the recognition and it found no speech. */
     data object NothingRecognized : Problem
 
+    /** The user stopped the dictation after the recording had ended: the recording is kept for "Try again". */
+    data object Cancelled : Problem
+
     data class NoApiKey(val service: String) : Problem
     data class AnswerUnreadable(val service: String) : Problem
     data class NoConnection(val service: String) : Problem

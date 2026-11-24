@@ -594,11 +594,19 @@ class DictationController(
         }
     }
 
-    /** Throw the current recording away - also one still being handed to the proxy activity. */
-    fun cancel() {
+    /**
+     * Throw the current recording away - also one still being handed to the proxy activity.
+     * Once the recording has ended (the bubble is working on it) it is kept for "Try again"
+     * instead ([Problem.Cancelled]): true then, for the caller to say so. A cancel while
+     * listening is the user ending the recording on purpose: nothing is kept, nor with
+     * [keepRecording] false (start over).
+     */
+    fun cancel(keepRecording: Boolean = true): Boolean {
         handover.cancel()
+        val keptNow = keepRecording && _state.value is DictationState.Transcribing && keepForRetry(Problem.Cancelled)
         job?.cancel()
         _state.value = DictationState.Idle
+        return keptNow
     }
 
     /**
@@ -696,7 +704,8 @@ class DictationController(
      */
     fun startOver() {
         val old = job
-        cancel()
+        // Starting over is asking for a new recording: the old one is not kept.
+        cancel(keepRecording = false)
         if (old == null) {
             start()
             return

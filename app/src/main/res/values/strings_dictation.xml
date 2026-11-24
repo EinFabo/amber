@@ -82,5 +82,6 @@
     <string name="fallback_no_credit">No credit left at %1$s. Recognized with %2$s instead.</string>
     <string name="fallback_model_gone">Model missing on %1$s. Recognized with %2$s instead.</string>
     <string name="toast_copy_last">Couldn\'t insert. Hold the bubble, choose Copy last, then paste.</string>
+    <string name="toast_cancelled_kept">Stopped. The recording is kept for Try again.</string>
     <string name="toast_still_working">Still working. Hold the bubble to cancel.</string>
 </resources>

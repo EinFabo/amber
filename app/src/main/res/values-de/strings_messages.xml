@@ -10,6 +10,7 @@
     <string name="problem_model_not_on_server">„%1$s“ hat kein %2$s.</string>
     <string name="problem_recording_too_long">Aufnahme zu lang für diesen Dienst.</string>
     <string name="problem_audio_format_refused">Der Dienst lehnt das Audioformat ab.</string>
+    <string name="problem_cancelled">Gestoppt</string>
     <string name="problem_rate_limited">Zu viele Anfragen. Warte kurz.</string>
     <string name="problem_service_down">Dienst antwortet nicht (Code %1$d).</string>
     <string name="problem_server_error">„%2$s“ lehnt ab (Code %1$d).</string>

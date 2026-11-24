@@ -71,6 +71,7 @@ object Texts {
                 catalog(this, problem.service),
                 problem.issues.joinToString(" ") { issue(this, it) },
             )
+            Problem.Cancelled -> getString(R.string.problem_cancelled)
             is Problem.RecordsByItself -> getString(R.string.problem_records_by_itself, catalog(this, problem.service))
             is Problem.NotToVerifiedEnclave -> getString(
                 problem.payload.pick(R.string.problem_not_to_verified_enclave_recording, R.string.problem_not_to_verified_enclave_text),

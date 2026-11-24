@@ -3,6 +3,14 @@
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom. The app
 was called Amber until 2026-11-17; the sections below that are dated before then say Amber.
 
+## Frustration review 2026-11-24
+
+- **A1, cancel after the recording ended keeps it.** Holding the bubble to cancel while it is
+  working (after you stopped talking) now keeps the recording for "Try again" and says so
+  ("Stopped. The recording is kept for Try again."). Try on a phone: dictate, stop, and cancel
+  from the quick menu while the bubble works, then hold the bubble and choose Try again. A cancel
+  while still listening, and Start over, keep nothing as before.
+
 ## Store review 2026-11-22
 
 The fixes of `docs/plans/2026-11-22-store-review.md` (phases 1-9), built on the branch

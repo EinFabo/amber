@@ -57,7 +57,11 @@ class QuickActionRunner(
             QuickAction.CLEANUP_OFF_HERE -> app != null && cleanupHere(app, on = false)
             QuickAction.CLEANUP_ON_HERE -> app != null && cleanupHere(app, on = true)
             QuickAction.HIDE_HERE -> app?.let { hideIn(it); true } ?: false
-            QuickAction.CANCEL -> done(R.string.quick_done_cancelled) { dictation.cancel() }
+            QuickAction.CANCEL -> {
+                val keptNow = dictation.cancel()
+                toast(service.getString(if (keptNow) R.string.toast_cancelled_kept else R.string.quick_done_cancelled))
+                true
+            }
             QuickAction.SEND_WITHOUT_CLEANUP -> done(R.string.quick_done_no_cleanup) { dictation.sendWithoutCleanup() }
             QuickAction.START_OVER -> done(R.string.quick_done_start_over) { dictation.startOver() }
             QuickAction.KEEP_AS_RECOGNIZED -> done(R.string.quick_done_as_recognized) { dictation.keepAsRecognized() }

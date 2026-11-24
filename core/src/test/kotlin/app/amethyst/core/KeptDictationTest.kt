@@ -52,6 +52,15 @@ class KeptDictationTest {
     }
 
     @Test
+    fun `cancelled after recording is worth trying again`() {
+        assertTrue(KeptDictation.worthTryingAgain(Problem.Cancelled))
+        // Its toast is the reason followed by "Try again", like the others.
+        assertTrue(KeptDictation.toastSaysTryAgain(Problem.Cancelled))
+        assertTrue(kept.keepRecording(audio(2.0), Problem.Cancelled))
+        assertTrue(kept.hasRecording)
+    }
+
+    @Test
     fun `a failure the same recording would meet again is not`() {
         for (why in listOf(
             Problem.NothingRecognized, Problem.NoSpeechHeard, Problem.RecordingTooLong, Problem.AudioFormatRefused,
