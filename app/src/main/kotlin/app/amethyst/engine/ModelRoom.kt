@@ -13,7 +13,10 @@ import java.util.UUID
  */
 class ModelRoom(context: Context, private val dir: File) {
 
-    private val storage = context.getSystemService(StorageManager::class.java)
+    // Every Android version this app runs on has the service; said once here, not at each use.
+    private val storage: StorageManager = checkNotNull(context.getSystemService(StorageManager::class.java)) {
+        "no StorageManager"
+    }
 
     /** The bytes a download into [dir] can have, clearable cache included. */
     fun available(): Long = storage.getAllocatableBytes(volume())
