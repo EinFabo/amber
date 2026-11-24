@@ -241,9 +241,13 @@ class AndroidOnDeviceEngine(private val context: Context) : SelfCapturingSttEngi
                 options.languageTag ?: Locale.getDefault().toLanguageTag(),
             )
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            // Ask for the offline model even when a network one is available, so the
-            // ON_DEVICE label this engine reports stays truthful.
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            // The on-device recognizer (Android 13+) is asked to stay offline, so the ON_DEVICE
+            // label it reports stays truthful. The phone's default recognizer is labelled CLOUD
+            // (createRecognizer) and the introduction says it may send the voice to its maker:
+            // asked to stay offline as well, it refused every dictation on a phone without its
+            // offline pack ("language isn't installed for offline use" on the A20e, Android 11),
+            // and below Android 13 there is no way to fetch that pack for the user.
+            if (usedTrust == TrustLevel.ON_DEVICE) putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
         }
 
