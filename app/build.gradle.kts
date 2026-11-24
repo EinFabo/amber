@@ -39,8 +39,8 @@ android {
         applicationId = "com.embersay"
         minSdk = 28
         targetSdk = 36
-        versionCode = 68
-        versionName = "0.35.0-rc3"
+        versionCode = 69
+        versionName = "0.35.0-rc4"
 
         ndk {
             // Phones only. Every arm64 device is covered, and leaving out x86/armv7 keeps the

@@ -5,7 +5,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Store review 2026-11-22
 
-The fixes of `docs/plans/2026-11-22-store-review.md`, built on the branch `store-review`.
+The fixes of `docs/plans/2026-11-22-store-review.md` (phases 1-9), built on the branch
+`store-review`, each sub-phase reviewed by a second agent; in 0.35.0-rc4 (2026-11-24).
+Tested: the Android 16 emulator (introduction, settings, rotation and Back, Undo snackbars,
+the bubble behind the shade, quick menu reasons, German and dark), the Pixel 9a (Android 17)
+with Fabi's voice and a TTS voice: the direct microphone with the recording notification and its
+Stop, a call ending a recording, a 42 s dictation in five parts, Undo last and Insert again, the
+model kept loaded, no Back when dragging the bubble off the edge. Not yet on a phone: the A20e
+(Android 11 - the direct microphone from API 30, the proxy below), Samsung/Xiaomi, pasting into
+rich text (Gmail, Docs), the cleanup with real keys, a Whisper download resuming. Store
+screenshots and the Play feature graphic are still to make (item 53).
 Open for Fabi:
 - [ ] **Controller and contact e-mail in the privacy policy.** `docs/PRIVACY.md` and the
       in-app copies (`app/src/main/res/raw/privacy_policy.txt`, `raw-de/privacy_policy.txt`)

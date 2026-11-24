@@ -1,0 +1,5 @@
+- Das Mikrofon ist nur an, während du aufnimmst, mit der Benachrichtigung „Aufnahme läuft…“ und Stopp
+- Kein Diktat geht verloren: Erkannte Wörter werden eingefügt oder bleiben für „Nochmal einfügen“
+- Löschen fragt nach oder lässt sich rückgängig machen; Seiten bleiben beim Drehen erhalten
+- Meldungen erscheinen auch ohne Benachrichtigungen; die Datenschutzerklärung steht unter „Über Embersay“
+- Handys ohne passendes Modell bekommen Androids Sprachpaket eingerichtet

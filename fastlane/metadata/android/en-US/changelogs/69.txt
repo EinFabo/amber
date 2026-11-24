@@ -1,0 +1,5 @@
+- The microphone is only on while you record, with a "Recording…" notification and a Stop button
+- No dictation gets lost: recognized words always go in or stay for Insert again
+- Delete and remove ask first or can be undone; screens stay put when you rotate
+- Messages show even with notifications off; the privacy policy is in About
+- Phones without a fitting model get Android's language pack set up for them
