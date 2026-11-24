@@ -53,6 +53,18 @@ class CleanupGuardTest {
     }
 
     @Test
+    fun `the German noun Not is no English not`() {
+        // Seen on the Pixel 2026-11-24: "Klappt das?" heard as "Not das." - the cleanup that
+        // fixed it was refused as a dropped negation.
+        assertEquals(0, CleanupGuard.negations("Das ist ein Test. Not das.", language = "de"))
+        assertEquals(Verdict.OK, verdict("das ist ein test von baby not das", "Das ist ein Test von Baby. Klappt das?", language = "de"))
+        assertEquals(Verdict.OK, verdict("in der not frisst der teufel fliegen", "In der Not frisst der Teufel Fliegen."))
+        // English keeps its "not".
+        assertEquals(1, CleanupGuard.negations("I do not know.", language = "en"))
+        assertEquals(Verdict.NEGATION_DROPPED, verdict("i do not want this", "I want this.", language = "en"))
+    }
+
+    @Test
     fun `an added negation is rejected, a correction marker or not`() {
         assertEquals(Verdict.NEGATION_ADDED, verdict("ich komme morgen", "Ich komme morgen nicht."))
         assertEquals(Verdict.NEGATION_ADDED, verdict("um drei nee um vier komme ich", "Um vier komme ich nicht."))

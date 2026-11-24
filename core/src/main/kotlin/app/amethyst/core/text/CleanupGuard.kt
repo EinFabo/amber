@@ -62,12 +62,16 @@ object CleanupGuard {
         if (languageChanged(original, cleaned, language) || scriptChanged(original, cleaned)) return Verdict.LANGUAGE
         if (hasPreamble(original, cleaned)) return Verdict.PREAMBLE
         if (!ownWordsFit(original, cleaned, style, ownInstruction)) return Verdict.OWN_WORDS
-        val negationsBefore = negations(original)
-        val negationsAfter = negations(cleaned)
+        // The dictation's language, for the one word that is a negation in English only: "not".
+        val spoken = LanguageGuess.fromWords(original)
+            ?: LanguageGuess.leaning(original)
+            ?: LanguageGuess.fromTag(language)
+        val negationsBefore = negations(original, spoken)
+        val negationsAfter = negations(cleaned, spoken)
         if (negationsAfter > negationsBefore) return Verdict.NEGATION_ADDED
         // Only the part taken back may lose its negations and numbers.
         val kept = correction?.kept ?: original
-        if (negationsAfter < negationsBefore && negationsAfter < negations(kept)) return Verdict.NEGATION_DROPPED
+        if (negationsAfter < negationsBefore && negationsAfter < negations(kept, spoken)) return Verdict.NEGATION_DROPPED
         val before = numberGroups(original)
         val after = numberGroups(cleaned)
         val added = after.count { !it.foundIn(before) }
@@ -277,15 +281,19 @@ object CleanupGuard {
      * How many negations [text] holds. "No" counts inside a sentence ("I have no time"), not as
      * its first word, where it answers - and "nein" never: it answers or takes back. A stutter
      * ("nicht, nicht so") is one negation: the cleanup rightly drops the repeat, and in a long
-     * dictation one such repeat would otherwise reject the whole tidy-up.
+     * dictation one such repeat would otherwise reject the whole tidy-up. In a German
+     * dictation ([language] "de") "not" is the noun ("in der Not", or a word misheard as it),
+     * not the English negation.
      */
-    fun negations(text: String): Int {
+    fun negations(text: String, language: String? = null): Int {
+        val german = LanguageGuess.baseOf(language) == "de"
         var count = 0
         var sentenceStart = true
         var previous: String? = null
         for (token in tokens(text)) {
             val word = token.word
-            val negation = word in GERMAN_NEGATIONS || word in ENGLISH_NEGATIONS || word.endsWith("n't") ||
+            val englishOnly = german && word == "not"
+            val negation = word in GERMAN_NEGATIONS || (word in ENGLISH_NEGATIONS && !englishOnly) || word.endsWith("n't") ||
                 (word == "no" && !sentenceStart)
             if (negation && word != previous) count++
             previous = word
