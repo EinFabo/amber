@@ -1449,16 +1449,22 @@ class DictationController(
             trace?.whisperTimings = graph.whisperRuntime.takeTimings()?.summary()
         }
         tookOver?.let { (local, config) -> return tookOverFromServer(local, config, engine.capabilities.trustLevel) }
-        // No signal, a timeout, a server down: the recording is still here, so another
-        // engine can take it instead of the dictation being lost - not the one prepared
-        // alongside, whose text did not come.
+        // A model on the phone that ran out of memory or failed is let go of at once: the
+        // fallback below, or "Try again" later, loads into the room it held - never two.
+        val onPhone = engine.capabilities.trustLevel == TrustLevel.ON_DEVICE
+        if (onPhone) (result.exceptionOrNull() as? SttFailure)?.let { releaseFailedModel(runRouting?.engine, it) }
+        // No signal, a timeout, a server down, a model on the phone that gave up: the
+        // recording is still here, so another engine can take it instead of the dictation
+        // being lost - not the one prepared alongside, whose text did not come.
+        val fallbacks = fallbacksFor(skip = ready?.config?.id).let { all -> if (onPhone) all.filter(graph::modelReady) else all }
         val recoverable = Fallback.recoverable(
             result.exceptionOrNull(),
             engine.capabilities.trustLevel,
             graph.settings.value.fallback.mode,
+            fallbacks,
         )
         val recovered = recoverable
-            ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, skip = ready?.config?.id) }
+            ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, fallbacks) }
             ?.let { Result.success(it) } ?: result
         return recovered.getOrElse { error ->
             failRecognition(error, details = listOf("recognition failed: ${technicalOf(error)}"))
@@ -1766,17 +1772,50 @@ class DictationController(
     }
 
     /**
-     * The fallback the user chose (by default the best local model that is ready - Parakeet,
-     * then Whisper) for a recording the server could not take. Null when none is ready or none
-     * recognized it; the original error then stands.
+     * The engines that would take this run's recording if its own failed ([Fallback.candidates]),
+     * but [skip] - the one prepared alongside, whose text did not come.
      */
-    private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel, skip: String? = null): Transcript? {
+    private fun fallbacksFor(skip: String?): List<EngineConfig> {
+        val settings = graph.settings.value
+        val primary = runRouting?.engine ?: return emptyList()
+        return Fallback.candidates(settings.fallback, Servers.recognizers(settings), primary, ::trustOf).filter { it.id != skip }
+    }
+
+    /**
+     * Lets go of the model [config] runs on the phone after it ran out of memory or failed
+     * ([SttFailure.localModelFailed]), so the next one loads into its room ([Graph.releaseModelOf]).
+     * Nothing after any other failure, or for an engine elsewhere.
+     */
+    private suspend fun releaseFailedModel(config: EngineConfig?, failure: SttFailure) {
+        if (config == null || !failure.localModelFailed) return
+        val line = "model of ${config.id} let go of after ${failure.problem::class.simpleName}"
+        Log.i(TAG, line)
+        // The model that failed first and a fallback's that failed too: both said.
+        trace?.let { it.modelReleased = listOfNotNull(it.modelReleased, line).joinToString(", ") }
+        try {
+            graph.releaseModelOf(config)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The class only, as elsewhere: the dictation goes on, the idle release frees it later.
+            Log.w(TAG, "letting go of the model failed: ${e::class.java.name}")
+        }
+    }
+
+    /**
+     * The fallback the user chose (by default the best local model that is ready - Parakeet,
+     * then Whisper) for a recording the server - or the model on the phone - could not take,
+     * from [candidates] ([fallbacksFor]). Null when none is ready or none recognized it; the
+     * original error then stands. A model on the phone that fails here as well is let go of
+     * before the next one loads.
+     */
+    private suspend fun recognizeElsewhere(audio: PcmAudio, cause: SttFailure, serverTrust: TrustLevel, candidates: List<EngineConfig>): Transcript? {
         val settings = graph.settings.value
         val primary = runRouting?.engine ?: return null
-        val candidates = Fallback.candidates(settings.fallback, Servers.recognizers(settings), primary, ::trustOf).filter { it.id != skip }
         for (config in candidates) {
             val other = graph.engineFactory.create(config).getOrNull() ?: continue
-            Log.i(TAG, "server unavailable (${Anonymize.line(cause.technical).take(80)}) - recognizing with ${config.id}")
+            val unavailable = if (cause.localModelFailed) "model on the phone failed" else "server unavailable"
+            Log.i(TAG, "$unavailable (${Anonymize.line(cause.technical).take(80)}) - recognizing with ${config.id}")
             // The rest of the ring is this engine's recognition and the cleanup after it.
             val caps = other.capabilities
             val load = if (localModelWarm(config) == false) MODEL_LOAD_MS else 0L
@@ -1790,13 +1829,18 @@ class DictationController(
             } finally {
                 runCatching { other.close() }
             }
+            (result.exceptionOrNull() as? SttFailure)?.let { releaseFailedModel(config, it) }
             result.getOrNull()?.let { transcript ->
                 // A read timeout or a 5xx came after the upload: the recording may be the
                 // first server's too - and the label says so, as it says the fallback's own.
                 val trust = Fallback.trustAfter(cause, serverTrust, transcript.trustLevel)
                 fellBack = config.displayName
                 fellBackFrom = primary.id
-                val why = if (cause.serverCannotServe) cannotServe(cause) else "server unreachable"
+                val why = when {
+                    cause.serverCannotServe -> cannotServe(cause)
+                    cause.localModelFailed -> "model on the phone failed (${cause.problem::class.simpleName})"
+                    else -> "server unreachable"
+                }
                 trace?.fallback = "$why, recognized by ${config.displayName}, label $trust"
                 val notice = FallbackNotice.afterFailure(cause, trust, recognizedOnPhone = transcript.trustLevel == TrustLevel.ON_DEVICE)
                 graph.messages.show(Texts.fallbackNotice(context, notice, by = config, from = primary))

@@ -712,6 +712,21 @@ class Graph(app: Application) {
         appScope.launch(sherpaRuntime.dispatcher) { if (!dictation.isRunning) sherpaRuntime.release() }
     }
 
+    /**
+     * Frees the model [engine] runs on the phone now, while a dictation runs: after it ran out
+     * of memory or failed ([app.amethyst.core.engine.SttFailure.localModelFailed]), so the
+     * fallback or "Try again" loads into the room it held - on a 3 GB phone two models never
+     * fit at once. On the model's own thread, behind a recognition still on it. Nothing for an
+     * engine elsewhere.
+     */
+    suspend fun releaseModelOf(engine: EngineConfig) {
+        when (engine.kind) {
+            EngineKind.LOCAL_SHERPA -> withContext(sherpaRuntime.dispatcher) { sherpaRuntime.release() }
+            EngineKind.WHISPER_CPP -> withContext(whisperRuntime.dispatcher) { whisperRuntime.release() }
+            else -> Unit
+        }
+    }
+
     private companion object {
         /** How long the statistics are kept summed up after the last screen stopped showing them. */
         const val STATS_KEPT_MS = 5_000L

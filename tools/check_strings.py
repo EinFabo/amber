@@ -87,7 +87,7 @@ TOASTS = {
     "dictation_mic_taken_sent", "dictation_mic_lost_sent", "dictation_service_off",
     "quick_too_late", "quick_open_failed", "bubble_hidden_in",
     "fallback_server_too_slow", "fallback_no_connection", "fallback_no_answer_on_phone", "fallback_other_server",
-    "fallback_no_credit", "fallback_model_gone",
+    "fallback_no_credit", "fallback_model_gone", "fallback_model_on_phone_failed",
     # Said over the app in front by app.amethyst.Messages too, in a pill cut at two lines as well.
     "clipboard_fallback", "clipboard_after_lost_commit", "dictation_call_ended_sent", "dictation_scratched",
     "download_at_start",

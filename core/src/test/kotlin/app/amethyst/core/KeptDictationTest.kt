@@ -61,13 +61,24 @@ class KeptDictationTest {
     }
 
     @Test
+    fun `a model on the phone that ran out of memory or failed is worth trying again`() {
+        // The model is let go of first, so the next go loads it afresh - or the one set now.
+        for (why in listOf(Problem.OutOfMemory, Problem.LocalModelFailed)) {
+            assertTrue(KeptDictation.worthTryingAgain(why), why.toString())
+            assertTrue(KeptDictation.toastSaysTryAgain(why), why.toString())
+        }
+        assertTrue(kept.keepRecording(audio(2.0), Problem.OutOfMemory))
+        assertTrue(kept.hasRecording)
+    }
+
+    @Test
     fun `a failure the same recording would meet again is not`() {
         for (why in listOf(
             Problem.NothingRecognized, Problem.NoSpeechHeard, Problem.RecordingTooLong, Problem.AudioFormatRefused,
             Problem.ProcessorTooOld, Problem.UnencryptedRefused, Problem.EnclaveOtherAddress, Problem.EnclaveCannotBind,
             Problem.NotToVerifiedEnclave(Problem.Payload.RECORDING), Problem.EnclaveNotVerified("Tinfoil", Problem.Payload.RECORDING),
             Problem.EnclaveKeyMismatch("Tinfoil", Problem.Payload.RECORDING), Problem.RecordsByItself("Android"),
-            Problem.OutOfMemory, Problem.LocalModelFailed, Problem.NotSupported,
+            Problem.NotSupported,
         )) {
             assertFalse(KeptDictation.worthTryingAgain(why), why.toString())
         }

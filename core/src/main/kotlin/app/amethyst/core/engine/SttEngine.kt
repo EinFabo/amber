@@ -126,6 +126,14 @@ class SttFailure(
     val worthAnotherEngine: Boolean get() = serviceUnavailable || serverCannotServe
 
     /**
+     * The model on the phone ran out of memory or failed ([Problem.OutOfMemory],
+     * [Problem.LocalModelFailed]): the recording is fine, and another engine on the phone may
+     * take it - once this model has been let go of, so two are never held at once.
+     */
+    val localModelFailed: Boolean
+        get() = problem == Problem.OutOfMemory || problem == Problem.LocalModelFailed
+
+    /**
      * Whether the recording may have reached the server before this failure. Only a failure to
      * connect at all proves it did not: a read timeout or a 5xx came after the upload, so a
      * text recognized on the phone afterwards must not claim the voice stayed there.

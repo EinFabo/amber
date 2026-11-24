@@ -3,9 +3,9 @@ package app.amethyst.core.engine
 import app.amethyst.core.privacy.TrustLevel
 
 /**
- * What the user is told when another engine recognized a recording the chosen server did not
- * ([Fallback], [ReadyFallback]). A value; the app words it in the phone's language, with the
- * names of the engines involved.
+ * What the user is told when another engine recognized a recording the chosen server - or the
+ * chosen model on the phone - did not ([Fallback], [ReadyFallback]). A value; the app words it
+ * in the phone's language, with the names of the engines involved.
  *
  * The order of the rules matters: a server that cannot serve is always named with what it said,
  * since only the user can put it right and the fallback would otherwise hide it for good; and
@@ -29,6 +29,9 @@ sealed interface FallbackNotice {
     /** Another server recognized instead of the chosen one. */
     data object OtherServer : FallbackNotice
 
+    /** The model on the phone ran out of memory or failed ([SttFailure.localModelFailed]); another engine on the phone recognized. */
+    data object ModelOnPhoneFailed : FallbackNotice
+
     companion object {
 
         /** After the text prepared on the phone won the race ([ReadyFallback.race]); [trust] is the text's label. */
@@ -49,6 +52,7 @@ sealed interface FallbackNotice {
          */
         fun afterFailure(cause: SttFailure, trust: TrustLevel, recognizedOnPhone: Boolean): FallbackNotice = when {
             cause.serverCannotServe -> ServerRefused(cause.problem)
+            cause.localModelFailed -> ModelOnPhoneFailed
             trust == TrustLevel.ON_DEVICE -> NoConnection
             recognizedOnPhone -> NoAnswerOnPhone
             else -> OtherServer

@@ -355,6 +355,10 @@ object Texts {
             FallbackNotice.NoAnswerOnPhone -> getString(R.string.fallback_no_answer_on_phone)
             // Only after a server failed, where the server it stood in for is known.
             FallbackNotice.OtherServer -> getString(R.string.fallback_other_server, from?.let { engineName(this, it) }.orEmpty(), name)
+            // Only after a model on the phone failed, which is the one stood in for. Both short:
+            // "Parakeet", "Whisper local" - two full names would not fit in two lines.
+            FallbackNotice.ModelOnPhoneFailed ->
+                getString(R.string.fallback_model_on_phone_failed, from?.let { engineShortName(this, it) }.orEmpty(), engineShortName(this, by))
         }
     }
 

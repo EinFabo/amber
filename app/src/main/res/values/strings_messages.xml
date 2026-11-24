@@ -16,8 +16,8 @@
     <string name="problem_rate_limited">Too many requests. Wait a moment.</string>
     <string name="problem_service_down">Service down (error %1$d).</string>
     <string name="problem_server_error">%2$s refused (error %1$d).</string>
-    <string name="problem_out_of_memory">Not enough memory to run the model on this phone.</string>
-    <string name="problem_local_model_failed">The model on this phone failed. Download it again in Settings.</string>
+    <string name="problem_out_of_memory">Not enough memory for the model.</string>
+    <string name="problem_local_model_failed">The model on this phone failed.</string>
     <string name="problem_processor_too_old">This processor is too old for Whisper. Use Parakeet or a server.</string>
     <string name="problem_whisper_model_missing">The selected Whisper model isn\'t downloaded yet.</string>
     <string name="problem_parakeet_model_missing">The Parakeet model isn\'t downloaded yet.</string>

@@ -14,12 +14,26 @@ import app.amethyst.core.settings.FallbackSettings
  * ([SttFailure.serverCannotServe]); the user is then told what the server said, since the
  * fallback would otherwise hide it for good. A refused key or a bad request needs the user,
  * not a detour.
+ *
+ * An engine on the phone falls back too, but only when its model ran out of memory or failed
+ * ([SttFailure.localModelFailed]) and another engine is there to take over - never to itself.
+ * The failed model is let go of first: on a 3 GB phone two models never fit at once.
  */
 object Fallback {
 
-    /** The failure another engine may recover from, or null when it should stand. */
-    fun recoverable(error: Throwable?, engineTrust: TrustLevel, mode: FallbackMode): SttFailure? =
-        (error as? SttFailure)?.takeIf { mode != FallbackMode.OFF && engineTrust != TrustLevel.ON_DEVICE && it.worthAnotherEngine }
+    /**
+     * The failure another engine may recover from, or null when it should stand. For an engine
+     * on the phone, [fallbacks] are the engines that would take over ([candidates]): without
+     * one, there is nothing to fall back to.
+     */
+    fun recoverable(error: Throwable?, engineTrust: TrustLevel, mode: FallbackMode, fallbacks: List<EngineConfig> = emptyList()): SttFailure? {
+        val failure = (error as? SttFailure)?.takeIf { mode != FallbackMode.OFF } ?: return null
+        return if (engineTrust == TrustLevel.ON_DEVICE) {
+            failure.takeIf { it.localModelFailed && fallbacks.isNotEmpty() }
+        } else {
+            failure.takeIf { it.worthAnotherEngine }
+        }
+    }
 
     /**
      * The trust a text recognized elsewhere after [failure] really has: the first server's,

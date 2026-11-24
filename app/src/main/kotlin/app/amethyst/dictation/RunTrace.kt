@@ -70,8 +70,11 @@ internal class RunTrace(val route: String) {
     private var cpuGroup: String? = null
     private var importance: Int? = null
 
-    /** Set when a local model took over from an unreachable server. */
+    /** Set when another engine took over from an unreachable server or a failed model on the phone. */
     var fallback: String? = null
+
+    /** A model on the phone let go of after it ran out of memory or failed ("model of parakeet let go of after OutOfMemory"). */
+    var modelReleased: String? = null
 
     /** What the fallback prepared on the phone during the recording came to, if one was. */
     var prepared: String? = null
@@ -147,6 +150,7 @@ internal class RunTrace(val route: String) {
         if (insertingTo > 0) add("insert ${ms(insertingTo - insertingFrom)}")
         refind?.let(::add)
         kept?.let(::add)
+        modelReleased?.let(::add)
         fallback?.let(::add)
         prepared?.let(::add)
         scratch?.let(::add)

@@ -14,8 +14,8 @@
     <string name="problem_rate_limited">Zu viele Anfragen. Warte kurz.</string>
     <string name="problem_service_down">Dienst antwortet nicht (Code %1$d).</string>
     <string name="problem_server_error">„%2$s“ lehnt ab (Code %1$d).</string>
-    <string name="problem_out_of_memory">Zu wenig Arbeitsspeicher für das Modell.</string>
-    <string name="problem_local_model_failed">Das Modell lief nicht. Lade es in den Einstellungen neu herunter.</string>
+    <string name="problem_out_of_memory">Zu wenig Arbeitsspeicher frei.</string>
+    <string name="problem_local_model_failed">Das Modell auf dem Handy lief nicht.</string>
     <string name="problem_processor_too_old">Prozessor zu alt für Whisper. Parakeet oder ein Server gehen.</string>
     <string name="problem_whisper_model_missing">Das gewählte Whisper-Modell ist noch nicht heruntergeladen.</string>
     <string name="problem_parakeet_model_missing">Das Parakeet-Modell ist noch nicht heruntergeladen.</string>

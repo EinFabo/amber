@@ -31,6 +31,7 @@
     <string name="fallback_no_connection">No connection. Recognized on this phone with %1$s.</string>
     <string name="fallback_no_answer_on_phone">No answer. Recognized on the phone. The server may have the recording.</string>
     <string name="fallback_other_server">%1$s didn\'t answer. Recognized with %2$s instead.</string>
+    <string name="fallback_model_on_phone_failed">%1$s failed on this phone. Recognized with %2$s instead.</string>
 
     <string name="capture_no_16khz">The microphone doesn\'t support 16 kHz.</string>
     <string name="capture_not_opened">Couldn\'t open the microphone.</string>

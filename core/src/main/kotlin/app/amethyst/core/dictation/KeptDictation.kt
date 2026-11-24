@@ -141,7 +141,9 @@ class KeptDictation(
          * that goes away by itself or by a fix in Settings, so "Try again" is worth offering:
          * no connection, no answer in time, a server error or a service down, too many requests,
          * a key missing or refused, no credit, a model gone from the server, a wrong address, an
-         * answer that could not be read, a dictation the user stopped after the recording ended. [why] null is the run's time limit: worth it.
+         * answer that could not be read, a dictation the user stopped after the recording ended,
+         * a model on the phone that ran out of memory or failed (let go of at once, so the next go
+         * loads it afresh, or the one set by then). [why] null is the run's time limit: worth it.
          *
          * Not after anything else: nothing heard, a recording too long or in a format a server
          * refuses, a processor too old, an enclave that could not be verified, an unencrypted
@@ -165,6 +167,8 @@ class KeptDictation(
             Problem.AddressNotFound,
             is Problem.AnswerUnreadable,
             Problem.Cancelled,
+            Problem.OutOfMemory,
+            Problem.LocalModelFailed,
             -> true
             else -> false
         }

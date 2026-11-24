@@ -4,6 +4,7 @@ import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.EngineTrust
 import app.amethyst.core.engine.Fallback
+import app.amethyst.core.engine.FallbackNotice
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
@@ -41,6 +42,47 @@ class FallbackTest {
         assertNull(Fallback.recoverable(offline, TrustLevel.CLOUD, FallbackMode.OFF))
         assertNull(Fallback.recoverable(offline, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC))
         assertNull(Fallback.recoverable(SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty"), TrustLevel.CLOUD, FallbackMode.AUTOMATIC))
+    }
+
+    private val outOfMemory = SttFailure(Problem.OutOfMemory, "parakeet: out of memory")
+    private val modelFailed = SttFailure(Problem.LocalModelFailed, "whisper transcribe: whisper_full returned -7")
+    private val android = EngineConfig.fromPreset(EnginePresets.ANDROID_ON_DEVICE)
+
+    @Test
+    fun `a model on the phone that ran out of memory or failed falls back to another engine on the phone`() {
+        // Parakeet ran out of memory, Whisper is the fallback - automatic or chosen.
+        val automatic = Fallback.candidates(FallbackSettings(FallbackMode.AUTOMATIC), all, parakeet, trustOf)
+        assertEquals(listOf(whisper.id), automatic.map { it.id })
+        assertNotNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, automatic))
+        val chosen = Fallback.candidates(FallbackSettings(FallbackMode.ENGINE, whisper.id), all, parakeet, trustOf)
+        assertNotNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.ENGINE, chosen))
+        // Whisper failed, Android's speech recognition on the phone was chosen.
+        val withAndroid = all + android
+        val toAndroid = Fallback.candidates(FallbackSettings(FallbackMode.ENGINE, android.id), withAndroid, whisper, trustOf)
+        assertEquals(listOf(android.id), toAndroid.map { it.id })
+        assertNotNull(Fallback.recoverable(modelFailed, TrustLevel.ON_DEVICE, FallbackMode.ENGINE, toAndroid))
+    }
+
+    @Test
+    fun `a model on the phone does not fall back to itself, to nothing, or for a failure another engine would meet too`() {
+        // The fallback chosen is the very engine that failed: nothing else to try.
+        val itself = Fallback.candidates(FallbackSettings(FallbackMode.ENGINE, parakeet.id), all, parakeet, trustOf)
+        assertEquals(emptyList(), itself)
+        assertNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.ENGINE, itself))
+        // Only Parakeet on the phone: automatic has nothing to take over.
+        val alone = Fallback.candidates(FallbackSettings(FallbackMode.AUTOMATIC), listOf(groq, parakeet), parakeet, trustOf)
+        assertNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, alone))
+        // Switched off, or nothing heard: the failure stands.
+        assertNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.OFF, listOf(whisper)))
+        assertNull(Fallback.recoverable(SttFailure(SttFailure.NOTHING_RECOGNIZED, "empty"), TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, listOf(whisper)))
+        assertNull(Fallback.recoverable(offline, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, listOf(whisper)))
+    }
+
+    @Test
+    fun `the notice says the model on the phone failed, not the connection`() {
+        assertEquals(FallbackNotice.ModelOnPhoneFailed, FallbackNotice.afterFailure(outOfMemory, TrustLevel.ON_DEVICE, recognizedOnPhone = true))
+        assertEquals(FallbackNotice.ModelOnPhoneFailed, FallbackNotice.afterFailure(modelFailed, TrustLevel.ON_DEVICE, recognizedOnPhone = true))
+        assertEquals(TrustLevel.ON_DEVICE, Fallback.trustAfter(outOfMemory, TrustLevel.ON_DEVICE))
     }
 
     @Test
