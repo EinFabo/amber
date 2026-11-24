@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.amethyst.R
 import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.PhoneFacts
@@ -198,6 +201,10 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
     val granted = setup.microphoneGranted
     // Android stops asking after a refusal or two; then only the app settings can grant it.
     var asked by rememberSaveable { mutableStateOf(false) }
+    // Android's question is a window over this one: while it is up the page is not resumed, and
+    // "not allowed yet" would show behind a question the user has not answered.
+    val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    val refused = asked && lifecycle.isAtLeast(Lifecycle.State.RESUMED)
     StepPage(
         title = stringResource(R.string.mic_title),
         lead = stringResource(R.string.mic_lead),
@@ -206,13 +213,13 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
                 ContinueButton(onNext)
             } else {
                 ContinueButton({ asked = true; actions.requestMicrophone() }, stringResource(R.string.allow))
-                if (asked) LaterButton(stringResource(R.string.continue_without), onNext)
+                if (refused) LaterButton(stringResource(R.string.continue_without), onNext)
             }
         },
     ) {
         if (granted) {
             Done(stringResource(R.string.setup_microphone), stringResource(R.string.mic_allowed))
-        } else if (asked) {
+        } else if (refused) {
             Hint(stringResource(R.string.mic_not_allowed), AmberPalette.Primary)
             GhostButton(stringResource(R.string.open_app_settings), actions.openAppInfo)
         }
