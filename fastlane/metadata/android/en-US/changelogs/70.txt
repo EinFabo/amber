@@ -1,0 +1,1 @@
+- Android's speech recognition works on phones without an on-device recognizer (Android 12 and older): it no longer refuses every dictation for a missing offline pack

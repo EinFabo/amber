@@ -1,0 +1,1 @@
+- Die Spracherkennung von Android funktioniert auf Handys ohne Erkennung auf dem Gerät (Android 12 und älter): Sie lehnt nicht mehr jedes Diktat ab, weil ein Offline-Paket fehlt

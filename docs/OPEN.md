@@ -15,6 +15,12 @@ model kept loaded, no Back when dragging the bubble off the edge. Not yet on a p
 (Android 11 - the direct microphone from API 30, the proxy below), Samsung/Xiaomi, pasting into
 rich text (Gmail, Docs), the cleanup with real keys, a Whisper download resuming. Store
 screenshots and the Play feature graphic are still to make (item 53).
+0.35.0-rc5 (2026-11-24): on the A20e (Android 11) every dictation with Android's speech recognition
+failed with "language isn't installed for offline use" - the default recognizer was asked to stay
+offline; now only the on-device one (Android 13+) is. Google then starts online (seen in the log);
+a dictation with a real voice on the A20e is still to try (the TTS voice from the PC did not reach
+its microphone). Also seen there: behind Android's first microphone dialog the step already says
+"Noch nicht erlaubt".
 Open for Fabi:
 - [ ] **Controller and contact e-mail in the privacy policy.** `docs/PRIVACY.md` and the
       in-app copies (`app/src/main/res/raw/privacy_policy.txt`, `raw-de/privacy_policy.txt`)
