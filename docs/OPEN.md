@@ -19,6 +19,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   phone. Recognized with Whisper local instead."). Try on the A20e (3 GB): Parakeet in use,
   Whisper downloaded, a long dictation with several apps open; Diagnostics should show "model of
   ... let go of after OutOfMemory" before the fallback line, never two models at once.
+- **A3, thinking before speaking no longer ends the recording.** With auto-stop on silence
+  off, the bubble waits 12 s (instead of 4 s) for a first word; with it on, still 4 s. When a
+  recording ends with no speech heard and is longer than one second, it is kept for "Try again"
+  and the message says so ("Didn't hear anything. Speak closer to the phone, or Try again.").
+  Try on a phone: auto-stop off, tap the bubble and stay quiet for 8 s, then speak - it keeps
+  listening; stay quiet for 13 s and then hold the bubble and choose Try again.
 
 ## Store review 2026-11-22
 

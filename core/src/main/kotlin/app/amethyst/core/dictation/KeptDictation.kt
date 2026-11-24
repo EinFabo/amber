@@ -58,7 +58,24 @@ class KeptDictation(
      */
     @Synchronized
     fun keepRecording(audio: PcmAudio, why: Problem?): Boolean {
-        if (!keeping || !worthTryingAgain(why) || audio.durationMs > MAX_RECORDING_MS || audio.samples.isEmpty()) return false
+        if (!worthTryingAgain(why)) return false
+        return keepLocked(audio)
+    }
+
+    /**
+     * Keeps [audio] in which no speech was heard, when it is longer than [MIN_UNHEARD_MS]: a
+     * user who thought for a while before speaking, or spoke too quietly for the threshold, gets
+     * "Try again" instead of nothing. This is the controller's rule, not [worthTryingAgain]: that
+     * one is about a failed recognition, where the same recording fails the same way again.
+     */
+    @Synchronized
+    fun keepUnheard(audio: PcmAudio): Boolean {
+        if (audio.durationMs <= MIN_UNHEARD_MS) return false
+        return keepLocked(audio)
+    }
+
+    private fun keepLocked(audio: PcmAudio): Boolean {
+        if (!keeping || audio.durationMs > MAX_RECORDING_MS || audio.samples.isEmpty()) return false
         recording = Recording(audio, clock())
         changed()
         return true
@@ -135,6 +152,9 @@ class KeptDictation(
 
         /** The longest recording kept, a little over the longest one Amber records (five minutes). */
         const val MAX_RECORDING_MS = 330_000L
+
+        /** A recording without speech is kept only when longer than this: shorter is a slip of the finger. */
+        const val MIN_UNHEARD_MS = 1_000L
 
         /**
          * Whether recognizing the same recording again can bring its text - only after a problem

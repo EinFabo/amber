@@ -83,7 +83,7 @@ NUMBER_CHARS = 3
 TOAST_PREFIXES = ("toast_", "problem_", "capture_", "quick_done_", "undo_")
 TOASTS = {
     "dictation_mic_permission", "dictation_mic_not_opened", "dictation_no_field", "dictation_not_inserted_here",
-    "dictation_copied", "dictation_no_engine", "dictation_timed_out", "dictation_too_short", "dictation_nothing_heard",
+    "dictation_copied", "dictation_no_engine", "dictation_timed_out", "dictation_too_short", "dictation_nothing_heard", "dictation_nothing_heard_kept",
     "dictation_mic_taken_sent", "dictation_mic_lost_sent", "dictation_service_off",
     "quick_too_late", "quick_open_failed", "bubble_hidden_in",
     "fallback_server_too_slow", "fallback_no_connection", "fallback_no_answer_on_phone", "fallback_other_server",

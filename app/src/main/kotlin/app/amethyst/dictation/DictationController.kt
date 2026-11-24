@@ -1259,10 +1259,14 @@ class DictationController(
                 // looks exactly like a bug. Both cases get a message and a diagnostics line.
                 // A microphone another app holds delivers silence: said as that, or the user
                 // would move closer to the phone and try again in vain.
+                // Nothing heard in a recording of more than a second: kept for "Try again" (the
+                // user may have thought first, or spoken too quietly), and the message says so.
+                val keptUnheard = outcome.reason == DiscardReason.NO_SPEECH && keepUnheardForRetry(outcome.audio)
                 fail(
                     when (outcome.reason) {
                         DiscardReason.TOO_SHORT -> say(R.string.dictation_too_short)
-                        DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG -> say(R.string.dictation_nothing_heard)
+                        DiscardReason.NO_SPEECH, DiscardReason.PAUSED_TOO_LONG ->
+                            say(if (keptUnheard) R.string.dictation_nothing_heard_kept else R.string.dictation_nothing_heard)
                         DiscardReason.MIC_SILENCED -> said(Problem.MicrophoneTaken)
                         DiscardReason.MIC_LOST -> said(Problem.MicrophoneUnreadable)
                         DiscardReason.CALL -> say(R.string.dictation_call_ended)
@@ -1495,6 +1499,21 @@ class DictationController(
         val namesHome = targetApp() != context.packageName && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
         val wayOut: Words? = say(R.string.toast_get_language_pack).takeIf { remedyOf(error) == SttFailure.Remedy.INSTALL_LANGUAGE && namesHome }
         fail(failureOf(error), remedy = remedyOf(error), brief = brief ?: wayOut ?: failureOf(error), details = details)
+    }
+
+    /**
+     * Keeps [audio], in which no speech was heard, for "Try again" ([KeptDictation.keepUnheard]) -
+     * only a dictation's. True when it is kept now; its time is watched like [keepForRetry]'s.
+     */
+    private fun keepUnheardForRetry(audio: PcmAudio?): Boolean {
+        if (_mode.value != RunMode.DICTATION || audio == null || !kept.keepUnheard(audio)) return false
+        trace?.kept = "recording kept for Try again, ${ms(audio.durationMs)}, no speech heard"
+        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms, no speech heard, in memory only)")
+        scope.launch {
+            delay(kept.keepMs)
+            kept.expire()
+        }
+        return true
     }
 
     /**

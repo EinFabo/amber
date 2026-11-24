@@ -49,7 +49,8 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
             /** Why it ended, for the log, when the microphone was lost ([MicrophoneWatch]). */
             val technical: String? = null,
         ) : Outcome
-        data class Discarded(val reason: DiscardReason, val technical: String? = null) : Outcome
+        /** [audio]: what was recorded when no speech was heard in it - kept for "Try again" when long enough. */
+        data class Discarded(val reason: DiscardReason, val technical: String? = null, val audio: PcmAudio? = null) : Outcome
         /** [message]: a string resource for the user; [technical] for the log. */
         data class Failed(val message: Int, val technical: String) : Outcome
     }
@@ -167,7 +168,10 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                 is VadDecision.Discard -> if (decision.reason == DiscardReason.MIC_LOST) {
                     Outcome.Failed(R.string.capture_interrupted, technical.orEmpty())
                 } else {
-                    Outcome.Discarded(decision.reason, technical)
+                    Outcome.Discarded(
+                        decision.reason, technical,
+                        audio = if (decision.reason == DiscardReason.NO_SPEECH) recorded.build() else null,
+                    )
                 }
                 VadDecision.Continue -> error("a recording that goes on has not ended")
             }

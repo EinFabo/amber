@@ -87,6 +87,24 @@ class KeptDictationTest {
     }
 
     @Test
+    fun `a recording in which nothing was heard is kept when it is longer than a second`() {
+        assertFalse(kept.keepUnheard(audio(1.0)))
+        assertNull(kept.recording())
+        val audio = audio(5.0)
+        assertTrue(kept.keepUnheard(audio))
+        assertSame(audio, kept.recording())
+    }
+
+    @Test
+    fun `nothing heard is not kept with keeping off, when too long, or empty`() {
+        kept.keeping = false
+        assertFalse(kept.keepUnheard(audio(5.0)))
+        kept.keeping = true
+        assertFalse(kept.keepUnheard(audio(KeptDictation.MAX_RECORDING_MS / 1000.0 + 1)))
+        assertFalse(kept.keepUnheard(PcmAudio(ShortArray(0))))
+    }
+
+    @Test
     fun `the toast is the reason and Try again, except after a refused key, whose toast names its fix first`() {
         assertTrue(KeptDictation.toastSaysTryAgain(Problem.NoConnection("Groq")))
         assertTrue(KeptDictation.toastSaysTryAgain(null))

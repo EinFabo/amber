@@ -11,6 +11,7 @@
     <string name="dictation_unexpected">Unerwarteter Fehler: %1$s</string>
     <string name="dictation_too_short">Zu kurz. Sprich etwas länger.</string>
     <string name="dictation_nothing_heard">Nichts gehört. Versuche es näher am Handy.</string>
+    <string name="dictation_nothing_heard_kept">Nichts gehört. Sprich näher am Handy oder wähle „Nochmal versuchen“.</string>
     <string name="dictation_mic_taken_sent">Eine andere App braucht das Mikrofon. Das Gesagte zählt trotzdem.</string>
     <string name="dictation_mic_lost_sent">Mikrofon unterbrochen. Das bis dahin Gesagte zählt.</string>
     <string name="dictation_call_ended_sent">Ein Anruf hat die Aufnahme beendet. Das bis dahin Gesagte zählt.</string>

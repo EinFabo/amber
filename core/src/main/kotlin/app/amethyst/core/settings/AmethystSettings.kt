@@ -141,6 +141,8 @@ data class CaptureSettings(
         // duration cap ends the recording.
         silenceTimeoutMs = if (autoStopOnSilence) silenceTimeoutMs else Int.MAX_VALUE,
         maxDurationMs = maxDurationMs,
+        // Auto-stop on, the 4 s default; off, the user who thinks before speaking gets 12 s.
+        noSpeechTimeoutMs = if (autoStopOnSilence) VadConfig().noSpeechTimeoutMs else NO_SPEECH_TIMEOUT_MANUAL_MS,
     )
 
     fun toNormalizeOptions(): NormalizeOptions = NormalizeOptions(stripFillers = stripFillers, germanCommas = germanCommas)
@@ -167,6 +169,9 @@ data class CaptureSettings(
     }
 
     companion object {
+        /** How long to wait for a first word with auto-stop off: time to think before speaking. */
+        const val NO_SPEECH_TIMEOUT_MANUAL_MS = 12_000
+
         /** The longest recording a new install - and an install that kept the old default - has. */
         const val LONGEST_DEFAULT_MS = 300_000
 

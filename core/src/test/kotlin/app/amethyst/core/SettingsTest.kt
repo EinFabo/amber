@@ -93,6 +93,12 @@ class SettingsTest {
     }
 
     @Test
+    fun `without auto-stop the user gets twelve seconds to start speaking, with it four`() {
+        assertEquals(12_000, CaptureSettings(autoStopOnSilence = false).toVadConfig().noSpeechTimeoutMs)
+        assertEquals(4_000, CaptureSettings(autoStopOnSilence = true).toVadConfig().noSpeechTimeoutMs)
+    }
+
+    @Test
     fun `capture settings carry the pre-roll into the vad config`() {
         val vad = CaptureSettings(preRollMs = 420).toVadConfig(frameMs = 20)
         assertEquals(420, vad.preRollMs)
