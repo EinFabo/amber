@@ -615,7 +615,7 @@ class Graph(app: Application) {
                 runCatching { sherpaRuntime.ensureLoaded(parakeetModels.dir.path) }
                     .onFailure { android.util.Log.w("Embersay", "parakeet warm-up failed", it) }
             }
-            scheduleRelease { memory -> ModelRelease.beforeDictation(memory, maxOf(loadedModelBytes(), ParakeetModel.TOTAL_BYTES)) }
+            scheduleRelease({ maxOf(loadedModelBytes(), ParakeetModel.TOTAL_BYTES) }, ModelRelease::beforeDictation)
             return
         }
         if (engine.kind != EngineKind.WHISPER_CPP) return
@@ -628,7 +628,7 @@ class Graph(app: Application) {
                 .onFailure { android.util.Log.w("Embersay", "whisper warm-up failed", it) }
         }
         val file = whisperModels.fileFor(modelId)
-        scheduleRelease { memory -> ModelRelease.beforeDictation(memory, maxOf(loadedModelBytes(), file.length())) }
+        scheduleRelease({ maxOf(loadedModelBytes(), file.length()) }, ModelRelease::beforeDictation)
     }
 
     /**
@@ -636,7 +636,7 @@ class Graph(app: Application) {
      * on Android 14 and later, which no longer warns of it ([ModelRelease.afterDictation]).
      */
     fun scheduleModelRelease() {
-        scheduleRelease { memory -> ModelRelease.afterDictation(memory, loadedModelBytes()) }
+        scheduleRelease(::loadedModelBytes, ModelRelease::afterDictation)
     }
 
     /**
@@ -645,28 +645,32 @@ class Graph(app: Application) {
      */
     fun reviewModelRelease() {
         appScope.launch {
-            val wait = ModelRelease.afterDictation(memoryNow(), loadedModelBytes())
+            val bytes = loadedModelBytes()
+            val wait = ModelRelease.afterDictation(memoryNow(), bytes)
             if (wait == ModelRelease.Wait.IDLE) return@launch
             // A timer that fires as early already stays.
             val due = SystemClock.elapsedRealtime() + wait.ms
             if (synchronized(releaseLock) { releaseJob?.isActive == true && releaseAt <= due }) return@launch
-            scheduleRelease { wait }
+            scheduleRelease({ bytes }) { _, _ -> wait }
         }
     }
 
     /**
-     * (Re)starts the one timer that frees the models. The memory is asked inside it, off the
-     * caller's thread - a dictation's start is often on the main thread.
+     * (Re)starts the one timer that frees the models. The memory and the [modelBytes] the
+     * decision is about are asked inside it, off the caller's thread - a dictation's start is
+     * often on the main thread.
      */
-    private fun scheduleRelease(decide: (ModelRelease.Memory?) -> ModelRelease.Wait) {
+    private fun scheduleRelease(modelBytes: () -> Long, decide: (ModelRelease.Memory?, Long) -> ModelRelease.Wait) {
         synchronized(releaseLock) {
             releaseJob?.cancel()
             releaseAt = Long.MAX_VALUE
             releaseJob = appScope.launch {
-                val wait = decide(memoryNow())
+                val memory = memoryNow()
+                val bytes = modelBytes()
+                val wait = decide(memory, bytes)
                 synchronized(releaseLock) { if (releaseJob === coroutineContext[Job]) releaseAt = SystemClock.elapsedRealtime() + wait.ms }
                 if (wait != ModelRelease.Wait.IDLE) {
-                    android.util.Log.i("Embersay", "memory is short: the speech model goes ${if (wait == ModelRelease.Wait.NOW) "now" else "in ${wait.ms / 1000} s"} (${memoryLine()})")
+                    android.util.Log.i("Embersay", "memory is short: the speech model goes ${if (wait == ModelRelease.Wait.NOW) "now" else "in ${wait.ms / 1000} s"} (${memoryLine(memory, bytes)})")
                 }
                 delay(wait.ms)
                 // The dictation that asked may still be finishing; one that runs longer is the
@@ -684,14 +688,18 @@ class Graph(app: Application) {
     private fun memoryNow(): ModelRelease.Memory? = runCatching {
         val activities = appContext.getSystemService(ActivityManager::class.java) ?: return null
         val info = ActivityManager.MemoryInfo().also(activities::getMemoryInfo)
-        ModelRelease.Memory(Build.VERSION.SDK_INT, activities.isLowRamDevice, info.lowMemory, info.availMem, info.threshold)
+        ModelRelease.Memory(Build.VERSION.SDK_INT, activities.isLowRamDevice, info.lowMemory, info.availMem, info.threshold, info.totalMem)
     }.getOrNull()
 
-    /** The numbers behind a short-memory release, for logcat - no words, no apps. */
-    private fun memoryLine(): String {
-        val memory = memoryNow() ?: return "no memory info"
+    /**
+     * The numbers behind a short-memory release, for logcat - no words, no apps. The very ones
+     * the decision was made on: [modelBytes] is the model about to load at a dictation's start.
+     */
+    private fun memoryLine(memory: ModelRelease.Memory?, modelBytes: Long): String {
+        if (memory == null) return "no memory info"
         return "available ${memory.availBytes / 1_000_000} MB, threshold ${memory.thresholdBytes / 1_000_000} MB, " +
-            "model ${loadedModelBytes() / 1_000_000} MB, low-RAM phone ${memory.lowRamDevice}"
+            "total ${memory.totalBytes / 1_000_000} MB, model ${modelBytes / 1_000_000} MB, " +
+            "low memory ${memory.lowMemory}, low-RAM phone ${memory.lowRamDevice}"
     }
 
     /**

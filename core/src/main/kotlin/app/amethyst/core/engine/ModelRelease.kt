@@ -10,6 +10,12 @@ package app.amethyst.core.engine
  * model nobody uses would simply be killed - and with it the accessibility service. So there
  * Amber looks at memory itself after each dictation and lets go sooner when it is short. With
  * room to spare nothing changes: the next dictation finds the model loaded, as before.
+ *
+ * "Short" is what Android says (lowMemory), a low-RAM phone, or a phone of 6 GB or less with
+ * little room above the threshold. availMem alone says little: cached processes count as used
+ * and are ended on demand, so on an 8 GB Pixel it read 531-731 MB after every dictation, and
+ * the room rule alone let the model go 30 s later each time - the next dictation then read it
+ * again for 3.5-3.9 s (Pixel 9a, 2026-11-23).
  */
 object ModelRelease {
 
@@ -45,6 +51,8 @@ object ModelRelease {
         val availBytes: Long,
         /** MemoryInfo.threshold: below this the system starts killing background processes. */
         val thresholdBytes: Long,
+        /** MemoryInfo.totalMem: what the kernel can hand out, a little less than the phone's RAM; 0 unknown. */
+        val totalBytes: Long,
     )
 
     /** Android 14: the release can no longer wait for RUNNING_CRITICAL. */
@@ -56,6 +64,12 @@ object ModelRelease {
      * the first the system would end.
      */
     const val MARGIN_BYTES = 256L * 1_000_000
+
+    /**
+     * Up to here a phone is small enough for the room rule: 6 GB phones report about 5.6-5.9 GB
+     * (the kernel's share is not counted), 8 GB ones about 7.4 GB.
+     */
+    const val SMALL_PHONE_BYTES = 6_500L * 1_000_000
 
     // ComponentCallbacks2's levels; fixed in the platform API.
     const val TRIM_RUNNING_CRITICAL = 15
@@ -71,6 +85,8 @@ object ModelRelease {
         if (memory == null || modelBytes <= 0 || memory.sdk < ANDROID_14) return Wait.IDLE
         if (memory.lowMemory || memory.availBytes <= memory.thresholdBytes) return Wait.NOW
         if (memory.lowRamDevice) return Wait.SOON
+        // A phone that does not say what it has is taken for a small one.
+        if (memory.totalBytes > SMALL_PHONE_BYTES) return Wait.IDLE
         val room = memory.availBytes - memory.thresholdBytes
         return if (room < modelBytes + MARGIN_BYTES) Wait.SOON else Wait.IDLE
     }
