@@ -76,6 +76,10 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
         buttons = {
             when {
                 shown == null -> ContinueButton(onNext)
+                shown == EngineOption.SERVER -> {
+                    ContinueButton(content.onOpenRecognition, stringResource(R.string.no_recognition_choose))
+                    LaterButton(stringResource(R.string.continue_without), onNext)
+                }
                 shown == EngineOption.ANDROID -> ContinueButton({ content.onChooseEngine(shown, false); onNext() }, stringResource(R.string.engine_step_use_android))
                 state is OptionState.Running || state is OptionState.Waiting || (state is OptionState.Ready && active) -> ContinueButton(onNext)
                 state is OptionState.Ready -> ContinueButton({ content.onChooseEngine(shown, false); onNext() }, stringResource(R.string.engine_step_use_it))
@@ -94,6 +98,10 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
             settings.engines.firstOrNull { it.id == card.engineId }?.let { KeptCard(it) }
         }
         if (shown != null && state != null) {
+            // Nothing fits and the phone has no recognizer of Android's: say so before the card.
+            if (shown == EngineOption.SERVER && advice.recommended == EngineOption.SERVER) {
+                Hint(stringResource(R.string.no_recognition_note), AmberPalette.Primary)
+            }
             OptionCard(shown, recommended = shown == advice.recommended, state = state, content = content)
             if (state is OptionState.Failed) {
                 // A smaller download may still fit where this one failed for room or connection.

@@ -234,4 +234,13 @@ class PracticeTest {
         // A server or Android's own recognizer needs no model on the phone.
         assertEquals(Recognition.READY, Recognition.of(engineChosen = true, downloading = false, needsModel = false, modelReady = false))
     }
+
+    @Test
+    fun `android's recognition on a phone without a recognizer is no recognition`() {
+        assertEquals(Recognition.NONE, Recognition.of(engineChosen = true, downloading = false, needsModel = false, modelReady = true, recognizerMissing = true))
+        assertEquals(Recognition.NONE, Recognition.of(engineChosen = true, downloading = true, needsModel = false, modelReady = true, recognizerMissing = true))
+        assertEquals(Recognition.READY, Recognition.of(engineChosen = true, downloading = false, needsModel = false, modelReady = true))
+        val none = ready.copy(recognition = Recognition.NONE)
+        assertEquals(PracticeBlock.NO_RECOGNITION, Practice.blocked(PracticeTask.TAP, none, fresh))
+    }
 }

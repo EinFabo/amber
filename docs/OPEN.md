@@ -5,6 +5,15 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C1, phones with no speech recognition at all get an honest setup.** Where no model fits
+  and the phone has no recognizer of Android's (de-Googled), the quick setup no longer calls
+  Android's recognition ready: the engine step recommends "Choose a model or server", the last
+  step is titled "Nothing can recognize speech yet" with the way to Settings, the practice step
+  says the same above its tasks and blocks the tap, and Home's recognition row reads "Nothing
+  on this phone can recognize speech yet. Tap to download a model or use a server." in red.
+  Try on a phone or emulator without a speech recognizer (no Google app): go through the
+  introduction and look at the last step, the practice step and Home; on a phone with one,
+  nothing changes.
 - **B4, with Android's speech recognition the bubble only burns once it listens.** While the
   microphone is still opening the bubble shows a dim ember disc - no flames, no bars, no
   sparks, no buzz - and switches to the listening look when the microphone is really open.

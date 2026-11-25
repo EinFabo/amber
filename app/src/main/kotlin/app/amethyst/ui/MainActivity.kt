@@ -702,6 +702,9 @@ private fun AmethystScreens(
         if (screen == Screen.Onboarding && value == null) value = withContext(Dispatchers.IO) { Setup.phoneFacts(context) }
     }
 
+    // Whether Android has a speech recognizer at all, for Home: a de-Googled phone has none.
+    val androidRecognizer by produceState<Boolean?>(null) { value = withContext(Dispatchers.IO) { FirstRunSetup.androidRecognizer(context) } }
+
     /** The introduction's engine choice: added if missing, with its model, and made active. */
     fun useEngine(option: EngineOption) {
         updateSettings { FirstRun.use(it, option, PhoneLocales.tags()) }
@@ -863,6 +866,7 @@ private fun AmethystScreens(
                                 }
 
                                 Screen.Home -> HomeScreen(
+                                    androidRecognizer = androidRecognizer,
                                     languagePack = FirstRun.languagePack(settings, graph.firstRun.languagePack.collectAsStateWithLifecycle().value, FirstRunSetup.phoneTag()),
                                     checkLanguagePack = graph.firstRun::checkLanguagePack,
                                     setup = setup,

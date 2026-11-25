@@ -36,6 +36,7 @@ import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.Practice
 import app.amethyst.core.onboarding.PracticeBlock
 import app.amethyst.core.onboarding.PracticeReadiness
@@ -146,6 +147,13 @@ internal fun PracticeStep(
         // here where the tap is tried, not only on Home after the first failure.
         LanguagePackWatch(settings.activeEngine, content.checkLanguagePack)
         LanguagePackNote(content.languagePack, content.onGetLanguagePack, content.onOpenRecognition)
+        // No recognizer of Android's on the phone and nothing else chosen: a tap would fail, so the way to a model or a server is said here.
+        if (FirstRun.nothingRecognizes(settings, content.phone?.androidRecognizer)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Hint(stringResource(R.string.no_recognition_note), AmberPalette.Primary)
+                GhostButton(stringResource(R.string.no_recognition_choose), content.onOpenRecognition)
+            }
+        }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             PracticeTask.entries.forEach { task ->
                 TaskRow(
@@ -262,6 +270,7 @@ private fun readiness(settings: AmethystSettings, setup: SetupState, content: On
             downloading = content.download != null,
             needsModel = engine?.let(ModelDownloads::downloadsModel) == true,
             modelReady = modelReady,
+            recognizerMissing = FirstRun.nothingRecognizes(settings, content.phone?.androidRecognizer),
         ),
         hasLastDictation = content.hasLastDictation,
     )

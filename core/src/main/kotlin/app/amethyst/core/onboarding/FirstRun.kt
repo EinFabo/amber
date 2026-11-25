@@ -68,6 +68,13 @@ enum class DoneState {
     /** "All set". */
     READY,
 
+    /**
+     * Nothing on this phone can recognize speech yet: Android's recognition is the active one
+     * and the phone has none (de-Googled). A model or a server is the way. Ranked before the
+     * model and language-pack states: those wait for something that would not help.
+     */
+    NO_RECOGNITION,
+
     /** The model a dictation needs is still on its way. */
     MODEL_MISSING,
 
@@ -238,15 +245,23 @@ object FirstRun {
      * it still waits for a model - the one the first run fetches ([stage]) when no other
      * recognition stands in, or the active recognition's own download ([activeDownload]),
      * running or held - nor while Android's recognition lacks the offline pack for its
-     * language ([pack], as [languagePack] reads it; null where nobody could ask).
+     * language ([pack], as [languagePack] reads it; null where nobody could ask). Before all
+     * of those: [nothingRecognizes] ([nothingRecognizes]) - then no model or pack on its way
+     * makes this recognition work. Add states that outrank it above it.
      */
-    fun atDone(stage: PendingStage?, activeDownload: ModelDownload?, pack: LanguagePack? = null): DoneState {
+    fun atDone(
+        stage: PendingStage?,
+        activeDownload: ModelDownload?,
+        pack: LanguagePack? = null,
+        nothingRecognizes: Boolean = false,
+    ): DoneState {
         val modelThere = when (stage) {
             null -> activeDownload == null
             PendingStage.SMALL_STANDS_IN, PendingStage.ANDROID_STANDS_IN -> true
             PendingStage.SMALL_FIRST, PendingStage.OWN -> false
         }
         return when {
+            nothingRecognizes -> DoneState.NO_RECOGNITION
             !modelThere -> DoneState.MODEL_MISSING
             pack == LanguagePack.MISSING -> DoneState.LANGUAGE_PACK_MISSING
             pack == LanguagePack.DOWNLOADING -> DoneState.LANGUAGE_PACK_DOWNLOADING
@@ -254,6 +269,14 @@ object FirstRun {
             else -> DoneState.READY
         }
     }
+
+    /**
+     * Whether the active recognition is Android's and the phone has none of it
+     * ([androidRecognizer] false; null where nobody could ask: no claim). Dictating would fail
+     * every time, so the screens say so and point at a model or a server.
+     */
+    fun nothingRecognizes(settings: AmethystSettings, androidRecognizer: Boolean?): Boolean =
+        androidRecognizer == false && settings.activeEngine?.kind == EngineKind.ANDROID_ON_DEVICE
 
     /**
      * The language whose offline pack Android is asked about: the one the active recognition

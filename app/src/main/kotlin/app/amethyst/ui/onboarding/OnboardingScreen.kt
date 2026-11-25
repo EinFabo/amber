@@ -145,7 +145,7 @@ fun OnboardingScreen(
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
                 OnboardingStep.DONE -> DoneStep(
                     settings, content.download, content.pending, content.nudge, content.onOpenRecognition,
-                    content.languagePack, content.checkLanguagePack, content.onGetLanguagePack, onFinish,
+                    content.languagePack, content.checkLanguagePack, content.onGetLanguagePack, content.phone?.androidRecognizer, onFinish,
                 )
             }
         }

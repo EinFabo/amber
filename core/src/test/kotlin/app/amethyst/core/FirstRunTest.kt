@@ -559,6 +559,29 @@ class FirstRunTest {
     }
 
     @Test
+    fun `the last step says nothing recognizes while android's recognition is active and the phone has none`() {
+        val androidActive = fresh
+        assertTrue(FirstRun.nothingRecognizes(androidActive, androidRecognizer = false))
+        assertFalse(FirstRun.nothingRecognizes(androidActive, androidRecognizer = true))
+        // Nobody could ask yet: no claim.
+        assertFalse(FirstRun.nothingRecognizes(androidActive, androidRecognizer = null))
+        val onModel = FirstRun.use(androidActive, EngineOption.FUTO_74, emptyList())
+        assertFalse(FirstRun.nothingRecognizes(onModel, androidRecognizer = false))
+        // It outranks a model on its way and a language pack.
+        assertEquals(DoneState.NO_RECOGNITION, FirstRun.atDone(stage = null, activeDownload = ModelDownload.WaitingForWifi, pack = LanguagePack.MISSING, nothingRecognizes = true))
+        assertEquals(DoneState.NO_RECOGNITION, FirstRun.atDone(PendingStage.ANDROID_STANDS_IN, activeDownload = null, nothingRecognizes = true))
+        assertEquals(DoneState.READY, FirstRun.atDone(stage = null, activeDownload = null, nothingRecognizes = false))
+    }
+
+    @Test
+    fun `the quick setup on a phone with nothing to recognize with picks nothing and leaves android's row`() {
+        val bare = PhoneFacts(2_048, 500, whisperCpu = false, androidOnDevice = false, androidRecognizer = false)
+        val plan = FirstRun.plan(bare, nothingReady)
+        assertEquals(EngineOption.SERVER, plan.now)
+        assertTrue(FirstRun.nothingRecognizes(FirstRun.quick(fresh, plan, apps, emptyList()), androidRecognizer = false))
+    }
+
+    @Test
     fun `the last step says all set only when android has the language pack`() {
         assertEquals(DoneState.READY, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.INSTALLED))
         assertEquals(DoneState.LANGUAGE_PACK_MISSING, FirstRun.atDone(stage = null, activeDownload = null, pack = LanguagePack.MISSING))

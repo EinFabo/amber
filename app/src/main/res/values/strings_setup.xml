@@ -100,6 +100,9 @@
     <string name="ready_step_title">Keep Embersay ready</string>
     <string name="ready_step_lead">Optional. Without this, some phones cut off the microphone in the background.</string>
     <string name="done_title">All set</string>
+    <string name="done_title_no_recognition">Nothing can recognize speech yet</string>
+    <string name="no_recognition_note">Nothing on this phone can recognize speech yet. Download a model, or use a server.</string>
+    <string name="no_recognition_choose">Choose a model or server</string>
     <string name="done_title_model_missing">The model isn\'t on the phone yet</string>
     <string name="done_title_language_pack">The language pack isn\'t on the phone yet</string>
     <string name="done_title_language_pack_downloading">The language pack is downloading</string>

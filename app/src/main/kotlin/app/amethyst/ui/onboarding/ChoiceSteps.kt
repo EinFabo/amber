@@ -204,6 +204,8 @@ internal fun DoneStep(
     languagePack: LanguagePack? = null,
     checkLanguagePack: suspend () -> LanguagePack? = { null },
     onGetLanguagePack: () -> Unit = {},
+    /** Whether the phone has a recognizer of Android's; null while it is read. */
+    androidRecognizer: Boolean? = null,
     onFinish: () -> Unit,
 ) {
     val rows = rememberRowsIn(6)
@@ -213,11 +215,13 @@ internal fun DoneStep(
     // it is not here yet - not "downloading", since it may wait for Wi-Fi or have stopped (the
     // note under the recognition row says which). The same for Android's language pack.
     LanguagePackWatch(settings.activeEngine, checkLanguagePack)
-    val state = FirstRun.atDone(pending?.stage, download, languagePack)
+    val noRecognition = FirstRun.nothingRecognizes(settings, androidRecognizer)
+    val state = FirstRun.atDone(pending?.stage, download, languagePack, noRecognition)
     StepPage(
         title = stringResource(
             when (state) {
                 DoneState.READY -> R.string.done_title
+                DoneState.NO_RECOGNITION -> R.string.done_title_no_recognition
                 DoneState.MODEL_MISSING -> R.string.done_title_model_missing
                 DoneState.LANGUAGE_PACK_MISSING -> R.string.done_title_language_pack
                 DoneState.LANGUAGE_PACK_DOWNLOADING -> R.string.done_title_language_pack_downloading
@@ -245,7 +249,12 @@ internal fun DoneStep(
             stringResource(R.string.done_where_recognition),
             Modifier.rowIn(rows, 0),
         )
-        if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1), progress = true)
+        if (noRecognition) {
+            Column(Modifier.rowIn(rows, 1), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Hint(stringResource(R.string.no_recognition_note), AmberPalette.Primary)
+                GhostButton(stringResource(R.string.no_recognition_choose), onOpenRecognition)
+            }
+        } else if (pending != null) PendingModelNote(pending, Modifier.rowIn(rows, 1), progress = true)
         else if (languagePack != null && languagePack != LanguagePack.INSTALLED) {
             LanguagePackNote(languagePack, onGetLanguagePack, onOpenRecognition, Modifier.rowIn(rows, 1))
         } else if (settings.activeEngine.mayGoToMaker()) {

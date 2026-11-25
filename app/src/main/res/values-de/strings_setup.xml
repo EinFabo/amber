@@ -100,6 +100,9 @@
     <string name="ready_step_title">Embersay bereithalten</string>
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
+    <string name="done_title_no_recognition">Noch nichts kann Sprache erkennen</string>
+    <string name="no_recognition_note">Auf diesem Handy kann noch nichts Sprache erkennen. Lade ein Modell herunter oder nutze einen Server.</string>
+    <string name="no_recognition_choose">Modell oder Server wählen</string>
     <string name="done_title_model_missing">Das Modell ist noch nicht auf dem Handy</string>
     <string name="done_title_language_pack">Das Sprachpaket ist noch nicht auf dem Handy</string>
     <string name="done_title_language_pack_downloading">Das Sprachpaket wird heruntergeladen</string>

@@ -50,12 +50,22 @@ object EngineAdvice {
 
     private const val GIB = 1L shl 30
 
+    /**
+     * The engine to suggest. Where no model fits, Android's recognition is the fallback - but
+     * only on a phone that has one ([PhoneFacts.androidRecognizer]): on a de-Googled phone it
+     * would be a row that fails every dictation. There the answer is [EngineOption.SERVER], not
+     * a new "none": a server is a real way out (Settings sets it up), the engine step already
+     * lists it, and the screens can say "download a model, or use a server" from the one value.
+     * Android's recognition is not offered at all on such a phone.
+     */
     fun recommend(phone: PhoneFacts): Advice {
+        val fallback = if (phone.androidRecognizer) EngineOption.ANDROID else EngineOption.SERVER
         val recommended = listOf(EngineOption.PARAKEET, EngineOption.FUTO_244, EngineOption.FUTO_74)
-            .firstOrNull { fits(it, phone) } ?: EngineOption.ANDROID
+            .firstOrNull { fits(it, phone) } ?: fallback
         val local = listOf(EngineOption.ACFT_LARGE, EngineOption.PARAKEET, EngineOption.FUTO_244, EngineOption.FUTO_74)
             .filter { it != recommended && fits(it, phone) }
-        val others = local + listOfNotNull(EngineOption.ANDROID.takeIf { it != recommended }) + EngineOption.SERVER
+        val android = EngineOption.ANDROID.takeIf { it != recommended && phone.androidRecognizer }
+        val others = local + listOfNotNull(android, EngineOption.SERVER.takeIf { it != recommended })
         return Advice(recommended, others)
     }
 
@@ -64,8 +74,12 @@ object EngineAdvice {
      * Android's recognition, picked where none fits, only where it recognizes on the phone. The
      * welcome step promises "stays on this phone" only then.
      */
-    fun keepsVoiceOnPhone(phone: PhoneFacts): Boolean =
-        recommend(phone).recommended != EngineOption.ANDROID || phone.androidOnDevice
+    fun keepsVoiceOnPhone(phone: PhoneFacts): Boolean = when (recommend(phone).recommended) {
+        EngineOption.ANDROID -> phone.androidOnDevice
+        // Nothing recognizes yet: no promise about where the voice goes.
+        EngineOption.SERVER -> false
+        else -> true
+    }
 
     fun fits(option: EngineOption, phone: PhoneFacts): Boolean {
         val room = option.downloadBytes / 1_000_000 + STORAGE_MARGIN_MB <= phone.freeStorageMb

@@ -148,6 +148,10 @@ class FirstRunSetup(
         /** The language Android's recognition hears where none is set for it ([AndroidOnDeviceEngine]). */
         fun phoneTag(): String = Locale.getDefault().toLanguageTag()
 
+        /** Whether the phone has a speech recognizer of Android's at all; a de-Googled one comes without. */
+        fun androidRecognizer(context: Context): Boolean =
+            runCatching { SpeechRecognizer.isRecognitionAvailable(context) }.getOrDefault(false)
+
         /**
          * What is weighed to suggest a recognition: memory, room for models, the CPU, Android's
          * own recognizer. Off the main thread - it loads the Whisper library to ask about the CPU.
@@ -162,7 +166,7 @@ class FirstRunSetup(
                 freeStorageMb = models.available() / 1_000_000,
                 whisperCpu = WhisperNative.cpuSupported(),
                 androidOnDevice = AndroidOnDeviceEngine.onDeviceSpeech,
-                androidRecognizer = runCatching { SpeechRecognizer.isRecognitionAvailable(context) }.getOrDefault(false),
+                androidRecognizer = androidRecognizer(context),
             )
         }
     }

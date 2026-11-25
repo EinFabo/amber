@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_android_leaves">May send your voice to its maker. Tap to choose another.</string>
+    <string name="home_no_recognition">Nothing on this phone can recognize speech yet. Tap to download a model or use a server.</string>
     <string name="home_no_engine">No speech recognition selected</string>
     <string name="home_own_cleanup">Own cleanup model</string>
     <string name="home_own_cleanup_in">In %1$s</string>

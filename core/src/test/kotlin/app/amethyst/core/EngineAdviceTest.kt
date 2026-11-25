@@ -85,4 +85,23 @@ class EngineAdviceTest {
         assertFalse(EngineAdvice.keepsVoiceOnPhone(a20e))
         assertTrue(EngineAdvice.keepsVoiceOnPhone(a20e.copy(androidOnDevice = true)))
     }
+
+    @Test
+    fun `a phone with no recognizer of android's and no model that fits is pointed at a server`() {
+        val bare = PhoneFacts(totalRamMb = 2_048, freeStorageMb = 500, whisperCpu = false, androidOnDevice = false, androidRecognizer = false)
+        val advice = EngineAdvice.recommend(bare)
+        assertEquals(EngineOption.SERVER, advice.recommended)
+        assertFalse(EngineOption.ANDROID in advice.others)
+        assertFalse(advice.recommended in advice.others)
+        // Nothing recognizes, so nothing "stays on this phone".
+        assertFalse(EngineAdvice.keepsVoiceOnPhone(bare))
+    }
+
+    @Test
+    fun `a phone with no recognizer of android's gets the model that fits and no android option`() {
+        val advice = EngineAdvice.recommend(PhoneFacts(8_000, 4_000, whisperCpu = true, androidOnDevice = false, androidRecognizer = false))
+        assertEquals(EngineOption.PARAKEET, advice.recommended)
+        assertFalse(EngineOption.ANDROID in advice.others)
+        assertTrue(EngineOption.SERVER in advice.others)
+    }
 }

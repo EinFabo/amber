@@ -49,6 +49,7 @@ import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.Texts
 import app.amethyst.core.engine.DownloadNotice
 import app.amethyst.core.engine.LanguagePack
+import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.insert.InsertionStrategy
@@ -151,6 +152,8 @@ fun HomeScreen(
     languagePack: LanguagePack? = null,
     /** Asks Android again about that pack; null where there is nothing to ask. */
     checkLanguagePack: suspend () -> LanguagePack? = { null },
+    /** Whether the phone has a recognizer of Android's; null while it is read. */
+    androidRecognizer: Boolean? = null,
 ) {
     val testField = remember { FocusRequester() }
 
@@ -201,7 +204,7 @@ fun HomeScreen(
         }
         if (others.alsoOn.isNotEmpty()) OtherAmbersCard(others.alsoOn, actions.openAccessibilityList)
 
-        EngineGroup(settings, onOpenRecognition, onOpenCleanup)
+        EngineGroup(settings, onOpenRecognition, onOpenCleanup, nothingRecognizes = FirstRun.nothingRecognizes(settings, androidRecognizer))
 
         // Said here too: someone who skipped the introduction never saw its last step.
         if (pending != null) PendingModelNote(pending, Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
@@ -332,7 +335,7 @@ private fun OrbArea(
  * does - it may go further than the recording. Each row leads to its own choice.
  */
 @Composable
-private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit) {
+private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Unit, onOpenCleanup: () -> Unit, nothingRecognizes: Boolean) {
     val active = settings.activeEngine
     val cleanup = settings.cleanupSummary(badged = true)
     val cleanupEngine = settings.cleanupEngine()
@@ -349,10 +352,15 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
             title = active?.let { recognitionRowName(it) } ?: stringResource(R.string.home_no_engine),
             // Android's recognition where it may send the voice to its maker - the quick setup
             // picks it where no model fits: said, not only badged, with the way to another a tap away.
-            summary = if (active.mayGoToMaker()) stringResource(R.string.home_android_leaves) else null,
-            summaryMaxLines = 2,
+            summary = when {
+                // Said before anything about where the voice goes: nothing recognizes at all.
+                nothingRecognizes -> stringResource(R.string.home_no_recognition)
+                active.mayGoToMaker() -> stringResource(R.string.home_android_leaves)
+                else -> null
+            },
+            summaryMaxLines = 3,
             icon = AmberIcons.Mic,
-            titleColor = if (active == null) AmberPalette.Error else AmberPalette.Text,
+            titleColor = if (active == null || nothingRecognizes) AmberPalette.Error else AmberPalette.Text,
             below = active?.let { { TrustBadge(it.trustLevelForDisplay()) } },
             onClick = onOpenRecognition,
         )

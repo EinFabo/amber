@@ -20,9 +20,18 @@ enum class Recognition {
     ;
 
     companion object {
-        /** [needsModel]: the engine runs on a model Amber downloads; a server or Android's recognizer needs none. */
-        fun of(engineChosen: Boolean, downloading: Boolean, needsModel: Boolean, modelReady: Boolean): Recognition = when {
-            !engineChosen -> NONE
+        /**
+         * [needsModel]: the engine runs on a model Amber downloads; a server or Android's recognizer needs none.
+         * [recognizerMissing]: the engine is Android's and the phone has none ([FirstRun.nothingRecognizes]).
+         */
+        fun of(
+            engineChosen: Boolean,
+            downloading: Boolean,
+            needsModel: Boolean,
+            modelReady: Boolean,
+            recognizerMissing: Boolean = false,
+        ): Recognition = when {
+            !engineChosen || recognizerMissing -> NONE
             downloading -> DOWNLOADING
             needsModel && !modelReady -> NONE
             else -> READY
