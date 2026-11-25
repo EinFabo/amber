@@ -280,6 +280,33 @@ class WhisperTest {
         assertEquals("Vielen Dank.", WhisperOutput.clean(" Vielen Dank."))
     }
 
+    @Test
+    fun `a hallucinated last sentence after real speech is dropped`() {
+        assertEquals(
+            "Wir sehen uns morgen.",
+            WhisperOutput.clean("Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020."),
+        )
+        assertEquals("See you tomorrow.", WhisperOutput.clean("See you tomorrow. Thanks for watching!"))
+    }
+
+    @Test
+    fun `thanks for watching alone is dropped`() {
+        assertEquals("", WhisperOutput.clean("Thanks for watching!"))
+    }
+
+    @Test
+    fun `a phrase inside a real sentence stays`() {
+        assertEquals("Thanks for watching the kids.", WhisperOutput.clean("Thanks for watching the kids."))
+        assertEquals(
+            "Danke fürs Zuschauen war nett. Bis morgen.",
+            WhisperOutput.clean("Danke fürs Zuschauen war nett. Bis morgen."),
+        )
+        assertEquals(
+            "Ich sage danke fürs Zuschauen und gehe.",
+            WhisperOutput.clean("Ich sage danke fürs Zuschauen und gehe."),
+        )
+    }
+
     // --- engine --------------------------------------------------------------------------
 
     private class FakeRuntime(

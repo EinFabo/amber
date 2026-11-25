@@ -63,15 +63,28 @@ class HttpIntegrationTest {
         server.stop(0)
     }
 
-    private fun engine() = OpenAiCompatibleEngine(
+    private fun engine(model: String = "whisper-large-v3-turbo") = OpenAiCompatibleEngine(
         id = "self-hosted",
         displayName = "Eigener Server",
         baseUrl = baseUrl,
-        modelId = "whisper-large-v3-turbo",
+        modelId = model,
         transport = OkHttpTransport(),
         apiKeyProvider = { "test-key" },
         capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = true),
     )
+
+    @Test
+    fun `a whisper model's invented last sentence is dropped, another model's text is kept`() = runTest {
+        responseBody = """{"text":"Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020.","language":"de"}"""
+        assertEquals("Wir sehen uns morgen.", engine("whisper-1").transcribe(speechLikeAudio()).getOrThrow().text)
+        assertEquals(
+            "Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020.",
+            engine("gpt-4o-transcribe").transcribe(speechLikeAudio()).getOrThrow().text,
+        )
+        responseBody = """{"text":"Thanks for watching!"}"""
+        val failure = assertIs<SttFailure>(engine("Whisper-Large-V3").transcribe(speechLikeAudio()).exceptionOrNull())
+        assertEquals(Problem.NothingRecognized, failure.problem)
+    }
 
     private fun speechLikeAudio() = PcmAudio(
         ShortArray(16_000) { i -> (4_000 * kotlin.math.sin(i / 12.0)).toInt().toShort() },

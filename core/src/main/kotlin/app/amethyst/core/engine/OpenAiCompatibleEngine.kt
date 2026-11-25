@@ -2,6 +2,7 @@ package app.amethyst.core.engine
 
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.engine.whisper.WhisperInput
+import app.amethyst.core.engine.whisper.WhisperOutput
 import app.amethyst.core.net.HttpBody
 import app.amethyst.core.net.HttpRequest
 import app.amethyst.core.net.HttpResponse
@@ -150,8 +151,10 @@ class OpenAiCompatibleEngine(
         }
 
         // A Whisper on the server may write the own words back on silence, as a small one on the phone does.
-        val echo = OwnWords.echoed(parsed.text, options.vocabularyHint?.takeIf { capabilities.vocabulary })
-        if (parsed.text.isBlank() || echo) {
+        // A Whisper model also invents a subtitle credit after real speech; another model does not.
+        val text = if (WhisperOutput.isWhisperFamily(modelId)) WhisperOutput.clean(parsed.text) else parsed.text
+        val echo = OwnWords.echoed(text, options.vocabularyHint?.takeIf { capabilities.vocabulary })
+        if (text.isBlank() || echo) {
             return Result.failure(
                 SttFailure(
                     problem = Problem.NothingRecognized,
@@ -163,7 +166,7 @@ class OpenAiCompatibleEngine(
 
         return Result.success(
             Transcript(
-                text = parsed.text,
+                text = text,
                 engineId = id,
                 trustLevel = sent.trust,
                 latencyMs = clock() - startedAt,

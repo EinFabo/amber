@@ -144,6 +144,27 @@ object WhisperOutput {
         val text = raw.replace(annotation, " ")
             .replace(Regex("""\s+"""), " ")
             .trim()
-        return if (hallucinations.any { it.matches(text) }) "" else text
+        return dropInventedTail(text)
+    }
+
+    /**
+     * Whether [modelId] names a Whisper model (Groq's whisper-large-v3, OpenAI's whisper-1):
+     * these invent subtitle credits on silence, other models do not.
+     */
+    fun isWhisperFamily(modelId: String): Boolean = modelId.contains("whisper", ignoreCase = true)
+
+    /**
+     * Drops a known invented line when it is a whole last sentence ("Wir sehen uns morgen.
+     * Untertitel im Auftrag des ZDF."), or the whole text. A real sentence that only contains
+     * the words stays.
+     */
+    private fun dropInventedTail(text: String): String {
+        var kept = text
+        while (kept.isNotEmpty()) {
+            val cut = Regex("""[.!?]\s+""").findAll(kept).lastOrNull()?.range?.last?.plus(1) ?: 0
+            if (hallucinations.none { it.matches(kept.substring(cut)) }) break
+            kept = kept.substring(0, cut).trim()
+        }
+        return kept
     }
 }

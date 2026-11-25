@@ -5,6 +5,15 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D4, Whisper's invented credits are dropped on servers too.** A Whisper model (id contains
+  "whisper": Groq's `whisper-large-v3`, OpenAI's `whisper-1`, an own server's) can write
+  "Untertitel im Auftrag des ZDF" or "Thanks for watching!" after real speech. This was only
+  filtered for the phone's Whisper, and only as a whole text. Now a known line is dropped
+  from servers too (each piece of a long dictation on its own), and also when it is the whole
+  last sentence after real speech ("Wir sehen uns morgen. Untertitel ..." -> "Wir sehen uns
+  morgen."). A real sentence that only contains the words ("Thanks for watching the kids.")
+  stays; `gpt-4o-transcribe` and other models are not touched. Try: dictate a sentence, then
+  stay silent for a few seconds, with Groq and with the phone's Whisper.
 - **D3, Long dictations get no stray full stops at the cuts.** A long dictation is cut into
   pieces and each came back as a sentence of its own. The cut now prefers a real pause of
   800 ms; a breath of 450 ms cuts only in the last quarter before the longest piece (25 s), so
