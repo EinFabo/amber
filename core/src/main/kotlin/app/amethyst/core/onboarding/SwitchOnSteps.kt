@@ -44,14 +44,41 @@ enum class SwitchOnStep {
     /** The app info's "Battery" row. */
     TAP_BATTERY,
 
-    /** The battery page's "Unrestricted" choice. */
+    /** The battery page's "Unrestricted" choice (Android 12 and later). */
     UNRESTRICTED,
 
-    /** Samsung's list of apps that are never put to sleep, beside the app info's choice. */
+    /** Before Android 12: Android's "Battery optimization" list, which the app opens itself. */
+    BATTERY_OPTIMIZATION,
+
+    /** Its filter at the top, from the apps that are not optimized to "All apps". */
+    ALL_APPS,
+
+    /** Embersay in that list, then "Don't optimize". */
+    DONT_OPTIMIZE,
+
+    /** Before Android 12 on Samsung: One UI's "Optimize battery usage" list, which the app opens itself. */
+    OPTIMIZE_BATTERY_USAGE,
+
+    /** Its filter at the top, set to "All". */
+    ALL_SAMSUNG,
+
+    /** The switch beside Embersay, turned off. */
+    SWITCH_OFF_OPTIMIZING,
+
+    /** Samsung's list of apps that are never put to sleep, beside the battery choice ([SwitchOnPlan.batteryExtra]). */
     NEVER_SLEEPING,
 
-    /** Xiaomi's autostart switch, which keeps a background app from being killed at once. */
+    /** Xiaomi's autostart switch, which keeps a background app from being killed at once ([SwitchOnPlan.batteryExtra]). */
     AUTOSTART,
+}
+
+/** Where the battery row's button goes ([SwitchOnPlan.batteryPage]). */
+enum class BatteryPage {
+    /** Embersay's own app info, whose "Battery" page has "Unrestricted". */
+    APP_INFO,
+
+    /** Android's battery optimization list, with Embersay under "All apps". */
+    OPTIMIZATION_LIST,
 }
 
 /** The steps to the accessibility switch and to unrestricted battery use, per [SettingsMaker]. */
@@ -67,13 +94,41 @@ object SwitchOnPlan {
         return first + listOf(SwitchOnStep.TAP_SERVICE, SwitchOnStep.TURN_ON, SwitchOnStep.ALLOW)
     }
 
-    /** The way to unrestricted battery use, starting in Embersay's app info (which the app opens). */
-    fun battery(maker: SettingsMaker): List<SwitchOnStep> {
-        val common = listOf(SwitchOnStep.APP_INFO, SwitchOnStep.TAP_BATTERY, SwitchOnStep.UNRESTRICTED)
-        return when (maker) {
-            SettingsMaker.AOSP -> common
-            SettingsMaker.SAMSUNG -> common + SwitchOnStep.NEVER_SLEEPING
-            SettingsMaker.XIAOMI -> common + SwitchOnStep.AUTOSTART
-        }
+    /** The first Android whose app info has a battery page with "Unrestricted" (12). */
+    const val UNRESTRICTED_FROM_SDK = 31
+
+    /**
+     * The way to unrestricted battery use on Android [sdk], numbered under the battery row:
+     * from Android 12 in Embersay's app info (Battery, Unrestricted); before it, where the app
+     * info has no such choice, in the battery optimization list, as the [maker] words it. The
+     * maker's own extra step is not among them: the return to Embersay after the last one ends
+     * the list, so it has a row of its own ([batteryExtra]).
+     */
+    fun battery(maker: SettingsMaker, sdk: Int): List<SwitchOnStep> = when {
+        sdk >= UNRESTRICTED_FROM_SDK -> listOf(SwitchOnStep.APP_INFO, SwitchOnStep.TAP_BATTERY, SwitchOnStep.UNRESTRICTED)
+        maker == SettingsMaker.SAMSUNG -> listOf(SwitchOnStep.OPTIMIZE_BATTERY_USAGE, SwitchOnStep.ALL_SAMSUNG, SwitchOnStep.SWITCH_OFF_OPTIMIZING)
+        else -> listOf(SwitchOnStep.BATTERY_OPTIMIZATION, SwitchOnStep.ALL_APPS, SwitchOnStep.DONT_OPTIMIZE)
     }
+
+    /** The page the battery row's button opens on Android [sdk], where [battery]'s steps start. */
+    fun batteryPage(sdk: Int): BatteryPage =
+        if (sdk >= UNRESTRICTED_FROM_SDK) BatteryPage.APP_INFO else BatteryPage.OPTIMIZATION_LIST
+
+    /**
+     * What the [maker] adds to unrestricted battery use, so the bubble is not put to sleep or
+     * killed after all: Samsung's "Never sleeping apps", Xiaomi's "Autostart". Null elsewhere.
+     */
+    fun batteryExtra(maker: SettingsMaker): SwitchOnStep? = when (maker) {
+        SettingsMaker.AOSP -> null
+        SettingsMaker.SAMSUNG -> SwitchOnStep.NEVER_SLEEPING
+        SettingsMaker.XIAOMI -> SwitchOnStep.AUTOSTART
+    }
+
+    /**
+     * The [maker]'s extra step as a row of its own: once the battery is unrestricted - the
+     * numbered steps come first, and Android shows no sign of the extra one - until the user
+     * marked it [done], which is for good.
+     */
+    fun batteryExtraShown(maker: SettingsMaker, batteryUnrestricted: Boolean, done: Boolean): SwitchOnStep? =
+        batteryExtra(maker)?.takeIf { batteryUnrestricted && !done }
 }

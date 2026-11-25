@@ -17,11 +17,14 @@ import androidx.core.content.ContextCompat
 import app.amethyst.accessibility.AmethystAccessibilityService
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.AmberVariant
+import app.amethyst.core.onboarding.BatteryPage
 import app.amethyst.core.onboarding.InstallSource
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.onboarding.PackageSource
 import app.amethyst.core.onboarding.RestrictedSettings
 import app.amethyst.core.onboarding.ServiceHealth
+import app.amethyst.core.onboarding.SwitchOnPlan
+import app.amethyst.core.onboarding.SwitchOnStep
 import app.amethyst.engine.FirstRunSetup
 
 /** Everything that has to be true before a tap on the bubble can produce text. */
@@ -174,13 +177,41 @@ object Setup {
     )
 
     /**
-     * Opens Embersay's own app info, where "Battery" holds the switch. Not
-     * ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, whose list is filtered and does not show
-     * Embersay, and not REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, whose prompt is a Play policy
-     * violation for most app categories. The steps from there are on screen
-     * ([app.amethyst.core.onboarding.SwitchOnPlan.battery]). False if nothing opened.
+     * Opens where the battery steps start ([SwitchOnPlan.batteryPage]): from Android 12
+     * Embersay's own app info, where "Battery" holds "Unrestricted"; before it, where the app
+     * info has no such choice, ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS - its list starts
+     * filtered to the apps that are not optimized, so the steps say to switch it to all apps -
+     * and the app info if that list is missing. Never REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+     * whose prompt is a Play policy violation for most app categories. The steps are on screen
+     * ([SwitchOnPlan.battery]). False if nothing opened.
      */
-    fun openBatterySettings(context: Context): Boolean = openAppSettings(context)
+    fun openBatterySettings(context: Context): Boolean = when (SwitchOnPlan.batteryPage(Build.VERSION.SDK_INT)) {
+        BatteryPage.APP_INFO -> openAppSettings(context)
+        BatteryPage.OPTIMIZATION_LIST ->
+            tryStart(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) || openAppSettings(context)
+    }
+
+    /**
+     * Opens the maker's extra battery step ([SwitchOnPlan.batteryExtra]) as close as the phone
+     * allows: One UI's battery page (where "Background usage limits" leads to "Never sleeping
+     * apps"), MIUI's autostart list; both are the maker's own screens, not Android's, and may be
+     * missing or guarded - then Embersay's app info, where MIUI has "Autostart" too. No return
+     * to Embersay is watched: nothing Android reports tells that it is done.
+     */
+    fun openBatteryExtra(context: Context, step: SwitchOnStep): Boolean {
+        val own = when (step) {
+            SwitchOnStep.NEVER_SLEEPING -> listOf(
+                ComponentName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"),
+                ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"),
+                ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity"),
+            )
+            SwitchOnStep.AUTOSTART -> listOf(
+                ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
+            )
+            else -> emptyList()
+        }
+        return own.any { tryStart(context, Intent().setComponent(it)) } || openAppSettings(context)
+    }
 
     /** Starts [intent] in a task of its own; a missing or guarded screen is a false, not a crash. */
     private fun tryStart(context: Context, intent: Intent): Boolean =

@@ -46,6 +46,15 @@
     <string name="battery_step_never_sleeping_note">In Settings → Battery → Background usage limits</string>
     <string name="battery_step_autostart">Turn on “Autostart”</string>
     <string name="battery_step_autostart_note">In the app info, or in Settings → Apps → Permissions</string>
+    <string name="battery_step_optimization">Open “Battery optimization”</string>
+    <string name="battery_step_list_note">The button above opens the list</string>
+    <string name="battery_step_all_apps">At the top, choose “All apps”</string>
+    <string name="battery_step_all_apps_note">At first the list shows only the apps that are not optimized</string>
+    <string name="battery_step_dont_optimize">Tap Embersay, then “Don\'t optimize” and “Done”</string>
+    <string name="battery_step_optimize_usage">Open “Optimize battery usage”</string>
+    <string name="battery_step_all_samsung">At the top, choose “All”</string>
+    <string name="battery_step_switch_off">Turn off the switch next to Embersay</string>
+    <string name="battery_extra_done">Done</string>
     <string name="where_allow">Allow</string>
     <string name="where_as_text">Show steps as text</string>
     <string name="where_hide_text">Hide steps</string>

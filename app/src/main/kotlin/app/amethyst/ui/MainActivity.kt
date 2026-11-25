@@ -944,6 +944,8 @@ private fun AmethystScreens(
                                         updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }
                                     },
                                     onDismissOldAmber = { updateSettings { it.copy(ui = it.ui.copy(oldAmberDismissed = true)) } },
+                                    onOpenBatteryExtra = { step -> Setup.openBatteryExtra(context, step) },
+                                    onBatteryExtraDone = { updateSettings { it.copy(ui = it.ui.copy(batteryExtraDone = true)) } },
                                 )
 
                                 Screen.Settings -> SettingsScreen(

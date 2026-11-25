@@ -791,6 +791,8 @@ data class UiSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     /** Home's card asking to uninstall the old Amber was dismissed ([app.amethyst.core.onboarding.OtherAmbers.notice]). */
     val oldAmberDismissed: Boolean = false,
+    /** Home's row for the maker's extra battery step was marked done ([app.amethyst.core.onboarding.SwitchOnPlan.batteryExtraShown]). */
+    val batteryExtraDone: Boolean = false,
 )
 
 /** Whether Amber's own screens are light or dark. The bubble and its quick menu keep their colours. */

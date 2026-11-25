@@ -184,11 +184,15 @@ fun SwitchOnSteps() {
     }
 }
 
-/** The way to unrestricted battery use as numbered steps for this phone, under the row whose button opens the app info. */
+/**
+ * The way to unrestricted battery use as numbered steps for this phone and its Android, under
+ * the row whose button opens where they start (the app info, or before Android 12 the battery
+ * optimization list).
+ */
 @Composable
 fun BatterySteps() {
     val context = LocalContext.current
-    val steps = remember { SwitchOnPlan.battery(SettingsMaker.of(Build.MANUFACTURER)) }
+    val steps = remember { SwitchOnPlan.battery(SettingsMaker.of(Build.MANUFACTURER), Build.VERSION.SDK_INT) }
     SettingsGroup(stringResource(R.string.battery_group)) {
         steps.forEachIndexed { index, step ->
             if (index > 0) RowDivider()

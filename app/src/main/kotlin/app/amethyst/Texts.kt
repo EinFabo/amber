@@ -63,6 +63,12 @@ object Texts {
             SwitchOnStep.APP_INFO -> getString(R.string.battery_step_app_info) to getString(R.string.battery_step_app_info_note)
             SwitchOnStep.TAP_BATTERY -> getString(R.string.battery_step_battery) to null
             SwitchOnStep.UNRESTRICTED -> getString(R.string.battery_step_unrestricted) to getString(R.string.battery_step_unrestricted_note)
+            SwitchOnStep.BATTERY_OPTIMIZATION -> getString(R.string.battery_step_optimization) to getString(R.string.battery_step_list_note)
+            SwitchOnStep.ALL_APPS -> getString(R.string.battery_step_all_apps) to getString(R.string.battery_step_all_apps_note)
+            SwitchOnStep.DONT_OPTIMIZE -> getString(R.string.battery_step_dont_optimize) to getString(R.string.battery_step_unrestricted_note)
+            SwitchOnStep.OPTIMIZE_BATTERY_USAGE -> getString(R.string.battery_step_optimize_usage) to getString(R.string.battery_step_list_note)
+            SwitchOnStep.ALL_SAMSUNG -> getString(R.string.battery_step_all_samsung) to getString(R.string.battery_step_all_apps_note)
+            SwitchOnStep.SWITCH_OFF_OPTIMIZING -> getString(R.string.battery_step_switch_off) to getString(R.string.battery_step_unrestricted_note)
             SwitchOnStep.NEVER_SLEEPING -> getString(R.string.battery_step_never_sleeping) to getString(R.string.battery_step_never_sleeping_note)
             SwitchOnStep.AUTOSTART -> getString(R.string.battery_step_autostart) to getString(R.string.battery_step_autostart_note)
         }

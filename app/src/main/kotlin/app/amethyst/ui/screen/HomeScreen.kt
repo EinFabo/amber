@@ -55,6 +55,9 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.OtherAmbers
+import app.amethyst.core.onboarding.SettingsMaker
+import app.amethyst.core.onboarding.SwitchOnPlan
+import app.amethyst.core.onboarding.SwitchOnStep
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppEngineMode
@@ -155,6 +158,10 @@ fun HomeScreen(
     checkLanguagePack: suspend () -> LanguagePack? = { null },
     /** Whether the phone has a recognizer of Android's; null while it is read. */
     androidRecognizer: Boolean? = null,
+    /** Opens the maker's extra battery step ([SwitchOnPlan.batteryExtra]); no return is watched. */
+    onOpenBatteryExtra: (SwitchOnStep) -> Unit = {},
+    /** That step marked done: its row goes for good. */
+    onBatteryExtraDone: () -> Unit = {},
 ) {
     val testField = remember { FocusRequester() }
 
@@ -239,7 +246,12 @@ fun HomeScreen(
         TestFieldCard(testField, Modifier)
 
         val reliable = setup.notificationsGranted && setup.batteryUnrestricted
-        if (setup.ready && !reliable) ReliabilitySection(setup, actions)
+        // Samsung's "Never sleeping apps", Xiaomi's "Autostart": a row of its own once the
+        // battery is unrestricted - the return after "Unrestricted" would end a numbered step.
+        val extra = SwitchOnPlan.batteryExtraShown(SettingsMaker.of(Build.MANUFACTURER), setup.batteryUnrestricted, settings.ui.batteryExtraDone)
+        if (setup.ready && (!reliable || extra != null)) {
+            ReliabilitySection(setup, actions, extra, { extra?.let(onOpenBatteryExtra) }, onBatteryExtraDone)
+        }
     }
 }
 
@@ -623,12 +635,36 @@ private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
 }
 
 @Composable
-private fun ReliabilitySection(setup: SetupState, actions: SetupActions) {
+private fun ReliabilitySection(
+    setup: SetupState,
+    actions: SetupActions,
+    extra: SwitchOnStep?,
+    onOpenExtra: () -> Unit,
+    onExtraDone: () -> Unit,
+) {
     SectionCard(
         title = stringResource(R.string.settings_reliability),
         subtitle = stringResource(R.string.reliability_subtitle),
     ) {
         ReliabilityRows(setup, actions)
+        if (extra != null) BatteryExtraRow(extra, onOpenExtra, onExtraDone)
+    }
+}
+
+/**
+ * The maker's extra battery step ([SwitchOnPlan.batteryExtraShown]): what to do and where,
+ * "Open" for the closest screen there is, and "Done" - Android reports nothing that would
+ * tell, so the user says when.
+ */
+@Composable
+private fun BatteryExtraRow(step: SwitchOnStep, onOpen: () -> Unit, onDone: () -> Unit) {
+    val (title, note) = Texts.switchOnStep(LocalContext.current, step, "")
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        StatusRow(label = title, description = note.orEmpty(), done = false, actionLabel = null, onAction = {})
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            GhostButton(stringResource(R.string.battery_extra_done), onDone, color = AmberPalette.Muted)
+            GhostButton(stringResource(R.string.open), onOpen)
+        }
     }
 }
 

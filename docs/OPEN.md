@@ -32,12 +32,21 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   Whisper CPU), or on a replay, the choice is active at once as before. Only one model is ever
   loaded: the small one is released before the switch. Try on the A20e: Step by step, choose
   Parakeet, continue - the practice step waits for ~80 MB, not 670 MB.
-- **C6, the battery step leads to the right switch.** "Unrestricted battery" now opens
-  Embersay's own app info (the battery-optimisation list Android offers does not list it) and
-  shows numbered steps under the row: app info, Battery, Unrestricted; on Samsung also "Never
-  sleeping apps", on Xiaomi also "Autostart". The return to Embersay once it is unrestricted
-  is unchanged. Try on the A20e: Settings -> Reliability -> Open; check the app info opens and
-  the labels (German: "Akku", "Uneingeschränkt", "Nie schlafende Apps") match One UI.
+- **C6, the battery step leads to the right switch.** From Android 12, "Unrestricted battery"
+  opens Embersay's own app info and shows numbered steps under the row: app info, Battery,
+  Unrestricted. Before Android 12 (the A20e), where the app info has no "Unrestricted", it
+  opens Android's battery optimization list instead, with its steps: "Battery optimization",
+  "All apps" at the top, Embersay, "Don't optimize" and "Done"; on Samsung "Optimize battery
+  usage", "All", the switch next to Embersay off (`SwitchOnPlan.battery(maker, sdk)`). The
+  return to Embersay once it is unrestricted is unchanged. Samsung's "Never sleeping apps" and
+  Xiaomi's "Autostart" are no longer a numbered step that the return hides: once the battery
+  is unrestricted, Home's Reliability section shows them as a row of their own, with "Open"
+  (One UI's battery page or MIUI's autostart list where they open, else the app info) and
+  "Done", which hides the row for good (`batteryExtraDone`); no return is watched for it. Try
+  on the A20e: Home -> Reliability -> Open; check the list opens, the labels match One UI
+  (German: "Akkunutzung optimieren", "Alle", the switch), the return comes, and then the
+  "Never sleeping apps" row with Open (where does it land?) and Done. On the Pixel (12+): the
+  app info opens, "Akku" and "Uneingeschränkt" or "Nicht eingeschränkt"?
 - **C5, the accessibility steps name the maker's way.** On Samsung the steps in words and the
   note before the settings open start with "Installed apps", on Xiaomi/Redmi/POCO with
   "Downloaded apps" (German: "Installierte Apps", "Heruntergeladene Apps"); other phones keep
