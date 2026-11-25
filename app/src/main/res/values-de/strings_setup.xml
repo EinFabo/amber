@@ -98,7 +98,8 @@
     <string name="mic_title">Mikrofon erlauben</string>
     <string name="mic_lead">Embersay nimmt nur auf, während du diktierst. Die Bubble leuchtet, solange sie zuhört.</string>
     <string name="mic_where">Deine Aufnahme geht nur an die Spracherkennung, die du nutzt. Mit Bereinigung geht der erkannte Text an die Bereinigung, die du gewählt hast. Deine Diktate bleiben standardmäßig 24&#160;Stunden verschlüsselt auf dem Handy; das kannst du unter Einstellungen → Privatsphäre → Verlauf ändern.</string>
-    <string name="continue_without">Ohne weiter</string>
+    <string name="continue_without">Ohne Server weiter</string>
+    <string name="continue_without_mic">Ohne Mikrofon weiter</string>
     <string name="mic_choose_while_using">Wähle „Während der Nutzung der App“.</string>
     <string name="mic_allowed">Erlaubt</string>
     <string name="mic_not_allowed">Noch nicht erlaubt. Wenn Android nicht mehr fragt, erlaube es in der App-Info von Embersay unter Berechtigungen → Mikrofon.</string>

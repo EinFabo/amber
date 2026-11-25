@@ -43,7 +43,7 @@
     <string name="own_words_subtitle">Namen und Begriffe, die Embersay richtig schreiben soll</string>
     <string name="own_words_field">Name oder Begriff</string>
     <string name="own_words_add">Hinzufügen</string>
-    <string name="own_words_none">Noch keine. Mehrere auf einmal mit Kommas trennen.</string>
+    <string name="own_words_none">Noch keine. Du kannst mehrere mit Kommas trennen.</string>
     <string name="own_words_count">%1$d von %2$d</string>
     <string name="own_words_full">%1$d von %2$d. Die Liste ist voll. Tippe auf ein Wort, um es zu entfernen.</string>
     <string name="own_words_remove">%1$s entfernen</string>
@@ -82,7 +82,7 @@
     <string name="bubble_position">Position</string>
     <string name="bubble_position_note">Dockt am linken oder rechten Rand an, wo du sie loslässt</string>
     <string name="reset">Zurücksetzen</string>
-    <string name="bubble_hidden_group">Ausgeblendet in</string>
+    <string name="bubble_hidden_group">Ausgeblendet in diesen Apps</string>
     <string name="bubble_hidden_note">Spiele oder Apps mit eigener Spracheingabe</string>
     <string name="bubble_preview_text">Hi, ich bin in zehn Minuten da. Bring den Schlüssel mit, meiner liegt schon wieder zu Hause.</string>
     <string name="reliability_subtitle">Optional. Hält Android davon ab, das Mikrofon abzuschalten.</string>

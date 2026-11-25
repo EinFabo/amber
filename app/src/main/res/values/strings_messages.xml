@@ -36,7 +36,7 @@
     <string name="problem_enclave_cannot_bind">Couldn\'t secure the connection to the enclave.</string>
     <string name="problem_unencrypted_refused">Unencrypted connection to a public address blocked. Use https.</string>
     <string name="problem_cleanup_failed">Cleanup failed: %1$s (error %2$d).</string>
-    <string name="problem_no_credit">No credit left at “%1$s”.</string>
+    <string name="problem_no_credit">No credit left at %1$s.</string>
     <string name="problem_cleanup_declined">%1$s declined the cleanup. The text was inserted as recognized.</string>
     <string name="problem_cleanup_model_unknown">Cleanup failed. The server has no model %1$s.</string>
     <string name="problem_cleanup_unreadable">Couldn\'t read the cleanup\'s answer.</string>
