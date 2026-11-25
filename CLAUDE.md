@@ -50,6 +50,7 @@ git submodule update --init --recursive   # whisper.cpp, sherpa-onnx in third_pa
 ./gradlew :core:test                 # pure JVM, no SDK needed
 python3 -I tools/check_refs.py       # imports, R ids, manifest classes
 python3 -I tools/check_strings.py    # English and German alike, no English left in the screens
+python3 -I tools/check_listing.py    # the store listing: Play's limits, glossary words, "du", no " - "
 tools/build-tinfoil-aar.sh           # Tinfoil's verifier as an AAR; again whenever the script changes
 ./gradlew :app:lintDebug :app:assembleDebug
 tools/typecheck-android.sh           # non-Compose sources against real android-all
