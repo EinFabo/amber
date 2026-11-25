@@ -44,6 +44,9 @@ object DiagnosticsReport {
      * [records] newest first, as Diagnostics lists them, times in [zone]. [title] names the app
      * and its version; [keyboard] are the keyboard lines the page shows, if any. [warning] is
      * a line the page shows above them (another Amber switched on too), right under the title.
+     * [exits] are the times the app stopped unexpectedly, newest first ([ExitRecord]): each with
+     * its kind and detail - classes, the app's frames, Android's reason - kept clear of the
+     * records' words too.
      */
     fun of(
         records: List<DictationRecord>,
@@ -52,6 +55,7 @@ object DiagnosticsReport {
         copiedAt: Long,
         keyboard: List<String> = emptyList(),
         warning: String? = null,
+        exits: List<ExitRecord> = emptyList(),
     ): String = buildString {
         val count = when (records.size) {
             0 -> "no records"
@@ -69,6 +73,14 @@ object DiagnosticsReport {
             appendLine("${TIME.format(local(record.atMillis, zone))}  $summary")
             shown.shape?.let { appendLine("$INDENT${if (record.command) "heard" else "text"}: ${it.describe()}") }
             lines.forEach { appendLine("$INDENT$it") }
+        }
+        if (exits.isNotEmpty()) {
+            appendLine()
+            appendLine("Stopped unexpectedly")
+            for (exit in exits) {
+                appendLine("$INDENT${DATE_TIME.format(local(exit.atMs, zone))}  ${ExitRecords.reportName(exit.kind)}")
+                Anonymize.lines(exit.detail.lines().filter { it.isNotBlank() }, texts).forEach { appendLine("$INDENT$INDENT$it") }
+            }
         }
         if (keyboard.isNotEmpty()) {
             appendLine()

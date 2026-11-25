@@ -135,6 +135,15 @@
     <string name="diag_note">Tippe auf einen Eintrag, um seine Schritte zu sehen. Die Einträge stehen auf Englisch und bleiben auf diesem Handy, bis Embersay neu startet. Eine Kopie enthält keine diktierten Wörter, du kannst sie also teilen.</string>
     <string name="copied">Kopiert</string>
     <string name="copy">Kopieren</string>
+    <string name="diag_exits">Unerwartet beendet</string>
+    <string name="diag_exits_note">Bleiben auch nach einem Neustart, höchstens die letzten %d: nur die Art des Fehlers und wo in Embersay er auftrat, nichts von dem, was du gesagt hast</string>
+    <string name="diag_exit_today">Embersay wurde um %1$s unerwartet beendet (%2$s)</string>
+    <string name="diag_exit_on_day">Embersay wurde am %1$s um %2$s unerwartet beendet (%3$s)</string>
+    <string name="diag_exit_crash">ein Fehler in der App</string>
+    <string name="diag_exit_native_crash">ein Fehler im nativen Code der App</string>
+    <string name="diag_exit_anr">reagierte nicht mehr</string>
+    <string name="diag_exit_low_memory">zu wenig Arbeitsspeicher</string>
+    <string name="diag_exit_other">von Android beendet</string>
     <string name="diag_keyboard">Tastatur</string>
     <string name="diag_clear">Diagnose löschen</string>
     <string name="diag_cleared">Diagnose gelöscht</string>

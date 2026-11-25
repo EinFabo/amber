@@ -43,7 +43,10 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
 - Diagnose: die letzten Diktate mit ihren Zeiten und, nur auf dem Handy, ihrem Text. Ein Bericht,
   den du zum Teilen kopierst, enthält die Form jedes Diktats (Zeichen, Wörter, Sprache), nicht
   seine Wörter, und keinen App-Namen: jede App heißt darin „app 1“, „app 2“ und so weiter, im
-  ganzen Bericht dieselbe. Die Liste auf dem Handy zeigt die Namen der Apps.
+  ganzen Bericht dieselbe. Die Liste auf dem Handy zeigt die Namen der Apps. Die letzten Male,
+  die Embersay unerwartet beendet wurde, bleiben dort auch nach einem Neustart: nur die Art des
+  Fehlers und wo im Code von Embersay er auftrat, nie, was gesagt wurde, und kein Name einer
+  anderen App.
 - Sprachmodelle, die du herunterlädst.
 
 Mit dem Sicherheitsmodus (Einstellungen → Privatsphäre → Sicherheitsmodus) behält Embersay keines der Wörter

@@ -135,6 +135,15 @@
     <string name="diag_note">Tap an entry to see its steps. Entries stay on this phone until Embersay restarts. They\'re in English, and a copy contains no dictated words, so you can share it.</string>
     <string name="copied">Copied</string>
     <string name="copy">Copy</string>
+    <string name="diag_exits">Stopped unexpectedly</string>
+    <string name="diag_exits_note">Kept across restarts, the last %d at most: only the kind of error and where in Embersay it happened, nothing you said</string>
+    <string name="diag_exit_today">Embersay stopped unexpectedly at %1$s (%2$s)</string>
+    <string name="diag_exit_on_day">Embersay stopped unexpectedly on %1$s at %2$s (%3$s)</string>
+    <string name="diag_exit_crash">an error in the app</string>
+    <string name="diag_exit_native_crash">an error in the app\'s native code</string>
+    <string name="diag_exit_anr">not responding</string>
+    <string name="diag_exit_low_memory">out of memory</string>
+    <string name="diag_exit_other">ended by Android</string>
     <string name="diag_keyboard">Keyboard</string>
     <string name="diag_clear">Clear diagnostics</string>
     <string name="diag_cleared">Diagnostics cleared</string>

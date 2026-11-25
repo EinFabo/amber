@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickMenuItem
 import app.amethyst.core.bubble.QuickOff
+import app.amethyst.core.dictation.ExitKind
+import app.amethyst.core.dictation.ExitRecord
 import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
@@ -29,6 +31,10 @@ import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.update.Ago
 import app.amethyst.core.update.LastCheck
 import app.amethyst.core.update.UpdateSummary
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 /**
@@ -543,6 +549,32 @@ object Texts {
                 else -> shape.language
             },
         ).joinToString(" · ")
+    }
+
+    /**
+     * A time the app stopped unexpectedly, as Diagnostics list it: "Embersay stopped unexpectedly
+     * at 14:02 (out of memory)" - with its day when that was not [nowMs]'s day in [zone].
+     */
+    fun exit(context: Context, record: ExitRecord, nowMs: Long, zone: ZoneId = ZoneId.systemDefault()): String = with(context) {
+        val locale = locale(this)
+        val at = Instant.ofEpochMilli(record.atMs).atZone(zone)
+        val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(at)
+        val why = getString(
+            when (record.kind) {
+                ExitKind.CRASH -> R.string.diag_exit_crash
+                ExitKind.NATIVE_CRASH -> R.string.diag_exit_native_crash
+                ExitKind.ANR -> R.string.diag_exit_anr
+                ExitKind.LOW_MEMORY -> R.string.diag_exit_low_memory
+                ExitKind.OTHER -> R.string.diag_exit_other
+            },
+        )
+        if (at.toLocalDate() == Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()) {
+            getString(R.string.diag_exit_today, time, why)
+        } else {
+            // The short day ("24 Nov", "24. Nov."): the line stays readable on a narrow screen.
+            val day = DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "dMMM"), locale).format(at)
+            getString(R.string.diag_exit_on_day, day, time, why)
+        }
     }
 
     /** "1.5" or "1,5" as the phone writes it. */

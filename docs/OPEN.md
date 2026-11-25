@@ -68,6 +68,17 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   2 s without a word - Try again still brings the first dictation. On the A20e, Whisper out of
   memory with Parakeet downloaded: Diagnostics say "fallback local-parakeet left out after
   running out of memory", and Try again is offered.
+- **B2, crashes and kills leave a trace in Diagnostics.** A crash handler (chained before
+  Android's) writes the exception's class and up to 8 of the app's frames - never its message -
+  to `noBackupFilesDir/exits.json`; on Android 11+ each start also reads
+  `getHistoricalProcessExitReasons` since the last read (crash, native crash, ANR, out of memory,
+  ended by Android while in use; a force stop, an update or a cached-process kill is no record).
+  The last 10 show on Diagnostics under "Stopped unexpectedly" ("Embersay stopped unexpectedly
+  at 14:02 (out of memory)"), are in the copied text and go with "Clear diagnostics". A failure
+  in the accessibility service's own coroutines is now kept in Diagnostics instead of ending
+  the process. Try on a phone: `adb shell am force-stop com.embersay.debug` leaves no record,
+  `adb shell am crash com.embersay.debug` does - open Diagnostics after either; on the A20e a
+  kill for memory while the bubble is up should show "out of memory" (Android 11+).
 
 ## Store review 2026-11-22
 

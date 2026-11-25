@@ -39,7 +39,9 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
 - Diagnostics: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words, and no app's name: each app is "app 1", "app 2" and so on, the same one throughout
-  the report. The list on the phone shows the apps' names.
+  the report. The list on the phone shows the apps' names. The last times Embersay stopped
+  unexpectedly are kept there too, also after a restart: only the kind of error and where in
+  Embersay's code it happened, never what was said or another app's name.
 - Speech models you download.
 
 With the security mode on (Settings → Privacy → Security mode), Embersay keeps none of a dictation's

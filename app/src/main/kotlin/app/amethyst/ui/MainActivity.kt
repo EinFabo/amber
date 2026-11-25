@@ -1019,6 +1019,7 @@ private fun AmethystScreens(
                                         SettingsPage.DIAGNOSTICS -> {
                                             val records by graph.memory.log.records.collectAsStateWithLifecycle()
                                             val keyboardLog by graph.keyboardLog.collectAsStateWithLifecycle()
+                                            val exits by graph.exits.records.collectAsStateWithLifecycle()
                                             val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                                             DiagnosticsScreen(
                                                 records = records,
@@ -1029,16 +1030,21 @@ private fun AmethystScreens(
                                                 onClear = {
                                                     val cleared = graph.memory.log.records.value
                                                     val keyboard = graph.keyboardLog.value
+                                                    val stopped = graph.exits.records.value
                                                     graph.memory.log.clear()
                                                     graph.keyboardLog.value = emptyList()
+                                                    // A few bytes on disk: on the IO pool.
+                                                    graph.appScope.launch(Dispatchers.IO) { graph.exits.clear() }
                                                     undo.offer(context.getString(R.string.diag_cleared)) {
                                                         graph.memory.log.restore(cleared)
                                                         graph.keyboardLog.value = graph.keyboardLog.value + keyboard
+                                                        graph.appScope.launch(Dispatchers.IO) { graph.exits.restore(stopped) }
                                                     }
                                                 },
                                                 appTitle = "Embersay $version".trim(), // English: the report's heading
                                                 // The security mode never writes the clipboard.
                                                 canCopy = SecurityMode.mayCopy(settings),
+                                                exits = exits,
                                             )
                                         }
                                         SettingsPage.ABOUT -> {

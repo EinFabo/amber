@@ -35,6 +35,7 @@ import app.amethyst.core.commands.RunMode
 import app.amethyst.core.insert.InputTarget
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.MainActivity
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -630,7 +631,17 @@ class AmethystAccessibilityService : AccessibilityService() {
         scope.cancel()
     }
 
-    private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /**
+     * A failure nobody caught in the bubble's and the keyboard's work goes to Diagnostics, as in
+     * the app's own scope ([Graph.backgroundFailed]), instead of ending the process - and with it
+     * the bubble and a dictation in progress.
+     */
+    private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error -> workFailed(error) })
+
+    private fun workFailed(error: Throwable) {
+        runCatching { AmethystApp.graph(this).backgroundFailed(error) }
+            .onFailure { Log.e(TAG, "service work failed: ${error.javaClass.name}") }
+    }
 
 
     private companion object {

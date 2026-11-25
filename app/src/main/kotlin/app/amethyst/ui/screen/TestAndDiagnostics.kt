@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,8 @@ import app.amethyst.ui.reportsOwnField
 import app.amethyst.Texts
 import app.amethyst.core.dictation.DiagnosticsReport
 import app.amethyst.core.dictation.DictationRecord
+import app.amethyst.core.dictation.ExitRecord
+import app.amethyst.core.dictation.ExitRecords
 import app.amethyst.core.insert.OwnClip
 import app.amethyst.data.OwnClipboard
 import app.amethyst.core.onboarding.AmberVariant
@@ -147,6 +150,8 @@ fun DiagnosticsScreen(
     onOpenAccessibility: () -> Unit = {},
     /** Off in the security mode, which never writes the clipboard: no Copy. */
     canCopy: Boolean = true,
+    /** The times Embersay stopped unexpectedly, newest first: kept across restarts, in a copy too. */
+    exits: List<ExitRecord> = emptyList(),
 ) {
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf(initialFilter) }
@@ -164,9 +169,46 @@ fun DiagnosticsScreen(
     }
     val shown = filter.apply(records)
     val keyboardShown = filter != DiagnosticsReport.Filter.COMMANDS && keyboardLog.isNotEmpty()
+    // Not among the commands: a crash is no command's.
+    val exitsShown = if (filter != DiagnosticsReport.Filter.COMMANDS) exits else emptyList()
+    val copy: @Composable RowScope.() -> Unit = {
+        Spacer(Modifier.weight(1f))
+        GhostButton(
+            text = stringResource(if (copied) R.string.copied else R.string.copy),
+            onClick = {
+                val text = DiagnosticsReport.of(
+                    shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
+                    keyboard = if (keyboardShown) keyboardLog else emptyList(),
+                    warning = Texts.otherAmbers(Texts.english(context), otherAmbers),
+                    exits = exitsShown,
+                )
+                copied = copySensitive(context, text)
+            },
+        )
+    }
 
     SubPage(modifier, readable = true) {
         if (otherAmbers.isNotEmpty()) OtherAmbersCard(otherAmbers, onOpenAccessibility)
+
+        if (exitsShown.isNotEmpty()) {
+            // Copy here when there is no list of entries below to carry it.
+            SectionCard(
+                title = stringResource(R.string.diag_exits),
+                subtitle = stringResource(R.string.diag_exits_note, ExitRecords.MAX),
+                trailing = if (canCopy && shown.isEmpty()) copy else null,
+            ) {
+                val now = remember(exitsShown) { System.currentTimeMillis() }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    exitsShown.forEach { exit ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(Texts.exit(context, exit, now), style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Text)
+                            // Its class or Android's reason: English, as every Diagnostics line.
+                            exit.detail.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }?.let { Hint(it) }
+                        }
+                    }
+                }
+            }
+        }
 
         // Without voice commands every entry is a dictation: no filter to offer.
         val filters = DiagnosticsReport.filters()
@@ -198,24 +240,7 @@ fun DiagnosticsScreen(
             SettingsGroup(
                 label = lastEntries(filter, shown.size),
                 note = stringResource(R.string.diag_note),
-                trailing = if (canCopy) {
-                    {
-                        Spacer(Modifier.weight(1f))
-                        GhostButton(
-                            text = stringResource(if (copied) R.string.copied else R.string.copy),
-                            onClick = {
-                                val text = DiagnosticsReport.of(
-                                    shown, ZoneId.systemDefault(), appTitle, System.currentTimeMillis(),
-                                    keyboard = if (keyboardShown) keyboardLog else emptyList(),
-                                    warning = Texts.otherAmbers(Texts.english(context), otherAmbers),
-                                )
-                                copied = copySensitive(context, text)
-                            },
-                        )
-                    }
-                } else {
-                    null
-                },
+                trailing = if (canCopy) copy else null,
             ) {
                 // Every record's words, kept out of every card's lines until "Show text".
                 val texts = remember(records) { DiagnosticsReport.texts(records) }
@@ -245,7 +270,7 @@ fun DiagnosticsScreen(
             }
         }
 
-        if (records.isNotEmpty() || keyboardLog.isNotEmpty()) DangerAction(stringResource(R.string.diag_clear), onClear)
+        if (records.isNotEmpty() || keyboardLog.isNotEmpty() || exits.isNotEmpty()) DangerAction(stringResource(R.string.diag_clear), onClear)
     }
 }
 

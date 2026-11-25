@@ -13,6 +13,9 @@ import app.amethyst.core.apps.AppsSeenInFront
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.dictation.DictationMemory
+import app.amethyst.core.dictation.ExitLog
+import app.amethyst.core.dictation.ExitRecords
+import app.amethyst.core.dictation.SystemExit
 import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.dictation.RecordingSpool
 import app.amethyst.core.text.CleanupTrouble
@@ -88,7 +91,12 @@ class AmethystApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        graph = Graph(this)
+        // First, so a crash while the graph is built leaves its trace too.
+        val exits = ExitLog(File(noBackupFilesDir, EXITS_FILE)) { android.util.Log.w("Embersay", it) }
+        exits.installCrashHandler()
+        graph = Graph(this, exits)
+        // How the last processes ended, as Android saw it: file I/O and a binder call, so not here.
+        graph.appScope.launch(Dispatchers.IO) { graph.readExitsAtStart() }
         app.amethyst.engine.AndroidOnDeviceEngine.detectOnDeviceSpeech(this)
         // A recording a dying process left in the Opus scratch file goes; file I/O, so not here.
         graph.appScope.launch(Dispatchers.IO) { graph.opusEncoder.clearLeftovers() }
@@ -122,6 +130,9 @@ class AmethystApp : Application() {
     companion object {
         fun graph(context: Context): Graph =
             (context.applicationContext as AmethystApp).graph
+
+        /** The times Embersay stopped unexpectedly ([ExitLog]), in noBackupFilesDir. */
+        private const val EXITS_FILE = "exits.json"
     }
 }
 
@@ -136,7 +147,15 @@ class StatsView(val today: Long, val summary: StatsSummary)
  * also keeps the dependency list short, which matters for an app that asks for accessibility
  * and microphone access.
  */
-class Graph(app: Application) {
+class Graph(
+    app: Application,
+    /**
+     * The times the app stopped unexpectedly, for Diagnostics: its own crashes, written by the
+     * crash handler as they happen, and how Android says the earlier processes ended
+     * ([readExitsAtStart]). Kept across restarts; nothing of what was said.
+     */
+    val exits: ExitLog,
+) {
 
     /**
      * The app's background work - every dictation runs here. A failure nobody caught - an Error
@@ -146,11 +165,38 @@ class Graph(app: Application) {
      */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error -> backgroundFailed(error) })
 
-    private fun backgroundFailed(error: Throwable) {
+    /**
+     * Work nobody caught a failure of - in [appScope], or in the accessibility service's own scope
+     * - failed: logged, and kept in Diagnostics with its class and where in the app it was thrown
+     * ([ExitRecords.oneLine]), never its message.
+     */
+    fun backgroundFailed(error: Throwable) {
         // The class only in a release build: a message may hold a server's answer or what was heard.
         if (DebugLog.enabled) android.util.Log.e("Embersay", "background work failed", error)
         else android.util.Log.e("Embersay", "background work failed: ${error::class.java.name}")
-        runCatching { memory.log.recordFailure("Background work failed unexpectedly: ${error::class.java.name}") }
+        runCatching { memory.log.recordFailure("Background work failed unexpectedly: ${ExitRecords.oneLine(error)}") }
+    }
+
+    /**
+     * How the app's earlier processes ended, as Android kept it (Android 11 and later): those since
+     * the last start become [exits] - a crash, a native crash, not responding, out of memory, or
+     * ended by Android while in use; none an end the user or an update asked for. On the IO pool.
+     */
+    fun readExitsAtStart() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            // Only what the crash handler wrote: read now, so Diagnostics need not.
+            exits.records
+            return
+        }
+        try {
+            val activities = appContext.getSystemService(ActivityManager::class.java) ?: return
+            val found = activities.getHistoricalProcessExitReasons(appContext.packageName, 0, 0).map {
+                SystemExit(reason = it.reason, importance = it.importance, status = it.status, atMs = it.timestamp)
+            }
+            exits.foundAtStart(found)
+        } catch (e: Exception) {
+            android.util.Log.w("Embersay", "exit reasons not read: ${e.javaClass.simpleName}")
+        }
     }
 
     /** A line for Diagnostics when stored settings could not be read and went aside ([app.amethyst.core.settings.SettingsRescue]). */
