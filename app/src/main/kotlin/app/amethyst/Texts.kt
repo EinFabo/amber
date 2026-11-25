@@ -11,6 +11,8 @@ import app.amethyst.core.dictation.TextShape
 import app.amethyst.core.engine.AmberMachine
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.DownloadNotice
+import app.amethyst.core.engine.EnginePreset
+import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.FallbackNotice
 import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.engine.HttpReason
@@ -402,6 +404,20 @@ object Texts {
         is EngineName.Own -> engineShortName(context, name.engine)
         else -> engineName(context, name)
     }
+
+    /**
+     * What "Add speech recognition" says about an offered [preset] in one plain line: where it
+     * runs, how big, what it needs. The technical notes ([EnginePreset.note]) are on its own page.
+     */
+    fun presetLine(context: Context, preset: EnginePreset): String = context.getString(
+        when (preset.id) {
+            EnginePresets.ANDROID_ON_DEVICE.id -> R.string.add_recognition_android
+            EnginePresets.LOCAL_WHISPER.id -> R.string.add_recognition_whisper
+            EnginePresets.LOCAL_PARAKEET.id -> R.string.add_recognition_parakeet
+            EnginePresets.TINFOIL.id -> R.string.add_recognition_tinfoil
+            else -> R.string.add_recognition_server
+        },
+    )
 
     fun quickAction(context: Context, action: QuickAction): String = context.getString(
         when (action) {

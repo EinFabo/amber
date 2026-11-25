@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import app.amethyst.Texts
 import app.amethyst.core.engine.ConfigIssue
+import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.FileProblem
 import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.settings.EngineConfig
@@ -37,6 +38,10 @@ fun engineName(engine: EngineConfig): String = Texts.engineName(LocalContext.cur
 /** [engineName] for a list that says where it runs beside the name: without the place. */
 @Composable
 fun recognitionRowName(engine: EngineConfig): String = Texts.recognitionRowName(LocalContext.current, engine)
+
+/** What the dialog "Add speech recognition" says about [preset]: one plain line. */
+@Composable
+fun presetLine(preset: EnginePreset): String = Texts.presetLine(LocalContext.current, preset)
 
 /** A name or note from :core's catalog in the phone's language; anything else as it is. */
 @Composable

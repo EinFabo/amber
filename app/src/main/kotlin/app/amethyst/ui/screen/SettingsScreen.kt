@@ -88,6 +88,7 @@ import app.amethyst.ui.SetupState
 import app.amethyst.ui.ToggleRow
 import app.amethyst.ui.TrustBadge
 import app.amethyst.ui.catalog
+import app.amethyst.ui.presetLine
 import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -745,14 +746,14 @@ private fun PresetDialog(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    text = catalog(preset.displayName),
+                                    text = recognitionRowName(EngineConfig.fromPreset(preset)),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = AmberPalette.Text,
                                 )
                                 // Android's follows the phone, as in the list of added ones.
                                 TrustBadge(preset.trustLevelForDisplay())
                             }
-                            if (preset.note.isNotBlank()) Hint(catalog(preset.note))
+                            Hint(presetLine(preset))
                             if (tooBig(preset)) Hint(stringResource(R.string.model_too_big), AmberPalette.Error)
                         }
                     }
