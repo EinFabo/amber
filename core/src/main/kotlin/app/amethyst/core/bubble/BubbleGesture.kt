@@ -168,10 +168,10 @@ class BubbleGesture(
 
     companion object {
         /**
-         * Long enough that a quick tap is never taken for a hold, short enough that the menu
-         * comes without a noticeable wait. The system long-press timeout (400-500 ms) felt
-         * sluggish for this.
+         * Long enough that a slow, deliberate tap (300-350 ms) is not taken for a hold, short
+         * enough that the menu comes without a long wait. The low end of the system long-press
+         * timeout (400-500 ms).
          */
-        const val HOLD_MS = 300L
+        const val HOLD_MS = 400L
     }
 }

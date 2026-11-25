@@ -210,7 +210,7 @@ class BubbleView(context: Context) : View(context) {
 
     /** When the finger came down and the hold ring began; null while no ring fills. */
     private var holdFrom: Long? = null
-    private var holdMs = 300L
+    private var holdMs = app.amethyst.core.bubble.BubbleGesture.HOLD_MS
 
     /** The glyph pressed in (true) or let out, and when that changed. */
     private var pressed = false

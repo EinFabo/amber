@@ -5,6 +5,10 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D6, a slow tap starts, it doesn't open the quick menu.** The bubble needed a 300 ms press
+  to open the quick menu, so a deliberate tap often opened it. Now 400 ms (the ring around the
+  bubble fills in that time). Try: tap slowly - it starts; hold - the menu opens after 0.4 s;
+  drag and the quick menu's cancel still work.
 - **D5, a hung server hands over in seconds, not minutes.** A server that took the recording
   and then said nothing was waited for a minute plus the recording's length. Now the wait
   starts once the upload is out (a slow upload on mobile data is not a hung server) and lasts
