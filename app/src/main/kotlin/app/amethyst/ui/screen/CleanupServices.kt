@@ -20,13 +20,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -38,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.SecureFlagPolicy
 import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.core.engine.AmberMachine
@@ -321,16 +327,24 @@ private fun SheetFrame(onDismiss: () -> Unit, content: @Composable ColumnScope.(
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val close: () -> Unit = { scope.launch { state.hide() }.invokeOnCompletion { onDismiss() } }
+    // The sheet is a window of its own, over the page: FLAG_SECURE on the page's window does
+    // not reach it. While it holds a key field (KeyField counts itself in), shown or masked,
+    // the sheet's own window is kept out of screenshots, recordings and the Recents picture.
+    val keyFields = remember { mutableIntStateOf(0) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = state,
+        properties = ModalBottomSheetProperties(securePolicy = if (keyFields.intValue > 0) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = AmberPalette.Surface,
         contentColor = AmberPalette.Text,
         scrimColor = AmberPalette.Scrim,
         dragHandle = { BottomSheetDefaults.DragHandle(color = AmberPalette.Outline) },
-    ) { content(close) }
+    ) { CompositionLocalProvider(LocalSheetKeyFields provides keyFields) { content(close) } }
 }
+
+/** How many key fields the open sheet holds ([SheetFrame]); null outside a sheet. */
+private val LocalSheetKeyFields = staticCompositionLocalOf<MutableIntState?> { null }
 
 /** A sheet's content over its button: the content scrolls when it must, the button stays in reach. */
 @Composable
@@ -819,14 +833,21 @@ private val ServiceFieldsSaver: Saver<ServiceFields, Any> = Saver(
 )
 
 /**
- * A key, masked: off screenshots, recordings and other eyes. The eye shows it for a check - the
- * window then stays out of screenshots and the Recents picture for as long as it is shown - and
- * is hidden again after a rotation.
+ * A key, masked: off screenshots, recordings and other eyes. The eye shows it for a check, and
+ * it is hidden again after a rotation. The sheet it is in stays out of screenshots, recordings
+ * and the Recents picture for as long as the field is there ([SheetFrame]); the page behind
+ * while the key is shown.
  */
 @Composable
 private fun KeyField(value: String, label: String, enabled: Boolean = true, onChange: (String) -> Unit) {
     var shown by remember { mutableStateOf(false) }
+    // The window behind while the key is shown; the sheet's own window as long as this field is in it.
     ShowsDictatedText(active = shown)
+    val sheetKeyFields = LocalSheetKeyFields.current
+    DisposableEffect(sheetKeyFields) {
+        sheetKeyFields?.let { it.intValue++ }
+        onDispose { sheetKeyFields?.let { it.intValue-- } }
+    }
     OutlinedTextField(
         value = value,
         onValueChange = onChange,

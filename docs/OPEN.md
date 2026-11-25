@@ -9,10 +9,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   server"), the API key, the address, the model and the search field are kept through
   rotation and a process kill, so the trip to the key's website no longer empties them. The
   key lives in the sheet's saved state only and is dropped once the sheet closes; it reaches
-  settings only through Use. The key field has an eye (Show key / Hide key); while the key is
-  shown the window is kept out of screenshots. Try: open Groq's sheet, type a key, rotate
-  the phone or switch to the browser and back - the key is still there; close the sheet and
-  open it again - it is empty.
+  settings only through Use. The key field has an eye (Show key / Hide key). A sheet with a
+  key field is its own window and is kept out of screenshots, screen recordings and the
+  Recents picture for as long as it is open (`ModalBottomSheetProperties(SecureOn)`), the page
+  behind it while the key is shown. Try: open Groq's sheet, type a key, rotate the phone or
+  switch to the browser and back - the key is still there; close the sheet and open it again -
+  it is empty. With the key shown, take a screenshot and start a screen recording: the sheet
+  must be black or refused, not only the page behind it.
 - **C9, Quick setup says what it downloads and no longer surprises with Android's question.**
   On a metered network (mobile data) the welcome step adds "Downloads a speech model (82 MB)
   now, the better one on Wi-Fi." above the buttons (`FirstRun.welcomeNote`, size from the
