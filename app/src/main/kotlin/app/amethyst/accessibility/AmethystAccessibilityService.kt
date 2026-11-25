@@ -632,15 +632,27 @@ class AmethystAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * A failure nobody caught in the bubble's and the keyboard's work goes to Diagnostics, as in
-     * the app's own scope ([Graph.backgroundFailed]), instead of ending the process - and with it
-     * the bubble and a dictation in progress.
+     * A failure nobody caught in the bubble's and the keyboard's work ends the process, as a crash
+     * anywhere else on the main thread does. These coroutines are long-lived collectors - the
+     * bubble's look, the screen-awake hold, the bubble window going on and off - and one that
+     * failed would be gone for good: a bubble stuck listening, a screen held awake. Ended, the
+     * service is bound again by Android and starts afresh.
      */
     private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error -> workFailed(error) })
 
+    /**
+     * Handed to the crash handler ([app.amethyst.core.dictation.ExitLog.installCrashHandler]),
+     * which keeps it in Diagnostics across the restart and then lets Android end the process -
+     * the one record of it. Only without a crash handler is it kept for this process alone.
+     */
     private fun workFailed(error: Throwable) {
-        runCatching { AmethystApp.graph(this).backgroundFailed(error) }
-            .onFailure { Log.e(TAG, "service work failed: ${error.javaClass.name}") }
+        Log.e(TAG, "service work failed: ${error.javaClass.name}")
+        val crash = Thread.getDefaultUncaughtExceptionHandler()
+        if (crash != null) {
+            crash.uncaughtException(Thread.currentThread(), error)
+        } else {
+            runCatching { AmethystApp.graph(this).backgroundFailed(error) }
+        }
     }
 
 

@@ -166,9 +166,8 @@ class Graph(
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error -> backgroundFailed(error) })
 
     /**
-     * Work nobody caught a failure of - in [appScope], or in the accessibility service's own scope
-     * - failed: logged, and kept in Diagnostics with its class and where in the app it was thrown
-     * ([ExitRecords.oneLine]), never its message.
+     * Work nobody caught a failure of in [appScope] failed: logged, and kept in Diagnostics with
+     * its class and where in the app it was thrown ([ExitRecords.oneLine]), never its message.
      */
     fun backgroundFailed(error: Throwable) {
         // The class only in a release build: a message may hold a server's answer or what was heard.

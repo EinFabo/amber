@@ -86,9 +86,10 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   ended by Android while in use; a force stop, an update or a cached-process kill is no record).
   The last 10 show on Diagnostics under "Stopped unexpectedly" ("Embersay stopped unexpectedly
   at 14:02 (out of memory)"), are in the copied text and go with "Clear diagnostics". A failure
-  in the accessibility service's own coroutines is now kept in Diagnostics instead of ending
-  the process. Try on a phone: `adb shell am force-stop com.embersay.debug` leaves no record,
-  `adb shell am crash com.embersay.debug` does - open Diagnostics after either; on the A20e a
+  in the accessibility service's own coroutines still ends the process, so Android binds the
+  service again and the bubble starts afresh rather than freezing in its last look; it is kept
+  once, as a crash under "Stopped unexpectedly". Try on a phone: `adb shell am force-stop
+  com.embersay.debug` leaves no record, `adb shell am crash com.embersay.debug` does - open Diagnostics after either; on the A20e a
   kill for memory while the bubble is up should show "out of memory" (Android 11+).
 
 ## Store review 2026-11-22
