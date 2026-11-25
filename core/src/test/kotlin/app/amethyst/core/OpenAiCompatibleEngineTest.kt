@@ -15,6 +15,12 @@ import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.EnclaveProof
 import app.amethyst.core.net.HttpResponse
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.dictation.KeptDictation
+import app.amethyst.core.net.HttpRequest
+import app.amethyst.core.net.HttpTransport
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertNull
@@ -293,5 +299,102 @@ class OpenAiCompatibleEngineTest {
 
         assertIs<SttFailure>(result.exceptionOrNull())
         assertTrue(transport.pinnedRequests.isEmpty())
+    }
+
+    @Test
+    fun `the answer is waited for three times the expected time after the upload, at least ten seconds`() {
+        assertEquals(10_000, OpenAiCompatibleEngine.answerDeadlineMs(1_000))
+        assertEquals(10_000, OpenAiCompatibleEngine.answerDeadlineMs(3_333))
+        assertEquals(15_000, OpenAiCompatibleEngine.answerDeadlineMs(5_000))
+        assertEquals(90_000, OpenAiCompatibleEngine.answerDeadlineMs(30_000))
+    }
+
+    /**
+     * A server on the other end of a slow line: the upload takes [uploadMs], then the answer
+     * comes [answerMs] later - or never, when cancelled first, which [cancelled] then says.
+     */
+    private class SlowServer(private val uploadMs: Long, private val answerMs: Long) : HttpTransport {
+        var cancelled = false
+        var answered = false
+
+        override suspend fun execute(request: HttpRequest): HttpResponse {
+            delay(uploadMs)
+            request.onUpload?.invoke(1_000, 1_000)
+            try {
+                delay(answerMs)
+            } catch (e: CancellationException) {
+                cancelled = true
+                throw e
+            }
+            answered = true
+            return HttpResponse(200, """{"text":"spät"}""".encodeToByteArray())
+        }
+    }
+
+    private fun slowEngine(server: SlowServer, expectedMs: Long) = OpenAiCompatibleEngine(
+        id = "own", displayName = "Own server", baseUrl = "https://example.org/v1", modelId = "m",
+        transport = server, apiKeyProvider = { null },
+        capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+        expectedMs = { expectedMs },
+    )
+
+    @Test
+    fun `a slow upload is not a hung server - the deadline starts once the recording is out`() = runTest {
+        val server = SlowServer(uploadMs = 40_000, answerMs = 14_000)
+        val transcript = slowEngine(server, expectedMs = 5_000).transcribe(audio).getOrThrow()
+        assertEquals("spät", transcript.text)
+        assertEquals(54_000, currentTime)
+    }
+
+    @Test
+    fun `a server that does not answer in time is given up, its call cancelled, and the recording kept`() = runTest {
+        val server = SlowServer(uploadMs = 2_000, answerMs = 60_000)
+        val failure = assertIs<SttFailure>(slowEngine(server, expectedMs = 5_000).transcribe(audio).exceptionOrNull())
+
+        assertEquals(Problem.NoAnswerInTime("Own server"), failure.problem)
+        assertEquals(17_000, currentTime, "15 s after the upload, not the request's minute")
+        assertTrue(server.cancelled, "the call is really ended")
+        assertFalse(server.answered, "a late answer never comes back")
+        assertNotNull(Fallback.recoverable(failure, TrustLevel.CLOUD, FallbackMode.AUTOMATIC), "another engine may take it")
+        assertTrue(KeptDictation.worthTryingAgain(failure.problem), "kept for Try again without a fallback")
+        assertTrue(failure.recordingMayHaveLeft, "the server may have the recording")
+    }
+
+    @Test
+    fun `a recording sent again starts the wait again once it is out`() = runTest {
+        // OkHttp sends the body again on a fresh connection when the first one died under it.
+        var calls = 0
+        val transport = object : HttpTransport {
+            override suspend fun execute(request: HttpRequest): HttpResponse {
+                calls++
+                request.onUpload?.invoke(1_000, 1_000)
+                delay(8_000)
+                request.onUpload?.invoke(8_192, 100_000)
+                delay(20_000)
+                request.onUpload?.invoke(100_000, 100_000)
+                delay(9_000)
+                return HttpResponse(200, """{"text":"angekommen"}""".encodeToByteArray())
+            }
+        }
+        val engine = OpenAiCompatibleEngine(
+            id = "own", displayName = "Own server", baseUrl = "https://example.org/v1", modelId = "m",
+            transport = transport, apiKeyProvider = { null },
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+            expectedMs = { 1_000 },
+        )
+        assertEquals("angekommen", engine.transcribe(audio).getOrThrow().text)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `a server without a learned speed gets the engine's typical one`() = runTest {
+        val server = SlowServer(uploadMs = 0, answerMs = 16_000)
+        // 60 s at 0.08 plus 900 ms: 5.7 s expected, 17.1 s allowed.
+        val engine = OpenAiCompatibleEngine(
+            id = "own", displayName = "Own server", baseUrl = "https://example.org/v1", modelId = "m",
+            transport = server, apiKeyProvider = { null },
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false, typicalRate = 0.08, overheadMs = 900),
+        )
+        assertTrue(engine.transcribe(PcmAudio(ShortArray(16_000 * 60))).isSuccess)
     }
 }

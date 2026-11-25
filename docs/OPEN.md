@@ -5,6 +5,18 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D5, a hung server hands over in seconds, not minutes.** A server that took the recording
+  and then said nothing was waited for a minute plus the recording's length. Now the wait
+  starts once the upload is out (a slow upload on mobile data is not a hung server) and lasts
+  three times what that server usually takes - learned per server and model, as the progress
+  ring expects it - and at least 10 s. Then the request is cancelled, a late answer is never
+  read, and the recording goes to the fallback ("No answer. Recognized on the phone ..."), or,
+  without one, is kept: "... didn't answer in time. Hold the bubble and choose Try again." A
+  piece of a long dictation that finds no connection or no answer no longer sends the whole
+  recording to the same engine again (servers are not cut into pieces today; the rule holds
+  for any that is). Try on a phone: an own server address that accepts and never answers
+  (`nc -lk 8000` on the PC): a 5 s dictation hands over after about 10 s; with the fallback
+  off, Try again is offered.
 - **D4, Whisper's invented credits are dropped on servers too.** A Whisper model (id contains
   "whisper": Groq's `whisper-large-v3`, OpenAI's `whisper-1`, an own server's) can write
   "Untertitel im Auftrag des ZDF" or "Thanks for watching!" after real speech. This was only

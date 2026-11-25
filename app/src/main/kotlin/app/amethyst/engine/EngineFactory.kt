@@ -13,6 +13,7 @@ import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ModelLoadGuard
 import app.amethyst.core.engine.OpenAiCompatibleEngine
 import app.amethyst.core.engine.Problem
+import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.ServerProviders
 import app.amethyst.core.engine.Servers
 import app.amethyst.core.engine.SttEngine
@@ -53,6 +54,8 @@ class EngineFactory(
     private val settings: () -> AmethystSettings,
     /** An engine's server answered a compressed upload with 400: (engine id, address). */
     private val compressionRefused: (String, String) -> Unit,
+    /** What the dictations taught about each engine's speed - a server's wait for its answer follows it. */
+    private val estimate: () -> RecognitionEstimate,
 ) {
 
     fun create(config: EngineConfig): Result<SttEngine> = when (config.kind) {
@@ -84,8 +87,8 @@ class EngineFactory(
                             // so cutting saves next to no waiting - and services that bill per
                             // request (Tinfoil's Whisper: $0.01 each) would charge every chunk.
                             chunkable = false,
-                            typicalRate = 0.08,
-                            overheadMs = 900,
+                            typicalRate = SERVER_RATE,
+                            overheadMs = SERVER_OVERHEAD_MS,
                             commandLanguageAttempts = OpenAiCompatibleEngine.COMMAND_LANGUAGE_ATTEMPTS,
                             // The user's own words as the prompt, only where the service takes one.
                             vocabulary = ServerProviders.forUrl(baseUrl).takesPrompt,
@@ -100,6 +103,9 @@ class EngineFactory(
                             compressionRefused(config.id, baseUrl)
                         },
                         amberServer = AmberCatalogs.isAmber(settings(), config),
+                        // Its usual time as the progress ring expects it, under the dictation's key:
+                        // the answer is given up at three times that after the upload.
+                        expectedMs = { audioMs -> estimate().expectedMs("${config.id}/${config.modelId}", audioMs, SERVER_RATE, SERVER_OVERHEAD_MS) },
                     ),
                 )
             }
@@ -224,4 +230,12 @@ class EngineFactory(
                 technical = "incomplete config for ${config.id}: $problems",
             ),
         )
+
+    private companion object {
+        /** A server's typical milliseconds of work per millisecond of audio, before dictations taught better. */
+        const val SERVER_RATE = 0.08
+
+        /** A server's fixed cost per request: the round trip. */
+        const val SERVER_OVERHEAD_MS = 900L
+    }
 }

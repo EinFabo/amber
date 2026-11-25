@@ -299,6 +299,32 @@ class ChunkingTest {
     }
 
     @Test
+    fun `a chunk the server did not answer in time does not send the whole recording to it again`() = runTest {
+        val hung = SttFailure(Problem.NoAnswerInTime("Own server"), "no answer", cause = java.io.InterruptedIOException("no answer"))
+        val engine = ScriptedEngine(listOf(Result.success("Hallo"), Result.failure(hung)))
+        val chunked = ChunkedTranscription(engine, TranscribeOptions(), this)
+        chunked.submit(audio(10))
+        chunked.submit(audio(10))
+        chunked.submit(audio(10))
+
+        val failure = assertIs<SttFailure>(chunked.finish(tail = audio(10), whole = audio(99)).exceptionOrNull())
+        assertEquals(Problem.NoAnswerInTime("Own server"), failure.problem, "left to the fallback, or kept for Try again")
+        assertEquals(listOf(10, 10), engine.calls.map { it.first }, "neither the rest nor the whole went to it")
+    }
+
+    @Test
+    fun `a chunk that found no connection does not send the whole recording to the same server`() = runTest {
+        val offline = SttFailure(Problem.NoConnection("Own server"), "offline", cause = java.net.UnknownHostException("x"))
+        val engine = ScriptedEngine(listOf(Result.failure(offline)))
+        val chunked = ChunkedTranscription(engine, TranscribeOptions(), this)
+        chunked.submit(audio(10))
+
+        val failure = assertIs<SttFailure>(chunked.finish(tail = null, whole = audio(99)).exceptionOrNull())
+        assertIs<Problem.NoConnection>(failure.problem)
+        assertEquals(listOf(10), engine.calls.map { it.first })
+    }
+
+    @Test
     fun `a language name instead of a code is not locked`() = runTest {
         val engine = ScriptedEngine(listOf(Result.success("a"), Result.success("b")), language = "german")
         val chunked = ChunkedTranscription(engine, TranscribeOptions(languageTag = "de-DE"), this)

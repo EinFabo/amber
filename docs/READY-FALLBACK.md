@@ -7,7 +7,9 @@ recognizes" in `docs/OPEN.md`.
 
 - **The fallback is slow.** A server that hangs is waited for up to 60 s plus the recording's
   length (`OpenAiCompatibleEngine.requestTimeoutMs`); only then does the local model load
-  (Parakeet cold: seconds) and recognize the whole recording.
+  (Parakeet cold: seconds) and recognize the whole recording. Since 2026-11-25 the answer
+  after the upload has its own limit, three times the server's learned time and at least
+  10 s (`OpenAiCompatibleEngine.answerDeadlineMs`), with or without preparing.
 - **The ring is a guess.** It fills against a learned recognition time only: the cleanup is not
   in it (it waits at 90-98 % while the chat server works), the upload is not measured, a
   fallback shows no ring at all, and the learned rates live in memory - every restart begins

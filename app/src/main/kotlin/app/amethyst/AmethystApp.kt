@@ -295,6 +295,7 @@ class Graph(
             encoder = opusEncoder,
             settings = { settings.value },
             compressionRefused = { engineId, baseUrl -> amberCatalogs.compressionRefused(engineId, baseUrl) },
+            estimate = { recognitionEstimate },
         )
     }
 

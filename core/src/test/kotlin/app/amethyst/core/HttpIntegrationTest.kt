@@ -10,6 +10,7 @@ import app.amethyst.core.net.OkHttpTransport
 import app.amethyst.core.privacy.TrustLevel
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import java.net.InetSocketAddress
 import kotlin.test.AfterTest
@@ -28,6 +29,9 @@ import kotlin.test.assertTrue
  * the multipart body a provider receives actually contains a playable WAV and the fields
  * whisper endpoints require. Without it, the first time that assembly runs for real would be
  * on a phone, against someone's paid API.
+ *
+ * Real sockets, so real time: under runTest's virtual clock the engine's wait for an answer
+ * would pass at once while a real server is still writing it.
  */
 class HttpIntegrationTest {
 
@@ -74,7 +78,7 @@ class HttpIntegrationTest {
     )
 
     @Test
-    fun `a whisper model's invented last sentence is dropped, another model's text is kept`() = runTest {
+    fun `a whisper model's invented last sentence is dropped, another model's text is kept`() = runBlocking<Unit> {
         responseBody = """{"text":"Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020.","language":"de"}"""
         assertEquals("Wir sehen uns morgen.", engine("whisper-1").transcribe(speechLikeAudio()).getOrThrow().text)
         assertEquals(
@@ -91,7 +95,7 @@ class HttpIntegrationTest {
     )
 
     @Test
-    fun `round trips a dictation over real http`() = runTest {
+    fun `round trips a dictation over real http`() = runBlocking<Unit> {
         val transcript = engine()
             .transcribe(speechLikeAudio(), TranscribeOptions(languageTag = "de-DE"))
             .getOrThrow()
@@ -103,7 +107,7 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `sends a multipart body the server can actually parse`() = runTest {
+    fun `sends a multipart body the server can actually parse`() = runBlocking<Unit> {
         engine().transcribe(speechLikeAudio(), TranscribeOptions(languageTag = "de-DE")).getOrThrow()
 
         assertContains(lastContentType.orEmpty(), "multipart/form-data")
@@ -130,7 +134,7 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `surfaces a server error with its status code`() = runTest {
+    fun `surfaces a server error with its status code`() = runBlocking<Unit> {
         responseCode = 401
         responseBody = """{"error":{"message":"invalid api key"}}"""
 
@@ -143,7 +147,7 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `reports an unreachable host instead of throwing`() = runTest {
+    fun `reports an unreachable host instead of throwing`() = runBlocking<Unit> {
         val unreachable = OpenAiCompatibleEngine(
             id = "self-hosted",
             displayName = "Eigener Server",
@@ -170,7 +174,7 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `a redirect is not followed, so the recording is not replayed elsewhere`() = runTest {
+    fun `a redirect is not followed, so the recording is not replayed elsewhere`() = runBlocking<Unit> {
         var replayed = false
         server.createContext("/elsewhere") { exchange: HttpExchange ->
             replayed = true
@@ -193,7 +197,7 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `a server that thinks longer than the read timeout is waited for, within the request's limit`() = runTest {
+    fun `a server that thinks longer than the read timeout is waited for, within the request's limit`() = runBlocking<Unit> {
         // A long recording: the server reads it, then says nothing until it has recognized all of it.
         server.createContext("/slow/v1/audio/transcriptions") { exchange: HttpExchange ->
             exchange.requestBody.readBytes()
@@ -220,9 +224,50 @@ class HttpIntegrationTest {
     }
 
     @Test
-    fun `an endless answer is cut off instead of filling the memory`() = runTest {
+    fun `an endless answer is cut off instead of filling the memory`() = runBlocking<Unit> {
         responseBody = "x".repeat(9 shl 20)
         val result = engine().transcribe(speechLikeAudio(), TranscribeOptions())
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `a server that takes the recording and never answers is given up, and its connection closed`() = runTest {
+        // A raw socket: it reads the whole request, says nothing, and notes when the client lets go.
+        val listener = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))
+        val whole = java.util.concurrent.atomic.AtomicBoolean(false)
+        val closed = java.util.concurrent.CountDownLatch(1)
+        Thread {
+            runCatching {
+                listener.accept().use { socket ->
+                    val input = socket.getInputStream().buffered()
+                    var length = 0
+                    while (true) {
+                        val line = generateSequence { input.read().takeIf { it >= 0 && it != '\n'.code } }
+                            .map { it.toChar() }.joinToString("").trimEnd('\r')
+                        if (line.isEmpty()) break
+                        if (line.startsWith("Content-Length:", ignoreCase = true)) length = line.substringAfter(':').trim().toInt()
+                    }
+                    whole.set(length > 0 && input.readNBytes(length).size == length)
+                    // Silence until the client closes: read() then ends.
+                    runCatching { input.read() }
+                    closed.countDown()
+                }
+            }
+        }.apply { isDaemon = true }.start()
+        try {
+            val engine = OpenAiCompatibleEngine(
+                id = "self-hosted", displayName = "Own server", baseUrl = "http://127.0.0.1:${listener.localPort}/v1",
+                modelId = "m", transport = OkHttpTransport(), apiKeyProvider = { null },
+                capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+                expectedMs = { 1_000 },
+            )
+            // runTest's clock passes the 10 s at once once the upload is out; the socket is real.
+            val failure = assertIs<SttFailure>(engine.transcribe(speechLikeAudio(), TranscribeOptions()).exceptionOrNull())
+            assertEquals(Problem.NoAnswerInTime("Own server"), failure.problem)
+            assertTrue(closed.await(5, java.util.concurrent.TimeUnit.SECONDS), "the call is cancelled, not left open")
+            assertTrue(whole.get(), "the deadline began after the whole recording was out")
+        } finally {
+            listener.close()
+        }
     }
 }

@@ -14,7 +14,15 @@ import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.OwnWords
 import app.amethyst.core.text.Transcript
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -43,6 +51,10 @@ import kotlin.coroutines.CoroutineContext
  * several languages at once and detects among them; any other service takes one code or none.
  * It is also told to leave the cleanup to this app: the app decides about cleanup for its
  * dictations, so a dictation is never cleaned twice.
+ *
+ * A server that took the recording and then says nothing is given up [answerDeadlineMs] after
+ * the upload went out ([Problem.NoAnswerInTime]): the call is cancelled, and the recording goes
+ * to the fallback or is kept for "Try again" - in seconds, not after the request's minute.
  */
 class OpenAiCompatibleEngine(
     override val id: String,
@@ -65,6 +77,12 @@ class OpenAiCompatibleEngine(
      * The encoder blocks - codec waits and a scratch file, up to seconds - so the IO pool.
      */
     private val encodeContext: CoroutineContext = Dispatchers.IO,
+    /**
+     * How long this server usually takes for a recording once it has it - what the progress
+     * ring expects ([RecognitionEstimate], learned per engine and model); by default the
+     * engine's typical rate.
+     */
+    private val expectedMs: (audioMs: Long) -> Long = { audioMs -> capabilities.overheadMs + (audioMs * capabilities.typicalRate).toLong() },
 ) : SttEngine {
 
     private val channel = SecureChannel(baseUrl, displayName, transport, attestationVerifier, capabilities.trustLevel)
@@ -87,6 +105,7 @@ class OpenAiCompatibleEngine(
 
         val prompt = OwnWords.prompt(options.vocabularyHint?.takeIf { capabilities.vocabulary }, options.precedingText)
 
+        val deadlineMs = answerDeadlineMs(expectedMs(audio.durationMs))
         var compressed = compressedUpload?.let { upload -> withContext(encodeContext) { upload.encode(audio) } }
         var opusRefused = false
 
@@ -118,7 +137,7 @@ class OpenAiCompatibleEngine(
             ),
         )
 
-        var sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
+        var sent = sendInTime(request(withPrompt = true), deadlineMs).getOrElse { return Result.failure(it) }
         // A server that announced more than it takes: the same request once more as WAV, and
         // WAV from then on, until its list is fetched again. A 400 that was really about the
         // prompt counts as a refusal too - Opus stays off until the next fetch, which costs a
@@ -127,11 +146,11 @@ class OpenAiCompatibleEngine(
             compressed = null
             opusRefused = true
             compressedUpload?.refused()
-            sent = channel.send(request(withPrompt = true)).getOrElse { return Result.failure(it) }
+            sent = sendInTime(request(withPrompt = true), deadlineMs).getOrElse { return Result.failure(it) }
         }
         // Not every model takes a prompt (Voxtral may refuse one); the text matters more.
         if (prompt != null && sent.response.code in PROMPT_REJECTED) {
-            sent = channel.send(request(withPrompt = false)).getOrElse { return Result.failure(it) }
+            sent = sendInTime(request(withPrompt = false), deadlineMs).getOrElse { return Result.failure(it) }
         }
         val response = sent.response
 
@@ -186,6 +205,51 @@ class OpenAiCompatibleEngine(
     }
 
     /**
+     * [request] through the channel, given up when no answer came [deadlineMs] after its upload
+     * went out: the call is cancelled - OkHttp's with it - so an answer that comes later is never
+     * read, and the failure says no answer came in time. While the upload is going out only the
+     * request's own limit counts: a slow upload on mobile data is not a hung server. A body sent
+     * again (OkHttp retries on a fresh connection) starts the wait again once it is out.
+     */
+    private suspend fun sendInTime(request: HttpRequest, deadlineMs: Long): Result<SecureChannel.Sent> = coroutineScope {
+        val out = MutableStateFlow(false)
+        val watched = request.copy(
+            onUpload = { sent, total ->
+                request.onUpload?.invoke(sent, total)
+                out.value = total in 1..sent
+            },
+        )
+        val gaveUp = CompletableDeferred<Unit>()
+        val timer = launch {
+            out.collectLatest { isOut ->
+                if (isOut) {
+                    delay(deadlineMs)
+                    gaveUp.complete(Unit)
+                }
+            }
+        }
+        val answer = async { channel.send(watched) }
+        val answered = select<Result<SecureChannel.Sent>?> {
+            answer.onAwait { it }
+            gaveUp.onAwait { null }
+        }
+        timer.cancel()
+        answered ?: run {
+            answer.cancel()
+            Result.failure(
+                SttFailure(
+                    problem = Problem.NoAnswerInTime(displayName),
+                    technical = "no answer $deadlineMs ms after the upload",
+                    cause = NoAnswerException(deadlineMs),
+                ),
+            )
+        }
+    }
+
+    /** No answer [deadlineMs] after the upload: a timeout, after the recording went out. */
+    private class NoAnswerException(deadlineMs: Long) : java.io.InterruptedIOException("no answer $deadlineMs ms after the upload")
+
+    /**
      * Opens the connection while the user speaks ([SecureChannel.warmUp]): for an enclave the
      * attestation and the pinned connection, for any other server its TLS connection - a HEAD to
      * the API root, with no Authorization header and no audio (an Amber PC or Server has its key
@@ -230,8 +294,21 @@ class OpenAiCompatibleEngine(
     }
 
     companion object {
-        /** Upload plus recognition: a minute of headroom on top of the audio's own length. */
+        /**
+         * Upload plus recognition: a minute of headroom on top of the audio's own length. The
+         * answer after the upload has its own, shorter limit ([answerDeadlineMs]).
+         */
         fun requestTimeoutMs(audioMs: Long): Long = 60_000 + audioMs
+
+        /**
+         * How long the answer may take once the upload is out, for a server [expectedMs] usually
+         * takes: three times that, at least [MIN_ANSWER_WAIT_MS] - a short dictation's answer
+         * may still be held up by a busy server or a slow line back.
+         */
+        fun answerDeadlineMs(expectedMs: Long): Long = maxOf(MIN_ANSWER_WAIT_MS, 3 * expectedMs)
+
+        /** The shortest wait for an answer after the upload ([answerDeadlineMs]). */
+        const val MIN_ANSWER_WAIT_MS = 10_000L
 
         /**
          * A voice command's passes, one language each: it takes one code per request, and each

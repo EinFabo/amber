@@ -161,7 +161,8 @@ class CompressedUploadTest {
 
         val expected = plain.requests.single()
         val actual = declined.requests.single()
-        assertEquals(expected.copy(body = null), actual.copy(body = null))
+        // Each request has its own watch on the upload, for the wait for the answer after it.
+        assertEquals(expected.copy(body = null, onUpload = null), actual.copy(body = null, onUpload = null))
         assertEquals(expected.parts().size, actual.parts().size)
         expected.parts().zip(actual.parts()).forEach { (a, b) ->
             assertEquals(a.name, b.name)
