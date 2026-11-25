@@ -42,13 +42,17 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   `Texts.switchOnStep`. Try on the A20e (One UI): tap "The steps in words" after coming back
   without the service on, and check the first step is the row One UI really shows.
 - **C4, dismissing Android's microphone dialog is not a refusal.** "Allow" for the microphone
-  always tries Android's question first; only an answer that comes back within 300 ms with no
-  reason to give (no dialog was shown: Android's "Don't ask again") sends the next "Allow" to
-  Embersay's app info. Tapping outside the dialog, or "Don't allow" once, asks again. Under
-  "Allow" on the microphone step a hint says: Choose "While using the app". Try on a phone:
-  fresh install, tap Allow, tap outside Android's dialog, tap Allow again - the dialog
-  returns; refuse twice and tap Allow once more - the app info opens. Check the hint matches
-  Android's wording (German: "Während der Nutzung der App").
+  always tries Android's question first. Android stops asking either visibly - a refusal after
+  which it has no reason to give any more, though it had one before (Android 11's second
+  refusal, or "Don't ask again"): the next "Allow" opens Embersay's app info - or with an
+  answer that comes back within 300 ms (no dialog shown): the app info opens in that same tap,
+  on the microphone step and on Home's cards alike (`MicrophoneAsk.answer`). Tapping outside
+  the dialog, or "Don't allow" once, asks again. Under "Allow" on the microphone step a hint
+  says: Choose "While using the app". Try on a phone (the A20e too, where the answer may be
+  slow): fresh install, tap Allow, tap outside Android's dialog, tap Allow again - the dialog
+  returns; refuse twice and tap Allow once more - the app info opens at that tap, also from
+  Home's "Allow". Check the hint matches Android's wording (German: "Während der Nutzung der
+  App").
 - **C10, the microphone before the accessibility service.** The introduction (both ways) now
   asks for the microphone first, as Home's setup card does - one tap on Android's own
   question - and the accessibility service second; the last step's "Go to the missing step"

@@ -186,15 +186,23 @@ class MainActivity : ComponentActivity() {
     /** When Android's microphone question was asked, to tell an answer with a dialog from one without. */
     private var microphoneAskedAt: Long? = null
 
+    /** Whether Android had a reason to give when its microphone question was asked; null when not known. */
+    private var microphoneRationaleBefore: Boolean? = null
+
     private val requestMicrophone =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk): an
-            // answer with no dialog shown means it does not; a dismissed dialog is no refusal.
+            // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk): a
+            // reason to give that is gone after a refusal, or an answer with no dialog shown, means
+            // it does not; a dismissed dialog is no refusal. With no dialog shown, the app info
+            // opens in this same tap - otherwise the tap did nothing at all.
             val elapsed = microphoneAskedAt?.let { SystemClock.elapsedRealtime() - it }
+            val before = microphoneRationaleBefore
             microphoneAskedAt = null
+            microphoneRationaleBefore = null
             val rationale = shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)
-            getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit()
-                .putBoolean(KEY_MIC_REFUSED, MicrophoneAsk.blocked(granted, rationale, elapsed)).apply()
+            val answer = MicrophoneAsk.answer(granted, before, rationale, elapsed)
+            getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_MIC_REFUSED, answer.blocked).apply()
+            if (answer.opensAppInfo) Setup.openAppSettings(this)
             refreshSetup()
         }
 
@@ -355,15 +363,17 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * "Allow" for the microphone, wherever it is: Android's question while Android still asks,
-     * also after a dismissed one; once it has answered no without a dialog, the app info opens
-     * instead, where the microphone can still be granted.
+     * "Allow" for the microphone, wherever it is - the introduction's step and Home's cards
+     * alike: Android's question while Android still asks, also after a dismissed one; once it
+     * has stopped asking, the app info opens instead, where the microphone can still be granted.
      */
     private fun askForMicrophone() {
         val blocked = getSharedPreferences(MIC_PREFS, MODE_PRIVATE).getBoolean(KEY_MIC_REFUSED, false)
-        when (MicrophoneAsk.way(blocked, shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO))) {
+        val rationale = shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)
+        when (MicrophoneAsk.way(blocked, rationale)) {
             MicrophoneWay.ASK -> {
                 microphoneAskedAt = SystemClock.elapsedRealtime()
+                microphoneRationaleBefore = rationale
                 requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
             }
             MicrophoneWay.APP_INFO -> Setup.openAppSettings(this)
