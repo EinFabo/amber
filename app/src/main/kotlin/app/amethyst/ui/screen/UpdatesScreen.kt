@@ -67,8 +67,8 @@ private fun CheckedUpdates(
     MainSwitch(
         label = stringResource(R.string.updates_check),
         summary = stringResource(R.string.updates_check_summary),
-        checked = updates.enabled,
-        onChange = { on -> onUpdateSettings { it.copy(updates = it.updates.copy(enabled = on)) } },
+        checked = updates.isOn,
+        onChange = { on -> onUpdateSettings { it.copy(updates = UpdatePolicy.answer(it.updates, on)) } },
     )
     GroupFootnote(stringResource(R.string.updates_what_it_asks), AmberIcons.Lock)
 
@@ -88,7 +88,7 @@ private fun CheckedUpdates(
             stringResource(R.string.updates_last_check), words(UpdatePolicy.lastCheck(updates, installedVersion, now)),
             icon = AmberIcons.Update, summaryMaxLines = 2,
             trailing = {
-                GhostButton(stringResource(if (checking) R.string.updates_checking else R.string.updates_check_now), onCheckNow, enabled = updates.enabled && !checking)
+                GhostButton(stringResource(if (checking) R.string.updates_checking else R.string.updates_check_now), onCheckNow, enabled = updates.isOn && !checking)
             },
             onClick = null,
         )

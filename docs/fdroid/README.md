@@ -20,6 +20,8 @@
 - **Tracking.** F-Droid ships the GitHub-signed APK, which checks GitHub for updates. From the
   release after 0.33.0 an install made by an app store never checks
   (`ReleaseChannel.installedBy`); 0.33.0 itself still would, so name a later release here.
+  The check is also opt-in now: a GitHub-signed install that no store made asks the user once on
+  Home and checks nothing until they say yes (`UpdateConsent`).
 - **Name and id: done (2026-11-17).** F-Droid lists another "Amber"
   (`com.greenart7c3.nostrsigner`), and `app.amber` read as the domain amber.app, which is not
   ours. Fabi renamed the app to Embersay, id `com.embersay`, before any store release; after

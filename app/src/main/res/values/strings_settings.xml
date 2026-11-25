@@ -104,6 +104,10 @@
     <string name="updates_this_version">This version</string>
     <string name="unknown">Unknown</string>
     <string name="updates_check">Check for updates</string>
+    <string name="update_question_title">Check GitHub for new versions?</string>
+    <string name="update_question_summary">Once a day. GitHub sees your IP address and which version you have, nothing else. You can change this under Settings, Updates.</string>
+    <string name="update_question_yes">Yes, check</string>
+    <string name="update_question_no">No</string>
     <string name="updates_check_summary">Once a day, on GitHub</string>
     <string name="updates_status">Status</string>
     <string name="updates_amber_version">Embersay %1$s</string>

@@ -21,6 +21,7 @@ import app.amethyst.core.settings.AppProfiles
 import app.amethyst.core.settings.WritingStyle
 import app.amethyst.core.settings.SettingsCodec
 import app.amethyst.core.settings.StoredCatalog
+import app.amethyst.core.settings.UpdateConsent
 import app.amethyst.core.settings.UpdateSettings
 import app.amethyst.core.text.ChatCleanup
 import kotlin.test.Test
@@ -438,17 +439,47 @@ class CaptureTimeoutTest {
     }
 
     @Test
-    fun `settings from before the update check check by default, with nothing to migrate`() {
+    fun `settings from before the update check are not asked as having checked, with nothing to migrate`() {
         for (raw in listOf(
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10}""",
             """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":7}""",
         )) {
             val updates = SettingsCodec.decode(raw, TEST_PHONE).updates
             assertEquals(UpdateSettings(), updates)
-            assertTrue(updates.enabled)
+            assertEquals(UpdateConsent.UNASKED, updates.choice)
             assertEquals(0L, updates.lastCheckedAt)
             assertFalse(updates.lastCheckOffline)
             assertNull(updates.latestVersion)
+        }
+    }
+
+    @Test
+    fun `a fresh install has not been asked about the update check and does not check`() {
+        val fresh = AmethystSettings.defaults(TEST_PHONE).updates
+        assertEquals(UpdateConsent.UNASKED, fresh.choice)
+        assertFalse(fresh.isOn)
+        // The codec writes defaults: a file written by this build, read back, is still unasked.
+        val again = SettingsCodec.decode(SettingsCodec.encode(AmethystSettings.defaults(TEST_PHONE)), TEST_PHONE).updates
+        assertEquals(UpdateConsent.UNASKED, again.choice)
+    }
+
+    @Test
+    fun `an install that already checked keeps its updates, one that never did is asked`() {
+        val checked = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10,"updates":{"enabled":true,"lastCheckedAt":1800000000000}}"""
+        val seen = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10,"updates":{"enabled":true,"latestVersion":"0.40.0"}}"""
+        val never = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10,"updates":{"enabled":true}}"""
+        val off = """{"activeEngineId":"android-on-device","engines":[],"schemaVersion":10,"updates":{"enabled":false,"lastCheckedAt":1800000000000}}"""
+        assertEquals(UpdateConsent.YES, SettingsCodec.decode(checked, TEST_PHONE).updates.choice)
+        assertEquals(UpdateConsent.YES, SettingsCodec.decode(seen, TEST_PHONE).updates.choice)
+        assertEquals(UpdateConsent.UNASKED, SettingsCodec.decode(never, TEST_PHONE).updates.choice)
+        assertEquals(UpdateConsent.NO, SettingsCodec.decode(off, TEST_PHONE).updates.choice)
+    }
+
+    @Test
+    fun `a stored answer wins over the old switch and survives a round trip`() {
+        for (answer in listOf(UpdateConsent.YES, UpdateConsent.NO)) {
+            val s = AmethystSettings.defaults(TEST_PHONE).copy(updates = UpdateSettings(consent = answer, enabled = true, lastCheckedAt = 5))
+            assertEquals(answer, SettingsCodec.decode(SettingsCodec.encode(s), TEST_PHONE).updates.choice)
         }
     }
 

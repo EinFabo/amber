@@ -130,7 +130,8 @@ dass sie deine Stimme an ihren Hersteller senden kann.
 - Suche nach Updates: Eine Kopie von Embersay, die aus einer Datei von GitHub installiert wurde,
   fragt einmal am Tag bei api.github.com, ob eine neuere Version da ist. Die Anfrage enthält nichts
   über dich oder dein Handy außer dem, was jede Anfrage im Web enthält. Eine Kopie aus einem
-  App-Store fragt nie. Du kannst die Suche unter Einstellungen → Über Embersay → Updates ausschalten.
+  App-Store fragt nie. Die Suche ist aus, bis du zustimmst: Embersay fragt einmal auf dem Startbildschirm,
+  und du kannst deine Antwort unter Einstellungen → Über Embersay → Updates ändern.
 - Modell-Listen: Embersay fragt die Server, die du hinzugefügt hast, welche Modelle sie anbieten.
 - Der Nachweis von Tinfoil: Bevor eine Aufnahme oder ein Text an Tinfoil geht, holt Embersay das
   Attestierungsdokument des Servers von diesem Server und prüft es auf dem Handy; der Bericht der

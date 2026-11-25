@@ -122,6 +122,9 @@ fun HomeScreen(
     update: UpdateNotice? = null,
     onDownloadUpdate: (UpdateNotice) -> Unit = {},
     onDismissUpdate: (UpdateNotice) -> Unit = {},
+    /** Until the user answers: may Amber ask GitHub for new versions? Only on the GitHub build. */
+    updateQuestion: Boolean = false,
+    onUpdateQuestion: (Boolean) -> Unit = {},
     /** A model the first run still fetches for this phone: the small one that stands in, or the better one after it. */
     pending: PendingModel? = null,
     /** Until the first dictation into another app: where to try the bubble for real. */
@@ -191,6 +194,8 @@ fun HomeScreen(
         if (setup.serviceNotRunning) ServiceNotRunningCard(actions.openAccessibilityList)
 
         if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
+
+        if (updateQuestion && setup.ready) UpdateQuestionCard({ onUpdateQuestion(true) }, { onUpdateQuestion(false) })
 
         if (historyOffer && setup.ready) HistoryOfferCard({ onHistoryOffer(true) }, { onHistoryOffer(false) })
 
@@ -436,6 +441,31 @@ private fun UpdateCard(notice: UpdateNotice, onDownload: () -> Unit, onDismiss: 
         ) {
             GhostButton(stringResource(R.string.dismiss), onDismiss, color = AmberPalette.Muted)
             PrimaryButton(stringResource(R.string.download), onDownload)
+        }
+    }
+}
+
+/** Asked once on the GitHub build: the check for new versions is off until the user agrees. */
+@Composable
+private fun UpdateQuestionCard(onYes: () -> Unit, onNo: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.update_question_title),
+            summary = stringResource(R.string.update_question_summary),
+            icon = AmberIcons.Update,
+            summaryMaxLines = 3,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GhostButton(stringResource(R.string.update_question_no), onNo, color = AmberPalette.Muted)
+            PrimaryButton(stringResource(R.string.update_question_yes), onYes)
         }
     }
 }

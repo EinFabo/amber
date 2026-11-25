@@ -1,5 +1,6 @@
 package app.amethyst.core.update
 
+import app.amethyst.core.settings.UpdateConsent
 import app.amethyst.core.settings.UpdateSettings
 
 /** A release newer than the installed Amber: "0.24.0" and the page to get it from. */
@@ -8,7 +9,7 @@ data class UpdateNotice(val version: String, val url: String)
 /**
  * When the update check runs and what its result shows. It runs at most once a day, when
  * Amber's screen opens or the accessibility service connects - no scheduled jobs, alarms or
- * wake locks - and only on the GitHub build while switched on. A failed check is silent: it
+ * wake locks - and only on the GitHub build after the user said yes. A failed check is silent: it
  * waits for the next due time - an hour after no answer at all, a day after an answer - and
  * shows only as "failed" on the Updates page.
  */
@@ -30,7 +31,7 @@ object UpdatePolicy {
      * waiting for it to catch up could stop the checks for months, so that counts as due.
      */
     fun isDue(channel: ReleaseChannel, updates: UpdateSettings, now: Long): Boolean {
-        if (!channel.checksForUpdates || !updates.enabled) return false
+        if (!channel.checksForUpdates || !updates.isOn) return false
         val last = updates.lastCheckedAt
         val interval = if (updates.lastCheckFailed && updates.lastCheckOffline) OFFLINE_RETRY_MS else INTERVAL_MS
         return last <= 0L || now < last || now - last >= interval
@@ -55,12 +56,23 @@ object UpdatePolicy {
      * either version cannot be read.
      */
     fun available(channel: ReleaseChannel, updates: UpdateSettings, installed: String): UpdateNotice? {
-        if (!channel.checksForUpdates || !updates.enabled) return null
+        if (!channel.checksForUpdates || !updates.isOn) return null
         val latest = AppVersion.parse(updates.latestVersion) ?: return null
         val current = AppVersion.parse(installed) ?: return null
         if (latest <= current) return null
         return UpdateNotice(latest.toString(), updates.latestUrl?.takeIf { it.isNotBlank() } ?: GithubReleases.RELEASES_URL)
     }
+
+    /**
+     * Whether Home asks "Check GitHub for new versions?": on the GitHub build, once, until the
+     * user answers either way. Never on a store build, which gets its updates from the store.
+     */
+    fun asksConsent(channel: ReleaseChannel, updates: UpdateSettings): Boolean =
+        channel.checksForUpdates && updates.choice == UpdateConsent.UNASKED
+
+    /** [updates] with the user's answer: yes starts the daily check, no leaves it off (Updates page: switch). */
+    fun answer(updates: UpdateSettings, yes: Boolean): UpdateSettings =
+        updates.copy(consent = if (yes) UpdateConsent.YES else UpdateConsent.NO)
 
     /** Home's card: an available release, until the user dismisses that version. */
     fun forHome(channel: ReleaseChannel, updates: UpdateSettings, installed: String): UpdateNotice? =
@@ -78,13 +90,13 @@ object UpdatePolicy {
      */
     fun clearsNotification(outcome: UpdateFetch, updates: UpdateSettings, installed: String): Boolean {
         if (outcome !is UpdateFetch.Found || AppVersion.parse(installed) == null) return false
-        return available(ReleaseChannel.GITHUB, updates.copy(enabled = true), installed) == null
+        return available(ReleaseChannel.GITHUB, updates.copy(consent = UpdateConsent.YES), installed) == null
     }
 
     /** The Updates row in the settings list. A failed check is not news there. */
     fun summary(channel: ReleaseChannel, updates: UpdateSettings, installed: String): UpdateSummary = when {
         !channel.checksForUpdates -> UpdateSummary.FromInstaller
-        !updates.enabled -> UpdateSummary.Off
+        !updates.isOn -> UpdateSummary.Off
         else -> available(channel, updates, installed)?.let { UpdateSummary.Available(it.version) } ?: UpdateSummary.Daily
     }
 
@@ -96,9 +108,9 @@ object UpdatePolicy {
         if (updates.lastCheckedAt <= 0L) return LastCheck.NotYet
         val ago = ago(updates.lastCheckedAt, now)
         if (updates.lastCheckFailed) {
-            return LastCheck.Failed(ago, offline = updates.lastCheckOffline, retried = updates.enabled)
+            return LastCheck.Failed(ago, offline = updates.lastCheckOffline, retried = updates.isOn)
         }
-        if (!updates.enabled) return LastCheck.Done(ago, found = null)
+        if (!updates.isOn) return LastCheck.Done(ago, found = null)
         val newer = available(ReleaseChannel.GITHUB, updates, installed)
         return LastCheck.Done(ago, found = newer?.version ?: "")
     }

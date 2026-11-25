@@ -70,7 +70,7 @@ class UpdateChecker(
             val build = identified.filterNotNull().first()
             if (!build.channel.checksForUpdates) return@launch
             val settings = loaded.filterNotNull().first()
-            if (!settings.updates.enabled) return@launch
+            if (!settings.updates.isOn) return@launch
             if (!force && !UpdatePolicy.isDue(build.channel, settings.updates, System.currentTimeMillis())) return@launch
             // One at a time: the screen and the service may both ask at the same moment.
             if (!running.compareAndSet(expect = false, update = true)) return@launch

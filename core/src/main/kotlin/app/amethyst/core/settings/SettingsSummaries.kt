@@ -233,7 +233,7 @@ object SettingsSummaries {
      */
     fun about(installed: String, channel: ReleaseChannel?, updates: UpdateSettings): Summary {
         val newer = when {
-            channel == null || !channel.checksForUpdates || !updates.enabled -> Summary.About.Newer.Unknown
+            channel == null || !channel.checksForUpdates || !updates.isOn -> Summary.About.Newer.Unknown
             else -> UpdatePolicy.available(channel, updates, installed)?.let { Summary.About.Newer.Out(it.version) }
                 ?: Summary.About.Newer.None.takeIf {
                     updates.lastCheckedAt > 0L && !updates.lastCheckFailed &&

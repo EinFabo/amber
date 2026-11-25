@@ -125,8 +125,9 @@ this may send your voice to its maker.
   keyboard.futo.org.
 - **Update check**: a copy of Embersay installed from a file from GitHub asks api.github.com once
   a day whether a newer release is out. The request carries nothing about you or your phone
-  beyond what any web request does. A copy installed by an app store never asks. You can
-  switch the check off under Settings → About Embersay → Updates.
+  beyond what any web request does. A copy installed by an app store never asks. The
+  check is off until you agree to it: Embersay asks once on the Home screen, and you can change
+  your answer under Settings → About Embersay → Updates.
 - **Model lists**: Embersay asks the servers you added which models they offer.
 - **Tinfoil's proof**: before a recording or a text goes to Tinfoil, Embersay fetches the
   server's attestation document from that server and checks it on the phone - the hardware

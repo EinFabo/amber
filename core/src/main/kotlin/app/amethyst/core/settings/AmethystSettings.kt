@@ -313,7 +313,7 @@ data class AmethystSettings(
     val serverCatalogs: Map<String, StoredCatalog> = emptyMap(),
     /**
      * The update check of builds from GitHub releases, and what it found; see
-     * [app.amethyst.core.update.UpdatePolicy]. Absent in older settings, which check by default.
+     * [app.amethyst.core.update.UpdatePolicy]. Absent in older settings: see [UpdateSettings.choice].
      */
     val updates: UpdateSettings = UpdateSettings(),
     /** How the app itself looks. */
@@ -672,7 +672,15 @@ data class StoredModel(val id: String, val label: String, val note: String = "",
  */
 @Serializable
 data class UpdateSettings(
-    /** Ask GitHub for the latest release; the user can switch it off under Settings -> Updates. */
+    /**
+     * Whether the user agreed to the check, once they were asked on Home or switched it under
+     * Settings -> Updates. Null until then: [choice] reads the older settings that never had it.
+     */
+    val consent: UpdateConsent? = null,
+    /**
+     * The old on/off switch, before the check asked first. Never written to by the app any more;
+     * only read, for settings that have no [consent] yet.
+     */
     val enabled: Boolean = true,
     /** When the last check ran, successful or not (wall clock, ms); 0 for never. */
     val lastCheckedAt: Long = 0,
@@ -687,7 +695,27 @@ data class UpdateSettings(
     val notifiedVersion: String? = null,
     /** The version whose card on Home the user dismissed. */
     val dismissedVersion: String? = null,
-)
+) {
+    /**
+     * The user's answer. Settings from before the question existed count as an answer when
+     * they show one: switched off was a choice (NO); a check that ran or a release seen means
+     * the user had updates on and keeps them (YES); anything else, and a fresh install, never
+     * checked and still has to be asked.
+     */
+    val choice: UpdateConsent
+        get() = consent ?: when {
+            !enabled -> UpdateConsent.NO
+            lastCheckedAt > 0L || latestVersion != null -> UpdateConsent.YES
+            else -> UpdateConsent.UNASKED
+        }
+
+    /** Whether Amber may ask GitHub: only after a yes. */
+    val isOn: Boolean get() = choice == UpdateConsent.YES
+}
+
+/** Whether the user agreed to the GitHub update check. */
+@Serializable
+enum class UpdateConsent { UNASKED, YES, NO }
 
 /**
  * Voice commands from the bubble ("open WhatsApp", "go back"). Off unless the user switches them

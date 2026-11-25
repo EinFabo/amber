@@ -942,6 +942,11 @@ private fun AmethystScreens(
                                         open(Screen.EngineDetail(preset.id))
                                     },
                                     update = build?.let { UpdatePolicy.forHome(it.channel, settings.updates, it.version) },
+                                    updateQuestion = build?.let { UpdatePolicy.asksConsent(it.channel, settings.updates) } == true,
+                                    onUpdateQuestion = { yes ->
+                                        updateSettings { it.copy(updates = UpdatePolicy.answer(it.updates, yes)) }
+                                        if (yes) graph.updates.checkIfDue()
+                                    },
                                     onDownloadUpdate = { notice -> openUrl(notice.url) },
                                     onDismissUpdate = { notice ->
                                         updateSettings { it.copy(updates = it.updates.copy(dismissedVersion = notice.version)) }

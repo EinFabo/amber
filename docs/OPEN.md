@@ -5,6 +5,15 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **G1, the update check asks first.** A GitHub-signed install that no store made has the check
+  off until the user agrees: Home shows "Check GitHub for new versions?" once (Yes, check / No,
+  after the setup, with the other one-time cards); the Updates page keeps the switch. Settings
+  that already checked (a last check or a release seen) count as yes and are not asked;
+  switched off stays no; never checked is asked (`UpdateSettings.choice`). Play, F-Droid and
+  other store installs are never asked and never check. Try: a fresh GitHub-signed debug build
+  (card shows, no request before Yes); an old settings file with a last check (no card, checks
+  continue).
+
 - **F8-F9, the store listing and honest privacy texts.** The listing (`fastlane/metadata/android`)
   says in plain words what you get (tap the bubble, speak, the text is in; the voice stays on
   the phone unless you choose a server; each dictation shows where it went), names that the

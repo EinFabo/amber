@@ -1,6 +1,7 @@
 package app.amethyst.core
 
 import app.amethyst.core.net.HttpResponse
+import app.amethyst.core.settings.UpdateConsent
 import app.amethyst.core.settings.UpdateSettings
 import app.amethyst.core.update.AppVersion
 import app.amethyst.core.update.GithubReleases
@@ -228,8 +229,27 @@ class UpdatePolicyTest {
     private val found = UpdateFetch.Found(LatestRelease(AppVersion(0, 24, 0), "https://github.com/EinFabo/amber/releases/tag/v0.24.0", "Amber 0.24.0"))
 
     @Test
+    fun `nothing is asked of GitHub before a yes`() {
+        val unasked = UpdateSettings()
+        assertFalse(UpdatePolicy.isDue(github, unasked, now))
+        assertFalse(UpdatePolicy.isDue(github, UpdateSettings(consent = UpdateConsent.NO), now))
+        assertTrue(UpdatePolicy.isDue(github, UpdateSettings(consent = UpdateConsent.YES), now))
+        assertEquals(UpdateSummary.Off, UpdatePolicy.summary(github, unasked, "0.23.0"))
+    }
+
+    @Test
+    fun `Home asks once, on the GitHub build only`() {
+        assertTrue(UpdatePolicy.asksConsent(github, UpdateSettings()))
+        assertFalse(UpdatePolicy.asksConsent(ReleaseChannel.OTHER, UpdateSettings()), "a store's install is the store's to update")
+        assertFalse(UpdatePolicy.asksConsent(github, UpdateSettings(consent = UpdateConsent.YES)))
+        assertFalse(UpdatePolicy.asksConsent(github, UpdateSettings(consent = UpdateConsent.NO)))
+        val fdroid = ReleaseChannel.installedBy(github, "org.fdroid.fdroid", saysStore = true)
+        assertFalse(UpdatePolicy.asksConsent(fdroid, UpdateSettings()))
+    }
+
+    @Test
     fun `a check is due at most once a day, only on the github build and only while on`() {
-        assertTrue(UpdatePolicy.isDue(github, UpdateSettings(), now), "never checked")
+        assertTrue(UpdatePolicy.isDue(github, UpdateSettings(consent = UpdateConsent.YES), now), "never checked")
         assertFalse(UpdatePolicy.isDue(github, UpdateSettings(lastCheckedAt = now - 23 * hour), now))
         assertTrue(UpdatePolicy.isDue(github, UpdateSettings(lastCheckedAt = now - day), now))
         assertTrue(UpdatePolicy.isDue(github, UpdateSettings(lastCheckedAt = now - 3 * day), now))
@@ -339,7 +359,7 @@ class UpdatePolicyTest {
     @Test
     fun `the settings row says what the check does in a few words`() {
         val seen = UpdatePolicy.afterCheck(UpdateSettings(), found, now)
-        assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, UpdateSettings(), "0.23.0"))
+        assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, UpdateSettings(consent = UpdateConsent.YES), "0.23.0"))
         assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, seen, "0.24.0"))
         assertEquals(UpdateSummary.Daily, UpdatePolicy.summary(github, UpdateSettings(lastCheckFailed = true, lastCheckedAt = now), "0.23.0"))
         assertEquals(UpdateSummary.Available("0.24.0"), UpdatePolicy.summary(github, seen, "0.23.0"))
