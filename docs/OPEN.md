@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **B3, the bubble tells "on the clipboard" from "inserted".** When the words only went onto
+  the clipboard, the bubble no longer shows the tick, the burst and the confirming buzz: it
+  shows a copy glyph (two sheets) on the amber disc and gives the short double buzz of a
+  refusal; the practice step does not count it as an inserted dictation. The message is as
+  before. Try on a phone: dictate into a field that refuses text (or with the field gone) with
+  the clipboard fallback on - the bubble should show the copy glyph, not the tick.
 - **B1, "ready" only when the bubble's service is really connected.** Android can list the
   accessibility service as on while it never connected (after an update, or killed by the
   system); Home and the practice step now check the live connection too. Home shows "The bubble

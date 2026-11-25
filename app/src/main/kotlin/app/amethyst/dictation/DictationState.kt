@@ -37,6 +37,8 @@ sealed interface DictationState {
         val transcript: Transcript,
         val strategy: InsertionStrategy,
         val insertedIntoApp: String?,
+        /** The words are only on the clipboard, not in the field: the bubble says so ([app.amethyst.core.bubble.DeliveryLook]). */
+        val copiedOnly: Boolean = false,
     ) : DictationState
 
     /** A voice command was carried out: [heard] as recognized, [did] what came of it. */

@@ -21,7 +21,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /** The visual states of the bubble. */
-enum class BubbleVisual { IDLE, LISTENING, PAUSED, TRANSCRIBING, DONE, FAILED }
+enum class BubbleVisual { IDLE, LISTENING, PAUSED, TRANSCRIBING, DONE, CLIPBOARD, FAILED }
 
 /**
  * The bubble, drawn by hand on a Canvas.
@@ -193,6 +193,7 @@ class BubbleView(context: Context) : View(context) {
             // Stuck, the flame burns slower too: still alive, no longer hurrying.
             BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else if (work?.stuck() == true) elapsed * STUCK_FLICKER else elapsed)
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))
+            BubbleVisual.CLIPBOARD -> drawCopy(canvas, r)
             BubbleVisual.FAILED -> drawBang(canvas, r)
         }
         canvas.restore()
@@ -416,6 +417,19 @@ class BubbleView(context: Context) : View(context) {
         partial.reset()
         measure.getSegment(0f, measure.length * progress, partial, true)
         canvas.drawPath(partial, glyph)
+    }
+
+    /** Two sheets, one behind the other: the words are on the clipboard, not in the field. */
+    private fun drawCopy(canvas: Canvas, r: Float) {
+        glyph.style = Paint.Style.STROKE
+        glyph.strokeWidth = r * 0.1f
+        val w = r * 0.34f
+        val h = r * 0.42f
+        val round = r * 0.06f
+        val off = r * 0.12f
+        // The sheet behind, up and to the left, then the one in front.
+        canvas.drawRoundRect(cx - w / 2 - off, cy - h / 2 - off, cx + w / 2 - off, cy + h / 2 - off, round, round, glyph)
+        canvas.drawRoundRect(cx - w / 2 + off, cy - h / 2 + off, cx + w / 2 + off, cy + h / 2 + off, round, round, glyph)
     }
 
     private fun drawBang(canvas: Canvas, r: Float) {

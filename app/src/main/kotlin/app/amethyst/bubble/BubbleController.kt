@@ -643,7 +643,7 @@ class BubbleController(
             DictationState.Starting -> BubbleVisual.LISTENING
             is DictationState.Listening -> if (state.paused) BubbleVisual.PAUSED else BubbleVisual.LISTENING
             is DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
-            is DictationState.Done -> BubbleVisual.DONE
+            is DictationState.Done -> if (state.copiedOnly) BubbleVisual.CLIPBOARD else BubbleVisual.DONE
             is DictationState.Commanded -> BubbleVisual.DONE
             is DictationState.Failed -> BubbleVisual.FAILED
         }
@@ -660,7 +660,8 @@ class BubbleController(
         updateSparks()
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
-            is DictationState.Done, is DictationState.Commanded -> haptic(Haptics.Kind.CONFIRM)
+            is DictationState.Done -> haptic(if (state.copiedOnly) Haptics.Kind.REJECT else Haptics.Kind.CONFIRM)
+            is DictationState.Commanded -> haptic(Haptics.Kind.CONFIRM)
             is DictationState.Failed -> haptic(Haptics.Kind.REJECT)
             else -> Unit
         }

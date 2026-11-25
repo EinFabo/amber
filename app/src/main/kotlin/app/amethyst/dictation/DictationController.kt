@@ -25,6 +25,7 @@ import app.amethyst.core.audio.DiscardReason
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.audio.StopReason
 import app.amethyst.core.bubble.BubbleEvent
+import app.amethyst.core.bubble.DeliveryLook
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.CallWatch
 import app.amethyst.core.capture.LoudnessLog
@@ -2346,12 +2347,15 @@ class DictationController(
         graph.dictatedInto(startTarget?.packageName ?: insertion.targetPackage)
         graph.keepInHistory(cleaned, startTarget?.packageName ?: insertion.targetPackage)
 
-        _state.value = DictationState.Done(
+        val done = DictationState.Done(
             transcript = finalTranscript,
             strategy = insertion.strategy,
             insertedIntoApp = insertion.targetPackage,
+            copiedOnly = DeliveryLook.of(insertion.insertedIntoField, insertion.copiedToClipboard) == DeliveryLook.ON_CLIPBOARD,
         )
-        graph.bubbleEvents.tryEmit(BubbleEvent.DictationInserted)
+        _state.value = done
+        // Only words in the field count as inserted (the practice step ticks on this).
+        if (!done.copiedOnly) graph.bubbleEvents.tryEmit(BubbleEvent.DictationInserted)
 
         // Let the bubble show the result for a moment, then go back to resting. Launched
         // separately so this pause is not charged to the dictation's timeout.
