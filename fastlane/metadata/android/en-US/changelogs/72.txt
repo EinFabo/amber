@@ -1,0 +1,6 @@
+- Embersay is now called sayEmber
+- A dictation is no longer lost: if a model or server fails, or sayEmber is ended, the recording is kept and "Try again" recognizes it
+- Setup is clearer: the microphone first, steps that fit your phone's maker, and honest words on phones with no speech recognition
+- Text fits what is already in the field: no eaten words, no stray capitals or periods
+- Music pauses while you record
+- The launcher icon no longer sits on a white disc
