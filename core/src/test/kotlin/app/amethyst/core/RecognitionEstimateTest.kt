@@ -26,4 +26,19 @@ class RecognitionEstimateTest {
         estimate.learn("turbo", audioMs = 10_000, tookMs = 35_000, overheadMs = 0)
         assertEquals(1_200, estimate.expectedMs("futo", 10_000, typicalRate = 0.12, overheadMs = 0))
     }
+
+    @Test
+    fun `a wait that was given up is learned as a lower bound, never lowering the rate`() {
+        val estimate = RecognitionEstimate()
+        // 20 s of audio was given up on after 12 s: at least 0.6 per ms of audio.
+        estimate.learnAtLeast("own", audioMs = 20_000, tookMs = 12_000, overheadMs = 0)
+        assertEquals(12_000, estimate.expectedMs("own", 20_000, typicalRate = 0.08, overheadMs = 0))
+        // A smaller bound does not pull it back down.
+        estimate.learnAtLeast("own", audioMs = 20_000, tookMs = 4_000, overheadMs = 0)
+        assertEquals(12_000, estimate.expectedMs("own", 20_000, typicalRate = 0.08, overheadMs = 0))
+        // A rate already learned above the bound stays.
+        estimate.learn("fast", audioMs = 10_000, tookMs = 9_000, overheadMs = 0)
+        estimate.learnAtLeast("fast", audioMs = 10_000, tookMs = 3_000, overheadMs = 0)
+        assertEquals(9_000, estimate.expectedMs("fast", 10_000, typicalRate = 0.08, overheadMs = 0))
+    }
 }

@@ -106,6 +106,9 @@ class EngineFactory(
                         // Its usual time as the progress ring expects it, under the dictation's key:
                         // the answer is given up at three times that after the upload.
                         expectedMs = { audioMs -> estimate().expectedMs("${config.id}/${config.modelId}", audioMs, SERVER_RATE, SERVER_OVERHEAD_MS) },
+                        // A server slower than three times that is taught how long it needs at least,
+                        // so Try again waits longer instead of failing the same way.
+                        onNoAnswer = { audioMs, waitedMs -> estimate().learnAtLeast("${config.id}/${config.modelId}", audioMs, waitedMs, SERVER_OVERHEAD_MS) },
                     ),
                 )
             }

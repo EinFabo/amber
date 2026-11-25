@@ -270,6 +270,17 @@ class WhisperTest {
     }
 
     @Test
+    fun `server text keeps brackets, stars and line breaks and loses only the invented credit`() {
+        assertEquals("Ich komme (vielleicht) morgen.\nBis dann.", WhisperOutput.cleanServer("Ich komme (vielleicht) morgen.\nBis dann."))
+        assertEquals("Das war *wirklich* [sic] gut.", WhisperOutput.cleanServer(" Das war *wirklich* [sic] gut. "))
+        assertEquals(
+            "Wir sehen uns morgen.",
+            WhisperOutput.cleanServer("Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020."),
+        )
+        assertEquals("", WhisperOutput.cleanServer("Untertitel im Auftrag des ZDF, 2021"))
+    }
+
+    @Test
     fun `subtitle credits invented on silence are dropped`() {
         assertEquals("", WhisperOutput.clean(" Untertitel der Amara.org-Community"))
         assertEquals("", WhisperOutput.clean("Untertitel im Auftrag des ZDF, 2021"))

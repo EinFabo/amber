@@ -85,6 +85,14 @@ class OpenAiCompatibleEngineTest {
     }
 
     @Test
+    fun `a Whisper server's text keeps its brackets and line breaks`() = runTest {
+        val transport = FakeHttpTransport.json("""{"text":"Ich komme (vielleicht) morgen.\nBis dann."}""")
+        assertEquals("Ich komme (vielleicht) morgen.\nBis dann.", engine(transport).transcribe(audio).getOrThrow().text)
+        val credit = FakeHttpTransport.json("""{"text":"Wir sehen uns morgen. Untertitel im Auftrag des ZDF, 2020."}""")
+        assertEquals("Wir sehen uns morgen.", engine(credit).transcribe(audio).getOrThrow().text)
+    }
+
+    @Test
     fun `sends a wav file plus model and language fields`() = runTest {
         val transport = FakeHttpTransport.json("""{"text":"ok"}""")
         engine(transport).transcribe(audio, TranscribeOptions(languageTag = "de-DE"))
@@ -358,6 +366,30 @@ class OpenAiCompatibleEngineTest {
         assertNotNull(Fallback.recoverable(failure, TrustLevel.CLOUD, FallbackMode.AUTOMATIC), "another engine may take it")
         assertTrue(KeptDictation.worthTryingAgain(failure.problem), "kept for Try again without a fallback")
         assertTrue(failure.recordingMayHaveLeft, "the server may have the recording")
+    }
+
+    @Test
+    fun `a wait given up teaches the estimate, so the next wait is longer and Try again can get through`() = runTest {
+        val estimate = app.amethyst.core.engine.RecognitionEstimate()
+        // The audio is 1 s; the server needs 20 s: far beyond 3 x the typical 0.08.
+        val server = SlowServer(uploadMs = 100, answerMs = 20_000)
+        fun engine() = OpenAiCompatibleEngine(
+            id = "own", displayName = "Own server", baseUrl = "https://example.org/v1", modelId = "m",
+            transport = server, apiKeyProvider = { null },
+            capabilities = EngineCapabilities(TrustLevel.CLOUD, needsApiKey = false),
+            expectedMs = { ms -> estimate.expectedMs("own", ms, 0.08, 0) },
+            onNoAnswer = { ms, waited -> estimate.learnAtLeast("own", ms, waited, 0) },
+        )
+        var waits = 0
+        while (waits < 6 && engine().transcribe(audio).isFailure) waits++
+        assertTrue(waits in 1..5, "it gets through after some tries, not never: $waits")
+        assertTrue(engine().transcribe(audio).isSuccess)
+    }
+
+    @Test
+    fun `what the learned wait asks for never goes past the request's own limit`() {
+        assertEquals(61_000, OpenAiCompatibleEngine.cappedWaitMs(10_000_000, audioMs = 1_000))
+        assertEquals(15_000, OpenAiCompatibleEngine.cappedWaitMs(15_000, audioMs = 1_000))
     }
 
     @Test

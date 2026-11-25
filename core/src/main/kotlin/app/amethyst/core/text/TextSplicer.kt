@@ -118,7 +118,7 @@ object TextSplicer {
             }
         }
         val dropStop = options.fieldKind != FieldKind.TEXT || (options.gluePunctuation && continues(after))
-        if (dropStop && endsWithFullStop(fit)) fit = fit.dropLast(1)
+        if (dropStop && endsWithFullStop(fit) && !endsAbbreviation(fit)) fit = fit.dropLast(1)
         return fit
     }
 
@@ -140,6 +140,10 @@ object TextSplicer {
         word == "I" || word.startsWith("I'") || word.startsWith("I’")
 
     /** One full stop at the end - not an ellipsis, not a lone mark. */
+    /** The "." belongs to an abbreviation ("etc.", "z. B.", "Dr.") or an ordinal ("am 3."): it stays. */
+    private fun endsAbbreviation(words: String): Boolean =
+        Abbreviations.endsWith(words) || words.dropLast(1).takeLastWhile { !it.isWhitespace() }.let { it.isNotEmpty() && it.all(Char::isDigit) }
+
     private fun endsWithFullStop(words: String): Boolean =
         words.length > 1 && words.last() == '.' && words[words.length - 2] != '.' && !words[words.length - 2].isWhitespace()
 

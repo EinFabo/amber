@@ -152,6 +152,15 @@ class TextSplicerTest {
     }
 
     @Test
+    fun `the full stop of an abbreviation or an ordinal stays before the rest of the sentence`() {
+        assertEquals("Papier etc. und Kleber", de(" und Kleber", 0, "Papier etc."))
+        assertEquals("Wir treffen uns z. B. morgen", de(" morgen", 0, "Wir treffen uns z. B."))
+        assertEquals("Ich frage Dr. müller", de(" müller", 0, "Ich frage Dr."))
+        assertEquals("Das ist am 3. mai", de(" mai", 0, "Das ist am 3."))
+        assertEquals("See you tomorrow", en(" tomorrow", 0, "See you."), "a plain sentence end still goes")
+    }
+
+    @Test
     fun `a full stop before a new sentence or a new line stays`() {
         assertEquals("See you. Tomorrow we go.", en("Tomorrow we go.", 0, "See you."))
         assertEquals("See you.\ntomorrow", en("\ntomorrow", 0, "See you."))

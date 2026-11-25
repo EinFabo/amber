@@ -131,7 +131,7 @@ object WhisperOutput {
     /**
      * Lines Whisper is known to invent on silence or noise, because they were burned into its
      * training data from subtitle files. Matched as whole outputs only, so a user who really
-     * dictates one of these words keeps it.
+     * dictates one of these words keeps it - or a last sentence of its own, see [dropInventedTail].
      */
     private val hallucinations = listOf(
         Regex("""(?i)^untertitel (im auftrag des zdf|der amara\.org-community|von stephanie geiges).*$"""),
@@ -146,6 +146,13 @@ object WhisperOutput {
             .trim()
         return dropInventedTail(text)
     }
+
+    /**
+     * A Whisper server's text: only the invented credit goes. The server's own text keeps its
+     * brackets, stars and line breaks - they are what the user said, and silently losing them
+     * in a field is worse than a stray annotation.
+     */
+    fun cleanServer(raw: String): String = dropInventedTail(raw.trim())
 
     /**
      * Whether [modelId] names a Whisper model (Groq's whisper-large-v3, OpenAI's whisper-1):

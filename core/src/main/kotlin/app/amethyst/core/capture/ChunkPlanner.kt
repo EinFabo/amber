@@ -10,8 +10,9 @@ package app.amethyst.core.capture
  * at the quietest moment of its last stretch rather than wherever it happens to be.
  *
  * A real pause ([longPauseMs], 800 ms) is preferred: a shorter breath is often inside a sentence,
- * and a cut there makes the recognizer end each side as a sentence of its own. Only in the last
- * quarter before [maxChunkMs] a breath of [pauseMs] cuts too, rather than a forced cut in a word.
+ * and a cut there makes the recognizer end each side as a sentence of its own. Only after
+ * 10 s of a chunk a breath of [pauseMs] cuts too: the part left when the user stops stays short
+ * (a phone recognizes slower than it is spoken), and no cut lands in a word.
  * The chunk says how long the pause at its end was ([Chunk.pauseMs]), so the join of the texts
  * can tell a cut at a breath from a cut at a pause.
  *
@@ -27,6 +28,8 @@ class ChunkPlanner(
     private val maxChunkMs: Int = 25_000,
     /** How far back from [maxChunkMs] a forced cut looks for the quietest frame. */
     private val quietSearchMs: Int = 2_000,
+    /** From this length on a breath of [pauseMs] cuts too; before it only a pause does. */
+    private val breathAfterMs: Int = 10_000,
 ) {
 
     /** Where the current chunk began, in samples since the start of the recording. */
@@ -93,9 +96,9 @@ class ChunkPlanner(
         return chunk
     }
 
-    /** A pause, or a breath once the chunk is in the last quarter before the longest one. */
+    /** A pause, or a breath once the chunk is [breathAfterMs] long: the last chunk stays short. */
     private fun pausedEnough(chunkMs: Long): Boolean =
-        silenceMs >= longPauseMs || (silenceMs >= pauseMs && chunkMs >= maxChunkMs - maxChunkMs / 4)
+        silenceMs >= longPauseMs || (silenceMs >= pauseMs && chunkMs >= breathAfterMs)
 
     private fun ms(sampleCount: Int): Long = sampleCount * 1000L / sampleRate
 

@@ -66,6 +66,19 @@ class ChunkingTest {
     }
 
     @Test
+    fun `the pause that cuts is 800 ms in the first 10 s of a chunk and 450 ms from 10 s on`() {
+        // 9 s of speech, then a 600 ms breath: too short this early.
+        assertTrue(ChunkPlanner(rate).feed(listOf(true to seconds(9.0), false to seconds(0.6))).first.isEmpty())
+        // 10 s of speech, then the same breath: cut.
+        val chunk = ChunkPlanner(rate).feed(listOf(true to seconds(10.0), false to seconds(0.6))).first.single()
+        assertEquals(460, chunk.pauseMs)
+        // A breath still short of 450 ms does not cut even late.
+        assertTrue(ChunkPlanner(rate).feed(listOf(true to seconds(12.0), false to seconds(0.4))).first.isEmpty())
+        // An 800 ms pause cuts early, as before.
+        assertEquals(800, ChunkPlanner(rate).feed(listOf(true to seconds(6.0), false to seconds(0.9))).first.single().pauseMs)
+    }
+
+    @Test
     fun `a forced cut says there was no pause`() {
         val planner = ChunkPlanner(rate, maxChunkMs = 10_000, quietSearchMs = 2_000)
         val chunks = planner.feed(listOf(true to seconds(11.0))).first

@@ -26,11 +26,17 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   recording to the same engine again (servers are not cut into pieces today; the rule holds
   for any that is). Try on a phone: an own server address that accepts and never answers
   (`nc -lk 8000` on the PC): a 5 s dictation hands over after about 10 s; with the fallback
-  off, Try again is offered.
+  off, Try again is offered. A server that is simply slower than that (an Amber PC on a CPU,
+  a cold model) is taught: the wait that ran out is learned as a lower bound, so Try again
+  waits three times longer (never past the request's own limit, a minute plus the audio).
+  Try: a server that answers a 5 s dictation after 25 s - the first try hands over, the
+  second gets through.
 - **D4, Whisper's invented credits are dropped on servers too.** A Whisper model (id contains
   "whisper": Groq's `whisper-large-v3`, OpenAI's `whisper-1`, an own server's) can write
   "Untertitel im Auftrag des ZDF" or "Thanks for watching!" after real speech. This was only
-  filtered for the phone's Whisper, and only as a whole text. Now a known line is dropped
+  filtered for the phone's Whisper, and only as a whole text. A server's text gets only this
+  filter: its brackets, stars and line breaks stay as it wrote them (the phone's Whisper also
+  strips "[Musik]" and the like). Now a known line is dropped
   from servers too (each piece of a long dictation on its own), and also when it is the whole
   last sentence after real speech ("Wir sehen uns morgen. Untertitel ..." -> "Wir sehen uns
   morgen."). A real sentence that only contains the words ("Thanks for watching the kids.")
@@ -38,8 +44,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   stay silent for a few seconds, with Groq and with the phone's Whisper.
 - **D3, Long dictations get no stray full stops at the cuts.** A long dictation is cut into
   pieces and each came back as a sentence of its own. The cut now prefers a real pause of
-  800 ms; a breath of 450 ms cuts only in the last quarter before the longest piece (25 s), so
-  the wait after you stop can be a little longer. When a cut was at a breath (or in speech)
+  800 ms; a breath of 450 ms cuts too once a piece is 10 s long (the longest is 25 s), so the
+  part left when you stop stays short. When a cut was at a breath (or in speech)
   and the next piece starts with a small word (`CommonWords`), the full stop goes and the
   capital with it: "Ich wollte dir sagen" + "dass ich komme" - no comma is guessed. After a
   pause, before any other word, after "?", "!", "..." or an abbreviation ("etc.", "z. B.",
@@ -56,7 +62,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   starts a sentence). Dictated in front of the rest of a sentence, the full stop goes: "|
   tomorrow" + "See you." reads "See you tomorrow". A search box, a web or an e-mail address
   (`FieldKind`, from the input type and the Search action key) gets no capital and no full
-  stop: "pizza near me", "example.com" (a German noun in a German search keeps its capital).
+  stop: "pizza near me", "example.com" (the full stop of "etc.", "z. B.", "Dr." and "am 3."
+  stays in front of the rest of a sentence; a German noun in a German search keeps its capital).
   Off with "Capitalize sentence starts" / "No space before punctuation". Diagnostics: "(search
   field)" after the insertion. Try on the Pixel and the A20e: type "Meet me at " in a message
   and dictate "the station"; type "Ich gehe zum " and dictate "Bahnhof"; put the cursor before

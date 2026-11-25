@@ -26,6 +26,18 @@ class RecognitionEstimate(private val learningRate: Double = 0.35) {
         rates[key] = rates[key]?.let { it + (observed - it) * learningRate } ?: observed
     }
 
+    /**
+     * Records that waiting [tookMs] for [audioMs] of audio was not enough - the answer was given
+     * up on, so the true time is longer. The rate only goes up to this bound, never down, and
+     * the next wait is longer by it.
+     */
+    @Synchronized
+    fun learnAtLeast(key: String, audioMs: Long, tookMs: Long, overheadMs: Long) {
+        if (audioMs <= 0) return
+        val bound = (tookMs - overheadMs).coerceAtLeast(0L).toDouble() / audioMs
+        rates[key] = maxOf(rates[key] ?: 0.0, bound)
+    }
+
     /** What was learned so far, to keep across restarts. */
     @Synchronized
     fun snapshot(): Map<String, Double> = HashMap(rates)

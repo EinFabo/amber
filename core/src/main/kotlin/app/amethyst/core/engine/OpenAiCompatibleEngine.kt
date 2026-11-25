@@ -83,6 +83,12 @@ class OpenAiCompatibleEngine(
      * engine's typical rate.
      */
     private val expectedMs: (audioMs: Long) -> Long = { audioMs -> capabilities.overheadMs + (audioMs * capabilities.typicalRate).toLong() },
+    /**
+     * The answer was given up on: [audioMs] of audio, [waitedMs] after the upload. The server is
+     * slower than expected, so the next wait can be longer ([RecognitionEstimate.learnAtLeast]);
+     * otherwise "Try again" would fail the same way.
+     */
+    private val onNoAnswer: (audioMs: Long, waitedMs: Long) -> Unit = { _, _ -> },
 ) : SttEngine {
 
     private val channel = SecureChannel(baseUrl, displayName, transport, attestationVerifier, capabilities.trustLevel)
@@ -105,7 +111,7 @@ class OpenAiCompatibleEngine(
 
         val prompt = OwnWords.prompt(options.vocabularyHint?.takeIf { capabilities.vocabulary }, options.precedingText)
 
-        val deadlineMs = answerDeadlineMs(expectedMs(audio.durationMs))
+        val deadlineMs = cappedWaitMs(answerDeadlineMs(expectedMs(audio.durationMs)), audio.durationMs)
         var compressed = compressedUpload?.let { upload -> withContext(encodeContext) { upload.encode(audio) } }
         var opusRefused = false
 
@@ -137,7 +143,7 @@ class OpenAiCompatibleEngine(
             ),
         )
 
-        var sent = sendInTime(request(withPrompt = true), deadlineMs).getOrElse { return Result.failure(it) }
+        var sent = sendInTime(request(withPrompt = true), deadlineMs, audio.durationMs).getOrElse { return Result.failure(it) }
         // A server that announced more than it takes: the same request once more as WAV, and
         // WAV from then on, until its list is fetched again. A 400 that was really about the
         // prompt counts as a refusal too - Opus stays off until the next fetch, which costs a
@@ -146,11 +152,11 @@ class OpenAiCompatibleEngine(
             compressed = null
             opusRefused = true
             compressedUpload?.refused()
-            sent = sendInTime(request(withPrompt = true), deadlineMs).getOrElse { return Result.failure(it) }
+            sent = sendInTime(request(withPrompt = true), deadlineMs, audio.durationMs).getOrElse { return Result.failure(it) }
         }
         // Not every model takes a prompt (Voxtral may refuse one); the text matters more.
         if (prompt != null && sent.response.code in PROMPT_REJECTED) {
-            sent = sendInTime(request(withPrompt = false), deadlineMs).getOrElse { return Result.failure(it) }
+            sent = sendInTime(request(withPrompt = false), deadlineMs, audio.durationMs).getOrElse { return Result.failure(it) }
         }
         val response = sent.response
 
@@ -171,7 +177,7 @@ class OpenAiCompatibleEngine(
 
         // A Whisper on the server may write the own words back on silence, as a small one on the phone does.
         // A Whisper model also invents a subtitle credit after real speech; another model does not.
-        val text = if (WhisperOutput.isWhisperFamily(modelId)) WhisperOutput.clean(parsed.text) else parsed.text
+        val text = if (WhisperOutput.isWhisperFamily(modelId)) WhisperOutput.cleanServer(parsed.text) else parsed.text
         val echo = OwnWords.echoed(text, options.vocabularyHint?.takeIf { capabilities.vocabulary })
         if (text.isBlank() || echo) {
             return Result.failure(
@@ -211,7 +217,7 @@ class OpenAiCompatibleEngine(
      * request's own limit counts: a slow upload on mobile data is not a hung server. A body sent
      * again (OkHttp retries on a fresh connection) starts the wait again once it is out.
      */
-    private suspend fun sendInTime(request: HttpRequest, deadlineMs: Long): Result<SecureChannel.Sent> = coroutineScope {
+    private suspend fun sendInTime(request: HttpRequest, deadlineMs: Long, audioMs: Long): Result<SecureChannel.Sent> = coroutineScope {
         val out = MutableStateFlow(false)
         val watched = request.copy(
             onUpload = { sent, total ->
@@ -236,6 +242,7 @@ class OpenAiCompatibleEngine(
         timer.cancel()
         answered ?: run {
             answer.cancel()
+            onNoAnswer(audioMs, deadlineMs)
             Result.failure(
                 SttFailure(
                     problem = Problem.NoAnswerInTime(displayName),
@@ -306,6 +313,9 @@ class OpenAiCompatibleEngine(
          * may still be held up by a busy server or a slow line back.
          */
         fun answerDeadlineMs(expectedMs: Long): Long = maxOf(MIN_ANSWER_WAIT_MS, 3 * expectedMs)
+
+        /** A wait is never longer than the request's own limit ([requestTimeoutMs]). */
+        fun cappedWaitMs(waitMs: Long, audioMs: Long): Long = minOf(waitMs, requestTimeoutMs(audioMs))
 
         /** The shortest wait for an answer after the upload ([answerDeadlineMs]). */
         const val MIN_ANSWER_WAIT_MS = 10_000L
