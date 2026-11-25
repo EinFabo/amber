@@ -529,7 +529,7 @@ private fun RecoverRecordingCard(onRecover: () -> Unit, onDelete: () -> Unit) {
 }
 
 /**
- * The old Amber (app.amber, from before the rename to sayEmber) is still installed: two apps,
+ * The old Amber (app.amber, from before the rename to Embersay on 2026-11-17) is still installed: two apps,
  * two bubbles once both services are on. Its app info has Uninstall - this app cannot remove
  * another itself. Dismissed, it comes back only while the old app's service is on.
  */

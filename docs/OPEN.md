@@ -6,6 +6,7 @@ the app had on their date.
 
 ## Frustration review 2026-11-24
 
+- **White disc around the launcher icon (0.35.0-rc4 to 0.36.0-rc1).** The store review's code health (d476ff0) moved the adaptive icon from `mipmap-anydpi-v26` to `mipmap-anydpi`, as lint's ObsoleteSdkInt asks; the release build's resource optimization then drops it (the debug build keeps it), so launchers show the old PNG on a white disc. Back in `mipmap-anydpi-v26`, let off in `app/lint.xml`; checked in a release APK with `aapt2 dump resources` (anydpi entry present). To try on a phone: the icon after the update.
 - **Renamed to sayEmber (2026-11-25, Fabi).** Every name the user sees: launcher label, wordmark ("say" in the text colour, "Ember" in amber), texts EN/DE, store listing, changelog 71, privacy texts, README, glossary; sayEmber PC and sayEmber Server follow. Kept: application id `com.embersay`, the code namespace, log tags "Embersay", APK file names `embersay-<version>.apk`, the F-Droid recipe `com.embersay.yml`, the GitHub repo, historical docs and old changelogs. To try on a phone: the launcher label, Home's and the welcome's wordmark.
 
 - **G4, store images pass Play's checks.** `python3 tools/flatten_store_images.py` turns the

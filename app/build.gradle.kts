@@ -194,6 +194,8 @@ android {
         abortOnError = true
         warningsAsErrors = true
         baseline = file("lint-baseline.xml")
+        // One folder let off by path (the adaptive icon's mipmap-anydpi-v26); lint.xml says why.
+        lintConfig = file("lint.xml")
         // Newer versions of a dependency or of AGP get published whenever, and versions are
         // moved on purpose: reported, but they do not turn a green build red overnight.
         informational += setOf("GradleDependency", "AndroidGradlePluginVersion")
