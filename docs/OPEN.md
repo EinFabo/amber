@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D7, music pauses while recording, by default.** Music from the speaker ended up in the
+  recording. "Pause music" is now on for a fresh install and for settings that never said
+  anything about it. A saved file lists every setting, so who turned it off (or had it off
+  since the first save) keeps it off. Try: play music, tap the bubble, speak; the music stops
+  and resumes after. Backlog: Bluetooth headset microphone as an opt-in setting (not default:
+  call mode costs 0.5-2 s and 8 kHz on older headsets).
 - **D6, a slow tap starts, it doesn't open the quick menu.** The bubble needed a 300 ms press
   to open the quick menu, so a deliberate tap often opened it. Now 400 ms (the ring around the
   bubble fills in that time). Try: tap slowly - it starts; hold - the menu opens after 0.4 s;

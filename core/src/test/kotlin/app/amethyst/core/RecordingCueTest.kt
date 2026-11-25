@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class RecordingCueTest {
 
@@ -34,9 +35,28 @@ class RecordingCueTest {
         val old = SettingsCodec.encode(AmethystSettings()).replace(Regex(""""feedback":\s*\{[^}]*\},?"""), "")
         assertEquals(FeedbackSettings(), SettingsCodec.decode(old, TEST_PHONE).feedback)
         assertFalse(FeedbackSettings().sounds)
-        assertFalse(FeedbackSettings().pauseMedia, "music pauses only for who asks for it")
+        assertTrue(FeedbackSettings().pauseMedia, "music pauses unless the user turned it off")
         val on = AmethystSettings().copy(feedback = FeedbackSettings(sounds = true))
         assertEquals(true, SettingsCodec.decode(SettingsCodec.encode(on), TEST_PHONE).feedback.sounds)
+    }
+
+    @Test
+    fun `music pauses on a fresh install, and a saved choice is kept`() {
+        val fresh = SettingsCodec.read("", TEST_PHONE).settings
+        assertTrue(fresh.feedback.pauseMedia)
+
+        // Saved files list every field (encodeDefaults), so an "off" from before is on disk as such.
+        val off = AmethystSettings().copy(feedback = FeedbackSettings(pauseMedia = false))
+        val raw = SettingsCodec.encode(off)
+        assertTrue(raw.contains("\"pauseMedia\": false"))
+        assertFalse(SettingsCodec.decode(raw, TEST_PHONE).feedback.pauseMedia)
+
+        val on = AmethystSettings().copy(feedback = FeedbackSettings(pauseMedia = true))
+        assertTrue(SettingsCodec.decode(SettingsCodec.encode(on), TEST_PHONE).feedback.pauseMedia)
+
+        // A file with no word on it (written before the switch existed) was never touched: default.
+        val silent = raw.replace(Regex(""""pauseMedia":\s*false,?"""), "")
+        assertTrue(SettingsCodec.decode(silent, TEST_PHONE).feedback.pauseMedia)
     }
 
     @Test
