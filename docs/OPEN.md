@@ -50,6 +50,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   dictate for 10 s into any app and, still recording or while the bubble works, run
   `adb shell am force-stop com.embersay.debug` (or swipe the app away and kill it); open
   Embersay, tap "Recover last recording". Then once with the history off: nothing is offered.
+- **Phase A review fixes.** A dictation with nothing heard no longer takes the place of a kept
+  recording that had speech in it (memory and disk). A recording left on disk goes after 24 h at
+  every start, screen off and new dictation, Home opened or not. The model guard fails open: a
+  marker or health file it cannot write (storage full) is logged by class and the model loads.
+  After a model ran out of memory, the recording is kept before any fallback loads, and a fallback
+  too big for the phone (Parakeet or the large Whisper under 6 GB, the 244 Whisper under 3 GB) is
+  skipped. Try on a phone: after "No connection ... Try again", tap the bubble and stop it after
+  2 s without a word - Try again still brings the first dictation. On the A20e, Whisper out of
+  memory with Parakeet downloaded: Diagnostics say "fallback local-parakeet left out after
+  running out of memory", and Try again is offered.
 
 ## Store review 2026-11-22
 

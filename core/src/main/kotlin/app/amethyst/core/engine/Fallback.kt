@@ -61,6 +61,18 @@ object Fallback {
         return engines.filter { it.id != primary.id && trustOf(it).strictness <= limit }
     }
 
+    /**
+     * [candidates] that may take a recording after its model on the phone failed for [problem].
+     * After running out of memory, only those whose model fits the phone's memory
+     * ([EngineAdvice.fitsInMemory], [totalRamMb] as Android reports it, 0 unknown): on a 3 GB
+     * phone Parakeet's 700 MB after a Whisper that ran out would only get the app killed. A
+     * Whisper file the user picked is not known here and stays. Any other failure: all of them.
+     */
+    fun fitAfter(problem: Problem?, candidates: List<EngineConfig>, totalRamMb: Long): List<EngineConfig> {
+        if (problem != Problem.OutOfMemory || totalRamMb <= 0) return candidates
+        return candidates.filter { config -> EngineAdvice.optionOf(config)?.let { EngineAdvice.fitsInMemory(it, totalRamMb) } ?: true }
+    }
+
     /** The engines to try, best first, for a recording [primary] could not take. */
     fun candidates(
         settings: FallbackSettings,

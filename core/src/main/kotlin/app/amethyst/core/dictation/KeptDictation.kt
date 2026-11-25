@@ -31,8 +31,8 @@ class KeptDictation(
     private val clock: () -> Long,
     val keepMs: Long = KEEP_MS,
 ) {
-    /** A failed dictation's recording, [keptAt] by [clock]. */
-    class Recording(val audio: PcmAudio, val keptAt: Long)
+    /** A failed dictation's recording, [keptAt] by [clock]; [unheard] when no speech was heard in it ([keepUnheard]). */
+    class Recording(val audio: PcmAudio, val keptAt: Long, val unheard: Boolean = false)
 
     private var recording: Recording? = null
 
@@ -69,11 +69,18 @@ class KeptDictation(
      * user who thought for a while before speaking, or spoke too quietly for the threshold, gets
      * "Try again" instead of nothing. This is the controller's rule, not [worthTryingAgain]: that
      * one is about a failed recognition, where the same recording fails the same way again.
+     *
+     * Never in place of a kept recording that had speech in it (a failed or a recovered one):
+     * the user who stops a slip of a dictation after "No connection ... Try again" keeps the
+     * recording that matters. Only in place of nothing, of an earlier one without speech, or of
+     * one past its time.
      */
     @Synchronized
     fun keepUnheard(audio: PcmAudio): Boolean {
         if (audio.durationMs <= MIN_UNHEARD_MS) return false
-        return keepLocked(audio)
+        expireLocked()
+        if (recording?.unheard == false) return false
+        return keepLocked(audio, unheard = true)
     }
 
     /**
@@ -84,9 +91,9 @@ class KeptDictation(
     @Synchronized
     fun keepRecovered(audio: PcmAudio): Boolean = keepLocked(audio)
 
-    private fun keepLocked(audio: PcmAudio): Boolean {
+    private fun keepLocked(audio: PcmAudio, unheard: Boolean = false): Boolean {
         if (!keeping || audio.durationMs > MAX_RECORDING_MS || audio.samples.isEmpty()) return false
-        recording = Recording(audio, clock())
+        recording = Recording(audio, clock(), unheard)
         changed()
         return true
     }

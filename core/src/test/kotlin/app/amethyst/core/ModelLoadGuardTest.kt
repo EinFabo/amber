@@ -206,6 +206,35 @@ class ModelLoadGuardTest {
     }
 
     @Test
+    fun `a guard that cannot write its files still lets the model load`() {
+        // Storage full, or the folder gone: here a file where the folder should be, so nothing can be written in it.
+        val blocked = File(dir, "blocked").apply { writeText("") }
+        val marks = ModelLoadMarks(blocked) { now }
+        assertEquals(emptyList(), marks.leftAtStart())
+        assertNull(marks.health(parakeet))
+        assertEquals(7, marks.loading(parakeet) { 7 })
+        assertFailsWith<IllegalStateException> { marks.loading(parakeet) { error("bad file") } }
+        // Counting and checking work in memory for this process, without a word on disk.
+        assertEquals(Verdict.None, marks.failed(whisper, Problem.LocalModelFailed))
+        assertEquals(Verdict.Damaged(whisper), marks.failed(whisper, Problem.LocalModelFailed))
+        assertEquals(Health.CHECKING, marks.health(whisper))
+        marks.checked(whisper, ModelLoadGuard.afterCheck(hashMatches = true))
+        assertNull(marks.health(whisper))
+        assertEquals(5, marks.loading(whisper) { 5 })
+    }
+
+    @Test
+    fun `a marker found at the start whose mark cannot be written is still reported, and kept in memory`() {
+        marks().markerFor(parakeet).also { it.parentFile.mkdirs() }.writeText(ModelLoadGuard.before(parakeet, now).encode())
+        // The health file cannot be written: its temporary sibling is a folder.
+        File(dir, "health.new").mkdirs()
+        val marks = marks()
+        assertEquals(listOf(Verdict.Damaged(parakeet)), marks.leftAtStart())
+        assertEquals(Health.CHECKING, marks.health(parakeet))
+        assertEquals(listOf(parakeet), marks.checking())
+    }
+
+    @Test
     fun `a model id that is no file name still gets a marker of its own`() {
         val odd = marks().markerFor("../evil/id")
         assertEquals(dir, odd.parentFile.parentFile)

@@ -215,9 +215,10 @@ class Graph(app: Application) {
     /**
      * The markers around each model's native load, and the models under suspicion
      * ([ModelLoadGuard]). In noBackupFilesDir, beside the models: they say something about these
-     * files on this phone only. Reads nothing until first asked.
+     * files on this phone only. Reads nothing until first asked. A file it cannot write (storage
+     * full) never stops a load: logged by its class, kept in memory meanwhile.
      */
-    val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"))
+    val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"), trouble = { android.util.Log.w("Embersay", it) })
 
     val whisperRuntime = NativeWhisperRuntime(app, modelMarks)
 
@@ -430,15 +431,28 @@ class Graph(app: Application) {
     val historyChanges = MutableStateFlow(0L)
 
     /**
-     * What is past its time goes, and the keys of the days past it - when the screen goes off,
-     * as well as with every dictation added and every count. Only once the settings are read:
+     * What is past its time goes, and the keys of the days past it - and a recording left on disk
+     * past its time ([RecordingSpool.prune]) - when the screen goes off, as well as with every
+     * dictation added and every count. Only once the settings are read:
      * before, "off" would delete it all.
      */
     fun pruneHistory() {
         val settings = loadedSettings.value ?: return
         appScope.launch(Dispatchers.IO) {
-            history.prune(SecurityMode.historyKeep(settings))
+            val keep = SecurityMode.historyKeep(settings)
+            // A recording an earlier process left goes after 24 hours, Home opened or not.
+            pruneSpool(keep)
+            history.prune(keep)
             historyChanges.update { it + 1 }
+        }
+    }
+
+    /** [RecordingSpool.prune]: a trouble with its files never stops the history being pruned. */
+    private fun pruneSpool(keep: HistoryKeep) {
+        try {
+            spool.prune(keep)
+        } catch (e: Exception) {
+            android.util.Log.w("Embersay", "the recording on disk was not tidied: ${e.javaClass.simpleName}")
         }
     }
 
@@ -449,6 +463,7 @@ class Graph(app: Application) {
             loadedSettings.filterNotNull().map(SecurityMode::historyKeep).distinctUntilChanged().collect { keep ->
                 // Off, its keys go: so does the recording sealed with them.
                 if (keep == HistoryKeep.OFF) runCatching { spool.deleteAll() }
+                pruneSpool(keep)
                 history.prune(keep)
                 historyChanges.update { it + 1 }
             }
@@ -486,6 +501,8 @@ class Graph(app: Application) {
             // Asked again as it is written, under the lock "Delete all" takes: the security mode
             // may have gone on meanwhile.
             history.add(text, app, ticket) { SecurityMode.historyKeep(loadedSettings.value) }
+            // With every dictation, as the history's own past days go: a leftover past its time too.
+            pruneSpool(SecurityMode.historyKeep(loadedSettings.value))
             historyChanges.update { it + 1 }
         }
     }
@@ -785,6 +802,9 @@ class Graph(app: Application) {
 
     /** Loaded models' bytes, both runtimes - a change of engine may leave the other loaded until the release. */
     private fun loadedModelBytes(): Long = whisperRuntime.loadedBytes() + sherpaRuntime.loadedBytes()
+
+    /** The memory the phone reports (Android's totalMem) in MB, 0 when it gives none. A binder call: never on the main thread. */
+    fun totalRamMb(): Long = (memoryNow()?.totalBytes ?: 0L) / 1_000_000
 
     /** Android's view of memory now; null when it gives none. A binder call: never on the main thread. */
     private fun memoryNow(): ModelRelease.Memory? = runCatching {

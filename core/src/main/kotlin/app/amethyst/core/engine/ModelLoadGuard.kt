@@ -138,8 +138,16 @@ class ModelMarkedDamaged(val modelId: String) : IllegalStateException("model $mo
  * once and then kept in memory - one instance per process writes them - so asking about a
  * model's health costs no file I/O after the first call; a load or a change writes a few bytes.
  * [clock] is the wall clock.
+ *
+ * Fails open: a file that cannot be written (storage full, the folder gone) never stops a model
+ * loading - the load runs without its marker, and the health and the count are kept in memory
+ * for this process. [trouble] hears what could not be written, as a class name only.
  */
-class ModelLoadMarks(private val dir: File, private val clock: () -> Long = System::currentTimeMillis) {
+class ModelLoadMarks(
+    private val dir: File,
+    private val trouble: (String) -> Unit = {},
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
 
     private val lock = Any()
     private val markers = File(dir, "loading")
@@ -182,15 +190,18 @@ class ModelLoadMarks(private val dir: File, private val clock: () -> Long = Syst
         val marker = synchronized(lock) {
             left
             if (health(modelId) != null) throw ModelMarkedDamaged(modelId)
-            markerFor(modelId).also { file ->
+            val file = markerFor(modelId)
+            // A marker that cannot be written: the model loads without one - the guard must never be what fails.
+            runCatching {
                 file.parentFile?.mkdirs()
                 file.writeText(ModelLoadGuard.before(modelId, clock()).encode())
-            }
+                file
+            }.onFailure { troubleWith("the load marker", it) }.getOrNull()
         }
         try {
             return block()
         } finally {
-            marker.delete()
+            marker?.delete()
         }
     }
 
@@ -256,9 +267,9 @@ class ModelLoadMarks(private val dir: File, private val clock: () -> Long = Syst
     }
 
     private fun writeFailures(count: ModelLoadGuard.FailureCount?) {
-        if (count == null) failuresFile.delete() else write(failuresFile, count.encode())
         failuresKept = count
         failuresRead = true
+        if (count == null) failuresFile.delete() else write(failuresFile, count.encode())
     }
 
     /** A copy of the suspect models' health, read from [healthFile] the first time. */
@@ -277,18 +288,29 @@ class ModelLoadMarks(private val dir: File, private val clock: () -> Long = Syst
     }
 
     private fun writeHealth(health: Map<String, ModelLoadGuard.Health>) {
-        if (health.isEmpty()) healthFile.delete() else write(healthFile, health.entries.joinToString("") { "${it.key} ${it.value}\n" })
         healthKept = LinkedHashMap(health)
+        if (health.isEmpty()) healthFile.delete() else write(healthFile, health.entries.joinToString("") { "${it.key} ${it.value}\n" })
     }
 
-    /** Through a temporary sibling, so a process ending mid-write leaves the old file or the new one. */
+    /**
+     * Through a temporary sibling, so a process ending mid-write leaves the old file or the new
+     * one. Never throws: what is not written stays in memory for this process ([trouble] hears it).
+     */
     private fun write(file: File, text: String) {
-        file.parentFile?.mkdirs()
-        val temp = File(file.path + ".new")
-        temp.writeText(text)
-        if (!temp.renameTo(file)) {
-            file.delete()
-            temp.renameTo(file)
+        try {
+            file.parentFile?.mkdirs()
+            val temp = File(file.path + ".new")
+            temp.writeText(text)
+            if (!temp.renameTo(file)) {
+                file.delete()
+                temp.renameTo(file)
+            }
+        } catch (e: Exception) {
+            troubleWith(file.name, e)
         }
+    }
+
+    private fun troubleWith(what: String, e: Throwable) {
+        runCatching { trouble("model guard: $what not written (${e.javaClass.simpleName})") }
     }
 }

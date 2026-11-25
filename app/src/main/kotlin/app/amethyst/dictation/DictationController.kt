@@ -1475,15 +1475,24 @@ class DictationController(
         // No signal, a timeout, a server down, a model on the phone that gave up: the
         // recording is still here, so another engine can take it instead of the dictation
         // being lost - not the one prepared alongside, whose text did not come.
-        val fallbacks = fallbacksFor(skip = ready?.config?.id).let { all -> if (onPhone) all.filter(graph::modelReady) else all }
+        val failed = (result.exceptionOrNull() as? SttFailure)?.problem
+        val fallbacks = fallbacksFor(skip = ready?.config?.id)
+            .let { all -> if (onPhone) all.filter(graph::modelReady) else all }
+            .let { all -> if (onPhone) fittingAfter(failed, all) else all }
         val recoverable = Fallback.recoverable(
             result.exceptionOrNull(),
             engine.capabilities.trustLevel,
             graph.settings.value.fallback.mode,
             fallbacks,
         )
+        // Kept for "Try again" before another model loads, not after: a fallback that fails
+        // in a way no catch sees still leaves it - and with the history on, the run's file
+        // stays on disk for Home should Android end Embersay meanwhile.
+        // Once the fallback's words are safe, [wordsKept] lets it go again.
+        val keptEarly = recoverable?.let { keepForRetry(it.problem) } == true
         val recovered = recoverable
             ?.let { recognizeElsewhere(outcome.audio, it, engine.capabilities.trustLevel, fallbacks) }
+            ?.also { if (keptEarly) trace?.kept = null }
             ?.let { Result.success(it) } ?: result
         return recovered.getOrElse { error ->
             failRecognition(error, details = listOf("recognition failed: ${technicalOf(error)}"))
@@ -1850,6 +1859,24 @@ class DictationController(
         val settings = graph.settings.value
         val primary = runRouting?.engine ?: return emptyList()
         return Fallback.candidates(settings.fallback, Servers.recognizers(settings), primary, ::trustOf).filter { it.id != skip }
+    }
+
+    /**
+     * [candidates] for a recording whose model on the phone failed for [problem]
+     * ([Fallback.fitAfter]): after running out of memory, none too big for the phone - its load
+     * would only get Embersay ended, and the recording with it.
+     */
+    private suspend fun fittingAfter(problem: Problem?, candidates: List<EngineConfig>): List<EngineConfig> {
+        if (problem != Problem.OutOfMemory || candidates.isEmpty()) return candidates
+        val ramMb = withContext(Dispatchers.IO) { graph.totalRamMb() }
+        val fitting = Fallback.fitAfter(problem, candidates, ramMb)
+        val left = candidates.filter { it !in fitting }
+        if (left.isNotEmpty()) {
+            val line = "fallback ${left.joinToString { it.id }} left out after running out of memory: too big for $ramMb MB"
+            Log.i(TAG, line)
+            trace?.let { it.fallback = listOfNotNull(it.fallback, line).joinToString(", ") }
+        }
+        return fitting
     }
 
     /**

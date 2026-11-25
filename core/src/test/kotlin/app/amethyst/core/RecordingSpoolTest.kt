@@ -202,6 +202,43 @@ class RecordingSpoolTest {
     }
 
     @Test
+    fun `a leftover past its time goes without Home being opened`() {
+        record(assertNotNull(spool.begin(HistoryKeep.WEEK)), samples(2.0), finish = false)
+        // Within its time, pruning leaves it for Home to offer.
+        now += RecordingSpool.MAX_AGE_MS - 1
+        nextStart().prune(HistoryKeep.WEEK)
+        assertEquals(1, files().count { it.name.endsWith(".rec") })
+        // Past it, pruning alone deletes it - no leftover() asked - though the history keeps a week.
+        now += 1
+        nextStart().prune(HistoryKeep.WEEK)
+        assertTrue(files().isEmpty())
+    }
+
+    @Test
+    fun `pruning deletes a kept recording past its kept time and a time left without its recording`() {
+        val writer = assertNotNull(spool.begin(HistoryKeep.DAY))
+        assertTrue(kept.keepRecording(record(writer, samples(3.0)), Problem.NoConnection("Groq")))
+        spool.ended(writer)
+        // A time with no recording beside it, from a delete a kill interrupted.
+        File(dir, "${now - 5_000}-0.until").writeText("${now + hour}")
+        now += KeptDictation.KEEP_MS
+        nextStart().prune(HistoryKeep.DAY)
+        assertTrue(files().isEmpty())
+    }
+
+    @Test
+    fun `pruning leaves this process's recording alone, and with the history off takes every leftover`() {
+        record(assertNotNull(spool.begin(HistoryKeep.DAY)), samples(2.0), finish = false)
+        now += RecordingSpool.MAX_AGE_MS
+        // This process's own run is never pruned: its run's end decides.
+        spool.prune(HistoryKeep.DAY)
+        assertEquals(1, files().count { it.name.endsWith(".rec") })
+        now -= RecordingSpool.MAX_AGE_MS
+        nextStart().prune(HistoryKeep.OFF)
+        assertTrue(files().isEmpty())
+    }
+
+    @Test
     fun `a clock set back does not keep a leftover longer`() {
         record(assertNotNull(spool.begin(HistoryKeep.DAY)), samples(2.0), finish = false)
         now -= hour

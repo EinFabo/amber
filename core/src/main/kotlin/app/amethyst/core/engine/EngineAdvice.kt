@@ -2,6 +2,7 @@ package app.amethyst.core.engine
 
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.settings.EngineConfig
 
 /** What the introduction needs to know about the phone to suggest an engine. */
 data class PhoneFacts(
@@ -68,13 +69,33 @@ object EngineAdvice {
 
     fun fits(option: EngineOption, phone: PhoneFacts): Boolean {
         val room = option.downloadBytes / 1_000_000 + STORAGE_MARGIN_MB <= phone.freeStorageMb
-        val ramGb = nominalRamGb(phone.totalRamMb)
-        return when (option) {
-            EngineOption.PARAKEET -> room && ramGb >= PARAKEET_MIN_RAM_GB
-            EngineOption.ACFT_LARGE -> room && phone.whisperCpu && ramGb >= PARAKEET_MIN_RAM_GB
-            EngineOption.FUTO_244 -> room && phone.whisperCpu && ramGb >= WHISPER_MIN_RAM_GB
-            EngineOption.FUTO_74 -> room && phone.whisperCpu
-            EngineOption.ANDROID, EngineOption.SERVER -> true
+        val cpu = when (option) {
+            EngineOption.ACFT_LARGE, EngineOption.FUTO_244, EngineOption.FUTO_74 -> phone.whisperCpu
+            else -> true
         }
+        return room && cpu && fitsInMemory(option, phone.totalRamMb)
+    }
+
+    /** Whether [option]'s model fits the memory of a phone that reports [totalRamMb] (Android's totalMem). */
+    fun fitsInMemory(option: EngineOption, totalRamMb: Long): Boolean {
+        val ramGb = nominalRamGb(totalRamMb)
+        return when (option) {
+            EngineOption.PARAKEET, EngineOption.ACFT_LARGE -> ramGb >= PARAKEET_MIN_RAM_GB
+            EngineOption.FUTO_244 -> ramGb >= WHISPER_MIN_RAM_GB
+            EngineOption.FUTO_74, EngineOption.ANDROID, EngineOption.SERVER -> true
+        }
+    }
+
+    /**
+     * The option [config] runs, for weighing it against the phone: Parakeet, or a Whisper model
+     * from the catalog. Null for a Whisper file the user picked, and for any engine elsewhere.
+     */
+    fun optionOf(config: EngineConfig): EngineOption? = when (config.kind) {
+        EngineKind.LOCAL_SHERPA -> EngineOption.PARAKEET
+        EngineKind.WHISPER_CPP -> {
+            val model = config.modelId ?: WhisperModels.default.id
+            EngineOption.entries.firstOrNull { it.whisperModelId == model }
+        }
+        else -> null
     }
 }

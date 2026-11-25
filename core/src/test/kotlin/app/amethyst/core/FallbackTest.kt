@@ -78,6 +78,37 @@ class FallbackTest {
         assertNull(Fallback.recoverable(offline, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, listOf(whisper)))
     }
 
+    /** A 3 GB phone as Android reports it (A20e), and an 8 GB one. */
+    private val threeGb = 2_800L
+    private val eightGb = 7_600L
+
+    @Test
+    fun `after running out of memory a fallback model too big for the phone is not loaded`() {
+        // Whisper ran out of memory on a 3 GB phone: Parakeet (about 700 MB) would only get the app killed.
+        val toParakeet = Fallback.candidates(FallbackSettings(FallbackMode.AUTOMATIC), all, whisper, trustOf)
+        assertEquals(listOf(parakeet.id), toParakeet.map { it.id })
+        val fitting = Fallback.fitAfter(Problem.OutOfMemory, toParakeet, threeGb)
+        assertEquals(emptyList(), fitting)
+        assertNull(Fallback.recoverable(outOfMemory, TrustLevel.ON_DEVICE, FallbackMode.AUTOMATIC, fitting))
+        // On an 8 GB phone it may.
+        assertEquals(listOf(parakeet.id), Fallback.fitAfter(Problem.OutOfMemory, toParakeet, eightGb).map { it.id })
+        // A model that failed for another reason: memory says nothing, Parakeet stays.
+        assertEquals(listOf(parakeet.id), Fallback.fitAfter(Problem.LocalModelFailed, toParakeet, threeGb).map { it.id })
+        // Memory not known: nothing left out.
+        assertEquals(listOf(parakeet.id), Fallback.fitAfter(Problem.OutOfMemory, toParakeet, 0).map { it.id })
+    }
+
+    @Test
+    fun `after running out of memory the small Whisper models stay, the large one and Parakeet go on a 3 GB phone`() {
+        val small = whisper.copy(id = "w74", modelId = "futo-multilingual-74")
+        val medium = whisper.copy(id = "w244", modelId = "futo-multilingual-244")
+        val large = whisper.copy(id = "wl", modelId = "acft-whisper-large-v3-turbo-q8_0")
+        // A file the user picked: its size is not known here, so it is not left out.
+        val picked = whisper.copy(id = "wp", modelId = "my-own-model")
+        val kept = Fallback.fitAfter(Problem.OutOfMemory, listOf(parakeet, large, medium, small, picked), threeGb)
+        assertEquals(listOf("w244", "w74", "wp"), kept.map { it.id })
+    }
+
     @Test
     fun `the notice says the model on the phone failed, not the connection`() {
         assertEquals(FallbackNotice.ModelOnPhoneFailed, FallbackNotice.afterFailure(outOfMemory, TrustLevel.ON_DEVICE, recognizedOnPhone = true))

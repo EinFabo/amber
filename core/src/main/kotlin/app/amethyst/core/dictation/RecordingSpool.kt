@@ -35,7 +35,8 @@ import java.nio.ByteOrder
  *   [sync]) it goes. A dictation whose words came, and a cancel while listening, leave nothing;
  * - a leftover of an earlier process for [MAX_AGE_MS] (24 hours) from its start, a kept one no
  *   longer than its kept time - a clock set back ends it at once, it cannot keep one longer. Only
- *   the newest is offered; older ones go.
+ *   the newest is offered; older ones go. What is past its time goes at every start and whenever
+ *   the history is pruned ([prune]), whether Home is opened or not.
  *
  * A recording [KeptDictation] holds whose disk copy was replaced - a newer dictation's run began
  * meanwhile and was cancelled while listening - stays in memory only. The history's keys going
@@ -213,11 +214,35 @@ class RecordingSpool(
     @Synchronized
     fun leftover(keep: HistoryKeep): Leftover? {
         if (keep == HistoryKeep.OFF) return null
+        val live = pruneLocked(keep)
+        val newest = live.maxByOrNull { it.startedAt }
+        live.filter { it !== newest }.forEach { delete(it.file) }
+        return newest
+    }
+
+    /**
+     * Deletes what earlier processes left that is past its time ([MAX_AGE_MS], or its kept time),
+     * and a time written beside a recording that is gone - with the history [keep] off, every
+     * leftover. Called at every start and whenever the history is pruned, so "24 hours at most"
+     * holds for someone who never opens Home. This process's own recordings are left alone: its
+     * runs and [KeptDictation] decide about them. Reads names only: no key needed.
+     */
+    @Synchronized
+    fun prune(keep: HistoryKeep) {
+        pruneLocked(keep)
+    }
+
+    /** [prune], and the leftovers within their time. */
+    private fun pruneLocked(keep: HistoryKeep): List<Leftover> {
         val files = dir.listFiles().orEmpty().filter { it.isFile && it.name !in own }
+        if (keep == HistoryKeep.OFF) {
+            files.forEach { it.delete() }
+            return emptyList()
+        }
         // A time with no recording beside it: left by a delete a kill interrupted.
         files.filter { it.name.endsWith(UNTIL) && !File(dir, it.name.removeSuffix(UNTIL) + SUFFIX).exists() }.forEach { it.delete() }
         val now = clock()
-        val live = files.filter { it.name.endsWith(SUFFIX) }.mapNotNull { file ->
+        return files.filter { it.name.endsWith(SUFFIX) }.mapNotNull { file ->
             val startedAt = startedAt(file)
             if (startedAt == null || expired(file, startedAt, now)) {
                 delete(file)
@@ -226,9 +251,6 @@ class RecordingSpool(
                 Leftover(file, startedAt)
             }
         }
-        val newest = live.maxByOrNull { it.startedAt }
-        live.filter { it !== newest }.forEach { delete(it.file) }
-        return newest
     }
 
     /**

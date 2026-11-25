@@ -96,6 +96,42 @@ class KeptDictationTest {
     }
 
     @Test
+    fun `nothing heard never takes the place of a kept recording that had speech in it`() {
+        val failed = audio(180.0)
+        assertTrue(kept.keepRecording(failed, Problem.NoConnection("Groq")))
+        now += 60_000
+        // A tap instead of a hold, then a stop without a word: the three minutes stay.
+        assertFalse(kept.keepUnheard(audio(5.0)))
+        assertSame(failed, kept.recording())
+        // Its time not started again either.
+        assertEquals(now - 60_000 + KeptDictation.KEEP_MS, kept.expiresAt())
+        // A recovered one is not replaced by silence either.
+        val recovered = audio(30.0)
+        assertTrue(kept.keepRecovered(recovered))
+        assertFalse(kept.keepUnheard(audio(5.0)))
+        assertSame(recovered, kept.recording())
+    }
+
+    @Test
+    fun `nothing heard takes the place of an earlier silent one, and of a kept one past its time`() {
+        val first = audio(5.0)
+        assertTrue(kept.keepUnheard(first))
+        val second = audio(8.0)
+        assertTrue(kept.keepUnheard(second))
+        assertSame(second, kept.recording())
+        // A failed one that is gone by its time no longer stands in the way.
+        assertTrue(kept.keepRecording(audio(60.0), Problem.NoConnection("Groq")))
+        now += KeptDictation.KEEP_MS
+        val third = audio(6.0)
+        assertTrue(kept.keepUnheard(third))
+        assertSame(third, kept.recording())
+        // And a real failure takes the place of a silent one.
+        val failed = audio(20.0)
+        assertTrue(kept.keepRecording(failed, Problem.NoConnection("Groq")))
+        assertSame(failed, kept.recording())
+    }
+
+    @Test
     fun `nothing heard is not kept with keeping off, when too long, or empty`() {
         kept.keeping = false
         assertFalse(kept.keepUnheard(audio(5.0)))
