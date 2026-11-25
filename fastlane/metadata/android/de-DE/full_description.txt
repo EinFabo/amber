@@ -7,7 +7,7 @@ Tippst du in ein Textfeld, erscheint eine kleine bernsteinfarbene Bubble. Tippe 
 Deine Stimme bleibt standardmäßig auf dem Handy. Ein Server bekommt sie nur, wenn du einen wählst, und jedes Diktat zeigt, wo es erkannt wurde:
 <ul>
 <li><b>Auf dem Handy:</b> ein Modell für die Spracherkennung, das du in der App herunterlädst. Nichts verlässt das Handy.</li>
-<li><b>Spracherkennung von Android:</b> ohne Download. Embersay bittet sie, auf dem Handy zu bleiben, aber wo das Handy Sprache nicht selbst erkennen kann, kann sie deine Stimme an ihren Hersteller senden (auf den meisten Handys Google). Embersay sagt das.</li>
+<li><b>Spracherkennung von Android:</b> ohne Download. Embersay bittet sie, auf dem Handy zu bleiben, aber wo das Handy Sprache nicht selbst erkennen kann, schickt sie deine Stimme an ihren Hersteller (auf den meisten Handys Google). Embersay sagt das.</li>
 <li><b>Geprüfte Enklave:</b> ein geschützter Server. Embersay prüft vorher seinen Hardware-Nachweis und sendet nichts, wenn die Prüfung fehlschlägt.</li>
 <li><b>Cloud:</b> ein Dienst oder ein eigener Server, mit deinem eigenen API-Schlüssel.</li>
 </ul>
@@ -16,17 +16,17 @@ Embersay schickt deine Stimme nie an einen weniger privaten Ort, als du gewählt
 <b>Was du sonst bekommst</b>
 <ul>
 <li>Diktate bis 5 Minuten, in Teilen erkannt, während du noch sprichst</li>
-<li>Auf Wunsch Bereinigung des Textes: Satzzeichen, Füllwörter, ein Stil pro App (locker im Chat, förmlich in der E-Mail). Die Bereinigung braucht deinen eigenen API-Schlüssel oder deinen eigenen Server; ohne beides fügt Embersay den Text so ein, wie er erkannt wurde.</li>
+<li>Auf Wunsch Bereinigung des Textes: Satzzeichen, Füllwörter, ein Stil pro App (locker im Chat, förmlich in der E-Mail). Die Bereinigung braucht deinen eigenen API-Schlüssel oder deinen eigenen Server; ohne einen von beiden fügt Embersay den Text so ein, wie er erkannt wurde.</li>
 <li>Eine andere Spracherkennung pro App: ein Server für Notizen, das Handy für Chats</li>
 <li>Ein Schnellmenü per langem Druck auf die Bubble: nochmal einfügen, kopieren, nochmal versuchen, abbrechen</li>
 <li>Nimmt eine App den Text nicht direkt an, fügt Embersay ihn über die Zwischenablage ein (lässt sich ausschalten)</li>
-<li>Ein Verlauf deiner letzten Diktate, standardmäßig 24 Stunden auf dem Handy verschlüsselt behalten; du kannst ihn ausschalten, und der Sicherheitsmodus behält nichts</li>
-<li>Statistik nur auf dem Handy gezählt: Wörter, Apps, gesparte Zeit, nie dein Text oder deine Aufnahme</li>
+<li>Ein Verlauf deiner letzten Diktate, standardmäßig 24 Stunden lang verschlüsselt auf dem Handy; du kannst ihn ausschalten, und der Sicherheitsmodus behält nichts</li>
+<li>Statistik, die nur auf dem Handy gezählt wird: Wörter, Apps, gesparte Zeit, nie dein Text oder deine Aufnahme</li>
 <li>Deutsch und Englisch, nach der Sprache des Handys</li>
 </ul>
 
 <b>Berechtigungen</b>
-Embersay braucht das Mikrofon und seine Bedienungshilfe. Die Bedienungshilfe findet das Textfeld, zeigt die Bubble und fügt den Text ein. Das Mikrofon ist nur an, während du diktierst, und Embersay zeigt dann normalerweise die Benachrichtigung „Aufnahme läuft …“ mit einer Taste zum Stoppen. „Über anderen Apps einblenden“ braucht Embersay nicht. Embersay hat kein Konto, keine Werbung und keine Analyse.
+Embersay braucht das Mikrofon und seine Bedienungshilfe. Die Bedienungshilfe findet das Textfeld, zeigt die Bubble und fügt den Text ein. Das Mikrofon ist nur an, während du diktierst, und Embersay zeigt dann normalerweise die Benachrichtigung „Aufnahme läuft …“ mit einer Taste zum Stoppen. „Über anderen Apps einblenden“ braucht Embersay nicht. Embersay hat kein Konto, keine Werbung und keine Nutzungsanalyse.
 
 <b>Funktioniert mit</b>
 Auf dem Handy: Whisper- und Parakeet-Modelle. Server: Tinfoil, Groq, OpenAI oder dein eigener (Embersay PC, Embersay Server, Speaches, LocalAI, whisper.cpp). Bereinigung: Tinfoil, Claude (Anthropic), Groq, OpenAI oder dein eigener Server. Diese Dienste nutzt Embersay nur, wenn du sie mit deinem eigenen Schlüssel oder deiner eigenen Adresse einrichtest. Modelle werden in der App von Hugging Face und keyboard.futo.org heruntergeladen, wenn du eines auswählst. Die Datenschutzerklärung steht in der App unter Einstellungen → Über Embersay.

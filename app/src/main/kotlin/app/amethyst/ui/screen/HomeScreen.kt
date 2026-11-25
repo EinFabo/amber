@@ -406,7 +406,7 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
             NavRow(
                 title = stringResource(R.string.home_own_cleanup),
                 summary = stringResource(R.string.home_own_cleanup_in, ownModels.joinToString { it.label }),
-                icon = AmberIcons.Subject,
+                icon = AmberIcons.AutoFix,
                 summaryMaxLines = 2,
                 below = { TrustBadge(ownWeakest) },
                 onClick = onOpenCleanup,

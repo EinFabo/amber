@@ -20,6 +20,8 @@ import app.amethyst.core.engine.HttpReason
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.onboarding.RealAppNudge
@@ -424,15 +426,19 @@ object Texts {
      * What "Add speech recognition" says about an offered [preset] in one plain line: where it
      * runs, how big, what it needs. The technical notes ([EnginePreset.note]) are on its own page.
      */
-    fun presetLine(context: Context, preset: EnginePreset): String = context.getString(
-        when (preset.id) {
-            EnginePresets.ANDROID_ON_DEVICE.id -> R.string.add_recognition_android
-            EnginePresets.LOCAL_WHISPER.id -> R.string.add_recognition_whisper
-            EnginePresets.LOCAL_PARAKEET.id -> R.string.add_recognition_parakeet
-            EnginePresets.TINFOIL.id -> R.string.add_recognition_tinfoil
-            else -> R.string.add_recognition_server
-        },
-    )
+    fun presetLine(context: Context, preset: EnginePreset): String = when (preset.id) {
+        EnginePresets.ANDROID_ON_DEVICE.id -> context.getString(R.string.add_recognition_android)
+        // The sizes come from what the download fetches, so the line cannot drift from it.
+        EnginePresets.LOCAL_WHISPER.id -> context.getString(
+            R.string.add_recognition_whisper,
+            megabytes(WhisperModels.byId(EnginePresets.LOCAL_WHISPER.modelId)?.sizeBytes ?: WhisperModels.FUTO_MULTILINGUAL_74.sizeBytes),
+        )
+        EnginePresets.LOCAL_PARAKEET.id -> context.getString(R.string.add_recognition_parakeet, megabytes(ParakeetModel.TOTAL_BYTES))
+        EnginePresets.TINFOIL.id -> context.getString(R.string.add_recognition_tinfoil)
+        else -> context.getString(R.string.add_recognition_server)
+    }
+
+    private fun megabytes(bytes: Long): Int = ((bytes + 500_000L) / 1_000_000L).toInt()
 
     fun quickAction(context: Context, action: QuickAction): String = context.getString(
         when (action) {

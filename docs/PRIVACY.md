@@ -40,7 +40,7 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   text may stay. With the history on, a dictation's recording is also kept on the phone while
   it is made, encrypted with the same keys, so it is not lost if Embersay is ended before the
   text is there. It is deleted once the text is there; a recording kept for Try again stays only
-  as long as that is offered (ten minutes); anything left over goes after 24 hours at most, and
+  as long as that is offered (ten minutes); anything else is deleted after 24 hours at most, or
   with the history.
 - **Diagnostics**: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not

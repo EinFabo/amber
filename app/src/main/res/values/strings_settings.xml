@@ -30,8 +30,8 @@
     <string name="theme_bubble_note">The bubble and quick menu keep their own colors</string>
     <string name="recognition_add">Add speech recognition</string>
     <string name="add_recognition_android">Runs on this phone. Nothing to download. Stops at the first pause.</string>
-    <string name="add_recognition_whisper">Runs on this phone, also without internet. Quick. One download of 82 MB.</string>
-    <string name="add_recognition_parakeet">Runs on this phone. Very accurate and fast. One download of 670 MB.</string>
+    <string name="add_recognition_whisper">Runs on this phone, also without internet. Quick. One download of %1$d MB.</string>
+    <string name="add_recognition_parakeet">Runs on this phone. Very accurate and fast. One download of %1$d MB.</string>
     <string name="add_recognition_tinfoil">Runs on a protected server, not on this phone. Needs an API key.</string>
     <string name="add_recognition_server">Runs on a server, such as Groq, OpenAI or your own. Needs an address, often an API key.</string>
     <string name="recognition_switched">%1$s is in use now</string>

@@ -83,7 +83,7 @@
     <string name="proof_verified_at">Verified at</string>
     <string name="proof_valid_until">Valid until</string>
     <string name="attestation_invalid_address">That isn\'t a valid address.</string>
-    <string name="attestation_unknown_enclave">Embersay doesn\'t know which release the enclave at %1$s must come from.</string>
+    <string name="attestation_unknown_enclave">Embersay doesn\'t know which release to expect from the enclave at %1$s.</string>
     <string name="attestation_library_missing">This build of Embersay can\'t verify enclaves.</string>
     <string name="attestation_document_invalid">The enclave\'s proof isn\'t valid.</string>
     <string name="attestation_release_not_confirmed">The enclave doesn\'t match a signed release.</string>

@@ -83,7 +83,7 @@
     <string name="proof_verified_at">Geprüft am</string>
     <string name="proof_valid_until">Gültig bis</string>
     <string name="attestation_invalid_address">Das ist keine gültige Adresse.</string>
-    <string name="attestation_unknown_enclave">Embersay weiß nicht, aus welcher Version die Enklave bei %1$s stammen muss.</string>
+    <string name="attestation_unknown_enclave">Embersay kennt die erwartete Version der Enklave bei %1$s nicht.</string>
     <string name="attestation_library_missing">Diese Version von Embersay kann Enklaven nicht prüfen.</string>
     <string name="attestation_document_invalid">Der Nachweis der Enklave ist ungültig.</string>
     <string name="attestation_release_not_confirmed">Die Enklave passt zu keiner signierten Version.</string>

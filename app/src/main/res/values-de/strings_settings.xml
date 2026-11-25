@@ -30,8 +30,8 @@
     <string name="theme_bubble_note">Die Bubble und ihr Schnellmenü behalten ihre Farben</string>
     <string name="recognition_add">Spracherkennung hinzufügen</string>
     <string name="add_recognition_android">Läuft auf dem Handy. Nichts herunterzuladen. Hört bei der ersten Pause auf.</string>
-    <string name="add_recognition_whisper">Läuft auf dem Handy, auch ohne Internet. Schnell. Ein Download von 82&#160;MB.</string>
-    <string name="add_recognition_parakeet">Läuft auf dem Handy. Sehr genau und schnell. Ein Download von 670&#160;MB.</string>
+    <string name="add_recognition_whisper">Läuft auf dem Handy, auch ohne Internet. Schnell. Ein Download von %1$d&#160;MB.</string>
+    <string name="add_recognition_parakeet">Läuft auf dem Handy. Sehr genau und schnell. Ein Download von %1$d&#160;MB.</string>
     <string name="add_recognition_tinfoil">Läuft auf einem geschützten Server, nicht auf dem Handy. Braucht einen API-Schlüssel.</string>
     <string name="add_recognition_server">Läuft auf einem Server, etwa Groq, OpenAI oder deinem eigenen. Braucht eine Adresse, oft einen API-Schlüssel.</string>
     <string name="recognition_switched">%1$s ist jetzt aktiv</string>

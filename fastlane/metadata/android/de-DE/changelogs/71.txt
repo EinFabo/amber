@@ -1,5 +1,5 @@
 - Kein Diktat geht mehr verloren: Fällt ein Modell oder Server aus oder wird Embersay beendet, bleibt die Aufnahme für „Nochmal versuchen“
-- Die Einführung ist klarer: erst das Mikrofon, Schritte passend zum Hersteller, ehrliche Worte ohne Spracherkennung
+- Die Einführung ist klarer: erst das Mikrofon, Schritte passend zum Hersteller, ehrliche Hinweise, wenn dein Handy keine Spracherkennung hat
 - Der Text passt zu dem, was im Feld steht: keine verschluckten Wörter, keine falschen Großbuchstaben oder Punkte
 - Musik pausiert, während du aufnimmst
-- Einfachere Wörter auf Deutsch und Englisch
+- Verständlichere Texte auf Deutsch und Englisch

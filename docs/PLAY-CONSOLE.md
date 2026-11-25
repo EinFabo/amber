@@ -14,8 +14,8 @@ the texts as they are; change them only together with the app.
   GitHub key (`c3f69e72...`, see `docs/fdroid/com.embersay.yml`), not with the store key, which
   signs only the builds in Fabi's own store. Two ways, to be chosen:
   - *Upload the GitHub key as the app signing key* ("use your own key"): Play, GitHub and
-    F-Droid builds then update one another. The trade-off: the key leaves the phone-only
-    custody once, and Google holds a copy of it for good.
+    F-Droid builds then update one another. The trade-off: the key leaves Fabi's hands
+    once, and Google holds a copy of it for good.
   - *Let Google make the app signing key* (the default): the GitHub key stays only Fabi's, with
     an upload key of its own. The trade-off: Play installs and GitHub or F-Droid installs
     cannot update each other; someone who switches source has to uninstall first.

@@ -40,7 +40,8 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
   sie entsteht, verschlüsselt mit denselben Schlüsseln, damit sie nicht verloren geht, wenn
   Embersay beendet wird, bevor der Text da ist: Sie wird gelöscht, sobald der Text da ist. Eine
   Aufnahme, die für „Nochmal versuchen“ behalten wird, bleibt nur so lange, wie das angeboten wird
-  (zehn Minuten); was übrig bleibt, geht nach höchstens 24 Stunden und mit dem Verlauf.
+  (zehn Minuten); alles andere wird nach spätestens 24 Stunden
+  gelöscht, oder zusammen mit dem Verlauf.
 - Diagnose: die letzten Diktate mit ihren Zeiten und, nur auf dem Handy, ihrem Text. Ein Bericht,
   den du zum Teilen kopierst, enthält die Form jedes Diktats (Zeichen, Wörter, Sprache), nicht
   seine Wörter, und keinen App-Namen: jede App heißt darin „app 1“, „app 2“ und so weiter, im

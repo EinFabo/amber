@@ -34,7 +34,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | Android's permission to show the bubble and insert | accessibility | Bedienungshilfe | | |
 | Where the voice stays | on this phone | auf dem Handy | on device, local | |
 | Tinfoil's verified server | protected server (enclave), short: enclave | geschützter Server (Enklave), kurz: Enklave | TEE | |
-| Anyone else's server | cloud | Cloud | | |
+| Every server that is not on the phone and not a verified enclave, your own included (the badge says so) | cloud | Cloud | | |
 | A server you run or rent | server, own server | Server, eigener Server | endpoint, provider | |
 | Where a server is reached | address | Adresse | base URL, endpoint | |
 | The secret for a service | API key | API-Schlüssel | token | |
