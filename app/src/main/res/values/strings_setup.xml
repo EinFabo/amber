@@ -121,6 +121,7 @@
     <string name="done_title_setup_missing_two">Two things are still missing</string>
     <string name="done_title_setup_missing_one">One thing is still missing</string>
     <string name="done_go_to_missing">Go to the missing step</string>
+    <string name="done_finish_anyway">Finish anyway</string>
     <string name="done_missing_service">Embersay\'s accessibility isn\'t running yet.</string>
     <string name="done_missing_microphone">The microphone isn\'t allowed yet.</string>
     <string name="done_title_no_recognition">Nothing can recognize speech yet</string>

@@ -237,8 +237,14 @@ internal fun DoneStep(
         lead = stringResource(R.string.done_lead),
         top = { DoneOrb(downloaded) },
         buttons = {
-            if (state == DoneState.SETUP_MISSING) ContinueButton({ onGoTo(setupMissing.first()) }, stringResource(R.string.done_go_to_missing))
-            else ContinueButton(onFinish, stringResource(R.string.done_try))
+            if (state == DoneState.SETUP_MISSING) {
+                ContinueButton({ onGoTo(setupMissing.first()) }, stringResource(R.string.done_go_to_missing))
+                // Never a dead end: a microphone refused for good or a service Android will not
+                // start can be put right later, from Home.
+                LaterButton(stringResource(R.string.done_finish_anyway), onFinish)
+            } else {
+                ContinueButton(onFinish, stringResource(R.string.done_try))
+            }
         },
     ) {
         if (state == DoneState.SETUP_MISSING) {

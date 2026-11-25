@@ -62,9 +62,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 - **C3, "All set" only when it is.** The last step now checks the bubble's service and the
   microphone too: if either is missing it is titled "Two things are still missing" or "One
   thing is still missing", names what, and its button goes back to the first missing step
-  instead of "Try it" - ahead of every model and language pack state. Try on a phone: in
-  Android's settings switch Embersay's accessibility off (or revoke the microphone) while on
-  the last step, or jump there with it off, and look at the title and the button.
+  instead of "Try it" - ahead of every model and language pack state. "Finish anyway" under
+  it still ends the introduction (Home then shows what is missing). The accessibility step no
+  longer says "On" for a service that is switched on but not running: it shows "The bubble's
+  service is switched on but not running..." with "Open accessibility settings" and does not
+  move on by itself, so the button back cannot loop. Try on a phone: in Android's settings
+  switch Embersay's accessibility off (or revoke the microphone) while on the last step, or
+  jump there with it off, and look at the title and the buttons; "Finish anyway" goes Home.
 - **C2, the introduction counts as done once the bubble works.** Reaching the practice step
   (or later) with the microphone allowed and the bubble's service really running ends the
   introduction at once, instead of only at the last step's button: leaving at the practice

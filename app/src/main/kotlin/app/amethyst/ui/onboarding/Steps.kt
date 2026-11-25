@@ -111,6 +111,9 @@ internal fun WelcomeStep(phone: PhoneFacts?, onPath: (OnboardingPath) -> Unit, o
 @Composable
 internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext: () -> Unit) {
     val on = setup.accessibilityEnabled
+    // Switched on, yet the service never connected: not "On" - the way to switch it off and on
+    // again, as on the practice step and Home, so the last step's "Go to the missing step" ends here.
+    val stuck = on && setup.serviceNotRunning
     val waiting = !on && setup.accessibilityTried
     val locked = waiting && setup.restrictedSettings
     // Moves on by itself only when the switch was turned on while this step was up - not when
@@ -120,8 +123,8 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
     // skip the microphone step.
     var beat by remember { mutableStateOf(false) }
     val moveOn by rememberUpdatedState(onNext)
-    LaunchedEffect(on) {
-        if (on && watching) {
+    LaunchedEffect(on, stuck) {
+        if (on && !stuck && watching) {
             watching = false
             beat = true
             delay(DONE_BEAT_MS)
@@ -139,6 +142,10 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         ),
         buttons = {
             when {
+                stuck -> {
+                    ContinueButton(actions.openAccessibilityList, stringResource(R.string.open_accessibility_settings))
+                    LaterButton(stringResource(R.string.not_now), onNext)
+                }
                 on -> ContinueButton(onNext, enabled = !beat)
                 locked -> {
                     // The filled button is the lock's "Open app info" above; this comes after it.
@@ -157,6 +164,7 @@ internal fun AccessibilityStep(setup: SetupState, actions: SetupActions, onNext:
         },
     ) {
         when {
+            stuck -> Hint(stringResource(R.string.service_not_running), AmberPalette.Primary)
             // "Just now" from the first frame it is on, before the beat below has begun.
             on -> ServiceOn(justNow = watching || beat)
             waiting -> {

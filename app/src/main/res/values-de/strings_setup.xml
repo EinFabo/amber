@@ -121,6 +121,7 @@
     <string name="done_title_setup_missing_two">Zwei Dinge fehlen noch</string>
     <string name="done_title_setup_missing_one">Ein Ding fehlt noch</string>
     <string name="done_go_to_missing">Zum fehlenden Schritt</string>
+    <string name="done_finish_anyway">Trotzdem fertig</string>
     <string name="done_missing_service">Die Bedienungshilfe von Embersay läuft noch nicht.</string>
     <string name="done_missing_microphone">Das Mikrofon ist noch nicht erlaubt.</string>
     <string name="done_title_no_recognition">Noch nichts kann Sprache erkennen</string>
