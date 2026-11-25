@@ -11,7 +11,8 @@ import java.util.concurrent.CopyOnWriteArrayList
  * - [log]: the records Diagnostics shows, each with its words;
  * - [lastInsertion]: what "Undo last" may take out of a field again, with its text;
  * - the [Holder]s outside :core that the app adds ([hold]): the clipboard while Amber's own clip
- *   is on it, the history of recent dictations, the scratch file a recording is compressed in.
+ *   is on it, the history of recent dictations, the scratch file a recording is compressed in,
+ *   the recording kept on disk while it is made ([RecordingSpool]).
  *
  * Not here, because they hold no words: the statistics (counts and times, and which app) and
  * the insertion method remembered per app. The security mode reaches them on its own

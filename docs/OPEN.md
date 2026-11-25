@@ -40,6 +40,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   and tensor names are (`run-as com.embersay.debug dd if=/dev/urandom of=... bs=1 seek=70000
   count=4096 conv=notrunc`). Dictate twice (or once, if the app closes); the model page and
   Diagnostics should then say it is damaged. Download again, and dictate.
+- **A5, a recording survives the app being ended.** With the history on (not in the security
+  mode), a dictation's recording is written to `noBackupFilesDir/recording` while it is made,
+  sealed every 2 s with the history's key of the day (`RecordingSpool`, `SpoolWriter`). It goes
+  when the text is there, on a cancel while listening, with the history off or "Delete all";
+  while the recording is kept for "Try again" it stays as long as that (10 min). After the app
+  was ended, Home shows "Recording cut off" with "Recover last recording" (into the test field,
+  with the speech recognition set now) and Delete, for up to 24 h. Try on a phone: history on,
+  dictate for 10 s into any app and, still recording or while the bubble works, run
+  `adb shell am force-stop com.embersay.debug` (or swipe the app away and kill it); open
+  Embersay, tap "Recover last recording". Then once with the history off: nothing is offered.
 
 ## Store review 2026-11-22
 

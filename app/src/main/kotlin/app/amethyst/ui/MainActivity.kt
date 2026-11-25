@@ -93,6 +93,7 @@ import app.amethyst.apps.Launcher
 import app.amethyst.core.apps.AppChoice
 import app.amethyst.core.capture.TriggerSource
 import app.amethyst.core.dictation.DictationLog
+import app.amethyst.core.dictation.RecordingSpool
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.EnginePresets
 import app.amethyst.core.engine.PhoneFacts
@@ -582,6 +583,15 @@ private fun AmethystScreens(
         }
     }
 
+    // A recording an earlier process left on disk when it was ended ([RecordingSpool]), for Home's
+    // "Recover last recording": looked for again with every change of it and of the history. Only
+    // names are read, no key; the settings first, so the history's choice is the user's.
+    val spoolChanges by graph.spool.changes.collectAsStateWithLifecycle()
+    val spoolKeep = graph.loadedSettings.collectAsStateWithLifecycle().value?.let(SecurityMode::historyKeep)
+    val leftoverRecording by produceState<RecordingSpool.Leftover?>(null, spoolChanges, spoolKeep) {
+        value = spoolKeep?.let { keep -> withContext(Dispatchers.IO) { runCatching { graph.spool.leftover(keep) }.getOrNull() } }
+    }
+
     // How many dictations the history keeps, for Home's row: counted without opening any, again
     // with every change and every minute, as the oldest run out of time.
     val historyKeep = SecurityMode.historyKeep(settings)
@@ -851,6 +861,13 @@ private fun AmethystScreens(
                                     onHistoryOffer = { on -> updateSettings { if (on) HistoryOffer.accept(it) else HistoryOffer.decline(it) } },
                                     canTryAgain = canTryAgainHome,
                                     onTryAgain = { graph.dictation.tryAgain(inAmber = true) },
+                                    leftoverRecording = leftoverRecording != null,
+                                    onRecoverRecording = { leftoverRecording?.let(graph.dictation::recover) },
+                                    onDeleteRecording = {
+                                        leftoverRecording?.let { leftover ->
+                                            graph.appScope.launch(Dispatchers.IO) { runCatching { graph.spool.discard(leftover) } }
+                                        }
+                                    },
                                     onStartTest = { graph.dictation.start(TriggerSource.IN_APP) },
                                     onStopTest = { graph.dictation.stop() },
                                     onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

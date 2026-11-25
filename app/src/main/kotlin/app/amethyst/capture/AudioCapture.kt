@@ -92,6 +92,12 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
          * none. Such a start ends as [Outcome.Failed], for the caller to try the proxy activity.
          */
         probeMs: Int = 0,
+        /**
+         * Every frame kept, the first `count` samples of the array, as it is kept - for the
+         * recording on disk ([app.amethyst.dictation.SpoolWriter]). On the recorder's thread,
+         * which reuses the array: copy, and return at once.
+         */
+        onKept: ((ShortArray, Int) -> Unit)? = null,
     ): Outcome = withContext(Dispatchers.IO) {
         val frameSamples = sampleRate * config.frameMs / 1000
         val minBufferSize = AudioRecord.getMinBufferSize(
@@ -219,6 +225,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                     is PausableRecording.Step.End -> step.decision
                     is PausableRecording.Step.Keep -> {
                         recorded.append(frame, read)
+                        onKept?.invoke(frame, read)
                         onRecorded(recorded.durationMs)
                         onAmplitude(PcmAccumulator.normalizeLoudness(rms))
                         planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->

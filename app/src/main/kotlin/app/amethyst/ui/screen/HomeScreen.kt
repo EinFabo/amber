@@ -134,6 +134,14 @@ fun HomeScreen(
     /** A failed dictation's recording is kept ([app.amethyst.core.dictation.KeptDictation]): "Try again" under the failure. */
     canTryAgain: Boolean = false,
     onTryAgain: () -> Unit = {},
+    /**
+     * A recording an earlier process left on disk when it was ended mid-dictation
+     * ([app.amethyst.core.dictation.RecordingSpool]): "Recover last recording" recognizes it
+     * into the test field, Delete throws it away.
+     */
+    leftoverRecording: Boolean = false,
+    onRecoverRecording: () -> Unit = {},
+    onDeleteRecording: () -> Unit = {},
     /** Home's card about the old Amber, dismissed: it stays away while that app's service is off. */
     onDismissOldAmber: () -> Unit = {},
     /**
@@ -169,6 +177,17 @@ fun HomeScreen(
         if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
 
         if (historyOffer && setup.ready) HistoryOfferCard({ onHistoryOffer(true) }, { onHistoryOffer(false) })
+
+        if (leftoverRecording) {
+            RecoverRecordingCard(
+                onRecover = {
+                    // The words go where a dictation on Home goes: the test field.
+                    runCatching { testField.requestFocus() }
+                    onRecoverRecording()
+                },
+                onDelete = onDeleteRecording,
+            )
+        }
 
         val context = LocalContext.current
         val others = remember(setup.oldAmbersInstalled, setup.otherAmbers, settings.ui.oldAmberDismissed) {
@@ -420,6 +439,34 @@ private fun HistoryOfferCard(onTurnOn: () -> Unit, onNoThanks: () -> Unit) {
         ) {
             GhostButton(stringResource(R.string.history_offer_no), onNoThanks, color = AmberPalette.Muted)
             PrimaryButton(stringResource(R.string.history_offer_on), onTurnOn)
+        }
+    }
+}
+
+/**
+ * Embersay was ended while a dictation recorded or was being written, and its recording is still
+ * on disk: recovered, it is recognized into the test field; deleted, it is gone.
+ */
+@Composable
+private fun RecoverRecordingCard(onRecover: () -> Unit, onDelete: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.home_recover_title),
+            summary = stringResource(R.string.home_recover_summary),
+            icon = AmberIcons.Mic,
+            summaryMaxLines = 4,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GhostButton(stringResource(R.string.home_recover_delete), onDelete, color = AmberPalette.Muted)
+            PrimaryButton(stringResource(R.string.home_recover), onRecover, Modifier.weight(1f, fill = false))
         }
     }
 }

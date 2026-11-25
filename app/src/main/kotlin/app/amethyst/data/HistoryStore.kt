@@ -9,6 +9,7 @@ import app.amethyst.core.history.AesGcmLock
 import app.amethyst.core.history.DictationHistory
 import app.amethyst.core.history.HistoryEntry
 import app.amethyst.core.history.HistoryKeep
+import app.amethyst.core.history.HistoryLock
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
@@ -26,10 +27,14 @@ import javax.crypto.SecretKey
  */
 class HistoryStore(private val context: Context) {
 
-    private val history = DictationHistory(
-        File(context.noBackupFilesDir, "history/dictations"),
-        AesGcmLock(::key, ::days, ::deleteKey),
-    )
+    /**
+     * The history's keys, one per day: also what a running dictation's recording is sealed with
+     * on disk ([app.amethyst.core.dictation.RecordingSpool]), so it goes with them - a day past
+     * keeping, "Delete all", the history off.
+     */
+    val lock: HistoryLock = AesGcmLock(::key, ::days, ::deleteKey)
+
+    private val history = DictationHistory(File(context.noBackupFilesDir, "history/dictations"), lock)
 
     /** Taken where a dictation is decided on; a [deleteAll] before its [add] refuses it ([DictationHistory.ticket]). Any thread. */
     fun ticket(): Long = history.ticket()

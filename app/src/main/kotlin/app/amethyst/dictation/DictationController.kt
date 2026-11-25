@@ -51,6 +51,7 @@ import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.dictation.BubbleTap
 import app.amethyst.core.dictation.KeptDictation
+import app.amethyst.core.dictation.RecordingSpool
 import app.amethyst.core.dictation.NotInserted
 import app.amethyst.core.dictation.RunStop
 import app.amethyst.core.dictation.ScreenOff
@@ -852,6 +853,8 @@ class DictationController(
         // job with the bubble left on "starting", for good.
         var engineId: String? = null
         var openedEngine: SttEngine? = null
+        // This run's recording on disk, while the history is on ([SpoolWriter]); only a recording run's.
+        var spool: SpoolWriter.Run? = null
         try {
             val routing = graph.engineFor(runPackage)
             runRouting = routing
@@ -913,7 +916,11 @@ class DictationController(
                     }
                     retry != null -> recognizeKept(engine, options, retry, estimateKey, appLabels, limit)
                     engine is SelfCapturingSttEngine -> listenWithEngine(engine, options, source, limit)
-                    else -> recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit)
+                    else -> {
+                        // A dictation's recording goes to the disk as it is made, sealed - not a command's, which is said again.
+                        if (_mode.value == RunMode.DICTATION) spool = graph.spoolWriter.begin(SecurityMode.historyKeep(graph.loadedSettings.value))
+                        recordThenTranscribe(engine, engineConfig, options, source, estimateKey, appLabels, pause, limit, spool)
+                    }
                 } ?: run {
                     // The failure was already reported.
                     outcomeReported = true
@@ -1000,6 +1007,8 @@ class DictationController(
             // which cannot be aborted, this runs seconds late - a new dictation may be
             // recording by then, and its recognizer and the tap that stopped it are not ours.
             (openedEngine as? SelfCapturingSttEngine)?.let { selfCapturing.compareAndSet(it, null) }
+            // This run's own: its recording leaves the disk unless it is kept for "Try again" now.
+            graph.spoolWriter.ended(spool)
             // The recording had its chance to be kept for "Try again" ([keepForRetry]): what
             // is not in [kept] now is let go, not held in memory until the next dictation. A
             // run another has followed leaves alone what is that one's.
@@ -1187,6 +1196,8 @@ class DictationController(
         pause: RecordingPause,
         /** This run's time limit, cut down to the recording's length once it has ended. */
         limit: RunLimit,
+        /** Where the recording goes on disk as it is made; null for none. */
+        spool: SpoolWriter.Run?,
     ): Transcript? {
         _state.value = DictationState.Listening()
         loudness = LoudnessLog()
@@ -1235,6 +1246,7 @@ class DictationController(
                 inCall = phoneCall::on,
                 // The bubble's direct start: silence from it means the proxy activity is needed.
                 probeMs = MicrophoneRouter.startProbeMs(source),
+                onKept = spool?.let { it::frame },
             )
         } catch (e: Throwable) {
             chunked?.cancel()
@@ -1245,6 +1257,8 @@ class DictationController(
         }
         if (outcome !is AudioCapture.Outcome.Captured || outcome.chunks == 0) chunked?.cancel()
         if (outcome !is AudioCapture.Outcome.Captured) prepared?.drop()
+        // Its last part to the disk; the run's end decides whether it stays there ([SpoolWriter.ended]).
+        spool?.recorded((outcome as? AudioCapture.Outcome.Captured)?.audio ?: (outcome as? AudioCapture.Outcome.Discarded)?.audio)
 
         when (outcome) {
             is AudioCapture.Outcome.Discarded -> {
@@ -1509,7 +1523,7 @@ class DictationController(
     private fun keepUnheardForRetry(audio: PcmAudio?): Boolean {
         if (_mode.value != RunMode.DICTATION || audio == null || !kept.keepUnheard(audio)) return false
         trace?.kept = "recording kept for Try again, ${ms(audio.durationMs)}, no speech heard"
-        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms, no speech heard, in memory only)")
+        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms, no speech heard)")
         scope.launch {
             delay(kept.keepMs)
             kept.expire()
@@ -1527,13 +1541,50 @@ class DictationController(
         val audio = runAudio ?: return false
         if (!kept.keepRecording(audio, why)) return false
         trace?.kept = "recording kept for Try again, ${ms(audio.durationMs)}"
-        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms, in memory only)")
+        Log.i(TAG, "recording kept for Try again (${audio.durationMs} ms)")
         scope.launch {
             delay(kept.keepMs)
             kept.expire()
         }
         return true
     }
+
+    /**
+     * "Recover last recording" on Home: the recording an earlier process left on disk when it
+     * was ended ([RecordingSpool]) is opened, kept for "Try again" as a failed one is, and
+     * recognized at once with the speech recognition set now - into Home's test field, which
+     * has focus. Not while a dictation runs. Main thread.
+     */
+    fun recover(leftover: RecordingSpool.Leftover) {
+        // A second tap while the first opens it: one recovery.
+        if (isRunning || recovering) return
+        recovering = true
+        scope.launch {
+            val audio = withContext(Dispatchers.IO) {
+                try {
+                    graph.spool.recover(leftover, kept::keepRecovered)
+                } catch (e: Exception) {
+                    Log.w(TAG, "the recording on disk was not opened: ${e.javaClass.simpleName}")
+                    null
+                }
+            }
+            if (audio == null) {
+                Log.i(TAG, "a recording left by an earlier process could not be opened")
+                toast(R.string.toast_recording_not_recovered)
+                return@launch
+            }
+            Log.i(TAG, "a recording left by an earlier process was recovered (${audio.durationMs} ms)")
+            launch {
+                delay(kept.keepMs)
+                kept.expire()
+            }
+            withContext(Dispatchers.Main) { tryAgain(inAmber = true) }
+        }.invokeOnCompletion { recovering = false }
+    }
+
+    /** A recording left on disk is being opened for [recover]. */
+    @Volatile
+    private var recovering = false
 
     /**
      * Tried again from the History page ([tryAgain] forHistory): with no field there, the words

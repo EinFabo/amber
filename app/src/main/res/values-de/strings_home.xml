@@ -98,4 +98,8 @@
     <string name="usd_under_cent">unter 0,01&#160;$</string>
     <string name="usd">%1$s&#160;$</string>
     <string name="home_last_dictation">Letztes Diktat</string>
+    <string name="home_recover_title">Aufnahme unterbrochen</string>
+    <string name="home_recover_summary">Embersay wurde beendet, bevor ein Diktat zu Text wurde. Die Aufnahme ist noch da, verschlüsselt auf diesem Handy.</string>
+    <string name="home_recover">Letzte Aufnahme zurückholen</string>
+    <string name="home_recover_delete">Löschen</string>
 </resources>

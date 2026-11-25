@@ -33,7 +33,9 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   is past keeping, and "Delete all" deletes the entries and every key: the storage chip may hold
   the deleted bytes for a while, but without the key they cannot be read. Copy marks the text as
   sensitive, but some keyboards (Gboard, Samsung) keep their own clipboard history, where copied
-  text may stay.
+  text may stay. With the history on, a dictation's recording is also kept on the phone while
+  it is made, encrypted with the same keys, so it is not lost if Embersay is ended before the
+  text is there: it is deleted once the text is there, after 24 hours at most, and with the history.
 - Diagnostics: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words, and no app's name: each app is "app 1", "app 2" and so on, the same one throughout

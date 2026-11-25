@@ -7,10 +7,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * What Amber keeps of a dictation for a little while, in memory only - never on disk: the
- * recording of a dictation whose recognition failed, for "Try again" in the bubble's quick menu,
- * and the last dictation's words as Home ([lastDictation]) and the quick menu
- * ([sessionDictation]) offer them - the words themselves stay in [DictationLog]'s records.
+ * What Amber keeps of a dictation for a little while, in memory: the recording of a dictation
+ * whose recognition failed, for "Try again" in the bubble's quick menu, and the last dictation's
+ * words as Home ([lastDictation]) and the quick menu ([sessionDictation]) offer them - the words
+ * themselves stay in [DictationLog]'s records. With the history on, [RecordingSpool] keeps the
+ * kept recording sealed on disk as well, for exactly as long, so a process killed meanwhile does
+ * not lose it.
  *
  * Kept for [keepMs] (10 minutes), one at a time - the last failed one; a recording longer than
  * [MAX_RECORDING_MS] is not kept (five minutes of 16 kHz mono are about 10 MB). Gone after the
@@ -73,6 +75,14 @@ class KeptDictation(
         if (audio.durationMs <= MIN_UNHEARD_MS) return false
         return keepLocked(audio)
     }
+
+    /**
+     * Keeps [audio] of a recording cut off by the end of an earlier process, which the user
+     * recovered on Home ([RecordingSpool.recover]), for "Try again" - in place of any recording
+     * kept before. False while keeping is off or when it is too long.
+     */
+    @Synchronized
+    fun keepRecovered(audio: PcmAudio): Boolean = keepLocked(audio)
 
     private fun keepLocked(audio: PcmAudio): Boolean {
         if (!keeping || audio.durationMs > MAX_RECORDING_MS || audio.samples.isEmpty()) return false

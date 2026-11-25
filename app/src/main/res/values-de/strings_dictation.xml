@@ -73,6 +73,7 @@
     <string name="quick_off_command">Nicht bei einem Sprachbefehl</string>
     <string name="quick_off_cannot_pause">Diese Spracherkennung kann nicht pausieren</string>
     <string name="toast_unexpected">Etwas ist schiefgegangen. Details stehen in der Diagnose.</string>
+    <string name="toast_recording_not_recovered">Die Aufnahme ließ sich nicht öffnen. Sie ist gelöscht.</string>
     <string name="toast_unexpected_try_again">Etwas ist schiefgegangen. Halte die Bubble: „Nochmal versuchen“.</string>
     <string name="toast_on_clipboard">Nicht eingefügt. Der Text ist in der Zwischenablage.</string>
     <string name="toast_may_arrive">Kommt vielleicht noch. Sonst halte die Bubble: „Letztes kopieren“.</string>

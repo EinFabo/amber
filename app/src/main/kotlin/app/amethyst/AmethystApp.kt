@@ -14,6 +14,7 @@ import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.dictation.DictationLog
 import app.amethyst.core.dictation.DictationMemory
 import app.amethyst.core.dictation.KeptDictation
+import app.amethyst.core.dictation.RecordingSpool
 import app.amethyst.core.text.CleanupTrouble
 import app.amethyst.core.engine.AmberAddress
 import app.amethyst.core.engine.EngineKind
@@ -43,6 +44,7 @@ import app.amethyst.data.SettingsStore
 import app.amethyst.data.StatsStore
 import app.amethyst.data.StrategyStore
 import app.amethyst.dictation.DictationController
+import app.amethyst.dictation.SpoolWriter
 import app.amethyst.engine.AmberCatalogRefresher
 import app.amethyst.engine.EngineFactory
 import app.amethyst.engine.FirstRunSetup
@@ -398,6 +400,32 @@ class Graph(app: Application) {
      */
     val history = HistoryStore(app).also { store -> memory.hold { store.deleteAll() } }
 
+    /**
+     * A running dictation's recording on disk, sealed with the history's keys - only with the
+     * history on - so a process killed meanwhile does not lose it: Home offers it at the next
+     * start ([RecordingSpool]). In noBackupFilesDir: never in a backup, and its keys could not go
+     * along anyway. Forgotten with everything else, and with the history: off, or "Delete all".
+     */
+    val spool = RecordingSpool(File(app.noBackupFilesDir, "recording"), history.lock, memory.kept).also { spool ->
+        memory.hold { spool.deleteAll() }
+    }
+
+    /** Feeds [spool] from the recorder, off its thread. */
+    val spoolWriter = SpoolWriter(spool)
+
+    init {
+        // The kept recording's disk copy follows what is kept in memory: gone with it, for as long as it.
+        appScope.launch(Dispatchers.IO) {
+            memory.kept.changes.collect {
+                try {
+                    spool.sync()
+                } catch (e: Exception) {
+                    android.util.Log.w("Embersay", "the recording on disk was not tidied: ${e.javaClass.simpleName}")
+                }
+            }
+        }
+    }
+
     /** Counts every change of the history, for the screens that show it. */
     val historyChanges = MutableStateFlow(0L)
 
@@ -419,6 +447,8 @@ class Graph(app: Application) {
         // the security mode, takes it all.
         appScope.launch(Dispatchers.IO) {
             loadedSettings.filterNotNull().map(SecurityMode::historyKeep).distinctUntilChanged().collect { keep ->
+                // Off, its keys go: so does the recording sealed with them.
+                if (keep == HistoryKeep.OFF) runCatching { spool.deleteAll() }
                 history.prune(keep)
                 historyChanges.update { it + 1 }
             }
@@ -434,6 +464,8 @@ class Graph(app: Application) {
         OwnClipboard.forgetIfOurs(appContext)
         appScope.launch(Dispatchers.IO) {
             try {
+                // The recording on disk is sealed with the keys that go now.
+                spool.deleteAll()
                 history.deleteAll()
             } catch (e: Exception) {
                 android.util.Log.w("Embersay", "history not deleted: ${e.javaClass.simpleName}")

@@ -98,4 +98,8 @@
     <string name="usd_under_cent">under $0.01</string>
     <string name="usd">$%1$s</string>
     <string name="home_last_dictation">Last dictation</string>
+    <string name="home_recover_title">Recording cut off</string>
+    <string name="home_recover_summary">Embersay was closed before a dictation became text. The recording is still here, encrypted on this phone.</string>
+    <string name="home_recover">Recover last recording</string>
+    <string name="home_recover_delete">Delete</string>
 </resources>
