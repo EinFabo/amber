@@ -29,6 +29,15 @@ class PracticeTest {
     }
 
     @Test
+    fun `a service that is on but not running blocks the step`() {
+        val stuck = PracticeReadiness(
+            serviceOn = true, serviceStuck = true, bubbleOn = true, microphone = true,
+            recognition = Recognition.READY, hasLastDictation = false,
+        )
+        assertEquals(PracticeBlock.SERVICE_NOT_RUNNING, Practice.stepBlock(stuck))
+    }
+
+    @Test
     fun `an inserted dictation ticks the tap`() {
         val after = fresh.on(BubbleEvent.DictationInserted)
         assertEquals(TaskState.DONE, after.state(PracticeTask.TAP))

@@ -107,6 +107,10 @@ internal fun PracticeStep(
                     ContinueButton(onSwitchServiceOn, stringResource(R.string.practice_switch_on))
                     LaterButton(stringResource(R.string.not_now), onNext)
                 }
+                noFlame == PracticeBlock.SERVICE_NOT_RUNNING -> {
+                    ContinueButton(actions.openAccessibilityList, stringResource(R.string.open_accessibility_settings))
+                    LaterButton(stringResource(R.string.not_now), onNext)
+                }
                 noFlame == PracticeBlock.BUBBLE_OFF -> {
                     ContinueButton({ content.onUpdateSettings { it.copy(bubble = it.bubble.copy(enabled = true)) } }, stringResource(R.string.practice_show_bubble))
                     LaterButton(stringResource(R.string.not_now), onNext)
@@ -129,6 +133,7 @@ internal fun PracticeStep(
         )
         when (noFlame) {
             PracticeBlock.NO_SERVICE -> Hint(stringResource(R.string.practice_no_service), AmberPalette.Primary)
+            PracticeBlock.SERVICE_NOT_RUNNING -> Hint(stringResource(R.string.service_not_running), AmberPalette.Primary)
             PracticeBlock.BUBBLE_OFF -> Hint(stringResource(R.string.practice_bubble_off), AmberPalette.Primary)
             else -> Unit
         }
@@ -236,7 +241,7 @@ private fun PracticeBlock.say(download: ModelDownload?): String = when (this) {
     ).joinToString(". ")
     PracticeBlock.NO_RECOGNITION -> stringResource(R.string.practice_no_recognition)
     PracticeBlock.NEEDS_DICTATION -> stringResource(R.string.practice_needs_dictation)
-    PracticeBlock.NO_SERVICE, PracticeBlock.BUBBLE_OFF -> stringResource(R.string.practice_no_bubble)
+    PracticeBlock.NO_SERVICE, PracticeBlock.SERVICE_NOT_RUNNING, PracticeBlock.BUBBLE_OFF -> stringResource(R.string.practice_no_bubble)
 }
 
 /** What the phone allows right now: the service, the flame's switch, the microphone, a recognition. */
@@ -249,6 +254,7 @@ private fun readiness(settings: AmethystSettings, setup: SetupState, content: On
     }
     return PracticeReadiness(
         serviceOn = setup.accessibilityEnabled,
+        serviceStuck = setup.serviceNotRunning,
         bubbleOn = settings.bubble.enabled,
         microphone = setup.microphoneGranted,
         recognition = Recognition.of(

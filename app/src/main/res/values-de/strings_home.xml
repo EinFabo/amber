@@ -102,4 +102,6 @@
     <string name="home_recover_summary">Embersay wurde beendet, bevor ein Diktat zu Text wurde. Die Aufnahme ist noch da, verschlüsselt auf diesem Handy.</string>
     <string name="home_recover">Letzte Aufnahme zurückholen</string>
     <string name="home_recover_delete">Löschen</string>
+    <string name="service_not_running_title">Die Bubble läuft nicht</string>
+    <string name="service_not_running">Der Dienst der Bubble ist eingeschaltet, läuft aber nicht. Schalte ihn aus und wieder ein.</string>
 </resources>

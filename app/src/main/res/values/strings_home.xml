@@ -102,4 +102,6 @@
     <string name="home_recover_summary">Embersay was closed before a dictation became text. The recording is still here, encrypted on this phone.</string>
     <string name="home_recover">Recover last recording</string>
     <string name="home_recover_delete">Delete</string>
+    <string name="service_not_running_title">The bubble is not running</string>
+    <string name="service_not_running">The bubble\'s service is switched on but not running. Switch it off and on again.</string>
 </resources>

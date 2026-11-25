@@ -3,6 +3,8 @@ package app.amethyst.ui
 import android.Manifest
 import android.content.ComponentName
 import android.content.Context
+import android.os.Process
+import android.os.SystemClock
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
@@ -19,12 +21,15 @@ import app.amethyst.core.onboarding.InstallSource
 import app.amethyst.core.onboarding.OtherAmbers
 import app.amethyst.core.onboarding.PackageSource
 import app.amethyst.core.onboarding.RestrictedSettings
+import app.amethyst.core.onboarding.ServiceHealth
 import app.amethyst.engine.FirstRunSetup
 
 /** Everything that has to be true before a tap on the bubble can produce text. */
 data class SetupState(
     val microphoneGranted: Boolean = false,
     val accessibilityEnabled: Boolean = false,
+    /** Whether the switch is backed by a live connection; only [ServiceHealth.NOT_RUNNING] and [ServiceHealth.STARTING] differ from a plain "on". */
+    val serviceHealth: ServiceHealth = ServiceHealth.RUNNING,
     val notificationsGranted: Boolean = false,
     val batteryUnrestricted: Boolean = false,
     /** Android 13+ may lock the accessibility switch: Amber was not installed by a store. */
@@ -38,11 +43,14 @@ data class SetupState(
 ) {
     /** The two that are actually mandatory; the rest only improve reliability. */
     val ready: Boolean get() = microphoneGranted && accessibilityEnabled
+
+    /** The switch is on, yet the service never connected: "ready" would be a lie. */
+    val serviceNotRunning: Boolean get() = serviceHealth == ServiceHealth.NOT_RUNNING
 }
 
 object Setup {
 
-    fun snapshot(context: Context, accessibilityTried: Boolean = false): SetupState {
+    fun snapshot(context: Context, accessibilityTried: Boolean = false, serviceConnected: Boolean = true): SetupState {
         val accessibility = isAccessibilityEnabled(context)
         // Only a conflict while this one is on too: with it off, the other is simply the Amber in use.
         val others = if (accessibility) OtherAmbers.find(context.packageName, enabledServices(context)) else emptyList()
@@ -52,6 +60,11 @@ object Setup {
                 Manifest.permission.RECORD_AUDIO,
             ) == PackageManager.PERMISSION_GRANTED,
             accessibilityEnabled = accessibility,
+            serviceHealth = ServiceHealth.of(
+                switchOn = accessibility,
+                connected = serviceConnected,
+                msSinceAppStart = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime(),
+            ),
             notificationsGranted = areNotificationsGranted(context),
             batteryUnrestricted = isBatteryUnrestricted(context),
             restrictedSettings = restrictedSettings(context),

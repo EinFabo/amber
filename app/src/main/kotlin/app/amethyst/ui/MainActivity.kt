@@ -107,6 +107,7 @@ import app.amethyst.core.onboarding.RealAppNudges
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.core.onboarding.ServiceHealth
 import app.amethyst.core.onboarding.SettingsTrip
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppProfile
@@ -380,9 +381,18 @@ class MainActivity : ComponentActivity() {
      */
     private fun refreshSetup() {
         val tried = accessibilityTried
+        val graph = AmethystApp.graph(this)
         setupRefresh?.cancel()
         setupRefresh = lifecycleScope.launch {
-            takeSetup(withContext(Dispatchers.IO) { Setup.snapshot(this@MainActivity, tried) })
+            val state = withContext(Dispatchers.IO) {
+                Setup.snapshot(this@MainActivity, tried, serviceConnected = graph.accessibilityService != null)
+            }
+            takeSetup(state)
+            // Just after the app started a service that is on may still be about to connect: look again once the grace is over.
+            if (state.serviceHealth == ServiceHealth.STARTING) {
+                delay(ServiceHealth.STARTUP_GRACE_MS + 100)
+                refreshSetup()
+            }
         }
     }
 

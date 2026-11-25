@@ -34,6 +34,8 @@ enum class Recognition {
 data class PracticeReadiness(
     /** Amber's accessibility service is on: without it there is no flame. */
     val serviceOn: Boolean,
+    /** The service is on in Android's settings but never connected ([ServiceHealth.NOT_RUNNING]). */
+    val serviceStuck: Boolean = false,
     /** The flame is switched on in Amber's settings. */
     val bubbleOn: Boolean,
     val microphone: Boolean,
@@ -49,6 +51,9 @@ data class PracticeReadiness(
 enum class PracticeBlock {
     /** No flame at all: the accessibility service is off. */
     NO_SERVICE,
+
+    /** No flame at all: the service is switched on but not running; off and on again. */
+    SERVICE_NOT_RUNNING,
 
     /** No flame at all: switched off in Settings → Bubble. */
     BUBBLE_OFF,
@@ -127,6 +132,7 @@ data class Practice(
         /** What keeps the flame off the screen, so no task can happen; null when it can show. */
         fun stepBlock(readiness: PracticeReadiness): PracticeBlock? = when {
             !readiness.serviceOn -> PracticeBlock.NO_SERVICE
+            readiness.serviceStuck -> PracticeBlock.SERVICE_NOT_RUNNING
             !readiness.bubbleOn -> PracticeBlock.BUBBLE_OFF
             else -> null
         }

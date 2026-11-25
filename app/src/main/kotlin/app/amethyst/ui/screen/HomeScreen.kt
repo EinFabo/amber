@@ -174,6 +174,9 @@ fun HomeScreen(
             }
         }
 
+        // Android lists the service as on, but it never connected: no bubble, no insertion, whatever "ready" says.
+        if (setup.serviceNotRunning) ServiceNotRunningCard(actions.openAccessibilityList)
+
         if (update != null) UpdateCard(update, { onDownloadUpdate(update) }, { onDismissUpdate(update) })
 
         if (historyOffer && setup.ready) HistoryOfferCard({ onHistoryOffer(true) }, { onHistoryOffer(false) })
@@ -499,6 +502,29 @@ private fun OldAmberCard(old: List<AmberVariant>, onOpenAppInfo: (String) -> Uni
                 if (variant == old.last()) GhostButton(stringResource(R.string.dismiss), onDismiss, color = AmberPalette.Muted)
                 PrimaryButton(Texts.uninstallOld(LocalContext.current, variant, named = old.size > 1), { onOpenAppInfo(variant.packageName) })
             }
+        }
+    }
+}
+
+/** The accessibility switch is on, the service is not running: off and on again brings it back. */
+@Composable
+private fun ServiceNotRunningCard(onOpenSettings: () -> Unit) {
+    SettingsGroup(label = null) {
+        NavRow(
+            title = stringResource(R.string.service_not_running_title),
+            summary = stringResource(R.string.service_not_running),
+            icon = AmberIcons.Info,
+            summaryMaxLines = 4,
+            trailing = null,
+            onClick = null,
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            PrimaryButton(stringResource(R.string.open_accessibility_settings), onOpenSettings)
         }
     }
 }
