@@ -88,4 +88,18 @@ class SecretFieldTest {
         assertEquals(SecretField.Gate.SHOW, SecretField.gate(number, focusFound = false))
         assertEquals(SecretField.Gate.SHOW, SecretField.gate(none, focusFound = false))
     }
+
+    // --- what a walk through the windows allows ------------------------------------------
+
+    @Test
+    fun `a walk stopped at its limit waits, secret or not`() {
+        assertEquals(SecretField.Gate.WAIT, SecretField.afterWalk(complete = false, secret = false))
+        assertEquals(SecretField.Gate.WAIT, SecretField.afterWalk(complete = false, secret = true))
+    }
+
+    @Test
+    fun `a walk to the end shows for a text field and never for a secret one`() {
+        assertEquals(SecretField.Gate.SHOW, SecretField.afterWalk(complete = true, secret = false))
+        assertEquals(SecretField.Gate.NEVER, SecretField.afterWalk(complete = true, secret = true))
+    }
 }

@@ -38,6 +38,7 @@ import app.amethyst.ui.MainActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -444,18 +445,21 @@ class AmethystAccessibilityService : AccessibilityService() {
      * windows: for a field Android's focus lookup names no node for. A walk - asked for only
      * where [SecretField.searchNeeded] says so, and what the bubble's search has found for
      * this input stands ([searchedVerdict]). With [budgetMs] the walk stops after that long
-     * and says no: it is for the bubble and the tap, which must not wait for a big window.
+     * and says yes (secret): it is for the tap, which must not wait for a big window and
+     * does not start a dictation without an answer.
      */
     private fun searchedSecret(editor: EditorInfo, budgetMs: Long?): Boolean {
         searchedVerdict?.let { return it }
         if (!::textInserter.isInitialized) return false
         val owner = editor.packageName ?: return false
-        val node = if (budgetMs == null) {
-            textInserter.searchFocusedEditable(owner)
-        } else {
-            textInserter.searchFocusedEditableWithin(owner, budgetMs).node
+        if (budgetMs == null) {
+            val node = textInserter.searchFocusedEditable(owner)
+            return node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
         }
-        return node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
+        val walk = textInserter.searchFocusedEditableWithin(owner, budgetMs)
+        val secret = walk.node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
+        // A walk cut short knows nothing: the tap does not start a dictation on a guess.
+        return SecretField.afterWalk(walk.complete, secret) != SecretField.Gate.SHOW
     }
 
     /**
@@ -480,14 +484,23 @@ class AmethystAccessibilityService : AccessibilityService() {
         val generation = ++inputGeneration
         val owner = editor.packageName
         searchPending = true
-        scope.launch {
+        searchJob?.cancel()
+        searchJob = scope.launch {
             val found: Pair<Boolean?, String?> = withContext(Dispatchers.IO) {
                 try {
                     if (!::textInserter.isInitialized || owner == null) return@withContext null to null
                     val walk = textInserter.searchFocusedEditableWithin(owner, SecretField.SEARCH_BUDGET_MS)
-                    val secret = walk.node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
-                    // A walk stopped at its limit knows nothing: not secret, and asked again at the tap.
-                    (if (walk.complete) secret else null) to "field search: ${walk.nodes} nodes, ${walk.millis} ms"
+                    var secret = walk.node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
+                    var line = "field search: ${walk.nodes} nodes, ${walk.millis} ms"
+                    if (SecretField.afterWalk(walk.complete, secret) == SecretField.Gate.WAIT) {
+                        // Cut at the limit: the bubble keeps waiting while the walk goes on to its
+                        // end (bounded by the node cap). A password must not be dictated to first.
+                        val start = System.nanoTime()
+                        secret = textInserter.searchFocusedEditable(owner)
+                            ?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
+                        line += ", then to the end: ${(System.nanoTime() - start) / 1_000_000} ms"
+                    }
+                    secret to line
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -503,6 +516,9 @@ class AmethystAccessibilityService : AccessibilityService() {
             announceInput(editor, restarting)
         }
     }
+
+    /** The search for the field's node that is running, if any: dropped with the input it was for. */
+    private var searchJob: Job? = null
 
     private fun currentFocusKind(): TextFieldKind =
         runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)
@@ -573,6 +589,7 @@ class AmethystAccessibilityService : AccessibilityService() {
                 inputGeneration++
                 searchedVerdict = null
                 searchPending = false
+                searchJob?.cancel()
                 val focused = runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
                 when (SecretField.gate(attribute.inputType, focusFound = focused != null)) {
                     SecretField.Gate.NEVER -> inputIsPassword = false
@@ -596,6 +613,7 @@ class AmethystAccessibilityService : AccessibilityService() {
             Log.i(TAG, "field: input finished")
             inputGeneration++
             searchPending = false
+            searchJob?.cancel()
             searchedVerdict = null
             inputKind = TextFieldKind.NONE
             inputIsPassword = false

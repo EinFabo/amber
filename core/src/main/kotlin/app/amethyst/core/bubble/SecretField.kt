@@ -59,6 +59,18 @@ object SecretField {
         else -> Gate.SHOW
     }
 
+    /**
+     * What a search of the windows allows. A walk stopped at its time limit ([complete] false)
+     * knows nothing: [Gate.WAIT] - never "not a password" - until a walk to the end has said
+     * [Gate.NEVER] (secret) or [Gate.SHOW] (no secret). Where the answer cannot be waited for,
+     * the tap, anything but SHOW means no dictation.
+     */
+    fun afterWalk(complete: Boolean, secret: Boolean): Gate = when {
+        !complete -> Gate.WAIT
+        secret -> Gate.NEVER
+        else -> Gate.SHOW
+    }
+
     /** Secret when any of them says so; what is not known says nothing. */
     fun isSecret(editorType: Int?, node: Node?): Boolean =
         (editorType != null && TextFieldKind.of(editorType) == TextFieldKind.SECRET) ||

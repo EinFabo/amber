@@ -9,7 +9,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   and an older Parakeet folder stayed on the phone for good, hundreds of MB. At the start, in
   the background, they are deleted and Diagnostics say how many MB came free. Kept for sure:
   every current slot and its unfinished part, a model picked from a file, the current Parakeet
-  folder, a model an engine names, a model under check, and anything not clearly a model's file.
+  folder, a model an engine names, a model under check, a first-version `whisper.bin` (moved into
+  its slot before the sweep), and anything not clearly a model's file.
   Try: download Parakeet, check the models still load after a restart, and Diagnostics shows no
   "Swept" line when nothing was old.
 - **E4, cooler on long dictations.** The local speech recognitions always used four threads at
@@ -30,10 +31,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   search now runs in the background within 50 ms and its answer comes back to the bubble; a
   field the keyboard calls a password never gets the bubble, and for a plain text field of that
   kind the bubble appears a moment later, once the search has answered. A newer field drops an
-  older answer. The tap uses the keyboard's input type and that answer first. Diagnostics, Keyboard
+  older answer. A search cut at 50 ms keeps going to its end (at most 1,500 nodes) and the
+  bubble keeps waiting - never shown over a password on a guess; the tap refuses without an
+  answer. The tap uses the keyboard's input type and that answer first. Diagnostics, Keyboard
   shows "field search: N nodes, M ms". Try in a Compose app (a login screen with a password
   field and a plain field): the bubble shows for the plain field after a blink, never for the
-  password field; typing in a huge list screen no longer hitches.
+  password field, also a long screen where the search needs more than 50 ms - the bubble comes
+  late, never over the password); typing in a huge list screen no longer hitches.
 - **E1, Settings warns before a model too big for the phone.** "Add speech recognition" and
   the model list offered Parakeet and the large Whisper model on a 3 GB phone, where they get
   the app killed. Such rows now say "Too big for this phone's memory" (same memory rule as the

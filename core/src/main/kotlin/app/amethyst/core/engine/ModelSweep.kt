@@ -11,6 +11,12 @@ object ModelSweep {
     private const val PARAKEET_PREFIX = "parakeet"
 
     /**
+     * The owners of the 0.2.0 single-slot layout (`whisper.bin`): the model store moves such a
+     * file into its slot, and until it has, it may be the user's only model. Never swept.
+     */
+    private val LEGACY_OWNERS = setOf("whisper")
+
+    /**
      * The entries of [files] to delete. [files] are the names in the models folder, a folder's
      * name ending in "/". [current] holds every model id in use: all catalog slots, the slot of a
      * picked file, the current Parakeet folder, whatever an engine names, whatever is under
@@ -25,7 +31,7 @@ object ModelSweep {
             } else {
                 val suffix = FILE_SUFFIXES.firstOrNull { name.endsWith(it) } ?: return@filter false
                 val owner = name.removeSuffix(suffix)
-                owner.isNotEmpty() && owner !in current
+                owner.isNotEmpty() && owner !in current && owner !in LEGACY_OWNERS
             }
         }
     }

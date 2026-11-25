@@ -33,6 +33,12 @@ class ModelSweepTest {
     }
 
     @Test
+    fun `the single model file of the first version stays until the store has moved it`() {
+        val files = listOf("whisper.bin", "whisper.bin.part", "whisper.bin.part.from")
+        assertEquals(emptyList(), ModelSweep.stale(files, current))
+    }
+
+    @Test
     fun `anything not recognized stays`() {
         val files = listOf("notes.txt", "whisper.bin.bak", "other-folder/", "model-guard/", ".nomedia", "x.deleting")
         assertEquals(emptyList(), ModelSweep.stale(files, current))

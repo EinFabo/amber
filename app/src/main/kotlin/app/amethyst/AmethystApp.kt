@@ -258,15 +258,15 @@ class Graph(
     /** The stored settings once they are read: what a one-off look at them suspends for. */
     private suspend fun storedSettings(): AmethystSettings = loadedSettings.filterNotNull().first()
 
+    /** Where the stores keep the models ([WhisperModelStore], [ParakeetModelStore]). */
+    private val modelsFolder = File(app.noBackupFilesDir, "models")
+
     /**
      * The markers around each model's native load, and the models under suspicion
      * ([ModelLoadGuard]). In noBackupFilesDir, beside the models: they say something about these
      * files on this phone only. Reads nothing until first asked. A file it cannot write (storage
      * full) never stops a load: logged by its class, kept in memory meanwhile.
      */
-    /** Where the stores keep the models ([WhisperModelStore], [ParakeetModelStore]). */
-    private val modelsFolder = File(app.noBackupFilesDir, "models")
-
     val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"), trouble = { android.util.Log.w("Embersay", it) })
 
     val whisperRuntime = NativeWhisperRuntime(app, modelMarks)
@@ -726,6 +726,9 @@ class Graph(
      */
     private suspend fun sweepStaleModels() {
         val folder = modelsFolder
+        // The store moves a 0.2.0 single-slot model into its slot when it is built: before the
+        // folder is listed, so the sweep never meets it half-moved.
+        withContext(Dispatchers.IO) { whisperModels }
         val entries = runCatching { folder.listFiles() }.getOrNull() ?: return
         val named = loadedSettings.filterNotNull().first().engines.mapNotNull { it.modelId }
         val current = WhisperModels.all.map { it.id }.toSet() + WhisperModels.IMPORTED_ID + ParakeetModel.ID +
