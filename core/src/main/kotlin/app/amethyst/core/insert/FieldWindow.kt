@@ -77,6 +77,14 @@ data class FieldWindow(
         }
 
         /**
+         * [readBack] of the two begins exactly where [before] did - both say where they begin,
+         * or [before] began at the field's start - and is not found by looking for [before]'s
+         * text, which the app may have changed meanwhile.
+         */
+        fun aligned(before: FieldWindow, after: FieldWindow): Boolean =
+            before.offset == 0 || (before.offset != null && after.offset != null)
+
+        /**
          * [after]'s text from where [before] begins, so that the two can be compared ([Landed]
          * counts the words before and after). The window read after typing reaches further
          * back - by what was typed, so a long dictation is in it from its first word - and
@@ -149,11 +157,34 @@ abstract class WindowedTarget : EditableTarget {
         return true
     }
 
+    /**
+     * Types [text] in place of the [count] characters right before the cursor: selects them and
+     * types over them where [cursor] - the cursor's place in the field - is known, else deletes
+     * them and types. False when there is no connection.
+     */
+    protected open fun replaceBefore(count: Int, text: String, cursor: Int?): Boolean = false
+
+    private var aligned = false
+
+    final override val readBackAligned: Boolean get() = aligned
+
     final override fun readBack(): String? {
+        aligned = false
         val was = before ?: return null
         val now = read(FieldWindow.beforeAfterTyping(typed), FieldWindow.AFTER) ?: return null
         if (was.isEmpty && now.isEmpty) return null
+        aligned = FieldWindow.aligned(was, now)
         return FieldWindow.readBack(was, now)
+    }
+
+    /** Read again right before, so [shown] is known to stand behind the cursor this moment. */
+    final override fun retype(shown: String, text: String): Boolean {
+        if (shown.isEmpty() || !showsText) return false
+        val now = read(shown.length + RETYPE_MARGIN, 0) ?: return false
+        if (now.selectionStart != now.selectionEnd || !now.head.endsWith(shown)) return false
+        if (!replaceBefore(shown.length, text, now.offset?.plus(now.selectionStart))) return false
+        typed = text.length
+        return true
     }
 
     /** A window is not the field: writing it back would cut the field down to it. */
@@ -165,4 +196,9 @@ abstract class WindowedTarget : EditableTarget {
     final override fun readCursor(): FieldState? = null
 
     final override fun paste(): Boolean = false
+
+    private companion object {
+        /** Read before the cursor on top of the words to type again: a window may cut an emoji off its edge. */
+        const val RETYPE_MARGIN = 2
+    }
 }

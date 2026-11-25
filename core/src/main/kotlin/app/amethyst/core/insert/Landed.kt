@@ -65,6 +65,60 @@ object Landed {
     fun attempts(base: Int, length: Int): Int =
         (base + (length - LONG_TEXT).coerceAtLeast(0) / CHARS_PER_EXTRA_READ).coerceAtMost(maxOf(base, MAX_ATTEMPTS))
 
+    /** What became of the text that stood before the cursor, once typed words arrived ([seam]). */
+    sealed interface Seam {
+        /** It is all there, or all but spaces. */
+        data object Kept : Seam
+
+        /**
+         * The field changed in some other way - formatted what it was given, changed the text
+         * behind the cursor, put the words elsewhere - or a cut there would split a character.
+         * Nobody can say what went, so nothing is put back.
+         */
+        data object Unclear : Seam
+
+        /**
+         * The end of the text before the cursor, [lost], is gone, and the typed words read
+         * [shown] at [at] in the field read afterwards, right where it ended. What a keyboard's
+         * unfinished word does: Android's input connection types over the word the keyboard is
+         * still writing - the one it underlines - not only over the selection.
+         */
+        data class PrefixLost(val lost: String, val shown: String, val at: Int) : Seam {
+            /** [after] with [lost] back in front of the words, and the words as [typed]. */
+            fun restored(after: String, typed: String): String =
+                after.substring(0, at) + lost + typed + after.substring(at + shown.length)
+        }
+    }
+
+    /**
+     * Whether typing [typed] - the words with their seam - over [before]'s selection left the
+     * text before it alone, now that the field reads [after]. Only one shape counts as a loss:
+     * the field reads as a shorter start of that text, then the words exactly as typed (or
+     * without the seam's leading space), then the text that stood behind the selection - as
+     * when the typed words replaced a word the keyboard had not finished. Anything else is
+     * [Seam.Unclear]: a field that formats, trims or clears its text must not get text back that
+     * it took away itself, and a guess put back would be text twice.
+     *
+     * The selection is not part of it: words said over a selection are meant to replace it.
+     */
+    fun seam(before: FieldState, after: String, typed: String): Seam {
+        val start = minOf(before.selectionStart, before.selectionEnd).coerceIn(0, before.text.length)
+        val end = maxOf(before.selectionStart, before.selectionEnd).coerceIn(0, before.text.length)
+        val head = before.text.substring(0, start)
+        val tail = before.text.substring(end)
+        if (typed.isEmpty() || !after.endsWith(tail)) return Seam.Unclear
+        val upToTail = after.substring(0, after.length - tail.length)
+        val shown = listOf(typed, typed.trimStart()).firstOrNull { it.isNotEmpty() && upToTail.endsWith(it) }
+            ?: return Seam.Unclear
+        val kept = upToTail.substring(0, upToTail.length - shown.length)
+        if (kept == head) return Seam.Kept
+        if (!head.startsWith(kept)) return Seam.Unclear
+        val lost = head.substring(kept.length)
+        if (lost.isBlank()) return Seam.Kept
+        if (lost.first().isLowSurrogate()) return Seam.Unclear
+        return Seam.PrefixLost(lost, shown, at = kept.length)
+    }
+
     /** The field's text with the selected part taken out - what the insertion keeps of it. */
     fun withoutSelection(field: FieldState): String {
         val text = field.text

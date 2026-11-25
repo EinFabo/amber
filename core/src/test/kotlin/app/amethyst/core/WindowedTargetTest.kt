@@ -34,6 +34,8 @@ class WindowedTargetTest {
         private val lag: Int = 0,
         override val showsText: Boolean = true,
         private val reformat: (String) -> String = { it },
+        /** The keyboard is still writing the last this many characters before the cursor; typing replaces them. */
+        private var composing: Int = 0,
     ) : WindowedTarget() {
         override val packageName: String = "com.anthropic.claude"
 
@@ -87,12 +89,29 @@ class WindowedTargetTest {
             staleAnchor = anchor
             staleCursor = cursor
             staleReadsLeft = lag
+            if (composing > 0) {
+                anchor = (cursor - composing).coerceAtLeast(0)
+                composing = 0
+            }
             val from = minOf(anchor, cursor)
             val to = maxOf(anchor, cursor)
             val arrives = reformat(text)
             this.text = this.text.substring(0, from) + arrives + this.text.substring(to)
             cursor = from + arrives.length
             anchor = cursor
+            return true
+        }
+
+        /** Where [replaceBefore] was told the cursor stands: null for "right where it is". */
+        val replacedAt = mutableListOf<Int?>()
+
+        override fun replaceBefore(count: Int, text: String, cursor: Int?): Boolean {
+            replacedAt += cursor
+            if (cursor != null) assertEquals(this.cursor, cursor, "the window's position is the field's")
+            val from = this.cursor - count
+            this.text = this.text.substring(0, from) + text + this.text.substring(this.cursor)
+            this.cursor = from + text.length
+            anchor = this.cursor
             return true
         }
     }
@@ -375,5 +394,52 @@ class WindowedTargetTest {
         engine().insert(field, "Einkaufen:\n- Milch")
 
         assertEquals("Einkaufen: - Milch", field.text)
+    }
+
+    // --- the keyboard's unfinished word -----------------------------------------------------
+
+    @Test
+    fun `the word the keyboard was still writing comes back in front of the words`() {
+        for (saysOffset in listOf(false, true)) {
+            val field = ConnectionField("Hallo", saysOffset = saysOffset, composing = 5)
+            val outcome = engine().insert(field, "wie geht's")
+
+            assertEquals("Hallo wie geht's", field.text, "saysOffset=$saysOffset")
+            assertEquals(InsertionEngine.PrefixRepair(5, InsertionEngine.PrefixRepair.How.TYPED_AGAIN), outcome.prefixRepair)
+            // A window from the field's start says where the cursor is: the words are selected and typed over.
+            assertEquals(listOf<Int?>(" wie geht's".length), field.replacedAt)
+        }
+    }
+
+    @Test
+    fun `in a long field the word comes back where the window says where it begins`() {
+        val field = ConnectionField("$oneWindow und Hallo", saysOffset = true, composing = 5)
+        val outcome = engine().insert(field, "wie geht's")
+
+        assertEquals("$oneWindow und Hallo wie geht's", field.text)
+        assertEquals(InsertionEngine.PrefixRepair.How.TYPED_AGAIN, outcome.prefixRepair?.how)
+    }
+
+    @Test
+    fun `in a long field whose window does not say where it begins nothing is guessed`() {
+        // Compose's connection: no offset, more than a window before the cursor. Where the
+        // words read back from is a guess there, so nothing is typed on top of them.
+        val field = ConnectionField("$oneWindow und Hallo", composing = 5)
+        val outcome = engine().insert(field, "wie geht's")
+
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(emptyList(), field.replacedAt)
+        assertEquals(null, outcome.prefixRepair)
+        assertEquals(1, field.typed.size)
+    }
+
+    @Test
+    fun `a field that kept its text gets nothing typed twice`() {
+        val field = ConnectionField("Hallo")
+        val outcome = engine().insert(field, "wie geht's")
+
+        assertEquals("Hallo wie geht's", field.text)
+        assertEquals(emptyList(), field.replacedAt)
+        assertEquals(null, outcome.prefixRepair)
     }
 }

@@ -5,6 +5,21 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D1, Inserting no longer eats the word the keyboard is still writing.** Android's input
+  connection types over the keyboard's unfinished, underlined word, not only over the
+  selection: "Hallo" not finished, "wie geht's" dictated, and the field read " wie geht's".
+  After the words arrive, the field is now held against what stood before the cursor
+  (`Landed.seam`); a shorter start of it, then exactly the typed words, then the untouched
+  text behind the cursor counts as lost, and only that. The lost part is typed again in front
+  of the words through the connection (the typed words selected and typed over), and where
+  that is not possible the field is written back whole (SET_TEXT, never for rich fields, never
+  after a retype was sent). A field that formats or trims, a selection replaced on purpose, a
+  long Compose field whose window does not say where it begins, an unreadable field: nothing
+  is put back. Diagnostics: "(typing over the keyboard's word lost 5 characters before the 10
+  typed: typed them again / wrote the field back with them / not restored)". Try on the Pixel
+  and the A20e with Gboard and Samsung's keyboard: type "Hallo" without a space (underlined),
+  dictate "wie geht's" - the field reads "Hallo wie geht's", cursor at the end; the same in
+  the middle of a text and in WhatsApp; and with a word selected, dictating replaces it.
 - **C8, The cleanup sheets keep what you typed.** The open sheet (which service, or "Add own
   server"), the API key, the address, the model and the search field are kept through
   rotation and a process kill, so the trip to the key's website no longer empties them. The

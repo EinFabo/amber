@@ -110,7 +110,7 @@ class TextInserter(
                 outcome.insertedIntoField && outcome.cursorPutBack -> " (cursor put back behind the words)"
                 outcome.insertedIntoField -> ""
                 else -> " (not in the field)"
-            }
+            } + outcome.prefixRepair?.describe(text.length).orEmpty()
         // The trace names the app and its field: logcat gets it in debug builds only.
         DebugLog.i(TAG) { "insertion: $lastTrace" }
 
@@ -241,6 +241,17 @@ class TextInserter(
         WindowInFront(pkg, window.id)
     }.getOrNull()
 
+    /**
+     * Typing took text away before the words - the keyboard's unfinished word - and what came of
+     * it ([InsertionEngine.PrefixRepair]). Lengths only: the field's text stays out of the record.
+     */
+    private fun InsertionEngine.PrefixRepair.describe(words: Int): String =
+        " (typing over the keyboard's word lost $lost characters before the $words typed: " + when (how) {
+            InsertionEngine.PrefixRepair.How.TYPED_AGAIN -> "typed them again)"
+            InsertionEngine.PrefixRepair.How.WRITTEN_BACK -> "wrote the field back with them)"
+            InsertionEngine.PrefixRepair.How.NOT_RESTORED -> "not restored)"
+        }
+
     /** Why the field found for writing got nothing, for the diagnostics. */
     private fun TargetCheck.Verdict.describe(): String = when (this) {
         TargetCheck.Verdict.SECRET -> "a password field"
@@ -361,6 +372,17 @@ class TextInserter(
         override fun commitText(text: String): Boolean =
             mayType && commitThroughInputMethod(service, text, expectedPackage = packageName)
 
+        /** Read again right before: [shown] must stand right before the cursor, nothing selected. */
+        override fun retype(shown: String, text: String): Boolean {
+            if (!mayType || shown.isEmpty() || !node.refresh()) return false
+            val start = node.textSelectionStart
+            val end = node.textSelectionEnd
+            val now = currentText(start, end)
+            if (start != end || start < shown.length || start > now.length) return false
+            if (!now.regionMatches(start - shown.length, shown, 0, shown.length)) return false
+            return retypeThroughInputMethod(service, shown.length, text, cursor = start, expectedPackage = packageName)
+        }
+
         /** What the input method knows about Enter in this field; without it, whether the field wraps lines. */
         override val takesLineBreaks: Boolean
             get() = (if (mayType) enterMakesNewLine(service, packageName) else null) ?: node.isMultiLine
@@ -435,6 +457,9 @@ class TextInserter(
 
         override fun type(text: String): Boolean =
             commitThroughInputMethod(service, text, expectedPackage = packageName)
+
+        override fun replaceBefore(count: Int, text: String, cursor: Int?): Boolean =
+            retypeThroughInputMethod(service, count, text, cursor, expectedPackage = packageName)
 
         /** A field that wants key presses only (a terminal, a game) has no text to read. */
         override val showsText: Boolean
@@ -532,6 +557,31 @@ class TextInserter(
                 true
             } catch (e: RuntimeException) {
                 Log.w(TAG, "commitText failed", e)
+                false
+            }
+        }
+
+        /**
+         * Types [text] in place of the [count] characters before the cursor: with [cursor] - its
+         * place in the field - known they are selected and typed over, so a typing that fails
+         * leaves them selected rather than gone; else they are deleted first. The words just
+         * typed, put in again with the text the field dropped before them ([InsertionEngine]).
+         */
+        fun retypeThroughInputMethod(
+            service: AccessibilityService,
+            count: Int,
+            text: String,
+            cursor: Int?,
+            expectedPackage: String?,
+        ): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+            val connection = boundInput(service, expectedPackage)?.connection ?: return false
+            return try {
+                if (cursor != null) connection.setSelection(cursor - count, cursor) else connection.deleteSurroundingText(count, 0)
+                connection.commitText(text, 1, null)
+                true
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "typing again failed", e)
                 false
             }
         }

@@ -47,6 +47,21 @@ interface EditableTarget {
     fun commitText(text: String): Boolean = false
 
     /**
+     * Types [text] through the input connection in place of [shown], which must stand right
+     * before the cursor with nothing selected: the words just typed, now with what the field
+     * dropped in front of them ([Landed.seam]). False - and nothing typed - when [shown] is not
+     * there or there is no connection.
+     */
+    fun retype(shown: String, text: String): Boolean = false
+
+    /**
+     * The last [readBack] began where [readField]'s text began, so what stands before the words
+     * can be held against what stood there ([Landed.seam]). Always so for a field read whole; a
+     * window onto a long field may not say where it begins ([WindowedTarget]).
+     */
+    val readBackAligned: Boolean get() = true
+
+    /**
      * The field takes line breaks the way the user could type them: Enter makes a new line
      * there (multi-line, no "send", "next" or "search" action). Anywhere else - a title whose
      * Enter jumps to the body, a search box, a messenger set to "Enter sends" - a dictation
@@ -113,6 +128,11 @@ data class InsertionOutcome(
      * in, and it was put there ([InsertionEngine]) - for the diagnostics.
      */
     val cursorPutBack: Boolean = false,
+    /**
+     * Typing the words took away text that stood before them - the word the keyboard was still
+     * writing - and what was done about it ([InsertionEngine.PrefixRepair]), for the diagnostics.
+     */
+    val prefixRepair: InsertionEngine.PrefixRepair? = null,
 )
 
 /**
@@ -154,6 +174,7 @@ class InsertionEngine(
         setFragment = null
         pasted = null
         cursorPutBack = false
+        prefixRepair = null
 
         if (target == null) {
             // Nothing is focused, so there is nothing to write into. The clipboard keeps the
@@ -236,7 +257,10 @@ class InsertionEngine(
                     InsertionStrategy.PASTE -> pasted ?: words
                     InsertionStrategy.CLIPBOARD_ONLY -> null
                 }
-                return InsertionOutcome(strategy, true, copied, packageName, fragment = fragment, cursorPutBack = cursorPutBack)
+                return InsertionOutcome(
+                    strategy, true, copied, packageName,
+                    fragment = fragment, cursorPutBack = cursorPutBack, prefixRepair = prefixRepair,
+                )
             }
 
             memory.recordFailure(packageName, strategy)
@@ -247,6 +271,26 @@ class InsertionEngine(
     }
 
     private enum class Commit { LANDED, NOT_POSSIBLE, LOST }
+
+    /**
+     * Typed words that arrived in place of text before them: [lost] characters of it, and [how]
+     * they came back. Lengths only - the diagnostics never hold the field's text.
+     */
+    data class PrefixRepair(val lost: Int, val how: How) {
+        enum class How {
+            /** Typed again in front of the words, through the input connection. */
+            TYPED_AGAIN,
+
+            /** The field written back whole (SET_TEXT): typing again was not possible. */
+            WRITTEN_BACK,
+
+            /** Neither worked, or neither was safe: the words are in, the text before them is not. */
+            NOT_RESTORED,
+        }
+    }
+
+    /** What the last commit did about text it took away before the words. */
+    private var prefixRepair: PrefixRepair? = null
 
     /** What the last commit typed: the fragment, for [InsertionOutcome.fragment]. */
     private var committed: String? = null
@@ -283,11 +327,55 @@ class InsertionEngine(
             val after = target.readBack() ?: return Commit.LANDED
             if (Landed.inField(field, after, text)) {
                 cursorPutBack = cursorBehindWords(target, tail = textAfterSelection(field))
+                if (target.readBackAligned) prefixRepair = keepPrefix(target, field, after, fragment)
                 return Commit.LANDED
             }
             if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
         }
         return Commit.LOST
+    }
+
+    /**
+     * Android's input connection types over the word the keyboard is still writing - the one it
+     * underlines - and not only over the selection: "Hallo" not yet finished, "wie geht's"
+     * typed, and the field reads " wie geht's". The words arrived, so [Landed.inField] is
+     * content; what stood before them is what [Landed.seam] looks at, in the field read after
+     * the commit ([after]). Lost text comes back the way it went: typed again in front of the
+     * words, the cursor behind them. Where that is not possible, nothing was typed, and the
+     * field is written back whole - unless that would flatten it. Never both: words typed again
+     * that only show up late would land on top of a written field. Null when nothing was lost.
+     */
+    private fun keepPrefix(target: EditableTarget, field: FieldState, after: String, typed: String): PrefixRepair? {
+        val seam = Landed.seam(field, after, typed) as? Landed.Seam.PrefixLost ?: return null
+        val again = seam.lost + typed
+        val how = when {
+            target.retype(seam.shown, again) ->
+                if (seamKept(target, field, typed, again.length)) PrefixRepair.How.TYPED_AGAIN else PrefixRepair.How.NOT_RESTORED
+            !target.setTextFlattens && writeBack(target, field, seam.restored(after, typed), typed) -> PrefixRepair.How.WRITTEN_BACK
+            else -> PrefixRepair.How.NOT_RESTORED
+        }
+        return PrefixRepair(seam.lost.length, how)
+    }
+
+    /** The field reads with the text before the words whole again, read until it does. */
+    private fun seamKept(target: EditableTarget, field: FieldState, typed: String, length: Int): Boolean {
+        val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, length)
+        repeat(attempts) { attempt ->
+            val now = target.readBack() ?: return false
+            if (Landed.seam(field, now, typed) == Landed.Seam.Kept) return true
+            if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
+        }
+        return false
+    }
+
+    /** [restored] written as the whole field, the cursor behind the words - before what stood behind them. */
+    private fun writeBack(target: EditableTarget, field: FieldState, restored: String, typed: String): Boolean {
+        if (!target.setText(restored)) return false
+        if (!seamKept(target, field, typed, restored.length)) return false
+        val tail = textAfterSelection(field)
+        val now = target.readCursor()
+        target.setSelection(now?.takeIf { it.text.endsWith(tail) }?.let { it.text.length - tail.length } ?: (restored.length - tail.length))
+        return true
     }
 
     /**

@@ -75,4 +75,58 @@ class LandedTest {
         // The same words said over themselves: the field reads as wanted.
         assertTrue(Landed.inField(FieldState("see you tomorrow", 0, 16), "see you tomorrow", "See you tomorrow"))
     }
+
+    // --- the text before the words ------------------------------------------------------
+
+    @Test
+    fun `a commit over the keyboard's unfinished word reports the prefix lost`() {
+        // The keyboard still underlined "Hallo"; the typed words replaced it.
+        val lost = Landed.seam(field("Hallo"), "wie geht's", " wie geht's")
+        assertEquals(Landed.Seam.PrefixLost(lost = "Hallo", shown = "wie geht's", at = 0), lost)
+        assertEquals("Hallo wie geht's", (lost as Landed.Seam.PrefixLost).restored("wie geht's", " wie geht's"))
+
+        val inside = Landed.seam(FieldState("Ich sage Hallo und tschüss", 14), "Ich sage  wie geht's und tschüss", " wie geht's")
+        assertEquals(Landed.Seam.PrefixLost(lost = "Hallo", shown = " wie geht's", at = 9), inside)
+        assertEquals(
+            "Ich sage Hallo wie geht's und tschüss",
+            (inside as Landed.Seam.PrefixLost).restored("Ich sage  wie geht's und tschüss", " wie geht's"),
+        )
+    }
+
+    @Test
+    fun `words that went in as typed keep the text before them`() {
+        assertEquals(Landed.Seam.Kept, Landed.seam(field("Hallo"), "Hallo wie geht's", " wie geht's"))
+        // The field dropped the space of the seam: nothing of the user's is gone.
+        assertEquals(Landed.Seam.Kept, Landed.seam(field("Hallo"), "Hallowie geht's", " wie geht's"))
+        // The same words standing before: the last ones are the typed ones.
+        assertEquals(Landed.Seam.Kept, Landed.seam(field("Hallo wie"), "Hallo wie wie", " wie"))
+    }
+
+    @Test
+    fun `a selection the words replaced on purpose is no loss`() {
+        val selected = FieldState("Hallo Welt", 6, 10)
+        assertEquals(Landed.Seam.Kept, Landed.seam(selected, "Hallo Leute", "Leute"))
+        assertEquals(Landed.Seam.Kept, Landed.seam(FieldState("Hallo Welt", 10, 6), "Hallo Leute", "Leute"))
+    }
+
+    @Test
+    fun `a field that changed its text some other way is left to itself`() {
+        // Formatted as it was typed: the number before is not a prefix any more.
+        assertEquals(Landed.Seam.Unclear, Landed.seam(field("0151234"), "0151 234 5", "5"))
+        // The text behind the cursor changed.
+        assertEquals(Landed.Seam.Unclear, Landed.seam(FieldState("Hallo Welt", 5), "Hallo wie Welten", " wie"))
+        // The words are not where the cursor was.
+        assertEquals(Landed.Seam.Unclear, Landed.seam(field("Hallo"), " wie geht'sHallo", " wie geht's"))
+        // Only spaces went - a field that trims - and spaces do not count.
+        assertEquals(Landed.Seam.Kept, Landed.seam(field("  "), "Hallo", "Hallo"))
+        assertEquals(Landed.Seam.Kept, Landed.seam(field("Gut. "), "Gut.Hallo", "Hallo"))
+    }
+
+    @Test
+    fun `an emoji or a right to left word at the seam is restored whole or not at all`() {
+        assertEquals(Landed.Seam.PrefixLost("👋", " wie", 3), Landed.seam(field("Hi 👋"), "Hi  wie", " wie"))
+        assertEquals(Landed.Seam.PrefixLost("שלום", " wie", 0), Landed.seam(field("שלום"), " wie", " wie"))
+        // Half an emoji left in the field: cutting there would split it.
+        assertEquals(Landed.Seam.Unclear, Landed.seam(field("Hi 👋"), "Hi \uD83D wie", " wie"))
+    }
 }

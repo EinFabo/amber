@@ -48,6 +48,15 @@ class InsertionEngineTest {
         private val cursorAfterCommit: (text: String, cursor: Int) -> Int = { _, cursor -> cursor },
         /** Rich text or no EditText: a SET_TEXT write would flatten it. */
         override val setTextFlattens: Boolean = false,
+        /**
+         * The keyboard is still writing the last this many characters before the cursor - the
+         * word it underlines. A commit replaces them, as Android's input connection does.
+         */
+        private var composing: Int = 0,
+        /** Typing the words again in place of the ones just typed works ([EditableTarget.retype]). */
+        private val retypes: Boolean = true,
+        /** The words typed again are accepted and never arrive. */
+        private val retypeLost: Boolean = false,
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -122,8 +131,26 @@ class InsertionEngineTest {
             if (commitLost) return true
             staleText = this.text
             staleReadsLeft = commitLag
+            if (composing > 0) {
+                anchor = (cursor - composing).coerceAtLeast(0)
+                composing = 0
+            }
             replaceSelection(reformat(text))
             cursor = cursorAfterCommit(this.text, cursor)
+            anchor = cursor
+            return true
+        }
+
+        val retyped = mutableListOf<Pair<String, String>>()
+
+        override fun retype(shown: String, text: String): Boolean {
+            retyped += shown to text
+            if (!hasInputConnection || !retypes) return false
+            if (anchor != cursor || !this.text.substring(0, cursor).endsWith(shown)) return false
+            if (retypeLost) return true
+            val from = cursor - shown.length
+            this.text = this.text.substring(0, from) + text + this.text.substring(cursor)
+            cursor = from + text.length
             anchor = cursor
             return true
         }
@@ -877,5 +904,113 @@ class InsertionEngineTest {
         assertEquals("Erste Zeile\r\nzweite Zeile. Ende", field.text)
         // As the splice places it: right behind the words, before the space it added.
         assertEquals("Erste Zeile\r\nzweite Zeile.".length, field.cursor)
+    }
+
+    // --- the keyboard's unfinished word -----------------------------------------------------
+
+    @Test
+    fun `typing over the word the keyboard is still writing puts that word back`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, composing = 5)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals("Hallo wie geht's", target.text)
+        assertEquals(target.text.length, target.cursor)
+        assertEquals(InsertionEngine.PrefixRepair(lost = 5, how = InsertionEngine.PrefixRepair.How.TYPED_AGAIN), outcome.prefixRepair)
+        assertEquals(listOf(" wie geht's" to "Hallo wie geht's"), target.retyped)
+        assertEquals(0, target.setTextCalls)
+        assertEquals(" wie geht's", outcome.fragment, "Undo last still takes only the words")
+    }
+
+    @Test
+    fun `the word comes back in the middle of a text too, the cursor behind the words`() {
+        val plain = FakeTarget(initialText = "Ich sage Hallo und tschüss", hasInputConnection = true)
+        plain.select(14, 14)
+        engine(plain).insert(plain, "wie geht's")
+
+        val target = FakeTarget(initialText = "Ich sage Hallo und tschüss", hasInputConnection = true, composing = 5)
+        target.select(14, 14)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals(plain.text, target.text)
+        assertEquals(plain.cursor, target.cursor)
+        assertEquals(InsertionEngine.PrefixRepair.How.TYPED_AGAIN, outcome.prefixRepair?.how)
+    }
+
+    @Test
+    fun `where typing it again is not possible the field is written back whole`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, composing = 5, retypes = false)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals("Hallo wie geht's", target.text)
+        assertEquals(target.text.length, target.cursor)
+        assertEquals(1, target.setTextCalls)
+        assertEquals(InsertionEngine.PrefixRepair.How.WRITTEN_BACK, outcome.prefixRepair?.how)
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+    }
+
+    @Test
+    fun `a rich field is not written back for it, and the loss is reported`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, composing = 5, retypes = false, setTextFlattens = true)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals(" wie geht's", target.text)
+        assertEquals(0, target.setTextCalls)
+        assertEquals(InsertionEngine.PrefixRepair(5, InsertionEngine.PrefixRepair.How.NOT_RESTORED), outcome.prefixRepair)
+        assertTrue(outcome.insertedIntoField, "the words themselves are in")
+    }
+
+    @Test
+    fun `words typed again that never show are not written a second way`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, composing = 5, retypeLost = true)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals(0, target.setTextCalls, "a late retype on top of a written field would be text twice")
+        assertEquals(1, target.retyped.size)
+        assertEquals(InsertionEngine.PrefixRepair.How.NOT_RESTORED, outcome.prefixRepair?.how)
+    }
+
+    @Test
+    fun `a field that lost nothing is left alone`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertEquals("Hallo wie geht's", target.text)
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(0, target.setTextCalls)
+        assertEquals(null, outcome.prefixRepair)
+    }
+
+    @Test
+    fun `a selection the words replace on purpose is not put back`() {
+        val target = FakeTarget(initialText = "Hallo Welt", hasInputConnection = true)
+        target.select(6, 10)
+        val outcome = engine(target).insert(target, "Leute")
+
+        assertEquals("Hallo Leute", target.text)
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(null, outcome.prefixRepair)
+    }
+
+    @Test
+    fun `a field that formats what it is given gets nothing back`() {
+        // An amount field: "12" and "5" become "12,5" - nothing to restore, nothing added.
+        val target = FakeTarget(initialText = "12", hasInputConnection = true, reformat = { ",${it.trim()}" })
+        val outcome = engine(target).insert(target, "5")
+
+        assertEquals("12,5", target.text)
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(null, outcome.prefixRepair)
+    }
+
+    @Test
+    fun `an unreadable field is not checked`() {
+        val target = FakeTarget(initialText = "Hallo", hasInputConnection = true, composing = 5, unreadable = true)
+        val outcome = engine(target).insert(target, "wie geht's")
+
+        assertTrue(outcome.insertedIntoField)
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(null, outcome.prefixRepair)
     }
 }
