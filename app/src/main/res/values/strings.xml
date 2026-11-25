@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Embersay</string>
-    <string name="accessibility_label">Embersay Dictation</string>
+    <string name="app_name">sayEmber</string>
+    <string name="accessibility_label">sayEmber Dictation</string>
     <string name="accessibility_summary">Bubble for dictating and inserting text in any app</string>
     <!-- Voice commands are out of the build (Features.VOICE_COMMANDS), so this says nothing of
          them. With them back, the part on what the service does and reads for a command
          returns here (the text before roadmap P3, in git history); the matching rows in
          SetupPieces come back with the flag. -->
-    <string name="accessibility_description">Embersay uses this service to show the dictation bubble and to insert your dictation into the field you\'re writing in. For that, it reads which app is open and whether a text field is selected (to show or hide the bubble), where the keyboard is (to keep the bubble clear of the keys), and, only while inserting a dictation, the text already in that field, so the new words fit in at the cursor. Password fields are never read. If a field doesn\'t accept the dictation directly, the service pastes it from the clipboard. Nothing it reads is sent anywhere. Which apps you dictated in is kept on this phone, for your statistics and your history. Right after you turn on something in Android\'s settings that Embersay sent you to (this service, or unrestricted battery use), the service brings Embersay back to the front. Beyond that, it never taps, swipes or acts for you.</string>
+    <string name="accessibility_description">sayEmber uses this service to show the dictation bubble and to insert your dictation into the field you\'re writing in. For that, it reads which app is open and whether a text field is selected (to show or hide the bubble), where the keyboard is (to keep the bubble clear of the keys), and, only while inserting a dictation, the text already in that field, so the new words fit in at the cursor. Password fields are never read. If a field doesn\'t accept the dictation directly, the service pastes it from the clipboard. Nothing it reads is sent anywhere. Which apps you dictated in is kept on this phone, for your statistics and your history. Right after you turn on something in Android\'s settings that sayEmber sent you to (this service, or unrestricted battery use), the service brings sayEmber back to the front. Beyond that, it never taps, swipes or acts for you.</string>
 
     <string name="notification_recording_channel">Recording</string>
-    <string name="notification_recording_channel_description">Shows while Embersay records, with a button to stop</string>
+    <string name="notification_recording_channel_description">Shows while sayEmber records, with a button to stop</string>
     <string name="notification_recording_title">Recording…</string>
     <string name="notification_recording_text">Tap the bubble or Stop to finish</string>
     <string name="notification_recording_stop">Stop</string>
 
     <string name="update_channel_name">Updates</string>
-    <string name="update_channel_description">When a new version of Embersay is out on GitHub</string>
-    <string name="update_available_title">Embersay %1$s is available</string>
+    <string name="update_channel_description">When a new version of sayEmber is out on GitHub</string>
+    <string name="update_available_title">sayEmber %1$s is available</string>
     <string name="update_available_text">Tap to open the release page on GitHub</string>
 
     <string name="clipboard_fallback">The text is on the clipboard. Paste it.</string>

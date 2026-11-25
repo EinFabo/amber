@@ -57,7 +57,7 @@ object Texts {
     fun english(context: Context): Context =
         context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(Locale.ENGLISH) })
 
-    /** A step in Android's settings: what to tap, and a line more if there is one. [service] is the name Android lists Embersay's service by. */
+    /** A step in Android's settings: what to tap, and a line more if there is one. [service] is the name Android lists sayEmber's service by. */
     fun switchOnStep(context: Context, step: SwitchOnStep, service: String): Pair<String, String?> = with(context) {
         when (step) {
             SwitchOnStep.INSTALLED_APPS -> getString(R.string.switch_on_installed) to getString(R.string.switch_on_installed_note)
@@ -514,7 +514,7 @@ object Texts {
     fun downloadAtStart(context: Context, download: ModelDownload): String =
         context.getString(R.string.download_at_start, download(context, download))
 
-    /** "Embersay (debug)", "Amber (old app)": another build on the phone, by name. */
+    /** "sayEmber (debug)", "Amber (old app)": another build on the phone, by name. */
     fun variant(context: Context, variant: AmberVariant): String {
         val build = variant.buildType
         return when {
@@ -529,7 +529,7 @@ object Texts {
     fun uninstallOld(context: Context, variant: AmberVariant, named: Boolean): String =
         if (named) context.getString(R.string.open_app_info_of, variant(context, variant)) else context.getString(R.string.open_app_info)
 
-    /** "Embersay (debug) is also on - switch one off." - null when there is none. */
+    /** "sayEmber (debug) is also on - switch one off." - null when there is none. */
     fun otherAmbers(context: Context, others: List<AmberVariant>): String? {
         val names = others.map { variant(context, it) }
         return when (names.size) {
@@ -613,7 +613,7 @@ object Texts {
     }
 
     /**
-     * A time the app stopped unexpectedly, as Diagnostics list it: "Embersay stopped unexpectedly
+     * A time the app stopped unexpectedly, as Diagnostics list it: "sayEmber stopped unexpectedly
      * at 14:02 (out of memory)" - with its day when that was not [nowMs]'s day in [zone].
      */
     fun exit(context: Context, record: ExitRecord, nowMs: Long, zone: ZoneId = ZoneId.systemDefault()): String = with(context) {

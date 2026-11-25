@@ -47,7 +47,7 @@
     <string name="problem_language_not_installed">This language isn\'t installed for offline use.</string>
     <string name="problem_microphone_unreadable">Couldn\'t read the microphone.</string>
     <string name="problem_microphone_taken">Another app is using the microphone. Try again when it\'s free.</string>
-    <string name="problem_microphone_permission_missing">Embersay doesn\'t have microphone access.</string>
+    <string name="problem_microphone_permission_missing">sayEmber doesn\'t have microphone access.</string>
     <string name="problem_recognizer_offline">Android\'s speech recognition couldn\'t connect.</string>
     <string name="problem_no_speech_heard">No speech recognized.</string>
     <string name="problem_recognizer_busy">Speech recognition is busy.</string>

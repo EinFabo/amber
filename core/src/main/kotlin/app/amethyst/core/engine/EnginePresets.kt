@@ -256,7 +256,7 @@ object EnginePresets {
         kind = EngineKind.OPENAI_COMPATIBLE,
         trustLevel = TrustLevel.CLOUD,
         needsApiKey = true,
-        note = "Groq, OpenAI, an Embersay PC or Embersay Server, or any server with /v1/audio/transcriptions. " +
+        note = "Groq, OpenAI, an sayEmber PC or sayEmber Server, or any server with /v1/audio/transcriptions. " +
             "Add as many as you like.",
     )
 

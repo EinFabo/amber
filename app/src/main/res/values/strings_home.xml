@@ -11,9 +11,9 @@
     <string name="other_ambers_title">%1$d bubbles are on</string>
     <string name="other_ambers_two">Two bubbles are on</string>
     <string name="old_amber_title">The old Amber app is still installed</string>
-    <string name="old_amber_summary">Embersay is its new name. Uninstall the old app so only one bubble appears.</string>
+    <string name="old_amber_summary">sayEmber is its new name. Uninstall the old app so only one bubble appears.</string>
     <string name="open_app_info_of">App info: %1$s</string>
-    <string name="variant_build">Embersay (%1$s)</string>
+    <string name="variant_build">sayEmber (%1$s)</string>
     <string name="variant_old">Amber (old app)</string>
     <string name="variant_old_build">Amber (old app, %1$s)</string>
     <string name="other_ambers_summary">%1$s Each one shows a bubble and inserts into the same fields.</string>
@@ -29,10 +29,10 @@
         <item quantity="other">%d dictations</item>
     </plurals>
     <string name="reliability_notifications">Notifications</string>
-    <string name="reliability_notifications_note">Shows that Embersay records, with a Stop button, and lets its short messages through</string>
+    <string name="reliability_notifications_note">Shows that sayEmber records, with a Stop button, and lets its short messages through</string>
     <string name="allow">Allow</string>
     <string name="reliability_battery">Unrestricted battery</string>
-    <string name="reliability_battery_note">So the phone doesn\'t stop Embersay in the background</string>
+    <string name="reliability_battery_note">So the phone doesn\'t stop sayEmber in the background</string>
     <string name="home_finish_setup">Finish the setup above first.</string>
     <string name="home_tap_and_speak">Tap and speak. The text appears in the test field.</string>
     <string name="home_opening_mic">Opening microphone…</string>
@@ -48,7 +48,7 @@
     <string name="setup_title">Setup</string>
     <string name="setup_subtitle">Two steps, then the bubble works in every app</string>
     <string name="setup_microphone">Microphone</string>
-    <string name="setup_microphone_note">Embersay only records while you dictate</string>
+    <string name="setup_microphone_note">sayEmber only records while you dictate</string>
     <string name="setup_accessibility">Accessibility service</string>
     <string name="setup_accessibility_tried">Not on yet. Turn on %1$s and tap Allow.</string>
     <string name="setup_accessibility_note">Shows the bubble and inserts text into the selected field</string>
@@ -98,7 +98,7 @@
     <string name="usd">$%1$s</string>
     <string name="home_last_dictation">Last dictation</string>
     <string name="home_recover_title">Recording cut off</string>
-    <string name="home_recover_summary">Embersay was closed before a dictation became text. The recording is still here, encrypted on this phone.</string>
+    <string name="home_recover_summary">sayEmber was closed before a dictation became text. The recording is still here, encrypted on this phone.</string>
     <string name="home_recover">Recover last recording</string>
     <string name="home_recover_delete">Delete</string>
     <string name="service_not_running_title">The bubble is not running</string>

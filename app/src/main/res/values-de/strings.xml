@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Embersay</string>
-    <string name="accessibility_label">Embersay-Diktat</string>
+    <string name="app_name">sayEmber</string>
+    <string name="accessibility_label">sayEmber-Diktat</string>
     <string name="accessibility_summary">Eine Bubble, mit der du in jeder App diktierst</string>
     <!-- The current English text (values/strings.xml), without voice commands: they are out
          of the build. With them back, their part returns here too. -->
-    <string name="accessibility_description">Embersay nutzt diesen Dienst, um die Diktier-Bubble zu zeigen und dein Diktat in das Feld einzufügen, in dem du gerade schreibst. Dafür liest der Dienst, welche App vorne ist und ob du gerade in ein Textfeld schreibst, um die Bubble zu zeigen oder auszublenden. Er liest auch, wo die Tastatur ist, damit die Bubble nicht auf den Tasten liegt. Nur wenn er ein Diktat einfügt, liest er den Text, der schon in diesem Feld steht, damit die neuen Wörter am Cursor passen. Passwortfelder liest er nie. Nimmt ein Feld das Diktat nicht direkt an, fügt der Dienst es über die Zwischenablage ein. Nichts, was er liest, wird irgendwohin gesendet. In welchen Apps du diktiert hast, bleibt auf dem Handy, für deine Statistik und deinen Verlauf. Wenn Embersay dich in die Android-Einstellungen geschickt hat, um diesen Dienst oder die Akkunutzung ohne Einschränkung einzuschalten, holt der Dienst Embersay direkt danach wieder nach vorne. Sonst tippt oder wischt er nicht für dich und handelt nicht in deinem Namen.</string>
+    <string name="accessibility_description">sayEmber nutzt diesen Dienst, um die Diktier-Bubble zu zeigen und dein Diktat in das Feld einzufügen, in dem du gerade schreibst. Dafür liest der Dienst, welche App vorne ist und ob du gerade in ein Textfeld schreibst, um die Bubble zu zeigen oder auszublenden. Er liest auch, wo die Tastatur ist, damit die Bubble nicht auf den Tasten liegt. Nur wenn er ein Diktat einfügt, liest er den Text, der schon in diesem Feld steht, damit die neuen Wörter am Cursor passen. Passwortfelder liest er nie. Nimmt ein Feld das Diktat nicht direkt an, fügt der Dienst es über die Zwischenablage ein. Nichts, was er liest, wird irgendwohin gesendet. In welchen Apps du diktiert hast, bleibt auf dem Handy, für deine Statistik und deinen Verlauf. Wenn sayEmber dich in die Android-Einstellungen geschickt hat, um diesen Dienst oder die Akkunutzung ohne Einschränkung einzuschalten, holt der Dienst sayEmber direkt danach wieder nach vorne. Sonst tippt oder wischt er nicht für dich und handelt nicht in deinem Namen.</string>
 
     <string name="notification_recording_channel">Aufnahme</string>
-    <string name="notification_recording_channel_description">Wird angezeigt, solange Embersay aufnimmt, mit einer Taste zum Stoppen</string>
+    <string name="notification_recording_channel_description">Wird angezeigt, solange sayEmber aufnimmt, mit einer Taste zum Stoppen</string>
     <string name="notification_recording_title">Aufnahme läuft …</string>
     <string name="notification_recording_text">Tippe zum Beenden auf die Bubble oder auf „Stoppen“</string>
     <string name="notification_recording_stop">Stoppen</string>
 
     <string name="update_channel_name">Updates</string>
-    <string name="update_channel_description">Wenn eine neue Version von Embersay auf GitHub erscheint</string>
-    <string name="update_available_title">Embersay %1$s ist verfügbar</string>
+    <string name="update_channel_description">Wenn eine neue Version von sayEmber auf GitHub erscheint</string>
+    <string name="update_available_title">sayEmber %1$s ist verfügbar</string>
     <string name="update_available_text">Tippe, um die neue Version auf GitHub anzusehen</string>
 
     <string name="clipboard_fallback">Der Text ist in der Zwischenablage. Füge ihn selbst ein.</string>

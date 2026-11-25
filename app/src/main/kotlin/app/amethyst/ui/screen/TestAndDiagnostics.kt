@@ -141,7 +141,7 @@ fun DiagnosticsScreen(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
     /** The app and its version, at the top of a copy. */
-    appTitle: String = "Embersay", // English: the app's name
+    appTitle: String = "sayEmber", // English: the app's name
     initialFilter: DiagnosticsReport.Filter = DiagnosticsReport.Filter.ALL,
     /** The entries (by their time) shown open from the start - for the screenshots. */
     initiallyOpen: Set<Long> = emptySet(),
@@ -150,7 +150,7 @@ fun DiagnosticsScreen(
     onOpenAccessibility: () -> Unit = {},
     /** Off in the security mode, which never writes the clipboard: no Copy. */
     canCopy: Boolean = true,
-    /** The times Embersay stopped unexpectedly, newest first: kept across restarts, in a copy too. */
+    /** The times sayEmber stopped unexpectedly, newest first: kept across restarts, in a copy too. */
     exits: List<ExitRecord> = emptyList(),
 ) {
     val context = LocalContext.current

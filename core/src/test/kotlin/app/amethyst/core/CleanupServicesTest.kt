@@ -420,7 +420,7 @@ class CleanupServicesTest {
         val setup = assertNotNull(CleanupServices.setup(settings, row, "qwen", keyGiven = false, TEST_PHONE, catalog = amberPc))
         val after = CleanupServices.forEveryApp(settings, setup)
         val engine = after.engines.single { it.id == pc.id }
-        assertEquals("Embersay PC", engine.displayName)
+        assertEquals("sayEmber PC", engine.displayName)
         assertEquals(amberPc.name, after.catalogFor(engine)?.name)
         assertEquals(CleanupChoice(pc.id, "qwen"), after.cleanup)
     }

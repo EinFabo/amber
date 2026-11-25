@@ -132,7 +132,7 @@ class AmethystApp : Application() {
         fun graph(context: Context): Graph =
             (context.applicationContext as AmethystApp).graph
 
-        /** The times Embersay stopped unexpectedly ([ExitLog]), in noBackupFilesDir. */
+        /** The times sayEmber stopped unexpectedly ([ExitLog]), in noBackupFilesDir. */
         private const val EXITS_FILE = "exits.json"
     }
 }
@@ -368,11 +368,11 @@ class Graph(
             moves.forEach { move -> secretStore.put(move.alias, move.key) }
             settingsStore.update { AmberAddress.movePathKeys(it, stored).first }
             // Never the address or the key: only that it happened.
-            android.util.Log.i("Embersay", "moved the key out of ${moves.size} Embersay server address(es)")
+            android.util.Log.i("Embersay", "moved the key out of ${moves.size} sayEmber server address(es)")
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w("Embersay", "Embersay server keys not moved: ${e.javaClass.simpleName}")
+            android.util.Log.w("Embersay", "sayEmber server keys not moved: ${e.javaClass.simpleName}")
         }
     }
 

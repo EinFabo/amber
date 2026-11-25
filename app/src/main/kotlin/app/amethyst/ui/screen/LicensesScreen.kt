@@ -38,7 +38,7 @@ fun LicensesScreen(modifier: Modifier = Modifier) {
         }
     }
     SubPage(modifier, readable = true) {
-        SectionCard(title = "Embersay", subtitle = stringResource(R.string.licenses_subtitle)) { // English: the app's name
+        SectionCard(title = "sayEmber", subtitle = stringResource(R.string.licenses_subtitle)) { // English: the app's name
             val notice = texts?.first
             if (notice.isNullOrBlank()) Hint(stringResource(if (texts == null) R.string.loading else R.string.licenses_notice_unreadable))
             else LicenseText(notice)

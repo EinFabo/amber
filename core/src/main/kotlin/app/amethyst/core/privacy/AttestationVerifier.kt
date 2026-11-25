@@ -36,7 +36,7 @@ sealed interface AttestationFailure {
     /** The address is no address. */
     data object InvalidAddress : AttestationFailure
 
-    /** Embersay does not know which release the enclave at [host] must come from. */
+    /** sayEmber does not know which release the enclave at [host] must come from. */
     data class UnknownEnclave(val host: String) : AttestationFailure
 
     /** A build without the verifier library. */

@@ -399,7 +399,7 @@ object VoiceCommands : CommandParser {
                 combo.tooMany -> "more than $MAX_STEPS commands - at most $MAX_STEPS in one go"
                 undone != null -> "${describe(parts[undone - 1].command)}, then ${describe(parts[undone].command)}: the two undo each other - " +
                     "taken for a turn of phrase like “hoch und runter”, not two commands"
-                replaced != null -> "${describe(SELECT_ALL)}, then ${describe(parts[replaced].command)}: Embersay does not empty or replace a " +
+                replaced != null -> "${describe(SELECT_ALL)}, then ${describe(parts[replaced].command)}: sayEmber does not empty or replace a " +
                     "whole field in one go - say them one at a time"
                 combo.said < 2 -> "only one command (${parts.singleOrNull()?.let { describe(it.command) } ?: "none"}), and a joining word " +
                     "with no second command - say both, or the one alone"

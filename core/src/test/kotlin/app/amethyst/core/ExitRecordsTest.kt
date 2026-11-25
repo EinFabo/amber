@@ -186,7 +186,7 @@ class ExitRecordsTest {
             ExitRecords.fromSystem(SystemExit(3, 100, 0, 1_793_455_351_000))!!,
             ExitRecords.fromThrowable(crash(), nowMs = 1_793_455_000_000),
         )
-        val text = DiagnosticsReport.of(emptyList(), ZoneOffset.UTC, "Embersay 1.0", copiedAt = 1_793_455_400_000, exits = records)
+        val text = DiagnosticsReport.of(emptyList(), ZoneOffset.UTC, "sayEmber 1.0", copiedAt = 1_793_455_400_000, exits = records)
         assertTrue("Stopped unexpectedly" in text, text)
         assertTrue("out of memory" in text, text)
         assertTrue("Android: LOW_MEMORY, importance 100" in text, text)
@@ -194,6 +194,6 @@ class ExitRecordsTest {
         assertTrue("at app.amethyst.bubble.BubbleController.render0" in text, text)
         assertFalse("Treffpunkt" in text, text)
         // None, no section.
-        assertFalse("Stopped" in DiagnosticsReport.of(emptyList(), ZoneOffset.UTC, "Embersay 1.0", copiedAt = 0))
+        assertFalse("Stopped" in DiagnosticsReport.of(emptyList(), ZoneOffset.UTC, "sayEmber 1.0", copiedAt = 0))
     }
 }

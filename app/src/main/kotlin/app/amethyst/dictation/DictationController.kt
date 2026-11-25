@@ -1140,7 +1140,7 @@ class DictationController(
 
         microphoneOpening()
         // Android's recognizer records by itself, so no recorder looks for a call: looked for
-        // here, as Embersay's own recorder does ([CallWatch]), or it writes down the call.
+        // here, as sayEmber's own recorder does ([CallWatch]), or it writes down the call.
         var endedByCall = false
         // Whether the recognizer got the microphone open: a failure before that may be Android
         // refusing it in the background, which the proxy activity can mend.
@@ -1523,7 +1523,7 @@ class DictationController(
         )
         // Kept for "Try again" before another model loads, not after: a fallback that fails
         // in a way no catch sees still leaves it - and with the history on, the run's file
-        // stays on disk for Home should Android end Embersay meanwhile.
+        // stays on disk for Home should Android end sayEmber meanwhile.
         // Once the fallback's words are safe, [wordsKept] lets it go again.
         val keptEarly = recoverable?.let { keepForRetry(it.problem) } == true
         val recovered = recoverable
@@ -1541,7 +1541,7 @@ class DictationController(
      * worth another go ([KeptDictation.worthTryingAgain]) - the recording kept for "Try again",
      * which the toast then names as the way out; after a refused key, once the fix it names
      * first is made ([KeptDictation.toastSaysTryAgain]). A missing language pack's toast over
-     * another app names its way out instead: Embersay, where Home gets it.
+     * another app names its way out instead: sayEmber, where Home gets it.
      */
     private fun failRecognition(error: Throwable, details: List<String>) {
         // Not a problem Amber knows (null): nothing says another go would help.
@@ -1552,8 +1552,8 @@ class DictationController(
             problem is Problem.KeyRejected -> { it -> Texts.keyRejectedTryAgain(it, problem) }
             else -> null
         }
-        // A missing language pack is got in Embersay, not in the app in front: its toast says
-        // where. Not for a dictation in Embersay itself - Home's test field, the introduction's
+        // A missing language pack is got in sayEmber, not in the app in front: its toast says
+        // where. Not for a dictation in sayEmber itself - Home's test field, the introduction's
         // practice - whose page shows "Get language pack" under the same message; and only
         // where Home can ask Android about the pack and keep the way to it (Android 13 and up).
         val namesHome = targetApp() != context.packageName && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -1912,7 +1912,7 @@ class DictationController(
     /**
      * [candidates] for a recording whose model on the phone failed for [problem]
      * ([Fallback.fitAfter]): after running out of memory, none too big for the phone - its load
-     * would only get Embersay ended, and the recording with it.
+     * would only get sayEmber ended, and the recording with it.
      */
     private suspend fun fittingAfter(problem: Problem?, candidates: List<EngineConfig>): List<EngineConfig> {
         if (problem != Problem.OutOfMemory || candidates.isEmpty()) return candidates
@@ -2178,7 +2178,7 @@ class DictationController(
                 is Understanding.Understood -> {
                     val executor = graph.accessibilityService?.commands
                     if (executor == null) {
-                        CommandOutcome.Failed("Embersay's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
+                        CommandOutcome.Failed("sayEmber's accessibility service is off.").also { steps.note("accessibility service: off - nothing done") }
                     } else {
                         // A text command changes only the field it was started in, checked as a dictation's
                         // text is (EditTarget) - recognition took seconds, the user may be in another chat

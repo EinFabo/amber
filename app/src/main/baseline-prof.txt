@@ -1,4 +1,4 @@
-# Baseline profile for Embersay's own code: the classes and methods a start runs, compiled ahead
+# Baseline profile for sayEmber's own code: the classes and methods a start runs, compiled ahead
 # of time at install (Play, adb install) or by profileinstaller a moment after the first start
 # (an APK installed by hand). The libraries bring their own profiles (Compose, coroutines); this
 # file adds ours, which would otherwise run interpreted until the phone's background compile
@@ -13,7 +13,7 @@
 #                    and, for a file, FooKt with its composables
 # Rules that match nothing (code R8 removed or inlined) are dropped by the build, not an error.
 #
-# Covered: the process start (AmethystApp, Graph, the stores it opens), Embersay's screen
+# Covered: the process start (AmethystApp, Graph, the stores it opens), sayEmber's screen
 # opening on Home and Settings, and the accessibility service connecting with the bubble -
 # which is the start most users see: Android restarts the service's process and the bubble has
 # to answer the first tap. Not covered on purpose: the introduction (seen once), the dictation
@@ -71,7 +71,7 @@ HSPLapp/amethyst/core/engine/RecognitionEstimate**->**(**)**
 HSPLapp/amethyst/core/engine/EngineRouting**->**(**)**
 HSPLapp/amethyst/core/apps/AppsSeenInFront**->**(**)**
 
-# ---- Embersay's screen: MainActivity, Home, Settings ------------------------------------------
+# ---- sayEmber's screen: MainActivity, Home, Settings ------------------------------------------
 
 HSPLapp/amethyst/ui/MainActivity**->**(**)**
 Lapp/amethyst/ui/MainActivity**;

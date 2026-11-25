@@ -56,7 +56,7 @@
     <string name="summary_version_newer">Version %1$s · %2$s available</string>
 
 
-    <string name="updates_from_installer">From where you installed Embersay</string>
+    <string name="updates_from_installer">From where you installed sayEmber</string>
     <string name="updates_available">%1$s available</string>
     <string name="updates_daily">Checks GitHub once a day</string>
     <string name="last_check_not_yet">Not yet</string>
@@ -98,7 +98,7 @@
     <string name="download_running">Downloading model (%1$d%%)</string>
     <string name="download_waiting_for_wifi">Waiting for Wi-Fi</string>
     <string name="download_retrying">Download interrupted, resumes automatically</string>
-    <string name="download_at_start">%1$s. Embersay is ready once it\'s done.</string>
+    <string name="download_at_start">%1$s. sayEmber is ready once it\'s done.</string>
 
     <string name="other_ambers_one">%1$s is also on. Turn one of them off.</string>
     <string name="other_ambers_many">%1$s and %2$s are also on. Keep only one on.</string>
@@ -108,7 +108,7 @@
     <string name="machine_pc">the PC</string>
     <string name="machine_server">the server</string>
     <string name="quick_undo_last">Undo last</string>
-    <string name="quick_open_amber">Open Embersay</string>
+    <string name="quick_open_amber">Open sayEmber</string>
     <string name="quick_style_here">Style here</string>
     <string name="quick_next_style">Next style</string>
     <string name="quick_app_page">App page</string>

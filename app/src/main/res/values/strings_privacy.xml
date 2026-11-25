@@ -5,19 +5,19 @@
     <string name="security_switch_note">Nothing you dictate is kept on this phone</string>
     <string name="security_on_title">When it\'s on</string>
     <string name="security_nothing_kept">No words are kept</string>
-    <string name="security_nothing_kept_note">Once a dictation is inserted, Embersay forgets it. Try again, Last dictation, Insert again, Copy last, Undo last and the history aren\'t available. A dictation that couldn\'t be inserted is lost.</string>
+    <string name="security_nothing_kept_note">Once a dictation is inserted, sayEmber forgets it. Try again, Last dictation, Insert again, Copy last, Undo last and the history aren\'t available. A dictation that couldn\'t be inserted is lost.</string>
     <string name="security_diagnostics">Diagnostics without words</string>
     <string name="security_diagnostics_note">Only each dictation\'s character count, word count and language</string>
     <string name="security_stats">Statistics without apps</string>
     <string name="security_stats_note">Only each dictation\'s time, word count and length. No words, apps or how the text was inserted. To keep nothing, turn off the statistics on their page.</string>
     <string name="security_clipboard">The clipboard stays untouched</string>
-    <string name="security_clipboard_note">Embersay doesn\'t copy text to it, even when inserting fails.</string>
-    <string name="security_screens">Embersay\'s screens are hidden</string>
-    <string name="security_screens_note">Screenshots and screen recordings of Embersay are blocked, and recent apps shows a blank preview.</string>
+    <string name="security_clipboard_note">sayEmber doesn\'t copy text to it, even when inserting fails.</string>
+    <string name="security_screens">sayEmber\'s screens are hidden</string>
+    <string name="security_screens_note">Screenshots and screen recordings of sayEmber are blocked, and recent apps shows a blank preview.</string>
     <string name="security_wipes">Turning it on deletes the recent dictations, the history and the app names in your statistics.</string>
     <string name="security_limits_title">What it can\'t do</string>
-    <string name="security_installed">It doesn\'t hide Embersay</string>
-    <string name="security_installed_note">Anyone with your phone can see that Embersay is installed.</string>
+    <string name="security_installed">It doesn\'t hide sayEmber</string>
+    <string name="security_installed_note">Anyone with your phone can see that sayEmber is installed.</string>
     <string name="security_other_apps">It can\'t reach other apps</string>
     <string name="security_other_apps_note">What you dictated into a chat, note or email stays there. Text copied earlier may remain in a keyboard\'s clipboard history, for example in Gboard or Samsung Keyboard.</string>
     <string name="security_servers">Servers still receive your dictation</string>
@@ -57,7 +57,7 @@
     </plurals>
     <string name="toast_in_history">Recognized. Copy it from the history.</string>
     <!-- Home, once, for an install from before the history: it starts off for them. -->
-    <string name="history_offer">Embersay can now keep your dictations for 24&#160;hours, encrypted on this phone.</string>
+    <string name="history_offer">sayEmber can now keep your dictations for 24&#160;hours, encrypted on this phone.</string>
     <string name="history_offer_on">Turn on</string>
     <string name="history_offer_no">No thanks</string>
 </resources>

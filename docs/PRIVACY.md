@@ -4,16 +4,16 @@
 
 # Privacy policy
 
-Embersay (called Amber until November 2026) is a dictation app for Android: you speak, and the
+sayEmber (called Amber until November 2026) is a dictation app for Android: you speak, and the
 text is typed into the app you are in.
-This page says what Embersay does with your voice, your text and everything else it touches. It
-applies to Embersay version 0.35.0 and later, however you installed it: from Google Play, from
-GitHub (https://github.com/EinFabo/amber) or from Embersay's website.
+This page says what sayEmber does with your voice, your text and everything else it touches. It
+applies to sayEmber version 0.35.0 and later, however you installed it: from Google Play, from
+GitHub (https://github.com/EinFabo/amber) or from sayEmber's website.
 
-Embersay has no account, no advertising, no analytics and no crash reporting. Its developer runs
-no server that Embersay talks to and receives nothing from the app.
+sayEmber has no account, no advertising, no analytics and no crash reporting. Its developer runs
+no server that sayEmber talks to and receives nothing from the app.
 
-Responsible for Embersay:
+Responsible for sayEmber:
 
 [Controller (name and postal address) and contact e-mail: to be added before publishing]
 
@@ -38,40 +38,40 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   the deleted bytes for a while, but without the key they cannot be read. Copy marks the text as
   sensitive, but some keyboards (Gboard, Samsung) keep their own clipboard history, where copied
   text may stay. With the history on, a dictation's recording is also kept on the phone while
-  it is made, encrypted with the same keys, so it is not lost if Embersay is ended before the
+  it is made, encrypted with the same keys, so it is not lost if sayEmber is ended before the
   text is there. It is deleted once the text is there; a recording kept for Try again stays only
   as long as that is offered (ten minutes); anything else is deleted after 24 hours at most, or
   with the history.
 - **Diagnostics**: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words, and no app's name: each app is "app 1", "app 2" and so on, the same one throughout
-  the report. The list on the phone shows the apps' names. The last times Embersay stopped
+  the report. The list on the phone shows the apps' names. The last times sayEmber stopped
   unexpectedly are kept there too, also after a restart: only the kind of error and where in
-  Embersay's code it happened, never what was said or another app's name.
+  sayEmber's code it happened, never what was said or another app's name.
 - **Speech models** you download.
 
-With the **security mode** on (Settings → Privacy → Security mode), Embersay keeps none of a dictation's
+With the **security mode** on (Settings → Privacy → Security mode), sayEmber keeps none of a dictation's
 words once it is in the field: no recording to try again, no last dictation, no history, no text
 in Diagnostics (only how many characters and words it had, and its language, and not the app),
 no record of how text went into each app; it never puts text on the clipboard, and its own
 screens are kept out of screenshots and Recents. The statistics still keep each dictation's
 time, word count and length, without the app - switch them off under Settings → Privacy → Statistics to
 keep none of it. Switching the mode on deletes what is kept at that moment; each start with the
-mode on removes app names an interrupted switch may have left. Until Embersay has read its settings
-after a start, it acts as if the mode were on. It does not hide that Embersay is installed, it
+mode on removes app names an interrupted switch may have left. Until sayEmber has read its settings
+after a start, it acts as if the mode were on. It does not hide that sayEmber is installed, it
 cannot reach text already in other apps or in a keyboard's own clipboard history, and a speech
 recognition or cleanup on a server still receives what the table below says.
 
-Without the mode, a screen of Embersay's that shows dictated words - the history, Diagnostics with
+Without the mode, a screen of sayEmber's that shows dictated words - the history, Diagnostics with
 a dictation's text shown, Home's last dictation, a test field holding text - is kept out of
 screenshots and the Recents picture while it does.
 
-None of this is in Android's cloud backup or in a transfer to a new phone; Embersay excludes all
+None of this is in Android's cloud backup or in a transfer to a new phone; sayEmber excludes all
 of its files from both. Removing the app removes all of it.
 
 ## What the accessibility service reads and does
 
-Embersay's bubble is an Android accessibility service. Through it Embersay reads:
+sayEmber's bubble is an Android accessibility service. Through it sayEmber reads:
 
 - which app is in front and whether a text field has focus, to show or hide the bubble;
 - where the keyboard is, to keep the bubble off its keys;
@@ -89,10 +89,10 @@ In other apps the service:
   dictation on the clipboard, pastes it and takes it off the clipboard again once the text is in;
   where there is no field, it leaves the dictation on the clipboard for you to paste. It does neither with "Use the clipboard if needed" off
   (Settings → Text) or in the security mode;
-- opens Embersay's own screens over the app when you choose them in the quick menu, such as the
+- opens sayEmber's own screens over the app when you choose them in the quick menu, such as the
   style for that app;
-- brings Embersay back to the front right after you turn on something in Android's settings
-  that Embersay sent you to (this service, or unrestricted battery use).
+- brings sayEmber back to the front right after you turn on something in Android's settings
+  that sayEmber sent you to (this service, or unrestricted battery use).
 
 Beyond that it never taps, swipes or acts for you.
 
@@ -103,19 +103,19 @@ Only what the speech recognition and the cleanup **you chose** need:
 | You chose | What is sent | To whom |
 |---|---|---|
 | Speech recognition on the phone (Parakeet, Whisper) | nothing | - |
-| Android's speech recognition | your recording goes to the speech service of your phone (Google's, on most phones); Embersay asks it to recognize on the phone, but on a phone without on-device recognition that service may send it to its maker | the maker of that service |
-| Tinfoil | your recording, after Embersay has verified the server's hardware enclave | Tinfoil |
+| Android's speech recognition | your recording goes to the speech service of your phone (Google's, on most phones); sayEmber asks it to recognize on the phone, but on a phone without on-device recognition that service may send it to its maker | the maker of that service |
+| Tinfoil | your recording, after sayEmber has verified the server's hardware enclave | Tinfoil |
 | Groq, OpenAI | your recording | that company |
-| Your own server (for example Embersay PC) | your recording | the server at the address you entered |
-| A cleanup (Tinfoil, Claude, Groq, OpenAI, your own server) | the recognized text of the dictation and Embersay's instructions for tidying it - not the recording, and not the text already in the field | that service |
+| Your own server (for example sayEmber PC) | your recording | the server at the address you entered |
+| A cleanup (Tinfoil, Claude, Groq, OpenAI, your own server) | the recognized text of the dictation and sayEmber's instructions for tidying it - not the recording, and not the text already in the field | that service |
 
 These services receive your data under their own terms and privacy policies, and they see your
-phone's network address as with any connection. Embersay sends them nothing that identifies you
-beyond the API key you gave it. Every dictation is labelled in Embersay with where your voice and
+phone's network address as with any connection. sayEmber sends them nothing that identifies you
+beyond the API key you gave it. Every dictation is labelled in sayEmber with where your voice and
 your text went.
 
 Without any of this: with speech recognition on the phone and the cleanup off, nothing you say
-or write leaves the phone. That is how Embersay starts where one of its speech models fits the
+or write leaves the phone. That is how sayEmber starts where one of its speech models fits the
 phone; where none fits, it starts with Android's speech recognition and says on the phone that
 this may send your voice to its maker.
 
@@ -123,34 +123,34 @@ this may send your voice to its maker.
 
 - **Speech models** are downloaded, when you choose one, from huggingface.co and
   keyboard.futo.org.
-- **Update check**: a copy of Embersay installed from a file from GitHub asks api.github.com once
+- **Update check**: a copy of sayEmber installed from a file from GitHub asks api.github.com once
   a day whether a newer release is out. The request carries nothing about you or your phone
   beyond what any web request does. A copy installed by an app store never asks. The
-  check is off until you agree to it: Embersay asks once on the Home screen, and you can change
-  your answer under Settings → About Embersay → Updates.
-- **Model lists**: Embersay asks the servers you added which models they offer.
-- **Tinfoil's proof**: before a recording or a text goes to Tinfoil, Embersay fetches the
+  check is off until you agree to it: sayEmber asks once on the Home screen, and you can change
+  your answer under Settings → About sayEmber → Updates.
+- **Model lists**: sayEmber asks the servers you added which models they offer.
+- **Tinfoil's proof**: before a recording or a text goes to Tinfoil, sayEmber fetches the
   server's attestation document from that server and checks it on the phone - the hardware
   report and the signed release it was built from are part of that document. It carries a
   random number and nothing about you; a checked proof is kept for as long as it is valid.
 
 ## Permissions
 
-- **Microphone**: to record a dictation. Embersay records only between your tap to start and the
-  end of that dictation. While it records, Embersay normally shows a "Recording…" notification
+- **Microphone**: to record a dictation. sayEmber records only between your tap to start and the
+  end of that dictation. While it records, sayEmber normally shows a "Recording…" notification
   with a Stop button (Android may refuse the notice; the recording then goes on without it), and
   Android shows that the microphone is in use. The bubble records through the
   accessibility service; where Android does not let it open the microphone that way (Android 9
-  and 10, or a start Android silences), an invisible screen of Embersay's opens for a moment
+  and 10, or a start Android silences), an invisible screen of sayEmber's opens for a moment
   to start the recording.
 - **Accessibility service**: described above.
-- **Notifications**: for the notice shown while Embersay records (with a Stop button), and
+- **Notifications**: for the notice shown while sayEmber records (with a Stop button), and
   for an available update.
 - **Internet**: for the connections listed above.
 
 ## Children
 
-Embersay is not directed at children and knowingly collects nothing from anyone.
+sayEmber is not directed at children and knowingly collects nothing from anyone.
 
 ## Changes
 

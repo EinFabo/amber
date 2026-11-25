@@ -1,1 +1,1 @@
-Embersay: Sprache zu Text
+sayEmber: Sprache zu Text

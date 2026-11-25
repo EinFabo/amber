@@ -29,7 +29,7 @@ enum class SwitchOnStep {
     /** Xiaomi: the same row, called "Downloaded apps". */
     DOWNLOADED_APPS,
 
-    /** The row of Embersay's service. */
+    /** The row of sayEmber's service. */
     TAP_SERVICE,
 
     /** The service's own switch. */
@@ -38,7 +38,7 @@ enum class SwitchOnStep {
     /** Android's question under it. */
     ALLOW,
 
-    /** Embersay's app info, which the app opens itself. */
+    /** sayEmber's app info, which the app opens itself. */
     APP_INFO,
 
     /** The app info's "Battery" row. */
@@ -53,7 +53,7 @@ enum class SwitchOnStep {
     /** Its filter at the top, from the apps that are not optimized to "All apps". */
     ALL_APPS,
 
-    /** Embersay in that list, then "Don't optimize". */
+    /** sayEmber in that list, then "Don't optimize". */
     DONT_OPTIMIZE,
 
     /** Before Android 12 on Samsung: One UI's "Optimize battery usage" list, which the app opens itself. */
@@ -62,7 +62,7 @@ enum class SwitchOnStep {
     /** Its filter at the top, set to "All". */
     ALL_SAMSUNG,
 
-    /** The switch beside Embersay, turned off. */
+    /** The switch beside sayEmber, turned off. */
     SWITCH_OFF_OPTIMIZING,
 
     /** Samsung's list of apps that are never put to sleep, beside the battery choice ([SwitchOnPlan.batteryExtra]). */
@@ -74,17 +74,17 @@ enum class SwitchOnStep {
 
 /** Where the battery row's button goes ([SwitchOnPlan.batteryPage]). */
 enum class BatteryPage {
-    /** Embersay's own app info, whose "Battery" page has "Unrestricted". */
+    /** sayEmber's own app info, whose "Battery" page has "Unrestricted". */
     APP_INFO,
 
-    /** Android's battery optimization list, with Embersay under "All apps". */
+    /** Android's battery optimization list, with sayEmber under "All apps". */
     OPTIMIZATION_LIST,
 }
 
 /** The steps to the accessibility switch and to unrestricted battery use, per [SettingsMaker]. */
 object SwitchOnPlan {
 
-    /** The way to Embersay's accessibility switch from the settings app's list. */
+    /** The way to sayEmber's accessibility switch from the settings app's list. */
     fun accessibility(maker: SettingsMaker): List<SwitchOnStep> {
         val first = when (maker) {
             SettingsMaker.AOSP -> emptyList()
@@ -99,9 +99,9 @@ object SwitchOnPlan {
 
     /**
      * The way to unrestricted battery use on Android [sdk], numbered under the battery row:
-     * from Android 12 in Embersay's app info (Battery, Unrestricted); before it, where the app
+     * from Android 12 in sayEmber's app info (Battery, Unrestricted); before it, where the app
      * info has no such choice, in the battery optimization list, as the [maker] words it. The
-     * maker's own extra step is not among them: the return to Embersay after the last one ends
+     * maker's own extra step is not among them: the return to sayEmber after the last one ends
      * the list, so it has a row of its own ([batteryExtra]).
      */
     fun battery(maker: SettingsMaker, sdk: Int): List<SwitchOnStep> = when {

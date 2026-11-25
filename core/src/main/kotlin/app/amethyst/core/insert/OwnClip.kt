@@ -12,10 +12,10 @@ package app.amethyst.core.insert
 object OwnClip {
 
     /** The label of a dictation's clip; English, a name for the system. */
-    const val LABEL = "Embersay"
+    const val LABEL = "sayEmber"
 
     /** The label of a copied Diagnostics report. */
-    const val DIAGNOSTICS_LABEL = "Embersay diagnostics"
+    const val DIAGNOSTICS_LABEL = "sayEmber diagnostics"
 
     /** The extra (a boolean, true) in the description of every clip Amber writes. */
     const val MARK = "app.amethyst.extra.OWN_CLIP"

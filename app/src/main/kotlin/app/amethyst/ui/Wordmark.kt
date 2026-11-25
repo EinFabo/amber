@@ -18,18 +18,18 @@ import androidx.compose.ui.text.withStyle
 import app.amethyst.ui.theme.AmberPalette
 
 /** The app's name, the same in every language. */
-const val APP_NAME = "Embersay" // English: the app's name
+const val APP_NAME = "sayEmber" // English: the app's name
 
-/** Where the name's colour changes: "Ember" in the theme's colour, then "say". */
-private const val EMBER = 5
+/** Where the name's colour changes: "say" in the text's colour, then "Ember" in the theme's. */
+private const val SAY = 3
 
 /** The disc a little larger than the letters are tall, as a capital with its line. */
 private const val MARK_TO_TEXT = 1.15f
 
 /**
- * The name as a mark: the flame of the launcher icon on its amber disc, then "Ember" in the
- * theme's primary colour and "say" in the text's, one weight - so it reads Ember-say, never
- * Embers-ay. Read out as one word. Home's header and the introduction's welcome; everywhere
+ * The name as a mark: the flame of the launcher icon on its amber disc, then "say" in the
+ * text's colour and "Ember" in the theme's primary colour, one weight - so it reads say-Ember,
+ * never sayE-mber. Read out as one word. Home's header and the introduction's welcome; everywhere
  * else the name is plain text.
  */
 @Composable
@@ -46,8 +46,8 @@ fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typ
         FlameMark(size = markSize, disc = 1f)
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(color = AmberPalette.Primary)) { append(APP_NAME.take(EMBER)) }
-                append(APP_NAME.drop(EMBER))
+                append(APP_NAME.take(SAY))
+                withStyle(SpanStyle(color = AmberPalette.Primary)) { append(APP_NAME.drop(SAY)) }
             },
             style = style,
             color = AmberPalette.Text,

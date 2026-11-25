@@ -1,34 +1,34 @@
-Tap the bubble, speak, and the text is in. Embersay writes what you say into the text field you are in, in almost any app, without a keyboard to switch to.
+Tap the bubble, speak, and the text is in. sayEmber writes what you say into the text field you are in, in almost any app, without a keyboard to switch to.
 
 <b>How it works</b>
-When you tap into a text field, a small amber bubble appears. Tap it, speak, tap it again. The words land at the cursor. Password fields are left alone: no bubble there, and Embersay never reads them.
+When you tap into a text field, a small amber bubble appears. Tap it, speak, tap it again. The words land at the cursor. Password fields are left alone: no bubble there, and sayEmber never reads them.
 
 <b>You see where your voice went</b>
 By default your voice stays on the phone. A server only gets it when you choose one, and every dictation shows where it was recognized:
 <ul>
 <li><b>On this phone:</b> a speech model you download inside the app. Nothing leaves the phone.</li>
-<li><b>Android's speech recognition:</b> no download. Embersay asks it to stay on the phone, but where the phone cannot recognize speech itself, it may send your voice to its maker (Google on most phones). Embersay says so.</li>
-<li><b>Verified enclave:</b> a protected server. Embersay checks its hardware proof first and sends nothing if the check fails.</li>
+<li><b>Android's speech recognition:</b> no download. sayEmber asks it to stay on the phone, but where the phone cannot recognize speech itself, it may send your voice to its maker (Google on most phones). sayEmber says so.</li>
+<li><b>Verified enclave:</b> a protected server. sayEmber checks its hardware proof first and sends nothing if the check fails.</li>
 <li><b>Cloud:</b> a service or a server of your own, with your own API key.</li>
 </ul>
-Embersay never sends your voice somewhere less private than you chose. If a server cannot be reached, it tells you and keeps the recording, so you can try again.
+sayEmber never sends your voice somewhere less private than you chose. If a server cannot be reached, it tells you and keeps the recording, so you can try again.
 
 <b>What else you get</b>
 <ul>
 <li>Dictations up to 5 minutes, recognized in parts while you are still speaking</li>
-<li>Optional cleanup of the text: punctuation, filler words, a style per app (casual in chats, formal in mail). The cleanup needs your own API key or your own server; without one, Embersay inserts the text as heard.</li>
+<li>Optional cleanup of the text: punctuation, filler words, a style per app (casual in chats, formal in mail). The cleanup needs your own API key or your own server; without one, sayEmber inserts the text as heard.</li>
 <li>A different speech recognition per app: a server for notes, the phone for chats</li>
 <li>A quick menu on a long press of the bubble: insert again, copy, try again, cancel</li>
-<li>If an app does not take the text directly, Embersay inserts it through the clipboard (you can switch that off)</li>
+<li>If an app does not take the text directly, sayEmber inserts it through the clipboard (you can switch that off)</li>
 <li>A history of your recent dictations, kept for 24 hours by default, encrypted on the phone; you can turn it off, and the security mode keeps nothing</li>
 <li>Statistics counted on the phone only: words, apps, time saved, never your text or audio</li>
 <li>English and German, following the phone's language</li>
 </ul>
 
 <b>Permissions</b>
-Embersay needs the microphone and its accessibility service: the service finds the text field, shows the bubble and inserts the text. The microphone is on only while you dictate, and Embersay normally shows a "Recording…" notification with a Stop button then. It does not need "display over other apps". Embersay has no account, no ads and no analytics.
+sayEmber needs the microphone and its accessibility service: the service finds the text field, shows the bubble and inserts the text. The microphone is on only while you dictate, and sayEmber normally shows a "Recording…" notification with a Stop button then. It does not need "display over other apps". sayEmber has no account, no ads and no analytics.
 
 <b>Works with</b>
-On the phone: Whisper and Parakeet models. Servers: Tinfoil, Groq, OpenAI, or your own (Embersay PC, Embersay Server, Speaches, LocalAI, whisper.cpp). Cleanup: Tinfoil, Claude (Anthropic), Groq, OpenAI or your own server. These services are used only when you set them up with your own key or address. Models are downloaded inside the app from Hugging Face and keyboard.futo.org when you choose one. The privacy policy is in the app, under Settings → About Embersay.
+On the phone: Whisper and Parakeet models. Servers: Tinfoil, Groq, OpenAI, or your own (sayEmber PC, sayEmber Server, Speaches, LocalAI, whisper.cpp). Cleanup: Tinfoil, Claude (Anthropic), Groq, OpenAI or your own server. These services are used only when you set them up with your own key or address. Models are downloaded inside the app from Hugging Face and keyboard.futo.org when you choose one. The privacy policy is in the app, under Settings → About sayEmber.
 
 Requires Android 9 or newer on a 64-bit ARM phone.

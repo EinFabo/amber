@@ -1,7 +1,7 @@
 package app.amethyst.core.onboarding
 
 /**
- * Another Embersay on the same phone - the debug build beside the regular one, say, or the old
+ * Another sayEmber on the same phone - the debug build beside the regular one, say, or the old
  * Amber (app.amber) from before the rename - whose accessibility service is switched on too.
  * Two of them each show a bubble and each get the keyboard and field signals, a likely cause of
  * rare, random misbehaviour, so the app says so.
@@ -24,7 +24,7 @@ data class OtherAmbersNotice(val uninstall: List<AmberVariant>, val alsoOn: List
 
 object OtherAmbers {
 
-    /** Every Embersay's application id: com.embersay, plus a build type's suffix (com.embersay.debug). */
+    /** Every sayEmber's application id: com.embersay, plus a build type's suffix (com.embersay.debug). */
     const val PACKAGE = "com.embersay"
 
     /** The id until 2026-11-17, plus a build type's suffix (app.amber.debug). Same code, same service class. */

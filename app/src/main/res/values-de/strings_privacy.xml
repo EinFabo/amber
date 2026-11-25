@@ -3,20 +3,20 @@
     <string name="settings_security_mode">Sicherheitsmodus</string>
     <string name="security_switch_note">Nichts, was du diktierst, bleibt auf dem Handy</string>
     <string name="security_on_title">Wenn er an ist</string>
-    <string name="security_nothing_kept">Embersay behält keine Wörter</string>
-    <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst Embersay es. Nochmal versuchen, Letztes Diktat, Nochmal einfügen, Letztes kopieren, Letztes rückgängig und der Verlauf fallen weg. Ein Diktat, das nicht eingefügt wurde, ist verloren.</string>
+    <string name="security_nothing_kept">sayEmber behält keine Wörter</string>
+    <string name="security_nothing_kept_note">Sobald ein Diktat im Feld steht, vergisst sayEmber es. Nochmal versuchen, Letztes Diktat, Nochmal einfügen, Letztes kopieren, Letztes rückgängig und der Verlauf fallen weg. Ein Diktat, das nicht eingefügt wurde, ist verloren.</string>
     <string name="security_diagnostics">Diagnose ohne Wörter</string>
     <string name="security_diagnostics_note">Nur, wie viele Zeichen und Wörter ein Diktat hatte, und seine Sprache</string>
     <string name="security_stats">Statistik ohne Apps</string>
     <string name="security_stats_note">Von jedem Diktat nur Uhrzeit, Wortzahl und Länge. Keine Wörter, keine App, auch nicht, wie der Text in die App kam. Wenn du nichts davon behalten willst, schalte die Statistik auf ihrer Seite aus.</string>
     <string name="security_clipboard">Die Zwischenablage bleibt unberührt</string>
-    <string name="security_clipboard_note">Embersay legt keinen Text in die Zwischenablage. „Zwischenablage nutzen, wenn nötig“ ist aus.</string>
-    <string name="security_screens">Die Bildschirme von Embersay sind verborgen</string>
-    <string name="security_screens_note">Keine Screenshots oder Bildschirmaufnahmen von Embersay, ein leeres Bild in den letzten Apps</string>
-    <string name="security_wipes">Beim Einschalten löscht Embersay, was es bisher behalten hat: die letzten Diktate, den Verlauf und die App-Namen in der Statistik.</string>
+    <string name="security_clipboard_note">sayEmber legt keinen Text in die Zwischenablage. „Zwischenablage nutzen, wenn nötig“ ist aus.</string>
+    <string name="security_screens">Die Bildschirme von sayEmber sind verborgen</string>
+    <string name="security_screens_note">Keine Screenshots oder Bildschirmaufnahmen von sayEmber, ein leeres Bild in den letzten Apps</string>
+    <string name="security_wipes">Beim Einschalten löscht sayEmber, was es bisher behalten hat: die letzten Diktate, den Verlauf und die App-Namen in der Statistik.</string>
     <string name="security_limits_title">Was er nicht kann</string>
-    <string name="security_installed">Er versteckt Embersay nicht</string>
-    <string name="security_installed_note">Wer dein Handy hat, sieht, dass Embersay installiert ist.</string>
+    <string name="security_installed">Er versteckt sayEmber nicht</string>
+    <string name="security_installed_note">Wer dein Handy hat, sieht, dass sayEmber installiert ist.</string>
     <string name="security_other_apps">Er erreicht keine anderen Apps</string>
     <string name="security_other_apps_note">Was du in einen Chat, eine Notiz oder eine E-Mail diktiert hast, bleibt dort. Früher kopierter Text kann im Zwischenablage-Verlauf einer Tastatur bleiben (Gboard, Samsung).</string>
     <string name="security_servers">Ein Server bekommt es trotzdem</string>
@@ -54,7 +54,7 @@
         <item quantity="other">%1$d Diktate</item>
     </plurals>
     <string name="toast_in_history">Erkannt. Kopiere den Text aus dem Verlauf.</string>
-    <string name="history_offer">Embersay kann deine Diktate jetzt 24&#160;Stunden lang behalten, verschlüsselt auf diesem Handy.</string>
+    <string name="history_offer">sayEmber kann deine Diktate jetzt 24&#160;Stunden lang behalten, verschlüsselt auf diesem Handy.</string>
     <string name="history_offer_on">Einschalten</string>
     <string name="history_offer_no">Nein danke</string>
 </resources>

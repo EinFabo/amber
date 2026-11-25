@@ -216,7 +216,7 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         }
         if (resolved == null) {
             trace.note("settings page $page: nothing resolves ${actions.joinToString()}")
-            return CommandOutcome.Failed("This phone has no $label page Embersay can open.")
+            return CommandOutcome.Failed("This phone has no $label page sayEmber can open.")
         }
         val (intent, owner) = resolved
         trace.note("settings page $page: ${intent.action} resolved to $owner")
@@ -232,7 +232,7 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         val started = withContext(Dispatchers.Main) { runCatching { service.startActivity(intent) } }
         started.exceptionOrNull()?.let { error ->
             trace.note("start: Android threw ${error::class.java.simpleName}")
-            return CommandOutcome.Failed("Android did not let Embersay open $label.")
+            return CommandOutcome.Failed("Android did not let sayEmber open $label.")
         }
         val sentAt = SystemClock.elapsedRealtime()
         repeat(LAUNCH_CHECKS) {
@@ -645,6 +645,6 @@ class CommandExecutor(private val service: AmethystAccessibilityService, private
         const val CAPTURE_SETTLE_MS = 100L
         const val CAPTURE_MS = 700L
 
-        const val GESTURE_REFUSED = "Android did not take the gesture. Switch Embersay off and on once under Accessibility."
+        const val GESTURE_REFUSED = "Android did not take the gesture. Switch sayEmber off and on once under Accessibility."
     }
 }

@@ -84,10 +84,10 @@ class OtherAmbersTest {
 
     @Test
     fun `matching is case-sensitive, as Android's is`() {
-        assertTrue(OtherAmbers.find("com.embersay", "Com.Embersay.Debug/$service").isEmpty())
+        assertTrue(OtherAmbers.find("com.embersay", "Com.sayEmber.Debug/$service").isEmpty())
         assertTrue(OtherAmbers.find("com.embersay", "App.Amber/$service").isEmpty())
         assertTrue(OtherAmbers.find("com.embersay", "com.embersay.debug/${service.lowercase()}").isEmpty())
-        // The own package in another case is someone else's package - but not an Embersay either.
+        // The own package in another case is someone else's package - but not an sayEmber either.
         assertTrue(OtherAmbers.find("COM.EMBERSAY", release).single().packageName == "com.embersay")
     }
 

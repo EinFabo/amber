@@ -11,7 +11,7 @@
     <string name="engine_connection_subtitle">Jeder Server mit /v1/audio/transcriptions, etwa Speaches, LocalAI oder der Server von whisper.cpp</string>
     <string name="engine_other_address">Andere Adresse</string>
     <string name="engine_address">Adresse</string>
-    <string name="engine_address_hint">Zum Beispiel https://speech.example.com/v1, mit oder ohne /v1. http:// nur für Server in deinem eigenen Netz. Steht in einer Adresse von Embersay PC ein Schlüssel, trennt Embersay beides auf.</string>
+    <string name="engine_address_hint">Zum Beispiel https://speech.example.com/v1, mit oder ohne /v1. http:// nur für Server in deinem eigenen Netz. Steht in einer Adresse von sayEmber PC ein Schlüssel, trennt sayEmber beides auf.</string>
     <string name="engine_models_below">%1$s. Die Modelle stehen unten.</string>
     <string name="engine_speech_model">Modell für die Spracherkennung</string>
     <string name="engine_api_key">API-Schlüssel</string>
@@ -44,7 +44,7 @@
     <string name="model_own_file">Eigene Datei</string>
     <string name="model_own_file_note">Ein whisper.cpp-Modell, das du selbst gewählt hast. Läuft mit vollem Kontext.</string>
     <string name="model_pick_file">Eigene Datei wählen</string>
-    <string name="model_pick_file_hint">Schon von FUTO heruntergeladen? Wähle die .bin-Datei. Embersay erkennt und prüft sie.</string>
+    <string name="model_pick_file_hint">Schon von FUTO heruntergeladen? Wähle die .bin-Datei. sayEmber erkennt und prüft sie.</string>
     <string name="model_pick_file_trust">Wähle nur Modelldateien aus Quellen, denen du vertraust.</string>
     <string name="download">Herunterladen</string>
     <string name="download_again">Neu herunterladen</string>
@@ -54,7 +54,7 @@
     <string name="delete">Löschen</string>
     <string name="model_delete_title">%1$s löschen?</string>
     <string name="model_delete_text">Du kannst es später wieder herunterladen.</string>
-    <string name="model_delete_in_use">Embersay kann damit erst wieder diktieren, wenn du es neu herunterlädst.</string>
+    <string name="model_delete_in_use">sayEmber kann damit erst wieder diktieren, wenn du es neu herunterlädst.</string>
     <string name="try_again">Nochmal versuchen</string>
     <string name="model_english_only">Dieses Modell versteht nur Englisch.</string>
     <string name="progress_of">%1$d von %2$d&#160;MB</string>
@@ -67,7 +67,7 @@
     <string name="model_recommended_only">Empfohlen</string>
     <string name="whisper_none_picked">Keine gewählt: Whisper rät unter allen Sprachen.</string>
     <string name="enclave_title">Prüfung der Enklave</string>
-    <string name="enclave_subtitle">Aufnahmen gehen nur an eine geprüfte Enklave, über eine Verbindung, die an deren geprüften Schlüssel gebunden ist. Sonst sendet Embersay nichts.</string>
+    <string name="enclave_subtitle">Aufnahmen gehen nur an eine geprüfte Enklave, über eine Verbindung, die an deren geprüften Schlüssel gebunden ist. Sonst sendet sayEmber nichts.</string>
     <string name="enclave_verifying">Wird geprüft …</string>
     <string name="enclave_verify">Jetzt prüfen</string>
     <string name="enclave_history">Verlauf</string>
@@ -83,8 +83,8 @@
     <string name="proof_verified_at">Geprüft am</string>
     <string name="proof_valid_until">Gültig bis</string>
     <string name="attestation_invalid_address">Das ist keine gültige Adresse.</string>
-    <string name="attestation_unknown_enclave">Embersay kennt die erwartete Version der Enklave bei %1$s nicht.</string>
-    <string name="attestation_library_missing">Diese Version von Embersay kann Enklaven nicht prüfen.</string>
+    <string name="attestation_unknown_enclave">sayEmber kennt die erwartete Version der Enklave bei %1$s nicht.</string>
+    <string name="attestation_library_missing">Diese Version von sayEmber kann Enklaven nicht prüfen.</string>
     <string name="attestation_document_invalid">Der Nachweis der Enklave ist ungültig.</string>
     <string name="attestation_release_not_confirmed">Die Enklave passt zu keiner signierten Version.</string>
     <string name="attestation_hardware_rejected">Der Prozessor der Enklave hat sie nicht bestätigt.</string>
@@ -93,11 +93,11 @@
     <string name="attestation_failed">Die Enklave ließ sich nicht prüfen.</string>
     <string name="enclave_details">Details</string>
     <string name="enclave_details_note">Zum Vergleichen mit den Werkzeugen von Tinfoil.</string>
-    <string name="server_recognized">%1$s erkannt. Embersay kennt Adresse und Modelle.</string>
+    <string name="server_recognized">%1$s erkannt. sayEmber kennt Adresse und Modelle.</string>
     <string name="server_key_optional">API-Schlüssel (optional)</string>
     <string name="server_key_elsewhere">Dieser Schlüssel wurde für %1$s eingegeben und geht nicht an diese Adresse. Gib ihn noch einmal ein, um ihn hier zu nutzen.</string>
     <string name="model_too_big">Zu groß für den Arbeitsspeicher dieses Handys</string>
     <string name="model_too_big_title">%1$s trotzdem nutzen?</string>
-    <string name="model_too_big_text">Es braucht mehr Arbeitsspeicher, als dieses Handy hat. Das Diktieren kann langsam sein oder Embersay kann abstürzen. Du kannst es trotzdem nutzen.</string>
+    <string name="model_too_big_text">Es braucht mehr Arbeitsspeicher, als dieses Handy hat. Das Diktieren kann langsam sein oder sayEmber kann abstürzen. Du kannst es trotzdem nutzen.</string>
     <string name="model_too_big_use">Trotzdem nutzen</string>
 </resources>

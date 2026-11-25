@@ -11,7 +11,7 @@
     <string name="engine_connection_subtitle">Any server compatible with OpenAI\'s transcription API, such as Speaches, LocalAI or whisper.cpp\'s server</string>
     <string name="engine_other_address">Other address</string>
     <string name="engine_address">Address</string>
-    <string name="engine_address_hint">For example https://speech.example.com, with or without /v1. Use http:// only on your own network. An Embersay PC address that includes its key is split into address and key.</string>
+    <string name="engine_address_hint">For example https://speech.example.com, with or without /v1. Use http:// only on your own network. An sayEmber PC address that includes its key is split into address and key.</string>
     <string name="engine_models_below">%1$s. Its models are listed below.</string>
     <string name="engine_speech_model">Speech model</string>
     <string name="engine_api_key">API key</string>
@@ -44,7 +44,7 @@
     <string name="model_own_file">Own file</string>
     <string name="model_own_file_note">A whisper.cpp model file you chose. Short dictations take longer with it.</string>
     <string name="model_pick_file">Choose a model file</string>
-    <string name="model_pick_file_hint">Already downloaded a model from FUTO? Choose its .bin file and Embersay checks it.</string>
+    <string name="model_pick_file_hint">Already downloaded a model from FUTO? Choose its .bin file and sayEmber checks it.</string>
     <string name="model_pick_file_trust">Only choose model files from sources you trust.</string>
     <string name="download">Download</string>
     <string name="download_again">Download again</string>
@@ -54,7 +54,7 @@
     <string name="delete">Delete</string>
     <string name="model_delete_title">Delete %1$s?</string>
     <string name="model_delete_text">You can download it again later.</string>
-    <string name="model_delete_in_use">Embersay can\'t dictate with it until you download it again.</string>
+    <string name="model_delete_in_use">sayEmber can\'t dictate with it until you download it again.</string>
     <string name="try_again">Try again</string>
     <string name="model_english_only">This model only understands English.</string>
     <string name="progress_of">%1$d of %2$d MB</string>
@@ -83,8 +83,8 @@
     <string name="proof_verified_at">Verified at</string>
     <string name="proof_valid_until">Valid until</string>
     <string name="attestation_invalid_address">That isn\'t a valid address.</string>
-    <string name="attestation_unknown_enclave">Embersay doesn\'t know which release to expect from the enclave at %1$s.</string>
-    <string name="attestation_library_missing">This build of Embersay can\'t verify enclaves.</string>
+    <string name="attestation_unknown_enclave">sayEmber doesn\'t know which release to expect from the enclave at %1$s.</string>
+    <string name="attestation_library_missing">This build of sayEmber can\'t verify enclaves.</string>
     <string name="attestation_document_invalid">The enclave\'s proof isn\'t valid.</string>
     <string name="attestation_release_not_confirmed">The enclave doesn\'t match a signed release.</string>
     <string name="attestation_hardware_rejected">The enclave\'s processor didn\'t confirm it.</string>
@@ -93,11 +93,11 @@
     <string name="attestation_failed">The enclave couldn\'t be verified.</string>
     <string name="enclave_details">Details</string>
     <string name="enclave_details_note">For comparing with Tinfoil\'s own tools.</string>
-    <string name="server_recognized">Recognized as %1$s. Embersay knows its address and models.</string>
+    <string name="server_recognized">Recognized as %1$s. sayEmber knows its address and models.</string>
     <string name="server_key_optional">API key (optional)</string>
     <string name="server_key_elsewhere">This key was entered for %1$s and isn\'t sent to this address. Enter it again to use it here.</string>
     <string name="model_too_big">Too big for this phone\'s memory</string>
     <string name="model_too_big_title">Use %1$s anyway?</string>
-    <string name="model_too_big_text">It needs more memory than this phone has. Dictating may be slow, or Embersay may stop. You can still use it.</string>
+    <string name="model_too_big_text">It needs more memory than this phone has. Dictating may be slow, or sayEmber may stop. You can still use it.</string>
     <string name="model_too_big_use">Use anyway</string>
 </resources>

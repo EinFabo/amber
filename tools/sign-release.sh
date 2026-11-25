@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Embersay's release APK and has it signed on a signing host: the unsigned APK goes there
+# Builds sayEmber's release APK and has it signed on a signing host: the unsigned APK goes there
 # over ssh, is signed with apksigner as it is (AGP has aligned it; aligning it again could move
 # bytes, see below), comes back and is checked against the expected key's fingerprint. The key
 # and its passwords never leave that host. Which key signs is set by SIGN_PROPERTIES;

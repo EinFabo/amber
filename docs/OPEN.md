@@ -1,9 +1,12 @@
-# Embersay - open items
+# sayEmber - open items
 
 As of 2026-10-28, after 0.12.0. Urgent things at the top, later stages at the bottom. The app
-was called Amber until 2026-11-17; the sections below that are dated before then say Amber.
+was called Amber until 2026-11-17 and Embersay until 2026-11-25; the sections below say the name
+the app had on their date.
 
 ## Frustration review 2026-11-24
+
+- **Renamed to sayEmber (2026-11-25, Fabi).** Every name the user sees: launcher label, wordmark ("say" in the text colour, "Ember" in amber), texts EN/DE, store listing, changelog 71, privacy texts, README, glossary; sayEmber PC and sayEmber Server follow. Kept: application id `com.embersay`, the code namespace, log tags "Embersay", APK file names `embersay-<version>.apk`, the F-Droid recipe `com.embersay.yml`, the GitHub repo, historical docs and old changelogs. To try on a phone: the launcher label, Home's and the welcome's wordmark.
 
 - **G4, store images pass Play's checks.** `python3 tools/flatten_store_images.py` turns the
   store screenshots into 24-bit RGB PNGs (RGBA before, fully opaque, so nothing changed to the

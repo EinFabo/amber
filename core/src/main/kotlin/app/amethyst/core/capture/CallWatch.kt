@@ -4,7 +4,7 @@ package app.amethyst.core.capture
  * Whether a call began while a dictation records - ringing, a phone call, a call in an app -
  * from repeated looks at the phone. A call that was already on at the first look is the user's
  * choice and changes nothing; one that begins later ends the recording, also the next call
- * after the first one hung up. Shared by Embersay's own recorder ([MicrophoneWatch]) and
+ * after the first one hung up. Shared by sayEmber's own recorder ([MicrophoneWatch]) and
  * Android's speech recognition, which records by itself.
  */
 class CallWatch {

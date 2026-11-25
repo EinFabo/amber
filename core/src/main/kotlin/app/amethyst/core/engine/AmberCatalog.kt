@@ -38,14 +38,14 @@ data class AmberCatalog(
     val takesOpus: Boolean get() = AUDIO_OPUS in audio
 
     /**
-     * "Embersay PC" or "Embersay Server"; a service only a later one knows is plain "Embersay".
+     * "sayEmber PC" or "sayEmber Server"; a service only a later one knows is plain "sayEmber".
      * Only the name shown: on the wire they still say `amber-pc` and `amber-server`.
      */
     val name: String
         get() = when (service) {
-            SERVICE_PC -> "Embersay PC"
-            SERVICE_SERVER -> "Embersay Server"
-            else -> "Embersay"
+            SERVICE_PC -> "sayEmber PC"
+            SERVICE_SERVER -> "sayEmber Server"
+            else -> "sayEmber"
         }
 
     /** The machine that answers for a model it no longer lists: the PC, or the server. */

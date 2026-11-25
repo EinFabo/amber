@@ -47,5 +47,5 @@
     <string name="catalog_tier_most_accurate">am genauesten</string>
     <string name="catalog_tier_replaced">ersetzt</string>
     <string name="catalog_server_name">Server</string>
-    <string name="catalog_server_note">Groq, OpenAI, Embersay PC, Embersay Server oder jeder andere Server mit /v1/audio/transcriptions. Du kannst so viele hinzufügen, wie du willst.</string>
+    <string name="catalog_server_note">Groq, OpenAI, sayEmber PC, sayEmber Server oder jeder andere Server mit /v1/audio/transcriptions. Du kannst so viele hinzufügen, wie du willst.</string>
 </resources>

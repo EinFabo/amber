@@ -178,7 +178,7 @@ object Setup {
 
     /**
      * Opens where the battery steps start ([SwitchOnPlan.batteryPage]): from Android 12
-     * Embersay's own app info, where "Battery" holds "Unrestricted"; before it, where the app
+     * sayEmber's own app info, where "Battery" holds "Unrestricted"; before it, where the app
      * info has no such choice, ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS - its list starts
      * filtered to the apps that are not optimized, so the steps say to switch it to all apps -
      * and the app info if that list is missing. Never REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
@@ -195,8 +195,8 @@ object Setup {
      * Opens the maker's extra battery step ([SwitchOnPlan.batteryExtra]) as close as the phone
      * allows: One UI's battery page (where "Background usage limits" leads to "Never sleeping
      * apps"), MIUI's autostart list; both are the maker's own screens, not Android's, and may be
-     * missing or guarded - then Embersay's app info, where MIUI has "Autostart" too. No return
-     * to Embersay is watched: nothing Android reports tells that it is done.
+     * missing or guarded - then sayEmber's app info, where MIUI has "Autostart" too. No return
+     * to sayEmber is watched: nothing Android reports tells that it is done.
      */
     fun openBatteryExtra(context: Context, step: SwitchOnStep): Boolean {
         val own = when (step) {

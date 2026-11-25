@@ -118,7 +118,7 @@ if profile.exists():
             continue
         m = re.match(r'[HSP]*L([^;]+?)(?:;|->|$)', line)
         if not m or not m.group(1).startswith('app/amethyst/'):
-            errors.append(f"baseline-prof.txt:{n}: not a rule for Embersay's code: {line}")
+            errors.append(f"baseline-prof.txt:{n}: not a rule for sayEmber's code: {line}")
             continue
         rules += 1
         spec = m.group(1)

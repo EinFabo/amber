@@ -37,13 +37,13 @@ class DiagnosticsReportTest {
     }
 
     private fun report(records: List<DictationRecord>, keyboard: List<String> = emptyList()) =
-        DiagnosticsReport.of(records, ZoneOffset.UTC, title = "Embersay 0.21.0", copiedAt = at + 60_000, keyboard = keyboard)
+        DiagnosticsReport.of(records, ZoneOffset.UTC, title = "sayEmber 0.21.0", copiedAt = at + 60_000, keyboard = keyboard)
 
     @Test
     fun `each record with its time, summary, the shape of its words, steps and timing, newest first`() {
         assertEquals(
             """
-            Embersay 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - 2 records, newest first
+            sayEmber 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - 2 records, newest first
 
             14:02:31  Command · parakeet · No app called “…”.
               heard: 14 characters, 2 words, 1 line
@@ -146,17 +146,17 @@ class DiagnosticsReportTest {
 
     @Test
     fun `nothing to copy says so`() {
-        assertEquals("Embersay 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - no records\n", report(emptyList()))
+        assertEquals("sayEmber 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - no records\n", report(emptyList()))
     }
 
     @Test
     fun `another Amber switched on too is noted right under the title`() {
         val text = DiagnosticsReport.of(
-            emptyList(), ZoneOffset.UTC, title = "Embersay 0.21.0", copiedAt = at + 60_000,
-            warning = "Embersay (debug) is also on - switch one off.",
+            emptyList(), ZoneOffset.UTC, title = "sayEmber 0.21.0", copiedAt = at + 60_000,
+            warning = "sayEmber (debug) is also on - switch one off.",
         )
         assertEquals(
-            "Embersay 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - no records\nNote: Embersay (debug) is also on - switch one off.\n",
+            "sayEmber 0.21.0 - diagnostics copied 2026-10-31 14:03:31 - no records\nNote: sayEmber (debug) is also on - switch one off.\n",
             text,
         )
     }

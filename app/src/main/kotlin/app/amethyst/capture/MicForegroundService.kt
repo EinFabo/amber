@@ -18,7 +18,7 @@ import app.amethyst.R
 /**
  * A foreground service of type "microphone" for the length of one recording.
  *
- * It shows that Embersay records - a notification with a Stop button - and puts the process in
+ * It shows that sayEmber records - a notification with a Stop button - and puts the process in
  * a foreground state while it does. The recording does not depend on it: the bubble records
  * directly in the accessibility service's process ([app.amethyst.core.capture.MicrophoneRouter]),
  * and Android may refuse a foreground service started from the background (Android 12+:
@@ -26,7 +26,7 @@ import app.amethyst.R
  * microphone type without while-in-use access). A refusal is logged, said to the dictation for
  * its Diagnostics, and the recording goes on without the service.
  *
- * Until 0.35 this service ran all day, started on every visit to Embersay's screen, so that a
+ * Until 0.35 this service ran all day, started on every visit to sayEmber's screen, so that a
  * bubble tap was no background start. Google Play allows a foreground service only for as long
  * as the task the user started, so it now starts with a recording and stops when it ends.
  *
@@ -108,7 +108,7 @@ class MicForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val builder = Notification.Builder(this, CHANNEL_ID)
-        // No tap target of its own: opening Embersay mid-dictation would take the focus away from
+        // No tap target of its own: opening sayEmber mid-dictation would take the focus away from
         // the field the words are for. Collapsed - as a notification of low importance is in
         // the shade - Android shows the title and this line, not the actions; the line says
         // how to finish, so the title alone is not all there is (Pixel 9a, 2026-11-22). A Stop

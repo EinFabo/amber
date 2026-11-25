@@ -7,9 +7,9 @@ import app.amethyst.core.bubble.SystemShade
  * once on a phone before it was written down:
  *
  * - The keyboard and SystemUI send window changes too; they are not the app the user is in.
- * - Neither are Embersay's own overlays - the hide target, a toast, the microphone helper:
+ * - Neither are sayEmber's own overlays - the hide target, a toast, the microphone helper:
  *   taken for the app in front, they switched off drag-to-hide for the next drag and let the
- *   bubble back into hidden apps (rc2). Only Embersay's main screen counts.
+ *   bubble back into hidden apps (rc2). Only sayEmber's main screen counts.
  * - A home screen is in front between apps, but nothing is dictated there: it never goes on
  *   [AppsSeenInFront].
  * - The last window event can be stale: back from the recent apps into an app, Pixel's launcher
@@ -18,7 +18,7 @@ import app.amethyst.core.bubble.SystemShade
  */
 class AppInFront(
     private val ownPackage: String,
-    /** The class name of Embersay's main screen, the one window of its own that is an app in front. */
+    /** The class name of sayEmber's main screen, the one window of its own that is an app in front. */
     private val ownMainScreen: String,
 ) {
 
@@ -34,7 +34,7 @@ class AppInFront(
     /**
      * The app a window change from [pkg] (its window [className]) puts in front, or null when
      * the window is not an app the user is in: the keyboard ([fromKeyboard]), SystemUI, or one
-     * of Embersay's overlays.
+     * of sayEmber's overlays.
      */
     fun afterWindowChange(pkg: String, className: String?, fromKeyboard: Boolean): String? {
         val ownOverlay = pkg == ownPackage && className != ownMainScreen
@@ -42,8 +42,8 @@ class AppInFront(
     }
 
     /**
-     * Whether [pkg], seen in front, is an app for [AppsSeenInFront]: never Embersay, never a home
-     * screen. [isHome] asks the package manager, so only when the package is not Embersay's.
+     * Whether [pkg], seen in front, is an app for [AppsSeenInFront]: never sayEmber, never a home
+     * screen. [isHome] asks the package manager, so only when the package is not sayEmber's.
      */
     fun worthNoting(pkg: String, isHome: (String) -> Boolean): Boolean = pkg != ownPackage && !isHome(pkg)
 

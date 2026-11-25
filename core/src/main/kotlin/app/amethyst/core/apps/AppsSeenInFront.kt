@@ -3,7 +3,7 @@ package app.amethyst.core.apps
 /**
  * The apps the accessibility service has seen in front, the latest [MAX] of them.
  *
- * Android's package manager answers for Embersay's own profile only: an app in another one
+ * Android's package manager answers for sayEmber's own profile only: an app in another one
  * (a work profile, the private space - GrapheneOS users keep WhatsApp or Signal there) counts as
  * "not installed" to it, and some profiles stay hidden from every app but the launcher. Yet the
  * accessibility service sees those apps' windows, and a package it saw in front is a real app

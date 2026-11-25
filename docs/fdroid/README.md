@@ -23,7 +23,7 @@
   Home and checks nothing until they say yes (`UpdateConsent`).
 - **Name and id: done (2026-11-17).** F-Droid lists another "Amber"
   (`com.greenart7c3.nostrsigner`), and `app.amber` read as the domain amber.app, which is not
-  ours. Fabi renamed the app to Embersay, id `com.embersay`, before any store release; after
+  ours. Fabi renamed the app to sayEmber, id `com.embersay`, before any store release; after
   inclusion the id is fixed. Still open: the domain embersay.com (the id reads as it), and the
   GitHub repository's name (`EinFabo/amber` in the URLs below until it moves - GitHub redirects).
 - **IzzyOnDroid** is no route: its inclusion policy rejects apps made with generative AI tools.
@@ -88,7 +88,7 @@ Last run (2026-11-10, fdroidserver 2.4.5, still as `app.amber`): `fdroid lint` c
 
 ## Scanner hits and how they are handled
 
-The submodule hits are in code Embersay neither builds nor ships; each is a `scandelete` in the
+The submodule hits are in code sayEmber neither builds nor ships; each is a `scandelete` in the
 recipe. The Tinfoil AAR is not in git at all (`app/libs/*.aar` is gitignored): the recipe builds
 it in `build:`, after the scan, so the scanner never sees it and there is nothing to delete.
 

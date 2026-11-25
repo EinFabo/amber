@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="cleanup_who">Modell für die Bereinigung</string>
-    <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor Embersay ihn einfügt</string>
+    <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor sayEmber ihn einfügt</string>
     <string name="cleanup_off_note">Der Text wird unverändert eingefügt</string>
     <string name="cleanup_addition">Eigene Anweisung</string>
     <string name="cleanup_addition_subtitle">Gilt für alle Apps und steht vor der eigenen Anweisung einer App</string>
@@ -18,11 +18,11 @@
     <string name="cleanup_ready">bereit</string>
     <string name="cleanup_needs_key">Schlüssel fehlt</string>
     <string name="cleanup_add_server">Eigenen Server hinzufügen</string>
-    <string name="cleanup_add_server_note">Embersay PC, Ollama, LM Studio, OpenRouter …</string>
+    <string name="cleanup_add_server_note">sayEmber PC, Ollama, LM Studio, OpenRouter …</string>
     <string name="cleanup_sheet_tinfoil">Ein geschützter Server (Enklave). Er bereinigt den Text und speichert ihn nicht.</string>
     <string name="cleanup_sheet_cloud">Der erkannte Text geht für die Bereinigung an %1$s.</string>
     <string name="cleanup_sheet_own">Dein eigener Server unter %1$s bereinigt den Text.</string>
-    <string name="cleanup_sheet_new_server">Ein Server, den du betreibst oder mietest. Embersay fragt ihn nach seinen Modellen.</string>
+    <string name="cleanup_sheet_new_server">Ein Server, den du betreibst oder mietest. sayEmber fragt ihn nach seinen Modellen.</string>
     <string name="cleanup_key_stored">API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_none">Kein API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_change">Ändern</string>
@@ -38,7 +38,7 @@
     <string name="cleanup_testing">Schlüssel wird geprüft …</string>
     <string name="cleanup_asking">Server wird nach seinen Modellen gefragt …</string>
     <string name="cleanup_use_anyway">Trotzdem nutzen</string>
-    <string name="cleanup_address_example">Zum Beispiel https://openrouter.ai/api/v1. Embersay PC, Ollama oder LM Studio in deinem eigenen Netz gehen auch.</string>
+    <string name="cleanup_address_example">Zum Beispiel https://openrouter.ai/api/v1. sayEmber PC, Ollama oder LM Studio in deinem eigenen Netz gehen auch.</string>
     <string name="cleanup_model_example">Der Name des Modells, wie der Server es nennt, zum Beispiel llama3.2.</string>
     <string name="cleanup_edit_server">Server bearbeiten</string>
     <string name="fallback_who">Wer einspringt</string>
@@ -51,7 +51,7 @@
     <string name="fallback_ready_subtitle">Das Handy springt schneller ein</string>
     <string name="fallback_prepare">Beim Sprechen auf dem Handy vorbereiten</string>
     <string name="fallback_prepare_note">Braucht Prozessor und Akku, während du diktierst. Nur mit einem heruntergeladenen Modell.</string>
-    <string name="fallback_prepare_on">Braucht der Server viel länger als sonst, nimmt Embersay den Text vom Handy.</string>
+    <string name="fallback_prepare_on">Braucht der Server viel länger als sonst, nimmt sayEmber den Text vom Handy.</string>
     <string name="style_title">Stil</string>
     <string name="style_subtitle">Wie der Text in %1$s klingt</string>
     <string name="style_instruction">Eigene Anweisung (optional)</string>
@@ -61,15 +61,15 @@
     <string name="style_default_off">Aus: Text unverändert, wie in jeder App</string>
     <string name="style_own_model">Eigenes Modell</string>
     <string name="style_own_model_note">Ein anderer Dienst oder ein anderes Modell, nur für diese App</string>
-    <string name="style_own_not_ready_default">Die eigene Bereinigung dieser App ist nicht bereit. Embersay nimmt den Standard.</string>
+    <string name="style_own_not_ready_default">Die eigene Bereinigung dieser App ist nicht bereit. sayEmber nimmt den Standard.</string>
     <string name="style_own_not_ready_none">Die eigene Bereinigung dieser App ist nicht bereit. Der Text wird nicht bereinigt.</string>
     <string name="style_needs_cleanup">Ohne Bereinigung gilt der Stil nicht. Der Text wird unverändert eingefügt.</string>
     <string name="style_recognition_subtitle">Wer deine Stimme in %1$s zu Text macht</string>
     <string name="style_recognition_default">Wie in jeder App</string>
     <string name="style_recognition_none">Keine gewählt</string>
     <string name="style_recognition_engine_not_ready">Nicht bereit. Richte sie unter Spracherkennung ein.</string>
-    <string name="style_recognition_removed">Die eigene Spracherkennung dieser App wurde entfernt. Embersay nimmt die für alle Apps.</string>
-    <string name="style_recognition_not_ready">%1$s ist nicht bereit. Bis dahin nimmt Embersay die für alle Apps.</string>
+    <string name="style_recognition_removed">Die eigene Spracherkennung dieser App wurde entfernt. sayEmber nimmt die für alle Apps.</string>
+    <string name="style_recognition_not_ready">%1$s ist nicht bereit. Bis dahin nimmt sayEmber die für alle Apps.</string>
     <string name="style_remove">%1$s entfernen</string>
     <string name="style_removed">%1$s entfernt</string>
     <string name="limits_silence">Stille vor dem Stoppen</string>

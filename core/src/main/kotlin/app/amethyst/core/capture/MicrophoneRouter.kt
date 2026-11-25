@@ -7,17 +7,17 @@ import app.amethyst.core.engine.Problem
  *
  * The distinction is not cosmetic: a tap on the bubble happens while a foreign app is in
  * front, which Android 11+ treats as a background microphone start unless something gives
- * the process while-in-use access. A press inside Embersay is already foreground and must
+ * the process while-in-use access. A press inside sayEmber is already foreground and must
  * never open an extra window to prove it.
  */
 enum class TriggerSource {
-    /** Tap on the floating bubble - Embersay itself is in the background. */
+    /** Tap on the floating bubble - sayEmber itself is in the background. */
     BUBBLE,
 
     /** Re-entry from the invisible proxy activity, which is now the foreground anchor. */
     PROXY_ACTIVITY,
 
-    /** Button inside Embersay. The app is visible, so recording is always permitted. */
+    /** Button inside sayEmber. The app is visible, so recording is always permitted. */
     IN_APP,
     ;
 
@@ -47,7 +47,7 @@ enum class MicrophoneRoute {
  * background microphone start. Neither is visible until it happens on a real device, which is
  * exactly why the rule lives here as a pure function instead of inside the controller.
  *
- * Until 0.35 a foreground service of type microphone ran all day, started whenever Embersay's
+ * Until 0.35 a foreground service of type microphone ran all day, started whenever sayEmber's
  * screen was opened, so that a bubble tap counted as a foreground start. Google Play allows a
  * foreground service only for as long as the task the user started, so now:
  *
@@ -86,12 +86,12 @@ object MicrophoneRouter {
         hasPermission: Boolean,
         /** Build.VERSION.SDK_INT. */
         sdk: Int,
-        /** Whether Embersay's accessibility service is connected - the process the bubble lives in. */
+        /** Whether sayEmber's accessibility service is connected - the process the bubble lives in. */
         accessibilityConnected: Boolean,
     ): Decision = when {
         !hasPermission -> Decision(MicrophoneRoute.NEEDS_PERMISSION, "the microphone permission is missing")
 
-        source == TriggerSource.IN_APP -> Decision(MicrophoneRoute.DIRECT, "started inside Embersay, which is in front")
+        source == TriggerSource.IN_APP -> Decision(MicrophoneRoute.DIRECT, "started inside sayEmber, which is in front")
 
         source == TriggerSource.PROXY_ACTIVITY -> Decision(MicrophoneRoute.DIRECT, "the proxy activity is in front")
 
@@ -111,17 +111,17 @@ object MicrophoneRouter {
 
     /**
      * How long a direct recording's start is watched for silence before the proxy takes over;
-     * 0 for none. Only the bubble has the proxy to fall back to: in front - inside Embersay or
+     * 0 for none. Only the bubble has the proxy to fall back to: in front - inside sayEmber or
      * through the activity itself - a silent microphone is another app holding it, and that is
      * said as such ([MicrophoneWatch]).
      */
     fun startProbeMs(source: TriggerSource): Int = if (source.mayUseProxyFallback) PROBE_MS else 0
 
     /**
-     * Whether Android's speech recognition, which records in its own process on Embersay's
+     * Whether Android's speech recognition, which records in its own process on sayEmber's
      * behalf, failed in a way the proxy activity can mend: it never got the microphone open
      * ([opened] false) and said so - no permission, or no audio. Android checks the permission
-     * against Embersay's state in the background, so it is the same block the direct recorder
+     * against sayEmber's state in the background, so it is the same block the direct recorder
      * meets. Never once the microphone was open or a call ended it: then the words heard count.
      */
     fun proxyAfterRecognizerFailure(source: TriggerSource, opened: Boolean, endedByCall: Boolean, problem: Problem?): Boolean =

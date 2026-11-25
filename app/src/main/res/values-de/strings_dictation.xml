@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="dictation_mic_permission">Keine Mikrofon-Berechtigung. Öffne Embersay und erlaube sie.</string>
+    <string name="dictation_mic_permission">Keine Mikrofon-Berechtigung. Öffne sayEmber und erlaube sie.</string>
     <string name="dictation_mic_not_opened">Mikrofon nicht geöffnet. Tippe noch einmal auf die Bubble.</string>
     <string name="dictation_no_field">Kein Textfeld. Tippe zuerst in eines.</string>
     <string name="dictation_not_inserted_here">Hier nicht eingefügt. Halte die Bubble: „Letztes kopieren“.</string>
@@ -16,14 +16,14 @@
     <string name="dictation_mic_lost_sent">Mikrofon unterbrochen. Das bis dahin Gesagte zählt.</string>
     <string name="dictation_call_ended_sent">Ein Anruf hat die Aufnahme beendet. Das bis dahin Gesagte zählt.</string>
     <string name="dictation_call_ended">Ein Anruf hat die Aufnahme beendet.</string>
-    <string name="dictation_service_off">Nicht eingefügt. Schalte die Bedienungshilfe von Embersay ein.</string>
+    <string name="dictation_service_off">Nicht eingefügt. Schalte die Bedienungshilfe von sayEmber ein.</string>
     <string name="dictation_why_password">Das Feld ist jetzt ein Passwortfeld</string>
     <string name="dictation_why_no_field">Du schreibst nicht mehr in einem Textfeld</string>
     <string name="dictation_why_switched">Du bist in eine andere App gewechselt</string>
     <string name="dictation_why_screen_off">Der Bildschirm war aus oder gesperrt</string>
     <string name="dictation_on_clipboard_instead">%1$s. Der Text ist stattdessen in der Zwischenablage.</string>
     <string name="dictation_not_inserted">%1$s. Der Text wurde nicht eingefügt.</string>
-    <string name="dictation_typed_never_showed">Embersay hat den Text eingefügt, aber er erschien nicht im Feld</string>
+    <string name="dictation_typed_never_showed">sayEmber hat den Text eingefügt, aber er erschien nicht im Feld</string>
     <string name="dictation_no_field_accepted">Kein Textfeld hat den Text angenommen</string>
 
     <string name="fallback_server_too_slow">Server zu langsam. Der Text wurde auf dem Handy erkannt.</string>
@@ -44,7 +44,7 @@
     <string name="toast_try_again">%1$s. Halte die Bubble: „Nochmal versuchen“.</string>
     <string name="toast_key_rejected_try_again">%1$s lehnt den Schlüssel ab. Ersetze ihn, versuche es nochmal.</string>
     <string name="toast_timed_out_try_again">Zeit abgelaufen. Halte die Bubble: „Nochmal versuchen“.</string>
-    <string name="toast_get_language_pack">Das Sprachpaket fehlt. Öffne Embersay, um es zu holen.</string>
+    <string name="toast_get_language_pack">Das Sprachpaket fehlt. Öffne sayEmber, um es zu holen.</string>
     <string name="quick_too_late">Zu spät, das Diktat ist schon fertig.</string>
     <string name="quick_done_inserted">Letztes Diktat eingefügt</string>
     <string name="toast_cancelled_kept">Gestoppt. Die Aufnahme bleibt für „Nochmal versuchen“.</string>
@@ -53,7 +53,7 @@
     <string name="quick_done_start_over">Die Aufnahme beginnt von vorn</string>
     <string name="quick_done_as_recognized">Der Text bleibt unverändert</string>
     <string name="quick_done_paused">Pausiert. Tippe auf die Bubble, um einzufügen.</string>
-    <string name="quick_done_resumed">Embersay hört wieder zu</string>
+    <string name="quick_done_resumed">sayEmber hört wieder zu</string>
     <string name="quick_done_cleanup_on">Bereinigung in %1$s an</string>
     <string name="quick_done_cleanup_off">Bereinigung in %1$s aus</string>
     <string name="bubble_hidden_in">Bubble in %1$s ausgeblendet. Zurück unter Einstellungen → Apps.</string>
@@ -62,7 +62,7 @@
     <string name="undo_failed">In diesem Feld ließ es sich nicht rückgängig machen</string>
     <string name="quick_done_style">%1$s: %2$s</string>
     <string name="quick_done_style_no_cleanup">%1$s: %2$s. Ohne Bereinigung hier wirkt der Stil nicht.</string>
-    <string name="quick_open_failed">Android hat Embersay das Öffnen nicht erlaubt</string>
+    <string name="quick_open_failed">Android hat sayEmber das Öffnen nicht erlaubt</string>
     <!-- Why a grey quick menu button cannot run, said when the thumb lets go on it. -->
     <string name="quick_off_other_app">Nur in einer anderen App</string>
     <string name="quick_off_no_dictation">Noch kein Diktat</string>

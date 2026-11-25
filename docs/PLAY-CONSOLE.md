@@ -1,4 +1,4 @@
-# Google Play Console: what to fill in for Embersay
+# Google Play Console: what to fill in for sayEmber
 
 Written 2026-11-23 for the store review (`docs/plans/2026-11-22-store-review.md`, item 54), from
 the code on the branch `store-review`. Policy links are the ones checked during the review. Copy
@@ -30,7 +30,7 @@ the texts as they are; change them only together with the app.
 
 ## Accessibility API declaration (Permissions declaration form)
 
-Embersay is **not** an accessibility tool (`isAccessibilityTool` is not set).
+sayEmber is **not** an accessibility tool (`isAccessibilityTool` is not set).
 
 - **Core functionality:** Dictation into other apps.
 - **Does the app collect or share personal and sensitive data through the AccessibilityService
@@ -39,7 +39,7 @@ Embersay is **not** an accessibility tool (`isAccessibilityTool` is not set).
   for the statistics and the history.
 - **Description (paste):**
 
-  > Embersay is a voice dictation app. Its accessibility service shows a small dictation bubble
+  > sayEmber is a voice dictation app. Its accessibility service shows a small dictation bubble
   > over other apps while a text field is selected, keeps it clear of the keyboard, and inserts
   > the text the user dictated at the cursor of that field. To do that it reads which app is in
   > front and whether a text field is selected, where the keyboard is, and - only while inserting
@@ -49,8 +49,8 @@ Embersay is **not** an accessibility tool (`isAccessibilityTool` is not set).
   > it pastes it from the clipboard and clears the clipboard afterwards.
 
 - **Video (YouTube, unlisted), in this order, in one take:**
-  1. Fresh install, open Embersay, Quick setup.
-  2. The step "Let Embersay insert your text": the disclosure ("What Embersay reads and
+  1. Fresh install, open sayEmber, Quick setup.
+  2. The step "Let sayEmber insert your text": the disclosure ("What sayEmber reads and
      does") is on screen with the "Agree and open settings" button, its rows are not behind a
      tap; scroll slowly through them.
   3. Tap "Not now" - show that nothing was turned on - then open it again from Home's setup card.
@@ -95,7 +95,7 @@ No account, no ads, no analytics, no advertising ID.
   Transfers the user starts and expects are not "shared".
 - **Is all data encrypted in transit?** **No** - the user may use their own server over plain
   http on the local network. (Known services are https only: `network_security_config.xml`.)
-- **Is the data processed ephemerally?** Do not claim it - Embersay cannot vouch for the
+- **Is the data processed ephemerally?** Do not claim it - sayEmber cannot vouch for the
   retention of the services the user picks.
 - **Can users request deletion?** The developer keeps no data. Data on the phone (history,
   statistics, diagnostics) is deleted in the app or with the app.

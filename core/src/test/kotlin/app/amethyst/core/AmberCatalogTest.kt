@@ -71,7 +71,7 @@ class AmberCatalogTest {
     fun `an amber list gives both kinds, the defaults recommended`() {
         assertEquals("amber-pc", pc.service)
         assertEquals("0.4.2", pc.version)
-        assertEquals("Embersay PC", pc.name)
+        assertEquals("sayEmber PC", pc.name)
         assertEquals(
             listOf(ModelChoice("acft-large-v3-turbo-q8_0", "Large v3 Turbo", "on this PC · NVIDIA GPU (CUDA)", recommended = true)),
             pc.speech,
@@ -96,7 +96,7 @@ class AmberCatalogTest {
             ],"amber":{"service":"amber-server","version":"1.0.0","audio":["wav","opus"]}}
         """
         val catalog = assertNotNull(AmberCatalog.parse(body))
-        assertEquals("Embersay Server", catalog.name)
+        assertEquals("sayEmber Server", catalog.name)
         assertEquals(listOf("large-v3", "turbo"), catalog.speech.map { it.id })
         assertEquals(listOf(false, true), catalog.speech.map { it.recommended })
         assertEquals(listOf("qwen"), catalog.cleanup.map { it.id })
@@ -204,7 +204,7 @@ class AmberCatalogTest {
     @Test
     fun `an own server with a stored catalog is an amber provider`() {
         val provider = ServerProviders.forUrl(own.baseUrl, pc)
-        assertEquals("Embersay PC", provider.name)
+        assertEquals("sayEmber PC", provider.name)
         assertEquals(pc.speech, provider.speechModels)
         assertEquals(pc.cleanup, provider.cleanupModels)
         assertFalse(provider.fixedAddress)
@@ -215,7 +215,7 @@ class AmberCatalogTest {
         assertTrue(all.all { it.usdPerMIn == 0.0 && it.usdPerMOut == 0.0 && it.usdPerRequest == 0.0 && it.usdPerMinute == 0.0 })
 
         val server = ServerProviders.forUrl(own.baseUrl, pc.copy(service = "amber-server"))
-        assertEquals("Embersay Server", server.name)
+        assertEquals("sayEmber Server", server.name)
     }
 
     @Test
@@ -239,7 +239,7 @@ class AmberCatalogTest {
     fun `an engine's provider comes from the catalog stored for it, at its address`() {
         val settings = AmethystSettings.defaults(TEST_PHONE).withEngine(own)
             .copy(serverCatalogs = mapOf(own.id to StoredCatalog.of(own.baseUrl!!, pc)))
-        assertEquals("Embersay PC", ServerProviders.forEngine(own, settings).name)
+        assertEquals("sayEmber PC", ServerProviders.forEngine(own, settings).name)
         // The same address typed another way is the same server.
         val retyped = own.copy(baseUrl = "http://192.168.1.20:8765/k3y/")
         assertEquals(pc, settings.withEngine(retyped).catalogFor(retyped))

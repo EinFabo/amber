@@ -291,7 +291,7 @@ private fun OrbArea(
             else -> failure = null
         }
     }
-    // Leaving the app counts as leaving Home: Home stays composed while Embersay is in the
+    // Leaving the app counts as leaving Home: Home stays composed while sayEmber is in the
     // background, but the state is not collected then - a bubble dictation meanwhile would go
     // unseen, and the old reason (and "Try again" for the newer recording) would still be shown.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { failure = null }
@@ -501,7 +501,7 @@ private fun HistoryOfferCard(onTurnOn: () -> Unit, onNoThanks: () -> Unit) {
 }
 
 /**
- * Embersay was ended while a dictation recorded or was being written, and its recording is still
+ * sayEmber was ended while a dictation recorded or was being written, and its recording is still
  * on disk: recovered, it is recognized into the test field; deleted, it is gone.
  */
 @Composable
@@ -529,7 +529,7 @@ private fun RecoverRecordingCard(onRecover: () -> Unit, onDelete: () -> Unit) {
 }
 
 /**
- * The old Amber (app.amber, from before the rename to Embersay) is still installed: two apps,
+ * The old Amber (app.amber, from before the rename to sayEmber) is still installed: two apps,
  * two bubbles once both services are on. Its app info has Uninstall - this app cannot remove
  * another itself. Dismissed, it comes back only while the old app's service is on.
  */
@@ -584,7 +584,7 @@ private fun ServiceNotRunningCard(onOpenSettings: () -> Unit) {
 }
 
 /**
- * Another Embersay's service is on beside this one (the debug build, say): both show a bubble and
+ * Another sayEmber's service is on beside this one (the debug build, say): both show a bubble and
  * both react to the keyboard and the field, so things go wrong at random. Home and Diagnostics.
  */
 @Composable

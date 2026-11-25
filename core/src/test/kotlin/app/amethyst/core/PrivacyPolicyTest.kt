@@ -13,7 +13,7 @@ class PrivacyPolicyTest {
         val text = """
             # Privacy policy
 
-            Embersay is a dictation app.
+            sayEmber is a dictation app.
             It types into the app you are in.
 
             ## What stays on the phone
@@ -26,7 +26,7 @@ class PrivacyPolicyTest {
         assertEquals(
             listOf(
                 PolicyBlock.Title("Privacy policy"),
-                PolicyBlock.Paragraph("Embersay is a dictation app. It types into the app you are in."),
+                PolicyBlock.Paragraph("sayEmber is a dictation app. It types into the app you are in."),
                 PolicyBlock.Heading("What stays on the phone"),
                 PolicyBlock.Point("Settings, including the addresses of the servers you add."),
                 PolicyBlock.Point("API keys."),
@@ -38,10 +38,10 @@ class PrivacyPolicyTest {
 
     @Test
     fun `a line in brackets is something still missing`() {
-        val text = "Responsible for Embersay:\n\n[Controller and contact e-mail: to be added before publishing]\n"
+        val text = "Responsible for sayEmber:\n\n[Controller and contact e-mail: to be added before publishing]\n"
         assertEquals(
             listOf(
-                PolicyBlock.Paragraph("Responsible for Embersay:"),
+                PolicyBlock.Paragraph("Responsible for sayEmber:"),
                 PolicyBlock.Missing("[Controller and contact e-mail: to be added before publishing]"),
             ),
             PrivacyPolicy.parse(text),

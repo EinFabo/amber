@@ -17,7 +17,7 @@ import java.nio.ByteOrder
 
 /**
  * A dictation's recording on disk while it runs, so a process killed meanwhile - Android ending
- * Embersay for memory, a crash - does not lose it: the next start offers it on Home ("Recover
+ * sayEmber for memory, a crash - does not lose it: the next start offers it on Home ("Recover
  * last recording", [leftover]), to be recognized with the speech recognition set then.
  *
  * Only with the history on ([begin] with [HistoryKeep.OFF] writes nothing - the user chose no

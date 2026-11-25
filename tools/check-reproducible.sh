@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks that Embersay's release APK is reproducible: clones a commit twice, into two fresh
+# Checks that sayEmber's release APK is reproducible: clones a commit twice, into two fresh
 # directories whose paths differ in length (so an absolute path that leaks into the build
 # shows up), builds the unsigned release APK in each and compares the two byte for byte.
 #

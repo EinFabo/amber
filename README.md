@@ -1,4 +1,4 @@
-# Embersay
+# sayEmber
 
 Voice dictation for Android that writes into **any** app - local-first, with swappable speech
 recognition engines and a visible trust level on every dictation.
@@ -11,13 +11,13 @@ decide per dictation where your voice goes, and the app tells you.
 1. Download `embersay-<version>.apk` from the newest entry under
    [Releases](../../releases/latest). Android 9 or newer.
 2. Open it on the phone and allow installing from that source once.
-3. Open Embersay and follow the setup: allow the microphone, turn on the accessibility service.
+3. Open sayEmber and follow the setup: allow the microphone, turn on the accessibility service.
 4. Tap into any text field - the amber bubble appears. Tap it, speak, tap again.
 
-Before installing, you can [check the APK's signature](#verifying-a-release-apk). Embersay tells
+Before installing, you can [check the APK's signature](#verifying-a-release-apk). sayEmber tells
 you when a newer release is out; see [Updates](#updates).
 
-Out of the box Embersay recognizes speech **on the phone** (Android's speech recognition). Better
+Out of the box sayEmber recognizes speech **on the phone** (Android's speech recognition). Better
 local models (Whisper, Parakeet) can be downloaded inside the app; server engines (Groq,
 OpenAI, Tinfoil, your own server) need an API key you enter under *Engine*.
 
@@ -38,7 +38,7 @@ A **bubble** appears as soon as you tap into a text field and disappears afterwa
 done: the text is typed straight into the field at the cursor. No keyboard switch, no
 clipboard.
 
-The bubble is a `TYPE_ACCESSIBILITY_OVERLAY` of the accessibility service - which is why Embersay
+The bubble is a `TYPE_ACCESSIBILITY_OVERLAY` of the accessibility service - which is why sayEmber
 needs **no** "display over other apps" and **no** `SYSTEM_ALERT_WINDOW`.
 
 Controls:
@@ -59,7 +59,7 @@ Controls:
   someone who had them on before. The code stays as the base of a later phone remote-control mode; one switch in `:core`
   (`Features.VOICE_COMMANDS`) brings them back. Android 17's Advanced Protection takes the
   accessibility service - and so the bubble - away from every app that is not an
-  accessibility tool, Embersay included.
+  accessibility tool, sayEmber included.
 
 Look: fire, kept minimal. A flat amber disc with one dark glyph - a flame at rest, three level
 bars while listening, with a few sparks rising off the disc as loud as you speak ("Ember").
@@ -70,7 +70,7 @@ moves at rest. The sparks fly in a second overlay window that takes no touches.
 The app itself ("Hearth"): the engine and where it sends your voice, the flame, a row with
 today's numbers that opens the statistics, and a test field. Settings are a short grouped list, each row an icon and its
 state in a few words. A new install sees only the simple ones - recognition, cleanup, bubble
-and apps (each app's style, and where the bubble is hidden), then appearance and "About Embersay",
+and apps (each app's style, and where the bubble is hidden), then appearance and "About sayEmber",
 the page for what is no setting: version and updates, statistics, diagnostics, licenses and the
 introduction. One "Advanced settings" switch shows the rest: when the server fails, recording,
 text (filler words, commas, how the text is inserted) and reliability, and on the Cleanup page
@@ -111,13 +111,13 @@ writing style per app. Claude is the one exception: it cleans up only, in Anthro
 Messages API, with the same prompt and checks. What differs lives in a provider catalog (`ServerProviders`): the
 models each one offers, their prices for the cost estimate, and whether the address is fixed.
 Known providers get pickers; an own server gets free fields, and `http://` works there for
-addresses in your own network only. An own server that is an Embersay PC or Embersay Server lists
+addresses in your own network only. An own server that is an sayEmber PC or sayEmber Server lists
 its models itself (`GET /v1/models` with an `amber` object), and gets pickers too; the list is
 kept on the phone, so it also works offline. When the list says it takes Ogg Opus
 (`amber.audio`), recordings go up compressed - about a seventh to a tenth of the WAV, encoded
 on the phone with Android's own codec from Android 10 - and as WAV wherever that fails.
 
-**Embersay never claims more trust than it can prove.** An enclave engine only shows
+**sayEmber never claims more trust than it can prove.** An enclave engine only shows
 `ENCLAVE_VERIFIED` once its attestation has actually been verified. Your voice is never
 detoured to a less private place. The one fallback goes the other way: if a server cannot be
 reached, a downloaded local model recognizes the recording instead of it being lost - shown
@@ -126,7 +126,7 @@ as it happens, and switchable under Engine.
 ### Tinfoil: what "Enclave verified" means
 
 Tinfoil runs its models in confidential VMs (Intel TDX, AMD SEV-SNP) behind a router that is
-itself an attested enclave. Before sending, Embersay verifies the router with Tinfoil's own
+itself an attested enclave. Before sending, sayEmber verifies the router with Tinfoil's own
 verifier (`tinfoil-go/mobile`, bound with gomobile as `app/libs/tinfoil-mobile.aar`): the
 hardware quote up to the chip vendor's root, the signed release of
 `tinfoilsh/confidential-model-router` in the Sigstore transparency log, matching
@@ -192,7 +192,7 @@ ran.
 ### Microphone in the background
 
 From Android 11 an app in the background may only record with while-in-use access - yet the
-bubble is tapped while another app is in front. Embersay takes two routes (`MicrophoneRouter`):
+bubble is tapped while another app is in front. sayEmber takes two routes (`MicrophoneRouter`):
 
 1. **Directly** in the accessibility service's process, from Android 11. Android binds an
    accessibility service with `BIND_INCLUDE_CAPABILITIES` and
@@ -254,7 +254,7 @@ git config submodule.recurse true
 
 The version lives in `app/build.gradle.kts` (`versionName`, `versionCode`). A release is:
 
-1. Bump both numbers, commit as `Embersay <version>: <what changed, in a few words>`.
+1. Bump both numbers, commit as `sayEmber <version>: <what changed, in a few words>`.
 2. `tools/sign-release.sh` with the GitHub release key's settings - its `SIGN_PROPERTIES`,
    `SIGN_CERT_SHA256` set to the fingerprint below and `SIGN_OUTPUT=embersay-github.apk` (see the
    top of the script) - builds the release APK, has it signed on the signing host and checks
@@ -280,7 +280,7 @@ apksigner verify --print-certs embersay.apk | grep "certificate SHA-256"
 
 It must print exactly this one signer. Android also refuses an update signed with any other
 key: a build from this source signed with another key works the same, but cannot update an
-Embersay signed with this one, nor the other way round.
+sayEmber signed with this one, nor the other way round.
 
 ## Reproducible builds
 
@@ -304,7 +304,7 @@ apksigcopier compare embersay-<version>.apk --unsigned app/build/outputs/apk/rel
 rebuilt APK and checks that the result is the downloaded file: no output and exit code 0 mean
 the published APK is this source and nothing else. It needs `apksigner` from the Android
 build-tools on `PATH` (without it, it fails with an error rather than a verdict). This is also
-how F-Droid can rebuild Embersay and still ship it with this signature.
+how F-Droid can rebuild sayEmber and still ship it with this signature.
 
 `tools/check-reproducible.sh [<git ref>]` checks the build itself: it clones a commit twice,
 into directories at different paths, builds the unsigned release APK in each and prints
@@ -314,14 +314,14 @@ commit is the check across machines.
 
 ## Updates
 
-An Embersay from a GitHub release asks GitHub at most once a day, when its screen opens or its
+An sayEmber from a GitHub release asks GitHub at most once a day, when its screen opens or its
 accessibility service starts, whether a newer release is out: one request for
 `https://api.github.com/repos/EinFabo/amber/releases/latest`, without an account or any ID.
-GitHub sees the IP address, that Embersay asks, and its version - nothing else is sent. A check
+GitHub sees the IP address, that sayEmber asks, and its version - nothing else is sent. A check
 that got no answer at all (offline, a timeout) is tried again after an hour. A newer
 release shows as one notification and as a card on the home screen, both leading to its
 release page; downloading and installing stay up to you. Switch the check off under
-Settings → About Embersay → Updates. A build signed with any other key never checks: its updates come from
+Settings → About sayEmber → Updates. A build signed with any other key never checks: its updates come from
 where it was installed.
 
 ## Contributing
@@ -334,13 +334,13 @@ trailers. The `commit-msg` hook in `tools/hooks` enforces that. Project rules ar
 
 ```bash
 adb install -r app-debug.apk
-adb logcat -s Embersay:V     # states, chosen insertion strategy, latencies, keyboard, Tinfoil
+adb logcat -s sayEmber:V     # states, chosen insertion strategy, latencies, keyboard, Tinfoil
 ```
 
 The order is deliberate - it isolates failures instead of mixing them:
 
 1. Open the app, allow the microphone.
-2. **Test dictation** in the app's test field. Embersay is in the foreground here, where
+2. **Test dictation** in the app's test field. sayEmber is in the foreground here, where
    microphone access is never refused, and the target is an ordinary input field. If this
    works, microphone, engine, normalization and insertion are fine.
 3. Turn on the accessibility service → the bubble appears and can be dragged.
@@ -367,6 +367,6 @@ Command mode on selected text · dictionary and snippets · encrypted history. O
 
 ## License
 
-Embersay is free software under the [Apache License 2.0](LICENSE). What it is built from, and the
+sayEmber is free software under the [Apache License 2.0](LICENSE). What it is built from, and the
 licenses of the speech models it can download, are listed in [`NOTICE`](NOTICE) and in the app
-under Settings → About Embersay → Licenses.
+under Settings → About sayEmber → Licenses.

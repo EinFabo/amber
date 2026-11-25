@@ -2,7 +2,7 @@
 <!-- What a dictation says on the bubble, in a toast and on the app's screen
      (dictation/DictationController, capture/AudioCapture, the model stores). -->
 <resources>
-    <string name="dictation_mic_permission">No microphone access. Open Embersay and allow it.</string>
+    <string name="dictation_mic_permission">No microphone access. Open sayEmber and allow it.</string>
     <string name="dictation_mic_not_opened">Couldn\'t open the microphone. Tap the bubble to try again.</string>
     <string name="dictation_no_field">No text field selected. Tap one first.</string>
     <string name="dictation_not_inserted_here">Couldn\'t insert here. Hold the bubble and choose Copy last.</string>
@@ -14,11 +14,11 @@
     <string name="dictation_too_short">Too short. Speak a little longer.</string>
     <string name="dictation_nothing_heard">No speech recognized. Try again closer to the phone.</string>
     <string name="dictation_nothing_heard_kept">Didn\'t hear anything. Speak closer to the phone, or Try again.</string>
-    <string name="dictation_mic_taken_sent">Another app took the microphone. Embersay uses what you said so far.</string>
-    <string name="dictation_mic_lost_sent">Microphone interrupted. Embersay uses what you said so far.</string>
-    <string name="dictation_call_ended_sent">A call ended the recording. Embersay uses what you said so far.</string>
+    <string name="dictation_mic_taken_sent">Another app took the microphone. sayEmber uses what you said so far.</string>
+    <string name="dictation_mic_lost_sent">Microphone interrupted. sayEmber uses what you said so far.</string>
+    <string name="dictation_call_ended_sent">A call ended the recording. sayEmber uses what you said so far.</string>
     <string name="dictation_call_ended">A call ended the recording.</string>
-    <string name="dictation_service_off">Couldn\'t insert. Turn on Embersay\'s accessibility service.</string>
+    <string name="dictation_service_off">Couldn\'t insert. Turn on sayEmber\'s accessibility service.</string>
     <string name="dictation_why_password">The field is now a password field</string>
     <string name="dictation_why_no_field">No text field is selected anymore</string>
     <string name="dictation_why_switched">You switched to another app</string>
@@ -46,7 +46,7 @@
     <string name="toast_try_again">%1$s. Hold the bubble and choose Try again.</string>
     <string name="toast_key_rejected_try_again">%1$s rejected the API key. Replace it, then choose Try again.</string>
     <string name="toast_timed_out_try_again">Timed out. Hold the bubble and choose Try again.</string>
-    <string name="toast_get_language_pack">The language pack is missing. Open Embersay to get it.</string>
+    <string name="toast_get_language_pack">The language pack is missing. Open sayEmber to get it.</string>
     <string name="quick_too_late">Too late. That dictation is already finished.</string>
     <string name="quick_done_inserted">Last dictation inserted</string>
     <string name="quick_done_cancelled">Dictation canceled</string>
@@ -63,7 +63,7 @@
     <string name="undo_failed">Couldn\'t undo in this field</string>
     <string name="quick_done_style">%1$s: %2$s</string>
     <string name="quick_done_style_no_cleanup">%1$s: %2$s. No cleanup runs here, so it has no effect.</string>
-    <string name="quick_open_failed">Android didn\'t let Embersay open it</string>
+    <string name="quick_open_failed">Android didn\'t let sayEmber open it</string>
     <!-- Why a grey quick menu button cannot run, said when the thumb lets go on it. -->
     <string name="quick_off_other_app">Only in another app</string>
     <string name="quick_off_no_dictation">No dictation yet</string>

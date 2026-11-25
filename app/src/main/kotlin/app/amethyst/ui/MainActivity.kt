@@ -1095,7 +1095,7 @@ private fun AmethystScreens(
                                                         graph.appScope.launch(Dispatchers.IO) { graph.exits.restore(stopped) }
                                                     }
                                                 },
-                                                appTitle = "Embersay $version".trim(), // English: the report's heading
+                                                appTitle = "sayEmber $version".trim(), // English: the report's heading
                                                 // The security mode never writes the clipboard.
                                                 canCopy = SecurityMode.mayCopy(settings),
                                                 exits = exits,

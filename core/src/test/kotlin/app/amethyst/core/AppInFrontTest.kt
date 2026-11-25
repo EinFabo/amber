@@ -26,7 +26,7 @@ class AppInFrontTest {
     }
 
     @Test
-    fun `only Embersay's main screen counts of its own windows - not an overlay, a toast or the microphone helper`() {
+    fun `only sayEmber's main screen counts of its own windows - not an overlay, a toast or the microphone helper`() {
         assertEquals(own, rule.afterWindowChange(own, main, fromKeyboard = false))
         assertNull(rule.afterWindowChange(own, "android.widget.FrameLayout", fromKeyboard = false))
         assertNull(rule.afterWindowChange(own, "app.amethyst.capture.MicProxyActivity", fromKeyboard = false))
@@ -42,7 +42,7 @@ class AppInFrontTest {
     }
 
     @Test
-    fun `Embersay itself is never an app seen in front, and the home check is not asked for it`() {
+    fun `sayEmber itself is never an app seen in front, and the home check is not asked for it`() {
         var asked = false
         assertFalse(rule.worthNoting(own) { asked = true; false })
         assertFalse(asked)

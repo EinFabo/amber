@@ -196,7 +196,7 @@ class ServersTest {
         assertEquals("Groq", ServerNames.plainName(server.copy(baseUrl = "https://api.groq.com/openai/v1"), null))
         assertEquals("transcribe.example.org", ServerNames.plainName(server.copy(baseUrl = "https://www.transcribe.example.org/v1"), null))
         val pc = assertNotNull(AmberCatalog.parse(AMBER_PC_MODELS))
-        assertEquals("Embersay PC", ServerNames.plainName(server.copy(baseUrl = "http://192.168.1.20:8765/k/v1"), pc))
+        assertEquals("sayEmber PC", ServerNames.plainName(server.copy(baseUrl = "http://192.168.1.20:8765/k/v1"), pc))
     }
 
     @Test
@@ -208,7 +208,7 @@ class ServersTest {
             serverCatalogs = mapOf("server-a" to StoredCatalog.of(a.baseUrl!!, pc), "server-b" to StoredCatalog.of(b.baseUrl!!, pc)),
         )
         val named = ServerNames.apply(settings).engines.filter(Servers::isServer).map { it.displayName }
-        assertEquals(listOf("Embersay PC (192.168.1.20)", "Embersay PC (192.168.1.30)"), named)
+        assertEquals(listOf("sayEmber PC (192.168.1.20)", "sayEmber PC (192.168.1.30)"), named)
         // Tinfoil and the phone's own keep their names; nothing to change, the same settings come back.
         val again = ServerNames.apply(settings)
         assertSame(again, ServerNames.apply(again))

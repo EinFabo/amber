@@ -176,7 +176,7 @@ open class Screenshots {
         )
     }
 
-    /** Not part of the listing set: the old Amber still installed beside Embersay, the debug build's service on too. */
+    /** Not part of the listing set: the old Amber still installed beside sayEmber, the debug build's service on too. */
     @Test
     fun homeOldAmber() = shoot("x-home-old-amber", AMBER) {
         HomeScreen(

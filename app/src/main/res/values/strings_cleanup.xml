@@ -18,11 +18,11 @@
     <string name="cleanup_ready">ready</string>
     <string name="cleanup_needs_key">needs an API key</string>
     <string name="cleanup_add_server">Add your own server</string>
-    <string name="cleanup_add_server_note">An Embersay PC, Ollama, LM Studio, OpenRouter…</string>
+    <string name="cleanup_add_server_note">An sayEmber PC, Ollama, LM Studio, OpenRouter…</string>
     <string name="cleanup_sheet_tinfoil">A protected server (enclave). The text is cleaned up there and not stored.</string>
     <string name="cleanup_sheet_cloud">The recognized text is sent to %1$s for the cleanup.</string>
     <string name="cleanup_sheet_own">Your own server at %1$s cleans up the text.</string>
-    <string name="cleanup_sheet_new_server">A server you run or rent. Embersay loads its list of models.</string>
+    <string name="cleanup_sheet_new_server">A server you run or rent. sayEmber loads its list of models.</string>
     <string name="cleanup_key_stored">API key stored.</string>
     <string name="cleanup_key_none">No API key stored.</string>
     <string name="cleanup_key_change">Change</string>
@@ -38,7 +38,7 @@
     <string name="cleanup_testing">Testing the key…</string>
     <string name="cleanup_asking">Loading the server\'s models…</string>
     <string name="cleanup_use_anyway">Use anyway</string>
-    <string name="cleanup_address_example">For example https://openrouter.ai/api/v1. An Embersay PC, Ollama or LM Studio on your own network also works.</string>
+    <string name="cleanup_address_example">For example https://openrouter.ai/api/v1. An sayEmber PC, Ollama or LM Studio on your own network also works.</string>
     <string name="cleanup_model_example">The model name the server uses, for example llama3.2.</string>
     <string name="cleanup_edit_server">Edit server</string>
     <string name="fallback_who">Fallback</string>
@@ -51,7 +51,7 @@
     <string name="fallback_ready_subtitle">So the fallback is quick</string>
     <string name="fallback_prepare">Also recognize on the phone</string>
     <string name="fallback_prepare_note">Uses more battery while you dictate. Needs a downloaded model.</string>
-    <string name="fallback_prepare_on">If the server is much slower than usual, Embersay uses the text from the phone.</string>
+    <string name="fallback_prepare_on">If the server is much slower than usual, sayEmber uses the text from the phone.</string>
     <string name="style_title">Style</string>
     <string name="style_subtitle">How the text reads in %1$s</string>
     <string name="style_instruction">Instruction for this app (optional)</string>

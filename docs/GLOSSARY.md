@@ -1,4 +1,4 @@
-# Embersay - glossary
+# sayEmber - glossary
 
 The words the app uses, in English and German. Approved by Fabi on 2026-11-07 (roadmap P4).
 Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The German text says
@@ -6,7 +6,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 
 | Thing | English | German | Not | Not (DE) |
 |---|---|---|---|---|
-| The app's name (from 2026-11-17, decided by Fabi; before: Amber). No article in German, no genitive "Embersays": "die Bubble von Embersay". Its own PC and server programs are shown as Embersay PC and Embersay Server | Embersay | Embersay | Amber, Ember Say, EmberSay | |
+| The app's name (from 2026-11-25, decided by Fabi; before: Embersay from 2026-11-17, Amber before that). Written with a small "s" and a capital "E", also at the start of a sentence. No article in German, no genitive "sayEmbers": "die Bubble von sayEmber". Its own PC and server programs are shown as sayEmber PC and sayEmber Server | sayEmber | sayEmber | Embersay (only to tell of the rename), Amber, SayEmber, Say Ember, Sayember | Embersay (nur beim Hinweis auf die Umbenennung), SayEmber |
 | The app before the rename, still on some phones (Home asks to uninstall it) | the old Amber app, Amber (old app) | die alte Amber-App, Amber (alte App) | | |
 | What turns speech into text | speech recognition | Spracherkennung | engine, STT, backend | Erkennung (alone), Engine |
 | Android's own recognizer | Android's speech recognition | Spracherkennung von Android | Android STT | Androids Spracherkennung, Android-Spracherkennung, Systemerkennung |
@@ -48,7 +48,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | | clipboard | Zwischenablage | | |
 | Wireless network | Wi-Fi | WLAN | | |
 | The settings pages | Diagnostics, Statistics, Reliability | Diagnose, Statistik, Zuverlässigkeit | | |
-| The page with what is about the app rather than a setting (not yet approved) | About Embersay | Über Embersay | Info, Imprint | |
+| The page with what is about the app rather than a setting (not yet approved) | About sayEmber | Über sayEmber | Info, Imprint | |
 | Light or dark (added with P8, not yet approved) | Appearance: Like the phone, Light, Dark | Darstellung: Wie das Handy, Hell, Dunkel | theme, mode, system default | |
 | Hidden for now (`Features.VOICE_COMMANDS`) | voice commands | Sprachbefehle | | |
 | A published build of the app | version, release | Version | | Release |
@@ -58,7 +58,7 @@ Plain words for everyone: no "engine", "backend" or "endpoint" on screen. The Ge
 | The machine name in an address | host | Servername | | Host |
 | Whether a text field is being written in | (field has focus) | ob du gerade in ein Textfeld schreibst | | Fokus |
 
-Names stay as they are: Embersay, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI, Android.
+Names stay as they are: sayEmber, Whisper, Parakeet, Voxtral, Tinfoil, Groq, OpenAI, Android.
 
 ## What stays English
 
@@ -84,11 +84,11 @@ Along the lines of Material's writing guidance and Microsoft's German style guid
   lists ("comma, period, question mark"), no "and the like ... each in a dictation of its
   language".
 - **No filler that sounds written by a machine**: no "seamlessly", "simply", "nothing is made
-  up", no dash chains (" - ... -, ..."), no "arrives at the cursor". Say who does it: "Embersay
+  up", no dash chains (" - ... -, ..."), no "arrives at the cursor". Say who does it: "sayEmber
   pastes the text", "du bekommst eine Meldung".
 - German: "du", active verbs instead of nouns ("wenn eine App den Text nicht annimmt", not
   "bei Nichtannahme"), „…“ quotes, words from the table above ("einfügen", never "tippen" for
-  what Embersay does).
+  what sayEmber does).
 - German punctuation and forms (settled 2026-11-20, after Fabi found the German "AI-written"):
   no " - " as a dash (two sentences, a comma or a colon instead; where a dash is really right,
   " – " once at most); imperatives with -e ("Wähle", "Versuche", "Ziehe", "Probiere"); a

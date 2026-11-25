@@ -59,7 +59,7 @@ object OwnClipboard {
             val description = clipboard.primaryClipDescription ?: return false
             if (!OwnClip.isOurs(description.label, description.extras?.getBoolean(OwnClip.MARK, false) == true)) return false
             clipboard.clearPrimaryClip()
-            Log.i(TAG, "Embersay's clip cleared from the clipboard")
+            Log.i(TAG, "sayEmber's clip cleared from the clipboard")
             true
         } catch (e: Exception) {
             Log.w(TAG, "clipboard not cleared: ${e.javaClass.simpleName}")

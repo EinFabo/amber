@@ -95,10 +95,10 @@ data class QuickSlot(val action: QuickAction, val enabled: Boolean)
  * alone left people guessing ([QuickActions.whyOff]). The words are in the app's strings.
  */
 enum class QuickOff {
-    /** Hiding, the cleanup switch and the styles belong to an app, and Embersay is in front. */
+    /** Hiding, the cleanup switch and the styles belong to an app, and sayEmber is in front. */
     OTHER_APP_ONLY,
 
-    /** Nothing dictated since Embersay started, so nothing to insert or copy. */
+    /** Nothing dictated since sayEmber started, so nothing to insert or copy. */
     NO_DICTATION,
 
     /** There is a dictation, but the last insertion is not in the app in front. */
