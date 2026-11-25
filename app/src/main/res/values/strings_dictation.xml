@@ -87,4 +87,5 @@
     <string name="toast_copy_last">Couldn\'t insert. Hold the bubble, choose Copy last, then paste.</string>
     <string name="toast_cancelled_kept">Stopped. The recording is kept for Try again.</string>
     <string name="toast_still_working">Still working. Hold the bubble to cancel.</string>
+    <string name="toast_last_run_ending">One moment, the last dictation is still finishing.</string>
 </resources>

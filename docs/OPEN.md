@@ -315,7 +315,15 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   working (after you stopped talking) now keeps the recording for "Try again" and says so
   ("Stopped. The recording is kept for Try again."). Try on a phone: dictate, stop, and cancel
   from the quick menu while the bubble works, then hold the bubble and choose Try again. A cancel
-  while still listening, and Start over, keep nothing as before.
+  while still listening, and Start over, keep nothing as before. Final review fix: a cancel once
+  the words are going into the field keeps nothing (nothing stops them there, and Try again
+  would type them twice: "Dictation canceled", the words still land); a cancelled run stops
+  before the field is touched (`CancelledRun`). Try again waits until the cancelled run has
+  ended, and a new tap while its words still go in waits too: "One moment, the last dictation
+  is still finishing." Try: with a slow field (a big WhatsApp chat on the A20e), cancel just as
+  the words begin to appear - they appear once, Try again is not offered; cancel during a long
+  recognition on the phone (Whisper on the A20e) and tap Try again at once - the toast, then
+  Try again works a few seconds later.
 - **A2, a model on the phone that fails or runs out of memory keeps the recording.** Parakeet
   or Whisper running out of memory or failing now keeps the recording for "Try again" ("Not
   enough memory for the model. Hold the bubble and choose Try again."), and the failed model is

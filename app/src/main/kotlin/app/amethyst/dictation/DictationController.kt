@@ -52,6 +52,7 @@ import app.amethyst.core.commands.Understanding
 import app.amethyst.core.commands.VoiceCommands
 import app.amethyst.core.dictation.Anonymize
 import app.amethyst.core.dictation.BubbleTap
+import app.amethyst.core.dictation.CancelledRun
 import app.amethyst.core.dictation.KeptDictation
 import app.amethyst.core.dictation.RecordingSpool
 import app.amethyst.core.dictation.NotInserted
@@ -111,12 +112,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -208,6 +211,17 @@ class DictationController(
      */
     @Volatile
     private var runAudio: PcmAudio? = null
+
+    /**
+     * This run's words are going into the field ([beginDelivery]): from there nothing stops
+     * them, so a cancel keeps no recording that "Try again" would type a second time, and a new
+     * dictation waits until they are in ([CancelledRun]). Set under [deliveryLock].
+     */
+    @Volatile
+    private var delivering = false
+
+    /** Taken by [cancel] and [beginDelivery]: a cancel comes either before the words go in, or after. */
+    private val deliveryLock = Any()
 
     /** What is kept of a failed dictation for "Try again"; see [KeptDictation]. */
     private val kept: KeptDictation get() = graph.memory.kept
@@ -338,6 +352,7 @@ class DictationController(
         wait = null
         runAudio = null
         runWords = null
+        delivering = false
         // A run cancelled while its recognizer listened left its microphone counted as open.
         cue.ended()
         stoppedByTap = false
@@ -408,6 +423,12 @@ class DictationController(
             arrival.stopped
         } else {
             if (isRunning) return
+            // A cancelled run whose words are still going in: its "done" would land on this run.
+            if (!CancelledRun.mayBegin(retry = false, previousEnded = job?.isCompleted != false, previousDelivering = delivering)) {
+                Log.i(TAG, "not starting: the dictation before is still being inserted")
+                toast(R.string.toast_last_run_ending)
+                return
+            }
             false
         }
         // The app being dictated into picks the speech recognition: its own, or the one for
@@ -602,12 +623,19 @@ class DictationController(
      * Once the recording has ended (the bubble is working on it) it is kept for "Try again"
      * instead ([Problem.Cancelled]): true then, for the caller to say so. A cancel while
      * listening is the user ending the recording on purpose: nothing is kept, nor with
-     * [keepRecording] false (start over).
+     * [keepRecording] false (start over). Nor once the words are going into the field
+     * ([delivering]): nothing stops them there, and "Try again" would type them twice.
      */
     fun cancel(keepRecording: Boolean = true): Boolean {
         handover.cancel()
-        val keptNow = keepRecording && _state.value is DictationState.Transcribing && keepForRetry(Problem.Cancelled)
-        job?.cancel()
+        // Under the lock [beginDelivery] takes: a cancel comes either before the words go in -
+        // the recording kept, the insertion stopped there - or after, keeping nothing.
+        val keptNow = synchronized(deliveryLock) {
+            val keep = CancelledRun.keepsRecording(keepRecording, working = _state.value is DictationState.Transcribing, delivering = delivering) &&
+                keepForRetry(Problem.Cancelled)
+            job?.cancel()
+            keep
+        }
         _state.value = DictationState.Idle
         return keptNow
     }
@@ -1615,6 +1643,13 @@ class DictationController(
     fun tryAgain(forHistory: Boolean = false, inAmber: Boolean = false): Boolean {
         if (isRunning) return false
         val audio = kept.recording() ?: return false
+        // A cancelled run still recognizing or inserting: how it ends decides whether this
+        // recording is still wanted, and its last steps must not land on the retry.
+        if (!CancelledRun.mayBegin(retry = true, previousEnded = job?.isCompleted != false, previousDelivering = delivering)) {
+            Log.i(TAG, "Try again waits: the dictation before has not ended yet")
+            toast(R.string.toast_last_run_ending)
+            return false
+        }
         takeStartTarget()
         runInAmber = inAmber
         runPackage = targetApp()
@@ -2250,6 +2285,11 @@ class DictationController(
         settings: app.amethyst.core.settings.AmethystSettings,
         engineId: String,
     ) {
+        // A run cancelled while its words were being recognized ends here, its recording kept
+        // by the cancel: neither typed nor put in the record, which would let go of it.
+        currentCoroutineContext().ensureActive()
+        // This run's: what it ends with touches no run that began after it.
+        val serial = runSerial
         val cleaned = normalized(transcript, settings, engineId)
         if (cleaned.isBlank()) {
             fail(said(Problem.NothingRecognized), engineId)
@@ -2274,6 +2314,8 @@ class DictationController(
         }
 
         awaitFocusReturn()
+        // From here the words go in, with no point on the way where a cancel could stop them.
+        beginDelivery()
 
         var now = graph.accessibilityService?.focusedTarget()
         var verdict = TargetCheck.verdict(startTarget, now, startApp)
@@ -2289,7 +2331,8 @@ class DictationController(
                 // Focused as a tap would: the app starts input again and the words are typed,
                 // the way that keeps them. Where focus does not take, they go into the node.
                 inserter.focus(node)
-                delay(FOCUS_SETTLE_MS)
+                // The words go in now whatever comes: a cancel here would lose them, kept nowhere.
+                withContext(NonCancellable) { delay(FOCUS_SETTLE_MS) }
                 now = graph.accessibilityService?.focusedTarget()
                 verdict = TargetCheck.verdict(startTarget, now, startApp)
                 if (verdict == TargetCheck.Verdict.NO_FIELD) {
@@ -2340,7 +2383,7 @@ class DictationController(
         }
 
         remember(insertion)
-        wordsKept()
+        wordsKept(serial)
         trace?.servedBy = transcript.servedBy
         val finalTranscript = transcript.copy(text = cleaned)
         graph.memory.log.recordSuccess(
@@ -2364,13 +2407,26 @@ class DictationController(
             insertedIntoApp = insertion.targetPackage,
             copiedOnly = DeliveryLook.of(insertion.insertedIntoField, insertion.copiedToClipboard) == DeliveryLook.ON_CLIPBOARD,
         )
-        _state.value = done
+        if (runSerial == serial) _state.value = done
         // Only words in the field count as inserted (the practice step ticks on this).
         if (!done.copiedOnly) graph.bubbleEvents.tryEmit(BubbleEvent.DictationInserted)
 
         // Let the bubble show the result for a moment, then go back to resting. Launched
         // separately so this pause is not charged to the dictation's timeout.
-        restAfter<DictationState.Done>(DONE_DISPLAY_MS)
+        restAfter<DictationState.Done>(DONE_DISPLAY_MS, serial)
+    }
+
+    /**
+     * The words are about to go in: a run cancelled before this ends here - its recording was
+     * kept by the cancel - and from here a cancel keeps nothing ([delivering]). Under
+     * [deliveryLock], so a cancel at this very moment is one or the other, never neither.
+     */
+    private suspend fun beginDelivery() {
+        val context = currentCoroutineContext()
+        synchronized(deliveryLock) {
+            context.ensureActive()
+            delivering = true
+        }
     }
 
     /** The words as they go into a field: spoken punctuation, fillers, spacing ([TranscriptNormalizer]). */
@@ -2397,20 +2453,22 @@ class DictationController(
      * these words are kept for Insert again and Copy last. Only here, once they are safe: words
      * that were dropped on the way would otherwise take the recording with them. This run's own
      * recording goes too: an error after this point must not keep it for a Try again that would
-     * insert the same words a second time.
+     * insert the same words a second time. [serial]: the run the words are of - one that ended
+     * late, cancelled while they went in, leaves alone what a newer run holds.
      */
-    private fun wordsKept() {
-        runWords = null
-        runAudio = null
+    private fun wordsKept(serial: Int = runSerial) {
+        if (serial == runSerial) {
+            runWords = null
+            runAudio = null
+        }
         if (_mode.value == RunMode.DICTATION) kept.textRecognized()
     }
 
     /**
-     * The bubble goes back to resting after [ms] if it still shows [S] - this run's. A newer run
-     * meanwhile has its own result on show, which this run's timer must not end early.
+     * The bubble goes back to resting after [ms] if it still shows [S] - this run's ([serial]).
+     * A newer run meanwhile has its own result on show, which this run's timer must not end early.
      */
-    private inline fun <reified S : DictationState> restAfter(ms: Long) {
-        val serial = runSerial
+    private inline fun <reified S : DictationState> restAfter(ms: Long, serial: Int = runSerial) {
         scope.launch {
             delay(ms)
             if (runSerial == serial && _state.value is S) _state.value = DictationState.Idle

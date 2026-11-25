@@ -85,4 +85,5 @@
     <string name="fallback_model_gone">%1$s hat das Modell nicht. Stattdessen mit %2$s erkannt.</string>
     <string name="toast_copy_last">Nicht eingefügt. Halte die Bubble: „Letztes kopieren“.</string>
     <string name="toast_still_working">Läuft noch. Halte die Bubble, um abzubrechen.</string>
+    <string name="toast_last_run_ending">Einen Moment, das letzte Diktat ist noch nicht fertig.</string>
 </resources>
