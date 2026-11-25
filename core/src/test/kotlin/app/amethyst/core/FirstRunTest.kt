@@ -9,6 +9,7 @@ import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.onboarding.DoneState
 import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.LanguagePackAnswer
+import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.PendingStage
 import app.amethyst.core.onboarding.PendingVerdict
 import app.amethyst.core.onboarding.QuickPlan
@@ -626,5 +627,17 @@ class FirstRunTest {
         // Another recognition chosen since: no pack of Android's to wait for.
         assertNull(FirstRun.languagePack(FirstRun.quick(fresh, viaSmall, apps, TEST_PHONE), missing, defaultTag = "de-DE"))
         assertNull(FirstRun.languagePack(fresh, null, defaultTag = "de-DE"))
+    }
+
+    @Test
+    fun `reaching practice with setup ready finishes the introduction`() {
+        val before = OnboardingStep.entries.filter { it.ordinal < OnboardingStep.PRACTICE.ordinal }
+        before.forEach { assertFalse(FirstRun.finished(it, setupReady = true), it.name) }
+        assertTrue(FirstRun.finished(OnboardingStep.PRACTICE, setupReady = true))
+        assertTrue(FirstRun.finished(OnboardingStep.RELIABILITY, setupReady = true))
+        assertTrue(FirstRun.finished(OnboardingStep.DONE, setupReady = true))
+        // Not while the bubble cannot work: the introduction comes back to the missing step.
+        assertFalse(FirstRun.finished(OnboardingStep.PRACTICE, setupReady = false))
+        assertFalse(FirstRun.finished(OnboardingStep.DONE, setupReady = false))
     }
 }

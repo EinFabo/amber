@@ -136,6 +136,15 @@ object FirstRun {
     fun applies(settings: AmethystSettings): Boolean = !settings.onboardingDone
 
     /**
+     * Whether the introduction counts as done at [step]: from the practice step on, once the
+     * bubble can work ([setupReady]: the microphone allowed and the service really running).
+     * Leaving there brings Home, not the welcome again. Not before - and not while setup is
+     * missing, so a replay or a lost permission comes back to the introduction.
+     */
+    fun finished(step: OnboardingStep, setupReady: Boolean): Boolean =
+        setupReady && step.ordinal >= OnboardingStep.PRACTICE.ordinal
+
+    /**
      * The quick setup's choices written into [settings]: the [plan]'s recognition and the app
      * styles. The recognition only while nobody chose one - Android's, as installed, and no
      * other waiting; cleanup is left as it is, which on a new install is off. The models still

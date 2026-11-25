@@ -645,6 +645,14 @@ private fun AmethystScreens(
         graph.appScope.launch { graph.settingsStore.update(transform) }
     }
 
+    // Reaching the practice step with the bubble working ends the introduction: leaving there,
+    // by Back or by closing Amber, no longer brings the welcome again.
+    LaunchedEffect(step, setup.working, settings.onboardingDone) {
+        if (!settings.onboardingDone && FirstRun.finished(step, setup.working)) {
+            updateSettings { it.copy(onboardingDone = true) }
+        }
+    }
+
     // Which build this is and its version, read on the IO pool at the start; null for the moment
     // before. The GitHub build alone checks for updates.
     val build by graph.updates.build.collectAsStateWithLifecycle()

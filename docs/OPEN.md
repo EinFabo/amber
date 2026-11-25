@@ -5,6 +5,11 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C2, the introduction counts as done once the bubble works.** Reaching the practice step
+  (or later) with the microphone allowed and the bubble's service really running ends the
+  introduction at once, instead of only at the last step's button: leaving at the practice
+  step by Back or by closing Amber no longer brings the welcome again. Try on a phone: start
+  fresh, get to the practice step, close Amber, open it again - Home, not the welcome.
 - **C1, phones with no speech recognition at all get an honest setup.** Where no model fits
   and the phone has no recognizer of Android's (de-Googled), the quick setup no longer calls
   Android's recognition ready: the engine step recommends "Choose a model or server", the last

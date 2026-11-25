@@ -44,6 +44,9 @@ data class SetupState(
     /** The two that are actually mandatory; the rest only improve reliability. */
     val ready: Boolean get() = microphoneGranted && accessibilityEnabled
 
+    /** Ready and the service is really connected - not just switched on, not still starting. */
+    val working: Boolean get() = ready && serviceHealth == ServiceHealth.RUNNING
+
     /** The switch is on, yet the service never connected: "ready" would be a lie. */
     val serviceNotRunning: Boolean get() = serviceHealth == ServiceHealth.NOT_RUNNING
 }
