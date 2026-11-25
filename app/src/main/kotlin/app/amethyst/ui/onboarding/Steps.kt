@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.amethyst.R
 import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.engine.WelcomePrivacy
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.WelcomeNote
 import app.amethyst.ui.AccessibilityDisclosure
@@ -67,8 +68,9 @@ private fun Point(title: String, text: String, modifier: Modifier = Modifier) {
  * the stage gets lower first, so the three points still fit.
  *
  * "Your voice stays on this phone" is promised only where the quick setup's pick keeps it there
- * ([EngineAdvice.keepsVoiceOnPhone]); where it is Android's recognition without an on-device
- * recognizer, the point says that instead. Until the [phone]'s facts are read - a moment, off
+ * ([EngineAdvice.welcomePrivacy]); where it is Android's recognition without an on-device
+ * recognizer, the point says that instead, and on a phone where nothing recognizes yet (no
+ * recognizer of Android's, no model that fits) it says so. Until the [phone]'s facts are read - a moment, off
  * the main thread - the point keeps its room but shows nothing, so no promise flashes up.
  * A [note] says what Quick setup downloads ([FirstRun.welcomeNote]), before the tap.
  */
@@ -91,10 +93,17 @@ internal fun WelcomeStep(phone: PhoneFacts?, onPath: (OnboardingPath) -> Unit, o
         stageHeights = WELCOME_STAGE_MIN..STAGE_HEIGHT,
     ) {
         Point(stringResource(R.string.welcome_every_app), stringResource(R.string.welcome_every_app_note))
-        val keeps = phone?.let(EngineAdvice::keepsVoiceOnPhone) ?: true
+        val privacy = phone?.let(EngineAdvice::welcomePrivacy) ?: WelcomePrivacy.ON_PHONE
         Point(
-            stringResource(if (keeps) R.string.welcome_private else R.string.welcome_android),
-            stringResource(if (keeps) R.string.welcome_private_note else R.string.welcome_android_note),
+            stringResource(if (privacy == WelcomePrivacy.ON_PHONE) R.string.welcome_private else R.string.welcome_android),
+            stringResource(
+                when (privacy) {
+                    WelcomePrivacy.ON_PHONE -> R.string.welcome_private_note
+                    WelcomePrivacy.ANDROID_MAY_SEND -> R.string.welcome_android_note
+                    // The same words as the last step and the practice step: no recognition of Android's to name.
+                    WelcomePrivacy.NOTHING_YET -> R.string.no_recognition_note
+                },
+            ),
             Modifier.alpha(if (phone == null) 0f else 1f),
         )
         Point(stringResource(R.string.welcome_only_dictating), stringResource(R.string.welcome_only_dictating_note))

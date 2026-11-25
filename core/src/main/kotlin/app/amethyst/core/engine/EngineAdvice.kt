@@ -30,6 +30,18 @@ enum class EngineOption(val presetId: String, val whisperModelId: String?, val d
 
 data class Advice(val recommended: EngineOption, val others: List<EngineOption>)
 
+/** What the welcome step says about where the voice goes ([EngineAdvice.welcomePrivacy]). */
+enum class WelcomePrivacy {
+    /** The quick setup's pick recognizes on the phone: "Your voice stays on this phone". */
+    ON_PHONE,
+
+    /** Android's recognition, which may send the voice to its maker. */
+    ANDROID_MAY_SEND,
+
+    /** Nothing on the phone recognizes speech yet (de-Googled, no model fits): a model or a server, the user's choice. */
+    NOTHING_YET,
+}
+
 /**
  * The engine to suggest on this phone: the most accurate one that is fast here and fits. The
  * thresholds are a first guess (Parakeet needs about 700 MB of memory while dictating) and
@@ -79,6 +91,18 @@ object EngineAdvice {
         // Nothing recognizes yet: no promise about where the voice goes.
         EngineOption.SERVER -> false
         else -> true
+    }
+
+    /**
+     * The welcome step's line about the voice, from the quick setup's pick here: on the phone
+     * ([keepsVoiceOnPhone]), Android's recognition that may send it on, or - where the pick is
+     * [EngineOption.SERVER] because the phone has no recognizer of Android's and no model fits -
+     * that nothing recognizes yet, rather than naming a recognition the phone does not have.
+     */
+    fun welcomePrivacy(phone: PhoneFacts): WelcomePrivacy = when {
+        keepsVoiceOnPhone(phone) -> WelcomePrivacy.ON_PHONE
+        recommend(phone).recommended == EngineOption.SERVER -> WelcomePrivacy.NOTHING_YET
+        else -> WelcomePrivacy.ANDROID_MAY_SEND
     }
 
     fun fits(option: EngineOption, phone: PhoneFacts): Boolean {

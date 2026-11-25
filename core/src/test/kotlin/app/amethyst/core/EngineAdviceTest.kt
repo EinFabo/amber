@@ -3,6 +3,7 @@ package app.amethyst.core
 import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.EngineOption
 import app.amethyst.core.engine.PhoneFacts
+import app.amethyst.core.engine.WelcomePrivacy
 import app.amethyst.core.engine.sherpa.ParakeetModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -103,5 +104,20 @@ class EngineAdviceTest {
         assertEquals(EngineOption.PARAKEET, advice.recommended)
         assertFalse(EngineOption.ANDROID in advice.others)
         assertTrue(EngineOption.SERVER in advice.others)
+    }
+
+    @Test
+    fun `the welcome says where the voice goes, and on a phone with nothing to recognize that nothing does yet`() {
+        // A model fits: it stays on the phone.
+        assertEquals(WelcomePrivacy.ON_PHONE, EngineAdvice.welcomePrivacy(phone(8_000, 4_000, onDevice = false)))
+        // Android's recognition, picked where no model fits: on the phone only where it recognizes there.
+        val a20e = phone(2_800, 20_000, whisperCpu = false, onDevice = false)
+        assertEquals(WelcomePrivacy.ANDROID_MAY_SEND, EngineAdvice.welcomePrivacy(a20e))
+        assertEquals(WelcomePrivacy.ON_PHONE, EngineAdvice.welcomePrivacy(a20e.copy(androidOnDevice = true)))
+        // De-Googled, no model fits: no Android recognition to name - nothing recognizes yet.
+        val bare = PhoneFacts(totalRamMb = 2_048, freeStorageMb = 500, whisperCpu = false, androidOnDevice = false, androidRecognizer = false)
+        assertEquals(WelcomePrivacy.NOTHING_YET, EngineAdvice.welcomePrivacy(bare))
+        // De-Googled with a model that fits: the model keeps it on the phone.
+        assertEquals(WelcomePrivacy.ON_PHONE, EngineAdvice.welcomePrivacy(bare.copy(totalRamMb = 8_000, freeStorageMb = 4_000, whisperCpu = true)))
     }
 }

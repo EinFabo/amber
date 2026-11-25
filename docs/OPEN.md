@@ -92,7 +92,10 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   fresh, get to the practice step, close Amber, open it again - Home, not the welcome.
 - **C1, phones with no speech recognition at all get an honest setup.** Where no model fits
   and the phone has no recognizer of Android's (de-Googled), the quick setup no longer calls
-  Android's recognition ready: the engine step recommends "Choose a model or server", the last
+  Android's recognition ready: the welcome step says "You choose where your voice goes" with
+  "Nothing on this phone can recognize speech yet. Download a model, or use a server."
+  (`EngineAdvice.welcomePrivacy`) instead of naming Android's recognition, the engine step
+  recommends "Choose a model or server", the last
   step is titled "Nothing can recognize speech yet" with the way to Settings, the practice step
   says the same above its tasks and blocks the tap, and Home's recognition row reads "Nothing
   on this phone can recognize speech yet. Tap to download a model or use a server." in red.
