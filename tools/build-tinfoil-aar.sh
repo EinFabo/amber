@@ -11,17 +11,19 @@
 # gomobile and gobind come from tinfoil-go's own go.mod (tool dependencies), so the binding
 # generator is the version Tinfoil builds its framework with.
 #
-# The archive is checked against its SHA-256 before anything is extracted, and every run
-# works in a fresh private directory (fixed name, see below): this library decides what the
-# app may label "enclave verified", so a swapped download or a directory planted in a shared /tmp must not reach it.
-# (Same tree as the Go module proxy's, sumdb h1:W32IF7d8YhW3E1G0k7md0rOAUxLec+h6S+pb4iQavdw=.)
+# The source is the submodule third_party/tinfoil-go (no download): the script refuses unless
+# its HEAD is the pinned commit and its tree is clean. Every run works on a copy in a fresh
+# private directory (fixed name, see below): this library decides what the app may label
+# "enclave verified", so a directory planted in a shared /tmp must not reach it.
 #
 # The same bytes on every build: the Go toolchain is the one tinfoil-go's go.mod names (an older
-# system Go downloads it), build ids and the GNU build-id note are dropped, and the work
-# directory has a fixed path, so two runs from different directories give an identical
+# system Go downloads it, unless GOTOOLCHAIN=local was set - then the active Go must be that
+# version; when the active Go already is, nothing is downloaded), build ids and the GNU
+# build-id note are dropped, and the work directory has a fixed path, so two runs from different directories give an identical
 # jni/arm64-v8a/libgojni.so and classes.jar.
 #
-# Needs: Go (version per tinfoil-go's go.mod), the Android NDK, curl, tar, sha256sum, flock.
+# Needs: the submodule (git submodule update --init), Go (version per tinfoil-go's go.mod),
+# the Android NDK, git, tar, flock.
 # Environment: ANDROID_NDK_HOME (default: NDK 27.1.12297006 under $ANDROID_HOME/ndk; another
 # revision is a warning, and an error when CI=true), OUT=<path> (default:
 # app/libs/tinfoil-mobile.aar).
@@ -31,7 +33,6 @@
 set -euo pipefail
 
 TINFOIL_GO_REF="fad77808b7ace9d848399c27179b4a2d6fd2c36c"
-TINFOIL_GO_SHA256="bc1871daeefc60ddbb53175ee67e54e070acd7db761d6d5b1a2a6b9331f93035"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${OUT:-$ROOT/app/libs/tinfoil-mobile.aar}"
@@ -90,12 +91,20 @@ if [ "$NDK_REV" != "$NDK_PIN" ]; then
     "the library may differ from the pinned build" >&2
 fi
 
-echo "==> fetching tinfoil-go@$TINFOIL_GO_REF"
-curl -fsSL -o "$WORK/src.tar.gz" "https://github.com/tinfoilsh/tinfoil-go/archive/$TINFOIL_GO_REF.tar.gz"
-echo "$TINFOIL_GO_SHA256  $WORK/src.tar.gz" | sha256sum -c --quiet - \
-  || { echo "tinfoil-go archive does not match its pinned SHA-256 - not building" >&2; exit 1; }
+SUBMODULE="$ROOT/third_party/tinfoil-go"
+[ -f "$SUBMODULE/go.mod" ] \
+  || { echo "third_party/tinfoil-go is empty - run: git submodule update --init third_party/tinfoil-go" >&2; exit 1; }
+SUB_HEAD="$(git -C "$SUBMODULE" rev-parse HEAD 2>/dev/null || true)"
+[ "$SUB_HEAD" = "$TINFOIL_GO_REF" ] \
+  || { echo "third_party/tinfoil-go is at ${SUB_HEAD:-an unknown commit}, not the pinned $TINFOIL_GO_REF -" \
+    "run: git submodule update --init third_party/tinfoil-go; not building" >&2; exit 1; }
+[ -z "$(git -C "$SUBMODULE" status --porcelain 2>/dev/null)" ] \
+  || { echo "third_party/tinfoil-go has local changes - not building" >&2; exit 1; }
+echo "==> building from third_party/tinfoil-go@$TINFOIL_GO_REF"
+# A copy in the fixed work directory: the build writes into the tree (go.sum, caches), the
+# submodule stays clean, and the module's path in the library's build info stays fixed.
 mkdir -p "$WORK/src"
-tar -xzf "$WORK/src.tar.gz" -C "$WORK/src" --strip-components=1
+git -C "$SUBMODULE" archive --format=tar HEAD | tar -x -C "$WORK/src"
 
 cd "$WORK/src"
 [ -f go.mod ] || { echo "tinfoil-go has no go.mod at $WORK/src - not building" >&2; exit 1; }
@@ -111,12 +120,29 @@ esac
 if [[ "$GO_TOOLCHAIN" =~ ^go1\.([0-9]+)$ ]] && [ "${BASH_REMATCH[1]}" -ge 21 ]; then
   GO_TOOLCHAIN="$GO_TOOLCHAIN.0"
 fi
-export GOTOOLCHAIN="$GO_TOOLCHAIN"
-echo "==> Go toolchain $GOTOOLCHAIN"
+echo "==> Go toolchain $GO_TOOLCHAIN"
+# GOTOOLCHAIN=local (set by the caller - F-Droid's srclib Go - or chosen here because the
+# active Go already is the pinned one) never downloads anything. Otherwise Go fetches exactly
+# the pinned toolchain.
+if [ "${GOTOOLCHAIN:-}" != local ]; then
+  if [ "$(GOTOOLCHAIN=local go env GOVERSION 2>/dev/null | awk '{print $1}')" = "$GO_TOOLCHAIN" ]; then
+    export GOTOOLCHAIN=local
+  else
+    export GOTOOLCHAIN="$GO_TOOLCHAIN"
+  fi
+fi
 ACTIVE_GO="$(go env GOVERSION | awk '{print $1}')"
-[ "$ACTIVE_GO" = "$GOTOOLCHAIN" ] || {
-  echo "the active Go is $ACTIVE_GO, not the pinned $GOTOOLCHAIN (a Go older than 1.21 cannot" \
-    "fetch it) - install Go 1.21 or newer" >&2; exit 1; }
+if [ "$ACTIVE_GO" != "$GO_TOOLCHAIN" ]; then
+  if [ "$GOTOOLCHAIN" = local ]; then
+    echo "GOTOOLCHAIN=local, but the active Go is $ACTIVE_GO, not the pinned $GO_TOOLCHAIN -" \
+      "install $GO_TOOLCHAIN or unset GOTOOLCHAIN to let Go fetch it; not building" >&2
+  else
+    echo "the active Go is $ACTIVE_GO, not the pinned $GO_TOOLCHAIN (a Go older than 1.21 cannot" \
+      "fetch it) - install Go 1.21 or newer" >&2
+  fi
+  exit 1
+fi
+echo "==> Go $ACTIVE_GO (GOTOOLCHAIN=$GOTOOLCHAIN)"
 # Setting CGO_CFLAGS replaces Go's default "-O2 -g", so that stays in front.
 export CGO_CFLAGS="-O2 -g -ffile-prefix-map=$WORK=."
 export GOFLAGS="-buildvcs=false"

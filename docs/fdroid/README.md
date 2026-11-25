@@ -11,11 +11,10 @@
 - **Prove the recipe in a fork of fdroiddata.** Its pipeline runs `fdroid build` in the build
   server's container and compares the result with the `Binaries:` APK. Not done yet.
 - **Go.** fdroiddata's convention is a Go built from source (`srclibs: go@go1.x.y`,
-  `./make.bash`, `GOTOOLCHAIN=local`); this recipe lets Debian's Go fetch the toolchain
-  tinfoil-go pins. Allowed (recipes run `go install` in `build:`), but expect the review
-  comment - and a source-built Go must then give the same `libgojni.so`, to be tried in the
-  fork. tinfoil-go as a submodule instead of the tarball `tools/build-tinfoil-aar.sh` fetches
-  would match "submodules over downloads".
+  `./make.bash`, `GOTOOLCHAIN=local`); this recipe follows it. A source-built Go
+  must give the same `libgojni.so` as CI's Go 1.27.3 (a local Go of the pinned version
+  gave the same AAR as the former download), to be tried in the fork. tinfoil-go is a
+  submodule, not a tarball fetched in the build.
 - **`commit:` is the full hash**, not the tag (merge request template).
 - **Tracking.** F-Droid ships the GitHub-signed APK, which checks GitHub for updates. From the
   release after 0.33.0 an install made by an app store never checks
@@ -45,10 +44,19 @@ named here.
 - `submodules: true`: whisper.cpp and sherpa-onnx (with its eight dependencies) come from
   `third_party/`, compiled by Gradle's CMake with `FETCHCONTENT_FULLY_DISCONNECTED`. ONNX
   Runtime comes from Maven Central.
-- `sudo`: a Go of 1.21 or newer (Debian `golang-go` from trixie-backports - the build server
-  is Debian trixie with OpenJDK 21 since 2026); older ones ignore
-  `GOTOOLCHAIN`. `tools/build-tinfoil-aar.sh` then fetches the Go version pinned by tinfoil-go
-  and builds the Tinfoil verifier AAR with gomobile.
+- `submodules: true` also brings `third_party/tinfoil-go`, pinned to the commit
+  `tools/build-tinfoil-aar.sh` names (the script refuses any other): no source is downloaded
+  during the build.
+- `srclibs: go@go1.27.3` and `sudo`: the build server's Debian `golang-go` (trixie-backports,
+  Go 1.21 or newer) only bootstraps; `prebuild` compiles the srclib Go 1.27.3 from source and
+  `build:` runs with `GOTOOLCHAIN=local`, so no prebuilt Go is downloaded. The script honours
+  `GOTOOLCHAIN=local` and stops with a message if the active Go is not the pinned one (the
+  version tinfoil-go's go.mod names); without it, a matching active Go is used as is and
+  another one makes Go fetch exactly the pinned toolchain. gomobile then builds the Tinfoil
+  verifier AAR. The Go-from-source variant of the recipe is untested: the AAR must come out
+  byte-identical to the CI build, to be tried in the fdroiddata fork.
+- `prebuild`: `sdkmanager 'platforms;android-36' 'cmake;3.22.1'` (the compile SDK and the
+  CMake of `app/build.gradle.kts`).
 - The AAR is built in `build:`, not `prebuild:`: `fdroid scanner` runs `prebuild` and then flags
   any AAR/JAR it finds (as Cryptocam's recipe avoids by building its AAR in `build:`).
 - Release builds are byte-reproducible (`tools/check-reproducible.sh`) and signed with

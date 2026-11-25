@@ -212,12 +212,14 @@ there. Logcat says per dictation which route it took and why
 ## Building
 
 ```bash
-git clone --recursive <url>     # whisper.cpp, sherpa-onnx and its dependencies are submodules (third_party/)
+git clone --recursive <url>     # whisper.cpp, sherpa-onnx, tinfoil-go and their dependencies are submodules (third_party/)
 git submodule update --init --recursive   # without --recursive, and after every pull that moves a pin
 ./gradlew :core:test            # runs anywhere, no Android SDK
 python3 -I tools/check_refs.py  # imports, R.* ids, manifest classes
 tools/build-tinfoil-aar.sh      # Tinfoil's verifier as an AAR (Go + NDK 27.1.12297006; same bytes every run;
-                                #   ANDROID_NDK_HOME and OUT=<path> are honoured) - again whenever the script changes
+                                #   ANDROID_NDK_HOME and OUT=<path> are honoured) - again whenever the script changes;
+                                #   builds from third_party/tinfoil-go, downloads nothing; a Go that is already the
+                                #   pinned version (go env GOVERSION) is used as is, GOTOOLCHAIN=local forces that
 ./gradlew :app:assembleDebug    # needs an Android SDK
 ./gradlew :app:testDebugUnitTest --tests app.amethyst.ui.Screenshots
                                 # renders the main screens and the icon PNGs (Robolectric)

@@ -5,6 +5,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **G2, Tinfoil's verifier builds without downloads.** tinfoil-go is the submodule
+  `third_party/tinfoil-go` (pinned to the commit the script names, which refuses any other or a
+  dirty tree), no tarball is fetched. A Go that already is the pinned version is used with
+  `GOTOOLCHAIN=local`; an explicit `GOTOOLCHAIN=local` must match or the script stops. The AAR
+  is byte-identical to the one built before. The F-Droid recipe draft has `srclibs: go@go1.27.3`
+  and the SDK and CMake in `prebuild`. Try: nothing on a phone; `tools/build-tinfoil-aar.sh`.
+
 - **G1, the update check asks first.** A GitHub-signed install that no store made has the check
   off until the user agrees: Home shows "Check GitHub for new versions?" once (Yes, check / No,
   after the setup, with the other one-time cards); the Updates page keeps the switch. Settings

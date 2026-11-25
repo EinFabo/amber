@@ -38,3 +38,7 @@
 	path = third_party/kaldifst
 	url = https://github.com/k2-fsa/kaldifst.git
 	shallow = true
+[submodule "third_party/tinfoil-go"]
+	path = third_party/tinfoil-go
+	url = https://github.com/tinfoilsh/tinfoil-go
+	shallow = true

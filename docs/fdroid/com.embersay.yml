@@ -23,9 +23,14 @@ Builds:
     commit: 068407f45b3e7e6e00165e4cd99f069d31038e37
     subdir: app
     submodules: true
+    srclibs:
+      - go@go1.27.3
     sudo:
       - apt-get update
       - apt-get install -y -t trixie-backports golang-go
+    prebuild:
+      - sdkmanager 'platforms;android-36' 'cmake;3.22.1'
+      - export GOROOT_BOOTSTRAP=/usr/lib/go && cd $$go$$/src && ./make.bash
     gradle:
       - yes
     scandelete:
@@ -42,7 +47,7 @@ Builds:
       - third_party/whisper.cpp/bindings/java
       - third_party/whisper.cpp/examples
       - third_party/whisper.cpp/models/for-tests-*.bin
-    build: ANDROID_NDK_HOME=$$NDK$$ ../tools/build-tinfoil-aar.sh
+    build: PATH=$$go$$/bin:$PATH GOTOOLCHAIN=local ANDROID_NDK_HOME=$$NDK$$ ../tools/build-tinfoil-aar.sh
     ndk: 27.1.12297006
 
 AllowedAPKSigningKeys: c3f69e720b6f195fc0b45dd538a0844e02c196e73b2909fc88d959be96d68e11
