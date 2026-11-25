@@ -71,6 +71,7 @@
     <string name="welcome_deep">Step by step</string>
     <string name="welcome_skip">Skip the introduction</string>
     <string name="welcome_ways">Quick setup picks the best options for this phone.</string>
+    <string name="welcome_downloads">Downloads a speech model (%1$s) now, the better one on Wi-Fi.</string>
     <string name="welcome_every_app">In every app</string>
     <string name="welcome_every_app_note">A small bubble floats over the app you\'re using</string>
     <string name="welcome_private">Private by default</string>

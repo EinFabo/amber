@@ -94,6 +94,13 @@ enum class DoneState {
     LANGUAGE_UNSUPPORTED,
 }
 
+/** What the welcome step adds about Quick setup ([FirstRun.welcomeNote]); `Texts` words it. */
+sealed interface WelcomeNote {
+
+    /** The small speech model of [sizeMb] MB downloads now, over mobile data too; the better one waits for Wi-Fi. */
+    data class DownloadsSmallModel(val sizeMb: Int) : WelcomeNote
+}
+
 /** What Android said about the offline pack for [tag] - asked for the language the active recognition hears ([FirstRun.languagePackTag]). */
 data class LanguagePackAnswer(val tag: String, val pack: LanguagePack)
 
@@ -358,13 +365,15 @@ object FirstRun {
         answer?.takeIf { it.tag == languagePackTag(settings, defaultTag) }?.pack
 
     /**
-     * Whether the quick setup starts the language pack's download at once: it picked Android's
-     * recognition - where no model fits - and Android can fetch the pack it lacks. Without it
-     * every dictation would fail ("This language isn't installed"), so it is not left for Home
-     * to offer after the first failure. Android asks before it downloads.
+     * What the welcome step says about Quick setup beside its button, for the [plan] on a new
+     * install ([settings]); null where there is nothing to say - the facts are not read yet
+     * ([plan] null), a replay, or nothing downloads now. The small model is fetched over mobile
+     * data too ([anyNetwork]), so where the network is [metered] the user is told before the
+     * tap; on Wi-Fi it costs nothing they would count.
      */
-    fun fetchesLanguagePack(plan: QuickPlan, pack: LanguagePack?): Boolean =
-        plan.now == EngineOption.ANDROID && pack == LanguagePack.MISSING
+    fun welcomeNote(settings: AmethystSettings, plan: QuickPlan?, metered: Boolean): WelcomeNote? =
+        plan?.takeIf { metered && applies(settings) && it.nowMissing && it.later != null && it.now.downloadBytes > 0 }
+            ?.let { WelcomeNote.DownloadsSmallModel((it.now.downloadBytes / 1_000_000).toInt()) }
 
     /** [option] added if missing, with its model, and made the active recognition. */
     private fun activate(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings {

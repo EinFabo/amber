@@ -5,6 +5,14 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C9, Quick setup says what it downloads and no longer surprises with Android's question.**
+  On a metered network (mobile data) the welcome step adds "Downloads a speech model (82 MB)
+  now, the better one on Wi-Fi." above the buttons (`FirstRun.welcomeNote`, size from the
+  catalog); on Wi-Fi it says nothing. Quick setup no longer opens Android's language-pack
+  dialog at the tap: where Android's recognition was picked and lacks its pack, the practice
+  step, the last step and Home show the existing "Get language pack" button, and Android
+  asks only after that tap. Try on the A20e over mobile data: the welcome shows the line with
+  the size; on a phone without a Google recognizer pack, Quick setup opens no dialog by itself.
 - **C7, "Step by step" with a big model starts with the small stand-in too.** On a new install,
   choosing Parakeet or a big Whisper in the engine step now makes the small Whisper model the
   active recognition first (about 80 MB), the choice downloads behind it and takes over by

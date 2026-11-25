@@ -71,6 +71,7 @@
     <string name="welcome_deep">Schritt für Schritt</string>
     <string name="welcome_skip">Einführung überspringen</string>
     <string name="welcome_ways">„Schnell einrichten“ wählt, was zu diesem Handy passt.</string>
+    <string name="welcome_downloads">Lädt jetzt ein Sprachmodell (%1$s) herunter, das bessere folgt im WLAN.</string>
     <string name="welcome_every_app">In jeder App</string>
     <string name="welcome_every_app_note">Eine kleine Bubble schwebt über der App, in der du bist</string>
     <string name="welcome_private">Privat von Anfang an</string>

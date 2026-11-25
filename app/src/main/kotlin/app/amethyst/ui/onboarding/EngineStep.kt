@@ -105,7 +105,7 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
             }
             // The small model that starts first, where the choice is a big download and this is a new install.
             val standIn = !settings.onboardingDone &&
-                FirstRun.standInFor(shown, phone) { other -> stateOf(other, content) is OptionState.Ready } != null
+                FirstRun.standInFor(shown, phone) { other -> modelReady(other, content) } != null
             OptionCard(shown, recommended = shown == advice.recommended, state = state, content = content, standIn = standIn)
             if (state is OptionState.Failed) {
                 // A smaller download may still fit where this one failed for room or connection.
@@ -175,6 +175,9 @@ private fun OptionCard(option: EngineOption, recommended: Boolean, state: Option
         }
     }
 }
+
+/** Whether [option]'s model is on the phone, as the introduction's content reads it. */
+internal fun modelReady(option: EngineOption, content: OnboardingContent): Boolean = stateOf(option, content) is OptionState.Ready
 
 private fun stateOf(option: EngineOption, content: OnboardingContent): OptionState {
     if (content.waitingFor == option) return OptionState.Waiting

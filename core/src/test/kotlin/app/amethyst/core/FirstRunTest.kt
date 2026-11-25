@@ -14,6 +14,7 @@ import app.amethyst.core.onboarding.PendingStage
 import app.amethyst.core.onboarding.ServiceHealth
 import app.amethyst.core.onboarding.PendingVerdict
 import app.amethyst.core.onboarding.QuickPlan
+import app.amethyst.core.onboarding.WelcomeNote
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppEngine
 import app.amethyst.core.settings.AppEngineMode
@@ -642,17 +643,19 @@ class FirstRunTest {
     }
 
     @Test
-    fun `where no model fits the quick setup fetches android's missing language pack at once`() {
-        val plan = FirstRun.plan(phone(ramMb = 4_000, whisperCpu = false), nothingReady)
-        assertEquals(QuickPlan(EngineOption.ANDROID, null), plan)
-        assertTrue(FirstRun.fetchesLanguagePack(plan, LanguagePack.MISSING))
-        // On the phone, on its way, not to be had, or not known: nothing to start.
-        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.INSTALLED))
-        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.DOWNLOADING))
-        assertFalse(FirstRun.fetchesLanguagePack(plan, LanguagePack.UNSUPPORTED))
-        assertFalse(FirstRun.fetchesLanguagePack(plan, null))
-        // A model is what the quick setup picked: Android's pack is none of its business.
-        assertFalse(FirstRun.fetchesLanguagePack(viaSmall, LanguagePack.MISSING))
+    fun `the welcome says what quick setup downloads where the network is metered`() {
+        val megabytes = (EngineOption.FUTO_74.downloadBytes / 1_000_000).toInt()
+        assertEquals(WelcomeNote.DownloadsSmallModel(megabytes), FirstRun.welcomeNote(fresh, viaSmall, metered = true))
+        // On Wi-Fi nothing is spent that the user would count: no note.
+        assertNull(FirstRun.welcomeNote(fresh, viaSmall, metered = false))
+        // Nothing to fetch now: the recommended model is there, or Android's recognition needs none.
+        assertNull(FirstRun.welcomeNote(fresh, QuickPlan(EngineOption.PARAKEET, null), metered = true))
+        assertNull(FirstRun.welcomeNote(fresh, QuickPlan(EngineOption.FUTO_74, EngineOption.PARAKEET, nowMissing = false), metered = true))
+        // Only the small model goes over mobile data; one that waits for Wi-Fi is no news.
+        assertNull(FirstRun.welcomeNote(fresh, QuickPlan(EngineOption.PARAKEET, null, nowMissing = true), metered = true))
+        // The phone's facts are not read yet, or a replay: nothing is given, nothing is said.
+        assertNull(FirstRun.welcomeNote(fresh, null, metered = true))
+        assertNull(FirstRun.welcomeNote(fresh.copy(onboardingDone = true), viaSmall, metered = true))
     }
 
     @Test

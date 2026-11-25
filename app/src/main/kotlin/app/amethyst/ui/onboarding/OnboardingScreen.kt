@@ -64,6 +64,7 @@ import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
+import app.amethyst.core.onboarding.WelcomeNote
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.engine.ParakeetState
 import app.amethyst.ui.AppSource
@@ -134,7 +135,7 @@ fun OnboardingScreen(
         ) { current ->
             val onward: () -> Unit = { nextFrom(current, settings) }
             when (current) {
-                OnboardingStep.WELCOME -> WelcomeStep(content.phone, onPath, onSkipAll)
+                OnboardingStep.WELCOME -> WelcomeStep(content.phone, onPath, onSkipAll, note = welcomeNote(settings, content))
                 OnboardingStep.ACCESSIBILITY -> AccessibilityStep(setup, actions, onward)
                 OnboardingStep.MICROPHONE -> MicrophoneStep(setup, actions, onward)
                 OnboardingStep.ENGINE -> EngineStep(settings, content, onward)
@@ -373,3 +374,9 @@ private val MORE_STRIP = 48.dp
 
 /** More than a layout's rounding: content taller than the page by this much needs the strip. */
 private val OVERFLOW_SLACK = 2.dp
+
+/** What Quick setup would download on this phone, for the welcome step - where the network is metered. */
+private fun welcomeNote(settings: AmethystSettings, content: OnboardingContent): WelcomeNote? {
+    val plan = content.phone?.let { phone -> FirstRun.plan(phone) { option -> modelReady(option, content) } }
+    return FirstRun.welcomeNote(settings, plan, content.metered)
+}

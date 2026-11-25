@@ -25,6 +25,7 @@ import app.amethyst.R
 import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.onboarding.OnboardingPath
+import app.amethyst.core.onboarding.WelcomeNote
 import app.amethyst.ui.AccessibilityDisclosure
 import app.amethyst.ui.FullDisclosure
 import app.amethyst.ui.GhostButton
@@ -69,13 +70,19 @@ private fun Point(title: String, text: String, modifier: Modifier = Modifier) {
  * ([EngineAdvice.keepsVoiceOnPhone]); where it is Android's recognition without an on-device
  * recognizer, the point says that instead. Until the [phone]'s facts are read - a moment, off
  * the main thread - the point keeps its room but shows nothing, so no promise flashes up.
+ * A [note] says what Quick setup downloads ([FirstRun.welcomeNote]), before the tap.
  */
 @Composable
-internal fun WelcomeStep(phone: PhoneFacts?, onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit) {
+internal fun WelcomeStep(phone: PhoneFacts?, onPath: (OnboardingPath) -> Unit, onSkipAll: () -> Unit, note: WelcomeNote? = null) {
     StepPage(
         title = stringResource(R.string.welcome_title),
         lead = stringResource(R.string.welcome_lead),        buttons = {
             Hint(stringResource(R.string.welcome_ways), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            when (note) {
+                is WelcomeNote.DownloadsSmallModel ->
+                    Hint(stringResource(R.string.welcome_downloads, stringResource(R.string.megabytes, note.sizeMb)), AmberPalette.Primary, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                null -> Unit
+            }
             ContinueButton({ onPath(OnboardingPath.QUICK) }, stringResource(R.string.welcome_quick))
             GhostButton(stringResource(R.string.welcome_deep), { onPath(OnboardingPath.DEEP) })
             LaterButton(stringResource(R.string.welcome_skip), onSkipAll)

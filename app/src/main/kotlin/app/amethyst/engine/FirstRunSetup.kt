@@ -65,14 +65,10 @@ class FirstRunSetup(
             val fetch = plan.downloads.joinToString(" then ") { it.name }.ifEmpty { "nothing" }
             Log.i(TAG, "first run: ${plan.now.name} now, ${plan.later?.name ?: "nothing"} later, $fetch to fetch, ${after?.profiles?.size ?: 0} app style(s)")
             // Android's recognition, picked where no model fits, fails every dictation without
-            // the offline pack for its language: asked for at once, while the user is here.
-            val picked = after ?: return@launch
-            val pack = checkLanguagePack(picked)
-            if (FirstRun.fetchesLanguagePack(plan, pack)) {
-                val tag = FirstRun.languagePackTag(picked, phoneTag()) ?: return@launch
-                val asked = withContext(Dispatchers.Main) { AndroidOnDeviceEngine.requestLanguageDownload(context, tag) }
-                Log.i(TAG, "first run: Android's language pack for $tag is missing - ${if (asked) "its download asked for" else "Android refused to fetch it"}")
-            }
+            // the offline pack for its language: only asked about here, so the practice and last
+            // steps and Home offer the pack's button. Android's own question comes with a tap,
+            // not unannounced behind the one on Quick setup.
+            after?.let { checkLanguagePack(it) }
         }
     }
 
