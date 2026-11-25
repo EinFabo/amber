@@ -267,7 +267,20 @@ class Graph(
      * files on this phone only. Reads nothing until first asked. A file it cannot write (storage
      * full) never stops a load: logged by its class, kept in memory meanwhile.
      */
-    val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"), trouble = { android.util.Log.w("Embersay", it) })
+    val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"), trouble = { android.util.Log.w("Embersay", it) }, lastExit = { lastProcessExit(app) })
+
+    /**
+     * How Android says the last process ended (Android 11 and later), for [modelMarks]: a load it
+     * ended for memory, a force stop or a crash in the app's own code leaves the model alone
+     * ([ModelLoadGuard.excused]). A binder call, made once and only when a load left its marker.
+     */
+    private fun lastProcessExit(context: Context): SystemExit? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        val activities = context.getSystemService(ActivityManager::class.java) ?: return null
+        return activities.getHistoricalProcessExitReasons(context.packageName, 0, 1).firstOrNull()?.let {
+            SystemExit(reason = it.reason, importance = it.importance, status = it.status, atMs = it.timestamp)
+        }
+    }
 
     val whisperRuntime = NativeWhisperRuntime(app, modelMarks)
 
@@ -775,9 +788,17 @@ class Graph(
     private fun checkModel(id: String) {
         appScope.launch(Dispatchers.IO) {
             val health = if (id == ParakeetModel.ID) parakeetModels.recheck() else whisperModels.recheck(id)
+            // A picked file has no hash: a first end inside its load is let go of, a second marks it.
+            val picked = id == WhisperModels.IMPORTED_ID
             when (health) {
-                null -> modelNote("The files of the model $id checked out. It is used again.")
-                ModelLoadGuard.Health.DAMAGED -> modelNote("The model $id is damaged. Download it again on its page.")
+                null -> modelNote(
+                    if (picked) "The picked model file has no hash to check. It is used again; a second end inside its load within a day marks it damaged."
+                    else "The files of the model $id checked out. It is used again.",
+                )
+                ModelLoadGuard.Health.DAMAGED -> modelNote(
+                    if (picked) "The picked model file is damaged. Choose the file again on its page."
+                    else "The model $id is damaged. Download it again on its page.",
+                )
                 ModelLoadGuard.Health.CHECKING -> Unit
             }
         }

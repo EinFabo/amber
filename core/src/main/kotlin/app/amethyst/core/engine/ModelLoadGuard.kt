@@ -1,5 +1,8 @@
 package app.amethyst.core.engine
 
+import app.amethyst.core.dictation.ExitRecords
+import app.amethyst.core.dictation.SystemExit
+import app.amethyst.core.engine.whisper.WhisperModels
 import java.io.File
 import java.security.MessageDigest
 
@@ -9,10 +12,13 @@ import java.security.MessageDigest
  * sherpa-onnx and whisper.cpp do not all fail politely on a bad file: some damage makes native
  * code abort the whole process, which no Kotlin catch sees. So a small marker is written just
  * before a model's native load and deleted right after it, whether it worked or threw. A marker
- * still there at the next start means the process ended inside the load ([verdictAtStart]):
- * the model is not loaded again until its files are checked against the catalog's hash. A
- * model that fails politely ([Problem.LocalModelFailed]) twice in a row is treated the same
- * way ([afterFailure]) - "Try again" would otherwise go round in circles.
+ * still there at the next start means the process ended inside the load ([verdictAtStart]) -
+ * unless Android says why it ended, and the reason is not the file's: out of memory, a force
+ * stop, a crash in the app's own code, an update. Then the model is not loaded again until its
+ * files are checked against the catalog's hash. A file the user picked has no hash: one such end
+ * gives it another chance, a second within a day marks it damaged ([strike]). A model that fails
+ * politely ([Problem.LocalModelFailed]) twice in a row is treated the same way ([afterFailure]) -
+ * "Try again" would otherwise go round in circles.
  *
  * The rules live here; [ModelLoadMarks] keeps them in files.
  */
@@ -26,6 +32,21 @@ object ModelLoadGuard {
 
     /** Polite failures of one model in a row that make it suspect. */
     const val FAILURES_IN_A_ROW = 2
+
+    /** Unexplained ends inside a load, within [STALE_AFTER_MS] of each other, that make a file without a hash damaged. */
+    const val STRIKES = 2
+
+    /**
+     * Ends Android explains with a reason that is not the model file's: the low-memory killer
+     * (the common end on a 3 GB phone loading a big model), a force stop or a swipe from the
+     * recent apps, a crash in the app's own Java or Kotlin code (a native one may be the file's),
+     * an update, a permission taken back, the process ending itself.
+     */
+    private val NOT_THE_FILE = setOf(
+        ExitRecords.REASON_LOW_MEMORY, ExitRecords.REASON_USER_REQUESTED, ExitRecords.REASON_USER_STOPPED,
+        ExitRecords.REASON_CRASH, ExitRecords.REASON_EXIT_SELF, ExitRecords.REASON_PERMISSION_CHANGE,
+        ExitRecords.REASON_PACKAGE_STATE_CHANGE, ExitRecords.REASON_PACKAGE_UPDATED,
+    )
 
     /** Written before [modelId]'s native load starts, at [startedAtMs] (wall clock: it outlives the process). */
     data class Marker(val modelId: String, val startedAtMs: Long) {
@@ -55,7 +76,10 @@ object ModelLoadGuard {
         /** Suspect, its files not checked yet: not loaded meanwhile. */
         CHECKING,
 
-        /** Its files do not match the catalog, or it has no hash to check them by: download it again. */
+        /**
+         * Its files do not match the catalog - or, a picked file with no hash to check them by,
+         * its load ended the app twice within a day ([STRIKES]): download it, or pick it, again.
+         */
         DAMAGED,
     }
 
@@ -64,12 +88,53 @@ object ModelLoadGuard {
 
     /**
      * What a [marker] found at the start says. A marker from a clock that went back since
-     * counts as recent: a crash a moment ago is likelier than an unrelated kill.
+     * counts as recent: a crash a moment ago is likelier than an unrelated kill. [lastExit]: the
+     * last end of the app's process Android reports (Android 11 and later, else null) - one
+     * after the load began, for a reason that is not the file's ([excused]), clears the model.
      */
-    fun verdictAtStart(marker: Marker?, nowMs: Long): Verdict = when {
+    fun verdictAtStart(marker: Marker?, nowMs: Long, lastExit: SystemExit? = null): Verdict = when {
         marker == null -> Verdict.None
         nowMs - marker.startedAtMs > STALE_AFTER_MS -> Verdict.None
+        excused(marker, lastExit) -> Verdict.None
         else -> Verdict.Damaged(marker.modelId)
+    }
+
+    /**
+     * Whether [exit] explains the end of the load [marker] was written for: it came after the
+     * load began, for a reason that is not the file's. An exit from before the load is another
+     * process's - this one's end is then unknown.
+     */
+    fun excused(marker: Marker, exit: SystemExit?): Boolean =
+        exit != null && exit.atMs >= marker.startedAtMs && exit.reason in NOT_THE_FILE
+
+    /**
+     * An unexplained end inside a load of [modelId], the [times]-th in a row, the last at [atMs]
+     * (wall clock). Counts for a file without a hash only ([afterCheck]): a picked file cannot
+     * be checked, so a first end - more likely the memory than the file - is not held against it.
+     */
+    data class Strike(val modelId: String, val atMs: Long, val times: Int) {
+        fun encode(): String = "$modelId $atMs $times"
+
+        companion object {
+            /** One line, read from its end (the id may hold anything); null for a line no build can read. */
+            fun decode(line: String): Strike? {
+                val text = line.trim()
+                val times = text.substringAfterLast(' ').toIntOrNull()?.takeIf { it > 0 } ?: return null
+                val rest = text.substringBeforeLast(' ', "")
+                val at = rest.substringAfterLast(' ').toLongOrNull() ?: return null
+                val id = rest.substringBeforeLast(' ', "").takeIf { it.isNotBlank() } ?: return null
+                return Strike(id, at, times)
+            }
+        }
+    }
+
+    /**
+     * The strike [marker] makes, after [previous] for the same model: one more when that was
+     * within [STALE_AFTER_MS] before (or a clock that went back), else the first.
+     */
+    fun strike(previous: Strike?, marker: Marker): Strike {
+        val before = previous?.takeIf { it.modelId == marker.modelId && marker.startedAtMs - it.atMs <= STALE_AFTER_MS }?.times ?: 0
+        return Strike(marker.modelId, marker.startedAtMs, before + 1)
     }
 
     /** How often [modelId] failed politely, with no success in between. */
@@ -105,10 +170,20 @@ object ModelLoadGuard {
 
     /**
      * A suspect model's health after its files were checked: [hashMatches] null when the catalog
-     * has no hash for it (a file the user picked). A match clears it; a mismatch, or nothing to
-     * check by, leaves it damaged.
+     * has no hash for it (a file the user picked). A match clears it; a mismatch leaves it
+     * damaged. With nothing to check by, [strikes] decide - the unexplained ends inside its
+     * load in a row ([strike]), or two polite failures, which count as [STRIKES]: a first is
+     * let go of, the second makes it damaged.
      */
-    fun afterCheck(hashMatches: Boolean?): Health? = if (hashMatches == true) null else Health.DAMAGED
+    fun afterCheck(hashMatches: Boolean?, strikes: Int = STRIKES): Health? = when (hashMatches) {
+        true -> null
+        false -> Health.DAMAGED
+        null -> if (strikes >= STRIKES) Health.DAMAGED else null
+    }
+
+    /** What a dictation says of [modelId] once it is damaged: a file the user picked is chosen again, not downloaded. */
+    fun damaged(modelId: String): Problem =
+        if (modelId == WhisperModels.IMPORTED_ID) Problem.PickedModelDamaged else Problem.ModelDamaged
 
     /** Whether [file] is there at [sizeBytes] with the SHA-256 [sha256]. Reads the whole file: off the main thread. */
     fun matches(file: File, sizeBytes: Long, sha256: String): Boolean {
@@ -134,10 +209,12 @@ class ModelMarkedDamaged(val modelId: String) : IllegalStateException("model $mo
 /**
  * [ModelLoadGuard]'s records as small files in [dir] (the app gives one in noBackupFilesDir):
  * a marker per load in progress (`loading/`), the suspect models and their [ModelLoadGuard.Health]
- * (`health`), and the one model's count of polite failures (`failures`). The records are read
- * once and then kept in memory - one instance per process writes them - so asking about a
- * model's health costs no file I/O after the first call; a load or a change writes a few bytes.
- * [clock] is the wall clock.
+ * (`health`), the one model's count of polite failures (`failures`), and each model's last
+ * unexplained end inside a load (`strikes`). The records are read once and then kept in memory -
+ * one instance per process writes them - so asking about a model's health costs no file I/O
+ * after the first call; a load or a change writes a few bytes. [lastExit] is how Android says
+ * the last process ended (null below Android 11), asked once with the markers; [clock] is the
+ * wall clock.
  *
  * Fails open: a file that cannot be written (storage full, the folder gone) never stops a model
  * loading - the load runs without its marker, and the health and the count are kept in memory
@@ -146,6 +223,7 @@ class ModelMarkedDamaged(val modelId: String) : IllegalStateException("model $mo
 class ModelLoadMarks(
     private val dir: File,
     private val trouble: (String) -> Unit = {},
+    private val lastExit: () -> SystemExit? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
@@ -153,29 +231,40 @@ class ModelLoadMarks(
     private val markers = File(dir, "loading")
     private val healthFile = File(dir, "health")
     private val failuresFile = File(dir, "failures")
+    private val strikesFile = File(dir, "strikes")
 
     /** [healthFile] and [failuresFile] as last read or written; null until first read. */
     private var healthKept: MutableMap<String, ModelLoadGuard.Health>? = null
     private var failuresKept: ModelLoadGuard.FailureCount? = null
     private var failuresRead = false
+    private var strikesKept: MutableMap<String, ModelLoadGuard.Strike>? = null
 
     /**
      * The markers an earlier process left, read once - before this process writes any of its
-     * own - and turned into [ModelLoadGuard.Health.CHECKING] marks.
+     * own - and turned into [ModelLoadGuard.Health.CHECKING] marks and a strike each, unless
+     * Android's reason for that process's end clears them ([ModelLoadGuard.excused]).
      */
     private val left: List<ModelLoadGuard.Verdict.Damaged> by lazy(lock) {
         val now = clock()
-        val found = markers.listFiles().orEmpty().mapNotNull { file ->
+        val markerFiles = markers.listFiles().orEmpty()
+        // Asked only when there is something to explain; a failure to ask explains nothing.
+        val exit = if (markerFiles.isEmpty()) null else runCatching(lastExit).onFailure { troubleWith("the exit reason", it) }.getOrNull()
+        val found = markerFiles.mapNotNull { file ->
             val marker = runCatching { ModelLoadGuard.Marker.decode(file.readText()) }.getOrNull()
             file.delete()
-            ModelLoadGuard.verdictAtStart(marker, now) as? ModelLoadGuard.Verdict.Damaged
-        }.distinct()
+            marker?.takeIf { ModelLoadGuard.verdictAtStart(it, now, exit) is ModelLoadGuard.Verdict.Damaged }
+        }.distinctBy { it.modelId }
         if (found.isNotEmpty()) {
             val health = readHealth()
-            found.forEach { health.putIfAbsent(it.modelId, ModelLoadGuard.Health.CHECKING) }
+            val strikes = readStrikes()
+            found.forEach { marker ->
+                health.putIfAbsent(marker.modelId, ModelLoadGuard.Health.CHECKING)
+                strikes[marker.modelId] = ModelLoadGuard.strike(strikes[marker.modelId], marker)
+            }
             writeHealth(health)
+            writeStrikes(strikes)
         }
-        found
+        found.map { ModelLoadGuard.Verdict.Damaged(it.modelId) }
     }
 
     /** The loads the last process died in (within [ModelLoadGuard.STALE_AFTER_MS]): those models are now suspect. */
@@ -222,13 +311,29 @@ class ModelLoadMarks(
         writeHealth(readHealth().apply { put(modelId, ModelLoadGuard.Health.CHECKING) })
     }
 
-    /** The check of [modelId]'s files gave [health] ([ModelLoadGuard.afterCheck]); fine also starts its failures over. */
+    /**
+     * The check of [modelId]'s files gave [health] ([ModelLoadGuard.afterCheck]); fine also starts
+     * its failures over. Its strikes stay: a file without a hash let go of after a first end is
+     * damaged at a second one within the day.
+     */
     fun checked(modelId: String, health: ModelLoadGuard.Health?) = synchronized(lock) {
-        if (health == null) clear(modelId) else writeHealth(readHealth().apply { put(modelId, health) })
+        if (health == null) forgetHealth(modelId) else writeHealth(readHealth().apply { put(modelId, health) })
     }
 
-    /** [modelId] is fine again: downloaded anew, picked anew, deleted, or its files checked out. */
+    /** [modelId] is fine again and starts afresh: downloaded anew, picked anew or deleted. */
     fun clear(modelId: String) = synchronized(lock) {
+        forgetHealth(modelId)
+        val strikes = readStrikes()
+        if (strikes.remove(modelId) != null) writeStrikes(strikes)
+    }
+
+    /** How many unexplained ends in a row [modelId]'s loads had ([ModelLoadGuard.strike]); 0 with none. */
+    fun strikes(modelId: String): Int = synchronized(lock) {
+        left
+        readStrikes()[modelId]?.times ?: 0
+    }
+
+    private fun forgetHealth(modelId: String) {
         left
         val health = readHealth()
         if (health.remove(modelId) != null) writeHealth(health)
@@ -246,7 +351,11 @@ class ModelLoadMarks(
         val counted = ModelLoadGuard.afterFailure(modelId, problem, readFailures())
         val count = counted.count
         writeFailures(count)
-        if (counted.verdict is ModelLoadGuard.Verdict.Damaged) suspect(modelId)
+        if (counted.verdict is ModelLoadGuard.Verdict.Damaged) {
+            suspect(modelId)
+            // Two failures in a row: as many strikes as a file without a hash is let go of for.
+            writeStrikes(readStrikes().apply { put(modelId, ModelLoadGuard.Strike(modelId, clock(), ModelLoadGuard.STRIKES)) })
+        }
         counted.verdict
     }
 
@@ -270,6 +379,20 @@ class ModelLoadMarks(
         failuresKept = count
         failuresRead = true
         if (count == null) failuresFile.delete() else write(failuresFile, count.encode())
+    }
+
+    /** A copy of the strikes, read from [strikesFile] the first time; a line no build can read is skipped. */
+    private fun readStrikes(): MutableMap<String, ModelLoadGuard.Strike> {
+        val kept = strikesKept ?: run {
+            val text = if (strikesFile.isFile) runCatching { strikesFile.readText() }.getOrNull() else null
+            text.orEmpty().lines().mapNotNull(ModelLoadGuard.Strike::decode).associateByTo(LinkedHashMap()) { it.modelId }
+        }.also { strikesKept = it }
+        return LinkedHashMap(kept)
+    }
+
+    private fun writeStrikes(strikes: Map<String, ModelLoadGuard.Strike>) {
+        strikesKept = LinkedHashMap(strikes)
+        if (strikes.isEmpty()) strikesFile.delete() else write(strikesFile, strikes.values.joinToString("") { it.encode() + "\n" })
     }
 
     /** A copy of the suspect models' health, read from [healthFile] the first time. */

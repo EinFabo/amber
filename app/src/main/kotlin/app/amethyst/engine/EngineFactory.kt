@@ -132,7 +132,7 @@ class EngineFactory(
                 )
             } else {
                 Result.failure(
-                    notUsable(whisperModels.health(modelId), Problem.WhisperModelMissing, "WHISPER_CPP model $modelId is not usable"),
+                    notUsable(whisperModels.health(modelId), Problem.WhisperModelMissing, "WHISPER_CPP model $modelId is not usable", ModelLoadGuard.damaged(modelId)),
                 )
             }
         }
@@ -148,7 +148,7 @@ class EngineFactory(
                 ),
             )
         } else {
-            Result.failure(notUsable(parakeetModels.health(), Problem.ParakeetModelMissing, "LOCAL_SHERPA model missing"))
+            Result.failure(notUsable(parakeetModels.health(), Problem.ParakeetModelMissing, "LOCAL_SHERPA model missing", Problem.ModelDamaged))
         }
 
         EngineKind.ELEVENLABS_REALTIME -> Result.failure(
@@ -217,11 +217,15 @@ class EngineFactory(
 
     /**
      * A model on the phone that cannot be used: [missing] when it is not downloaded, else what
-     * [health] says - damaged, and downloaded again on its page, or being checked
+     * [health] says - [damaged], and downloaded or picked again on its page, or being checked
      * ([app.amethyst.core.engine.ModelLoadGuard]) and back in a moment.
      */
-    private fun notUsable(health: ModelLoadGuard.Health?, missing: Problem, technical: String): SttFailure = when (health) {
-        ModelLoadGuard.Health.DAMAGED -> SttFailure(Problem.ModelDamaged, "$technical: damaged", remedy = SttFailure.Remedy.DOWNLOAD_MODEL)
+    private fun notUsable(health: ModelLoadGuard.Health?, missing: Problem, technical: String, damaged: Problem): SttFailure = when (health) {
+        ModelLoadGuard.Health.DAMAGED -> SttFailure(
+            damaged,
+            "$technical: damaged",
+            remedy = if (damaged == Problem.PickedModelDamaged) SttFailure.Remedy.CHOOSE_MODEL_FILE else SttFailure.Remedy.DOWNLOAD_MODEL,
+        )
         ModelLoadGuard.Health.CHECKING -> SttFailure(Problem.ModelBeingChecked, "$technical: its files are being checked")
         null -> SttFailure(missing, technical, remedy = SttFailure.Remedy.DOWNLOAD_MODEL)
     }

@@ -22,6 +22,7 @@
     <string name="problem_whisper_model_missing">The selected Whisper model isn\'t downloaded yet.</string>
     <string name="problem_parakeet_model_missing">The Parakeet model isn\'t downloaded yet.</string>
     <string name="problem_model_damaged">The model on this phone is damaged. Download it again in Settings.</string>
+    <string name="problem_picked_model_damaged">The model file you picked doesn\'t load. Choose it again in Settings.</string>
     <string name="problem_model_being_checked">The model on this phone is being checked. Try again in a moment.</string>
     <string name="problem_not_supported">This speech recognition isn\'t supported.</string>
     <string name="problem_not_ready">%1$s isn\'t ready yet. %2$s</string>

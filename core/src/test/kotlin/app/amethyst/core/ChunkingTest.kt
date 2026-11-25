@@ -338,6 +338,34 @@ class ChunkingTest {
     }
 
     @Test
+    fun `a chunk the model on the phone ran out of memory in does not send the whole recording to it again`() = runTest {
+        // On a 3 GB phone the whole recording would fail the same way, after minutes - before
+        // the model is let go of and a fallback or Try again could take over.
+        val oom = SttFailure(Problem.OutOfMemory, "out of memory")
+        val engine = ScriptedEngine(listOf(Result.success("Hallo"), Result.failure(oom)))
+        val chunked = ChunkedTranscription(engine, TranscribeOptions(), this)
+        chunked.submit(audio(10))
+        chunked.submit(audio(10))
+
+        val failure = assertIs<SttFailure>(chunked.finish(tail = audio(10), whole = audio(99)).exceptionOrNull())
+        assertEquals(Problem.OutOfMemory, failure.problem)
+        assertEquals(listOf(10, 10), engine.calls.map { it.first }, "neither the rest nor the whole went to it")
+    }
+
+    @Test
+    fun `a chunk the model on the phone failed in, or found marked damaged, does not send the whole to it again`() = runTest {
+        for (problem in listOf(Problem.LocalModelFailed, Problem.ModelDamaged, Problem.ModelBeingChecked)) {
+            val engine = ScriptedEngine(listOf(Result.failure(SttFailure(problem, "x"))))
+            val chunked = ChunkedTranscription(engine, TranscribeOptions(), this)
+            chunked.submit(audio(10))
+
+            val failure = assertIs<SttFailure>(chunked.finish(tail = null, whole = audio(99)).exceptionOrNull())
+            assertEquals(problem, failure.problem)
+            assertEquals(listOf(10), engine.calls.map { it.first }, "$problem: the whole recording did not go to it")
+        }
+    }
+
+    @Test
     fun `a language name instead of a code is not locked`() = runTest {
         val engine = ScriptedEngine(listOf(Result.success("a"), Result.success("b")), language = "german")
         val chunked = ChunkedTranscription(engine, TranscribeOptions(languageTag = "de-DE"), this)

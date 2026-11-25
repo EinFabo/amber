@@ -114,6 +114,7 @@ object Texts {
             Problem.WhisperModelMissing -> getString(R.string.problem_whisper_model_missing)
             Problem.ParakeetModelMissing -> getString(R.string.problem_parakeet_model_missing)
             Problem.ModelDamaged -> getString(R.string.problem_model_damaged)
+            Problem.PickedModelDamaged -> getString(R.string.problem_picked_model_damaged)
             Problem.ModelBeingChecked -> getString(R.string.problem_model_being_checked)
             Problem.NotSupported -> getString(R.string.problem_not_supported)
             is Problem.NotReady -> getString(

@@ -4,11 +4,15 @@ import app.amethyst.core.engine.ModelLoadGuard
 import app.amethyst.core.engine.ModelLoadGuard.FailureCount
 import app.amethyst.core.engine.ModelLoadGuard.Health
 import app.amethyst.core.engine.ModelLoadGuard.Marker
+import app.amethyst.core.engine.ModelLoadGuard.Strike
 import app.amethyst.core.engine.ModelLoadGuard.Verdict
 import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.ModelMarkedDamaged
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.sherpa.ParakeetModel
+import app.amethyst.core.engine.whisper.WhisperModels
+import app.amethyst.core.dictation.ExitRecords
+import app.amethyst.core.dictation.SystemExit
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
@@ -47,6 +51,59 @@ class ModelLoadGuardTest {
     @Test
     fun `a marker from a clock that went back since counts as recent`() {
         assertEquals(Verdict.Damaged(whisper), ModelLoadGuard.verdictAtStart(Marker(whisper, 10 * hour), nowMs = hour))
+    }
+
+    @Test
+    fun `an end Android explains is no sign of a bad file - out of memory, a force stop, a crash in the app's own code, an update`() {
+        // The A20e's low-memory killer ends a load of a big model; the user swipes the app away
+        // during a slow load: neither says anything about the file.
+        val marker = Marker(whisper, startedAtMs = 1_000)
+        for (reason in listOf(ExitRecords.REASON_LOW_MEMORY, ExitRecords.REASON_USER_REQUESTED, ExitRecords.REASON_CRASH, ExitRecords.REASON_PACKAGE_UPDATED)) {
+            val exit = SystemExit(reason, importance = 100, status = 0, atMs = 2_000)
+            assertEquals(Verdict.None, ModelLoadGuard.verdictAtStart(marker, nowMs = 30_000, lastExit = exit), "reason $reason")
+        }
+    }
+
+    @Test
+    fun `a native crash, an end Android does not explain, or an exit from before the load still points at the file`() {
+        val marker = Marker(whisper, startedAtMs = 1_000)
+        fun at(reason: Int, atMs: Long = 2_000) = SystemExit(reason, importance = 100, status = 9, atMs = atMs)
+        assertEquals(Verdict.Damaged(whisper), ModelLoadGuard.verdictAtStart(marker, 30_000, at(ExitRecords.REASON_CRASH_NATIVE)))
+        assertEquals(Verdict.Damaged(whisper), ModelLoadGuard.verdictAtStart(marker, 30_000, at(ExitRecords.REASON_SIGNALED)))
+        // The last exit Android names came before this load began: the end of this process is unknown.
+        assertEquals(Verdict.Damaged(whisper), ModelLoadGuard.verdictAtStart(marker, 30_000, at(ExitRecords.REASON_LOW_MEMORY, atMs = 500)))
+        assertEquals(Verdict.Damaged(whisper), ModelLoadGuard.verdictAtStart(marker, 30_000, lastExit = null))
+    }
+
+    @Test
+    fun `a file without a hash is damaged only at the second unexplained end within a day`() {
+        val picked = WhisperModels.IMPORTED_ID
+        val first = ModelLoadGuard.strike(previous = null, Marker(picked, 1_000))
+        assertEquals(Strike(picked, 1_000, 1), first)
+        assertNull(ModelLoadGuard.afterCheck(hashMatches = null, strikes = first.times), "once: used again")
+        val second = ModelLoadGuard.strike(first, Marker(picked, 1_000 + 2 * hour))
+        assertEquals(Strike(picked, 1_000 + 2 * hour, 2), second)
+        assertEquals(Health.DAMAGED, ModelLoadGuard.afterCheck(hashMatches = null, strikes = second.times))
+        // A day apart, or another model's strike before: a first one again.
+        assertEquals(1, ModelLoadGuard.strike(first, Marker(picked, 1_000 + 25 * hour)).times)
+        assertEquals(1, ModelLoadGuard.strike(Strike(whisper, 1_000, 1), Marker(picked, 2_000)).times)
+        // A hash decides whatever the count.
+        assertNull(ModelLoadGuard.afterCheck(hashMatches = true, strikes = 2))
+        assertEquals(Health.DAMAGED, ModelLoadGuard.afterCheck(hashMatches = false, strikes = 1))
+    }
+
+    @Test
+    fun `a damaged picked file is said as one - it is chosen again, not downloaded`() {
+        assertEquals(Problem.PickedModelDamaged, ModelLoadGuard.damaged(WhisperModels.IMPORTED_ID))
+        assertEquals(Problem.ModelDamaged, ModelLoadGuard.damaged(whisper))
+        assertEquals(Problem.ModelDamaged, ModelLoadGuard.damaged(parakeet))
+    }
+
+    @Test
+    fun `a strike reads back as written`() {
+        val strike = Strike(WhisperModels.IMPORTED_ID, 1_732_000_000_000, 2)
+        assertEquals(strike, Strike.decode(strike.encode()))
+        assertNull(Strike.decode("garbage"))
     }
 
     @Test
@@ -95,7 +152,7 @@ class ModelLoadGuardTest {
     }
 
     @Test
-    fun `a check decides from the hash, and without one the model stays damaged`() {
+    fun `a check decides from the hash, and without one by the strikes - two failures in a row are two`() {
         assertNull(ModelLoadGuard.afterCheck(hashMatches = true))
         assertEquals(Health.DAMAGED, ModelLoadGuard.afterCheck(hashMatches = false))
         assertEquals(Health.DAMAGED, ModelLoadGuard.afterCheck(hashMatches = null))
@@ -232,6 +289,63 @@ class ModelLoadGuardTest {
         assertEquals(listOf(Verdict.Damaged(parakeet)), marks.leftAtStart())
         assertEquals(Health.CHECKING, marks.health(parakeet))
         assertEquals(listOf(parakeet), marks.checking())
+    }
+
+    private fun leaveMarker(modelId: String) =
+        marks().markerFor(modelId).also { it.parentFile.mkdirs() }.writeText(ModelLoadGuard.before(modelId, now).encode())
+
+    @Test
+    fun `a picked file the app ended in once is used again, twice within a day it is damaged`() {
+        val picked = WhisperModels.IMPORTED_ID
+        leaveMarker(picked)
+        now += 5_000
+        val first = marks()
+        assertEquals(listOf(Verdict.Damaged(picked)), first.leftAtStart())
+        assertEquals(1, first.strikes(picked))
+        first.checked(picked, ModelLoadGuard.afterCheck(hashMatches = null, strikes = first.strikes(picked)))
+        assertNull(marks().health(picked))
+
+        leaveMarker(picked)
+        now += hour
+        val second = marks()
+        assertEquals(listOf(Verdict.Damaged(picked)), second.leftAtStart())
+        assertEquals(2, second.strikes(picked), "the check that let it go kept the first strike")
+        second.checked(picked, ModelLoadGuard.afterCheck(hashMatches = null, strikes = second.strikes(picked)))
+        assertEquals(Health.DAMAGED, marks().health(picked))
+
+        // Picked anew: a clean slate.
+        marks().clear(picked)
+        assertNull(marks().health(picked))
+        assertEquals(0, marks().strikes(picked))
+    }
+
+    @Test
+    fun `a load ended for a reason Android gives leaves no mark and no strike`() {
+        leaveMarker(whisper)
+        now += 5_000
+        val ended = SystemExit(ExitRecords.REASON_LOW_MEMORY, importance = 100, status = 0, atMs = now - 1_000)
+        val marks = ModelLoadMarks(dir, lastExit = { ended }) { now }
+        assertEquals(emptyList(), marks.leftAtStart())
+        assertNull(marks.health(whisper))
+        assertEquals(0, marks.strikes(whisper))
+        assertEquals(3, marks.loading(whisper) { 3 })
+    }
+
+    @Test
+    fun `an exit reason that cannot be read counts as none`() {
+        leaveMarker(whisper)
+        now += 5_000
+        val marks = ModelLoadMarks(dir, lastExit = { error("binder died") }) { now }
+        assertEquals(listOf(Verdict.Damaged(whisper)), marks.leftAtStart())
+        assertEquals(Health.CHECKING, marks.health(whisper))
+    }
+
+    @Test
+    fun `two polite failures in a row are two strikes - a picked file is damaged after them`() {
+        marks().failed(WhisperModels.IMPORTED_ID, Problem.LocalModelFailed)
+        val marks = marks()
+        assertEquals(Verdict.Damaged(WhisperModels.IMPORTED_ID), marks.failed(WhisperModels.IMPORTED_ID, Problem.LocalModelFailed))
+        assertEquals(Health.DAMAGED, ModelLoadGuard.afterCheck(hashMatches = null, strikes = marks().strikes(WhisperModels.IMPORTED_ID)))
     }
 
     @Test

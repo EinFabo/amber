@@ -20,6 +20,7 @@
     <string name="problem_whisper_model_missing">Das gewählte Whisper-Modell ist noch nicht heruntergeladen.</string>
     <string name="problem_parakeet_model_missing">Das Parakeet-Modell ist noch nicht heruntergeladen.</string>
     <string name="problem_model_damaged">Das Modell ist beschädigt. Lade es in den Einstellungen neu herunter.</string>
+    <string name="problem_picked_model_damaged">Deine Modelldatei lädt nicht. Wähle sie in den Einstellungen neu.</string>
     <string name="problem_model_being_checked">Das Modell auf dem Handy wird geprüft. Versuche es gleich nochmal.</string>
     <string name="problem_not_supported">Diese Spracherkennung wird nicht unterstützt.</string>
     <string name="problem_not_ready">%1$s ist noch nicht bereit. %2$s</string>

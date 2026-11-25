@@ -74,7 +74,13 @@ class HistoryStore(private val context: Context) {
 
     private fun keyStore(): KeyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
 
-    /** [day]'s key, made when [create] says so and there is none. Null when the keystore refuses. */
+    /**
+     * [day]'s key, made when [create] says so and there is none. Null when the keystore refuses.
+     * One at a time: the spool seals from its own thread while a history line seals on IO, and
+     * two first seals of a day would each make the key - the second replaces the first in
+     * AndroidKeyStore, and what the first sealed could never be opened.
+     */
+    @Synchronized
     private fun key(day: Long, create: Boolean): SecretKey? = try {
         val alias = PREFIX + day
         (keyStore().getKey(alias, null) as? SecretKey) ?: if (!create) null else KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
@@ -108,6 +114,7 @@ class HistoryStore(private val context: Context) {
         emptySet()
     }
 
+    @Synchronized
     private fun deleteKey(day: Long) {
         try {
             keyStore().deleteEntry(PREFIX + day)

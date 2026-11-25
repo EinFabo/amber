@@ -47,6 +47,12 @@ sealed interface Problem {
     data object ModelDamaged : Problem
 
     /**
+     * The model file the user picked is damaged ([ModelLoadGuard]): it has no hash to be checked
+     * by, so its load ended the app twice or it failed twice. It is chosen again, not downloaded.
+     */
+    data object PickedModelDamaged : Problem
+
+    /**
      * The model on the phone failed, or the app ended while loading it, and its files are being
      * checked ([ModelLoadGuard]): back in a moment.
      */

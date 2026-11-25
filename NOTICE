@@ -43,7 +43,9 @@ This app contains, or is built from, the following third-party software:
   libgojni.so (the attestation verifier) together with the Go standard library (BSD 3-Clause
   License, Copyright 2009 The Go Authors, https://go.dev/LICENSE) and these Go modules (listed by
   tools/list_go_licenses.py from the module cache of the build; each module's own LICENSE file
-  applies, its copyright line is given where the file has one):
+  applies, its copyright line is given where the file has one, and where the file appends a
+  license for code the module bundles, that code's line is given apart from the module's own,
+  taken from its sources):
   - github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 - MIT, Copyright (c) 2014-2020 Alex Saskevich
   - github.com/blang/semver v3.5.1+incompatible - MIT, Copyright (c) 2014 Benedikt Lang <github at benediktlang.de>
   - github.com/cenkalti/backoff/v5 v5.0.3 - MIT, Copyright (c) 2014 Cenk Altı
@@ -101,9 +103,9 @@ This app contains, or is built from, the following third-party software:
   - github.com/transparency-dev/merkle v0.0.2 - Apache-2.0
   - github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 - MIT, Copyright (c) 2014 youmark
   - go.opentelemetry.io/auto/sdk v1.2.1 - Apache-2.0
-  - go.opentelemetry.io/otel v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
-  - go.opentelemetry.io/otel/metric v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
-  - go.opentelemetry.io/otel/trace v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
+  - go.opentelemetry.io/otel v1.44.0 - Apache-2.0, Copyright The OpenTelemetry Authors; bundled code BSD-3-Clause, Copyright 2009 The Go Authors.
+  - go.opentelemetry.io/otel/metric v1.44.0 - Apache-2.0, Copyright The OpenTelemetry Authors; bundled code BSD-3-Clause, Copyright 2009 The Go Authors.
+  - go.opentelemetry.io/otel/trace v1.44.0 - Apache-2.0, Copyright The OpenTelemetry Authors; bundled code BSD-3-Clause, Copyright 2009 The Go Authors.
   - go.uber.org/multierr v1.11.0 - MIT, Copyright (c) 2017-2021 Uber Technologies, Inc.
   - go.yaml.in/yaml/v3 v3.0.4 - MIT and Apache-2.0, Copyright (c) 2006-2010 Kirill Simonov
   - golang.org/x/crypto v0.57.0 - BSD-3-Clause, Copyright 2009 The Go Authors.

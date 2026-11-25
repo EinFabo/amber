@@ -22,8 +22,9 @@ import kotlinx.coroutines.launch
  *
  * Any other failure makes the chunks worthless as a set, so [finish] then transcribes the whole
  * recording in one go: slower, but never worse than not chunking at all - unless the engine
- * could not be reached or did not answer in time ([resendsWhole]): the whole recording would
- * only wait for it again, so the failure stands, for the fallback or "Try again".
+ * could not be reached or did not answer in time, or the model on the phone ran out of memory,
+ * failed or is marked damaged ([resendsWhole]): the whole recording would only wait for it, or
+ * fail the same way, again - so the failure stands, for the fallback or "Try again".
  */
 class ChunkedTranscription(
     private val engine: SttEngine,
@@ -165,12 +166,17 @@ class ChunkedTranscription(
         /**
          * Whether, after a chunk failed with [failure], the whole recording goes to the same
          * engine in one go: not when it could not be reached or did not answer in time - it
-         * would only be waited for again, and the recording is better off with the fallback
-         * or kept for "Try again" at once.
+         * would only be waited for again - nor when the model on the phone ran out of memory or
+         * failed ([SttFailure.localModelFailed]), or its guard refused it ([Problem.ModelDamaged],
+         * [Problem.PickedModelDamaged], [Problem.ModelBeingChecked]): the whole recording, longer than any chunk, fails the
+         * same way, after minutes on a small phone, before the model is let go of. The recording
+         * is better off with the fallback or kept for "Try again" at once.
          */
         fun resendsWhole(failure: Throwable): Boolean {
-            val problem = (failure as? SttFailure)?.problem
-            return problem !is Problem.NoConnection && problem !is Problem.NoAnswerInTime
+            val stt = failure as? SttFailure ?: return true
+            val problem = stt.problem
+            return problem !is Problem.NoConnection && problem !is Problem.NoAnswerInTime && !stt.localModelFailed &&
+                problem != Problem.ModelDamaged && problem != Problem.PickedModelDamaged && problem != Problem.ModelBeingChecked
         }
 
         /** Joins chunk texts with single spaces; a chunk never starts with stray punctuation. */

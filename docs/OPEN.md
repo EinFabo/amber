@@ -20,7 +20,11 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   Licenses on a phone (the page scrolls through the new entries). Open: ONNX Runtime's
   ThirdPartyNotices.txt is linked, not copied (it could not be fetched here); the component list
   comes from the library's strings and the usual licenses of those projects, so compare it with
-  that file once.
+  that file once. Final review fix: OpenTelemetry's three modules were credited to "Copyright
+  2009 The Go Authors" (the copyright line of the BSD license their LICENSE appends for bundled
+  code); the script now tells such an appended license from the module's own and names both:
+  "Apache-2.0, Copyright The OpenTelemetry Authors; bundled code BSD-3-Clause, Copyright 2009
+  The Go Authors." Nothing else in the block changed.
 
 - **G2, Tinfoil's verifier builds without downloads.** tinfoil-go is the submodule
   `third_party/tinfoil-go` (pinned to the commit the script names, which refuses any other or a
@@ -143,7 +147,11 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   without one, is kept: "... didn't answer in time. Hold the bubble and choose Try again." A
   piece of a long dictation that finds no connection or no answer no longer sends the whole
   recording to the same engine again (servers are not cut into pieces today; the rule holds
-  for any that is). Try on a phone: an own server address that accepts and never answers
+  for any that is). Final review fix: nor does a piece the model on the phone ran out of memory
+  or failed in (or that met a model marked damaged): on the A20e the whole recording would fail
+  the same way after minutes; it goes to the fallback, or is kept for Try again, at once. Try on
+  the A20e: a long dictation with the big Whisper model under memory pressure - Diagnostics show
+  the out-of-memory line and the fallback or "Try again" right after, no second long wait. Try on a phone: an own server address that accepts and never answers
   (`nc -lk 8000` on the PC): a 5 s dictation hands over after about 10 s; with the fallback
   off, Try again is offered. A server that is simply slower than that (an Amber PC on a CPU,
   a cold model) is taught: the wait that ran out is learned as a lower bound, so Try again
@@ -375,6 +383,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   and tensor names are (`run-as com.embersay.debug dd if=/dev/urandom of=... bs=1 seek=70000
   count=4096 conv=notrunc`). Dictate twice (or once, if the app closes); the model page and
   Diagnostics should then say it is damaged. Download again, and dictate.
+  Final review fix: a marker is let go of when Android says why the app ended after the load
+  began and it was not the file (Android 11+: out of memory, a force stop or swipe, a crash in
+  the app's own code, an update; `ModelLoadGuard.excused`) - the common end on the A20e loading
+  a big model. A picked Whisper file, which has no hash, is used again after a first unexplained
+  end inside its load and marked damaged only at a second within 24 h (`ModelLoadMarks.strikes`;
+  two polite failures in a row count as two); then the dictation says "The model file you picked
+  doesn't load. Choose it again in Settings." with a "Choose a model file" button on Home, not
+  "Download it again". Try on the A20e: pick a big Whisper file, start a dictation and
+  `adb shell am force-stop` during the load - it loads again next time, no "being checked";
+  with a native crash in the load (a truncated .bin) twice in a row it is marked damaged.
 - **A5, a recording survives the app being ended.** With the history on (not in the security
   mode), a dictation's recording is written to `noBackupFilesDir/recording` while it is made,
   sealed every 2 s with the history's key of the day (`RecordingSpool`, `SpoolWriter`). It goes
@@ -386,6 +404,9 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   dictate for 10 s into any app and, still recording or while the bubble works, run
   `adb shell am force-stop com.embersay.debug` (or swipe the app away and kill it); open
   Embersay, tap "Recover last recording". Then once with the history off: nothing is offered.
+  Final review fix: the day's key is made under a lock, so the spool's first seal and a history
+  line's at the same moment no longer make it twice (the second would replace the first in the
+  key store, and what the first sealed could not be opened again). Nothing new to try.
 - **Phase A review fixes.** A dictation with nothing heard no longer takes the place of a kept
   recording that had speech in it (memory and disk). A recording left on disk goes after 24 h at
   every start, screen off and new dictation, Home opened or not. The model guard fails open: a

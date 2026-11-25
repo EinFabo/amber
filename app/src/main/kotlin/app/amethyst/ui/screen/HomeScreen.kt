@@ -840,6 +840,7 @@ private fun StatusLine(
                         }
 
                         SttFailure.Remedy.DOWNLOAD_MODEL -> PrimaryButton(stringResource(R.string.home_download_model), onOpenActiveEngine)
+                        SttFailure.Remedy.CHOOSE_MODEL_FILE -> PrimaryButton(stringResource(R.string.model_pick_file), onOpenActiveEngine)
 
                         // The recording is kept: once more, as from the quick menu.
                         null -> if (onTryAgain != null) PrimaryButton(stringResource(R.string.quick_try_again), onTryAgain)

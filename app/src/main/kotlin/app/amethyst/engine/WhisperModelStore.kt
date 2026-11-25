@@ -226,9 +226,10 @@ class WhisperModelStore(
     /**
      * Checks the file of a suspect model ([ModelLoadGuard]) against the catalog's hash - off the
      * main thread, after a download or copy that runs. A catalog file that does not match is
-     * deleted, so "Download again" fetches it whole; a picked file has no hash and stays damaged
-     * until it is picked anew. The health it ends in, or the one it had when it was not being
-     * checked.
+     * deleted, so "Download again" fetches it whole; a picked file has no hash: it is used again
+     * after a first unexplained end inside its load, and damaged after a second within a day
+     * ([ModelLoadMarks.strikes]) until it is picked anew. The health it ends in, or the one it
+     * had when it was not being checked.
      */
     suspend fun recheck(id: String): ModelLoadGuard.Health? = withContext(Dispatchers.IO) {
         val lock = files[id] ?: run {
@@ -241,7 +242,7 @@ class WhisperModelStore(
             if (before != ModelLoadGuard.Health.CHECKING) return@withLock before
             val file = fileFor(id)
             val spec = WhisperModels.byId(id)
-            val health = if (!file.exists()) null else ModelLoadGuard.afterCheck(spec?.let { ModelLoadGuard.matches(file, it.sizeBytes, it.sha256) })
+            val health = if (!file.exists()) null else ModelLoadGuard.afterCheck(spec?.let { ModelLoadGuard.matches(file, it.sizeBytes, it.sha256) }, marks.strikes(id))
             if (health != null && spec != null) {
                 Log.w(TAG, "whisper model $id damaged: its file does not match the catalog")
                 withContext(runtime.dispatcher) { if (runtime.isLoaded(file.path)) runtime.release() }

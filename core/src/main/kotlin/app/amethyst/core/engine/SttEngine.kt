@@ -157,6 +157,9 @@ class SttFailure(
 
         /** A local engine is selected but its model is not on the device yet. */
         DOWNLOAD_MODEL,
+
+        /** The model file the user picked is damaged ([Problem.PickedModelDamaged]): it is chosen again on its page. */
+        CHOOSE_MODEL_FILE,
     }
 
     companion object {
