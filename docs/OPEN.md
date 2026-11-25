@@ -5,6 +5,17 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **F1-F4, polish and words.** Home on a fresh install shows one row ("Your dictations show up
+  here") instead of History plus Today saying "nothing yet"; the test field sits right under
+  the flame and its status line; the language pack's two buttons wrap under each other. German
+  messages lose their quotes round service names (EN too) and read as full "du" sentences;
+  "Ohne Mikrofon weiter" on the microphone step (the server step now says "Continue without a
+  server"). "Add speech recognition" uses the list's short names and one plain line each (where
+  it runs, size, what it needs); the technical notes stay on the recognition's own page.
+  History shows the dictations first; keeping and the notes are behind a "How it's kept" row
+  (open from the start when the history is off).
+  Try: a fresh install at 200 % font on a 360 dp German phone (Home, the failed language-pack
+  buttons, the add dialog, History with and without entries).
 - **E5, old model files are swept.** A model that left the catalog (with its unfinished part)
   and an older Parakeet folder stayed on the phone for good, hundreds of MB. At the start, in
   the background, they are deleted and Diagnostics say how many MB came free. Kept for sure:

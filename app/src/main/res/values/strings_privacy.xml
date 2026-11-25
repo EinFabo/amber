@@ -31,6 +31,7 @@
     <string name="settings_privacy">Privacy</string>
     <string name="summary_privacy_secure">Security mode on</string>
     <string name="summary_privacy_history">History: %1$s</string>
+    <string name="history_how_kept">How it\'s kept</string>
     <string name="history_keep">Keep dictations</string>
     <string name="history_keep_note">On this phone only, not in backups. Words and app are encrypted, the time isn\'t.</string>
     <string name="history_lock_note">Readable only while the phone is unlocked. This needs a screen lock (PIN, pattern or password).</string>

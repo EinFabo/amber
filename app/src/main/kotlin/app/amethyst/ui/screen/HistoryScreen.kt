@@ -2,6 +2,7 @@ package app.amethyst.ui.screen
 
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
@@ -13,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +29,7 @@ import app.amethyst.core.privacy.SecurityMode
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.ui.AmberIcons
 import app.amethyst.ui.DangerAction
+import app.amethyst.ui.ExpandChevron
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.GroupFootnote
 import app.amethyst.ui.Hint
@@ -35,6 +38,8 @@ import app.amethyst.ui.RadioRow
 import app.amethyst.ui.RowDivider
 import app.amethyst.ui.SectionCard
 import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.Unfold
+import app.amethyst.ui.foldState
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import java.time.Instant
@@ -80,14 +85,7 @@ fun HistoryScreen(
             return@SubPage
         }
         val keep = settings.privacy.history
-        SectionCard(title = stringResource(R.string.history_keep), subtitle = stringResource(R.string.history_keep_note)) {
-            HistoryKeep.entries.forEach { choice ->
-                RadioRow(label = Texts.historyKeep(context, choice), note = null, selected = choice == keep, onSelect = { onKeepChange(choice) })
-            }
-        }
-        GroupFootnote(stringResource(R.string.history_lock_note), AmberIcons.Lock)
-        // Android 9 to 11 check "unlocked" in the keystore's software, not in its secure hardware.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) GroupFootnote(stringResource(R.string.history_lock_weak), AmberIcons.Info)
+        // What was dictated comes first; how long it is kept and how it is guarded is behind a row.
         if (canTryAgain) {
             SettingsGroup(label = null) {
                 NavRow(
@@ -101,26 +99,51 @@ fun HistoryScreen(
                 )
             }
         }
-        if (keep == HistoryKeep.OFF) return@SubPage
-        if (entries.isEmpty()) {
-            SectionCard(title = null) {
-                Text(stringResource(R.string.history_empty), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
-                Hint(stringResource(R.string.history_empty_note, Texts.historyKeep(context, keep)))
-            }
-        } else {
-            SettingsGroup(label = stringResource(R.string.history_recent), note = stringResource(R.string.history_copy_note)) {
-                entries.forEachIndexed { i, entry ->
-                    key(entry.atMillis) {
-                        if (i > 0) RowDivider()
-                        EntryRow(entry, entry.app?.let(appName), timeOf(entry.atMillis, zone, today), { onCopy(entry.text) }, { onShare(entry.text) })
+        if (keep != HistoryKeep.OFF) {
+            if (entries.isEmpty()) {
+                SectionCard(title = null) {
+                    Text(stringResource(R.string.history_empty), style = MaterialTheme.typography.titleMedium, color = AmberPalette.Text)
+                    Hint(stringResource(R.string.history_empty_note, Texts.historyKeep(context, keep)))
+                }
+            } else {
+                SettingsGroup(label = stringResource(R.string.history_recent), note = stringResource(R.string.history_copy_note)) {
+                    entries.forEachIndexed { i, entry ->
+                        key(entry.atMillis) {
+                            if (i > 0) RowDivider()
+                            EntryRow(entry, entry.app?.let(appName), timeOf(entry.atMillis, zone, today), { onCopy(entry.text) }, { onShare(entry.text) })
+                        }
                     }
                 }
             }
+            // Also for what is kept but cannot be shown: it can always be deleted.
+            if (entries.isNotEmpty() || count > 0) {
+                DangerAction(stringResource(R.string.history_delete_all)) { confirmDelete = true }
+                GroupFootnote(stringResource(R.string.history_delete_note), AmberIcons.Info)
+            }
         }
-        // Also for what is kept but cannot be shown: it can always be deleted.
-        if (entries.isNotEmpty() || count > 0) {
-            DangerAction(stringResource(R.string.history_delete_all)) { confirmDelete = true }
-            GroupFootnote(stringResource(R.string.history_delete_note), AmberIcons.Info)
+        // Open from the start when the history is off: the choice is all there is to see.
+        var showKept by rememberSaveable { mutableStateOf(keep == HistoryKeep.OFF) }
+        SettingsGroup(label = null) {
+            NavRow(
+                title = stringResource(R.string.history_how_kept),
+                summary = Texts.historyKeep(context, keep),
+                icon = AmberIcons.Lock,
+                modifier = Modifier.foldState(showKept),
+                trailing = { ExpandChevron(showKept) },
+                onClick = { showKept = !showKept },
+            )
+        }
+        Unfold(showKept) {
+            Column {
+                SectionCard(title = stringResource(R.string.history_keep), subtitle = stringResource(R.string.history_keep_note)) {
+                    HistoryKeep.entries.forEach { choice ->
+                        RadioRow(label = Texts.historyKeep(context, choice), note = null, selected = choice == keep, onSelect = { onKeepChange(choice) })
+                    }
+                }
+                GroupFootnote(stringResource(R.string.history_lock_note), AmberIcons.Lock)
+                // Android 9 to 11 check "unlocked" in the keystore's software, not in its secure hardware.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) GroupFootnote(stringResource(R.string.history_lock_weak), AmberIcons.Info)
+            }
         }
     }
 

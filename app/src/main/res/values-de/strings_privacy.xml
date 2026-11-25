@@ -29,6 +29,7 @@
     <string name="settings_privacy">Privatsphäre</string>
     <string name="summary_privacy_secure">Sicherheitsmodus an</string>
     <string name="summary_privacy_history">Verlauf: %1$s</string>
+    <string name="history_how_kept">Aufbewahrung</string>
     <string name="history_keep">Diktate behalten</string>
     <string name="history_keep_note">Auf dem Handy, nie in einem Backup. Wörter und App sind verschlüsselt, die Uhrzeit nicht.</string>
     <string name="history_lock_note">Nur lesbar, solange das Handy entsperrt ist. Dafür braucht das Handy eine Displaysperre (PIN, Muster oder Passwort).</string>
