@@ -184,6 +184,20 @@ fun SwitchOnSteps() {
     }
 }
 
+/** The way to unrestricted battery use as numbered steps for this phone, under the row whose button opens the app info. */
+@Composable
+fun BatterySteps() {
+    val context = LocalContext.current
+    val steps = remember { SwitchOnPlan.battery(SettingsMaker.of(Build.MANUFACTURER)) }
+    SettingsGroup(stringResource(R.string.battery_group)) {
+        steps.forEachIndexed { index, step ->
+            if (index > 0) RowDivider()
+            val (title, note) = Texts.switchOnStep(context, step, "")
+            Step(index + 1, title, note)
+        }
+    }
+}
+
 /**
  * Since Android 13, accessibility is locked for apps installed from a file until the user
  * allows it in the app info. The way past it, step by step, with the button for the first.

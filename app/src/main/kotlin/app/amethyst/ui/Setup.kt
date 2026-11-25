@@ -174,12 +174,13 @@ object Setup {
     )
 
     /**
-     * Opens the generic battery-optimisation list instead of requesting the exemption
-     * directly: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS prompts are a Play policy violation for
-     * most app categories, and the list works everywhere. False if nothing opened.
+     * Opens Embersay's own app info, where "Battery" holds the switch. Not
+     * ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, whose list is filtered and does not show
+     * Embersay, and not REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, whose prompt is a Play policy
+     * violation for most app categories. The steps from there are on screen
+     * ([app.amethyst.core.onboarding.SwitchOnPlan.battery]). False if nothing opened.
      */
-    fun openBatterySettings(context: Context): Boolean =
-        tryStart(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) || openAppSettings(context)
+    fun openBatterySettings(context: Context): Boolean = openAppSettings(context)
 
     /** Starts [intent] in a task of its own; a missing or guarded screen is a false, not a crash. */
     private fun tryStart(context: Context, intent: Intent): Boolean =

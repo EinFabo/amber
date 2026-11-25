@@ -37,9 +37,24 @@ enum class SwitchOnStep {
 
     /** Android's question under it. */
     ALLOW,
+
+    /** Embersay's app info, which the app opens itself. */
+    APP_INFO,
+
+    /** The app info's "Battery" row. */
+    TAP_BATTERY,
+
+    /** The battery page's "Unrestricted" choice. */
+    UNRESTRICTED,
+
+    /** Samsung's list of apps that are never put to sleep, beside the app info's choice. */
+    NEVER_SLEEPING,
+
+    /** Xiaomi's autostart switch, which keeps a background app from being killed at once. */
+    AUTOSTART,
 }
 
-/** The steps to the accessibility switch, per [SettingsMaker]. */
+/** The steps to the accessibility switch and to unrestricted battery use, per [SettingsMaker]. */
 object SwitchOnPlan {
 
     /** The way to Embersay's accessibility switch from the settings app's list. */
@@ -50,5 +65,15 @@ object SwitchOnPlan {
             SettingsMaker.XIAOMI -> listOf(SwitchOnStep.DOWNLOADED_APPS)
         }
         return first + listOf(SwitchOnStep.TAP_SERVICE, SwitchOnStep.TURN_ON, SwitchOnStep.ALLOW)
+    }
+
+    /** The way to unrestricted battery use, starting in Embersay's app info (which the app opens). */
+    fun battery(maker: SettingsMaker): List<SwitchOnStep> {
+        val common = listOf(SwitchOnStep.APP_INFO, SwitchOnStep.TAP_BATTERY, SwitchOnStep.UNRESTRICTED)
+        return when (maker) {
+            SettingsMaker.AOSP -> common
+            SettingsMaker.SAMSUNG -> common + SwitchOnStep.NEVER_SLEEPING
+            SettingsMaker.XIAOMI -> common + SwitchOnStep.AUTOSTART
+        }
     }
 }

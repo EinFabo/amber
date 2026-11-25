@@ -60,6 +60,11 @@ object Texts {
             SwitchOnStep.TAP_SERVICE -> getString(R.string.switch_on_step1, service) to getString(R.string.switch_on_step1_note)
             SwitchOnStep.TURN_ON -> getString(R.string.switch_on_step2, service) to null
             SwitchOnStep.ALLOW -> getString(R.string.switch_on_step3) to getString(R.string.switch_on_step3_note)
+            SwitchOnStep.APP_INFO -> getString(R.string.battery_step_app_info) to getString(R.string.battery_step_app_info_note)
+            SwitchOnStep.TAP_BATTERY -> getString(R.string.battery_step_battery) to null
+            SwitchOnStep.UNRESTRICTED -> getString(R.string.battery_step_unrestricted) to getString(R.string.battery_step_unrestricted_note)
+            SwitchOnStep.NEVER_SLEEPING -> getString(R.string.battery_step_never_sleeping) to getString(R.string.battery_step_never_sleeping_note)
+            SwitchOnStep.AUTOSTART -> getString(R.string.battery_step_autostart) to getString(R.string.battery_step_autostart_note)
         }
     }
 

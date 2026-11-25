@@ -36,6 +36,16 @@
     <string name="switch_on_downloaded_note">Xiaomi keeps downloaded services under this row</string>
     <string name="switch_on_note_installed">In Android\'s settings, tap “Installed apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
     <string name="switch_on_note_downloaded">In Android\'s settings, tap “Downloaded apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
+    <string name="battery_group">To unrestricted battery use</string>
+    <string name="battery_step_app_info">Open Embersay\'s app info</string>
+    <string name="battery_step_app_info_note">The button does it</string>
+    <string name="battery_step_battery">Tap “Battery”</string>
+    <string name="battery_step_unrestricted">Choose “Unrestricted”</string>
+    <string name="battery_step_unrestricted_note">Embersay then returns here automatically</string>
+    <string name="battery_step_never_sleeping">Also add Embersay to “Never sleeping apps”</string>
+    <string name="battery_step_never_sleeping_note">In Settings → Battery → Background usage limits</string>
+    <string name="battery_step_autostart">Turn on “Autostart”</string>
+    <string name="battery_step_autostart_note">In the app info, or in Settings → Apps → Permissions</string>
     <string name="where_allow">Allow</string>
     <string name="where_as_text">Show steps as text</string>
     <string name="where_hide_text">Hide steps</string>

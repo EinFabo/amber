@@ -42,4 +42,19 @@ class SwitchOnStepsTest {
             )
         }
     }
+
+    @Test
+    fun `battery on AOSP is app info, battery, unrestricted`() {
+        assertEquals(
+            listOf(SwitchOnStep.APP_INFO, SwitchOnStep.TAP_BATTERY, SwitchOnStep.UNRESTRICTED),
+            SwitchOnPlan.battery(SettingsMaker.AOSP),
+        )
+    }
+
+    @Test
+    fun `Samsung adds never sleeping apps and Xiaomi autostart`() {
+        val aosp = SwitchOnPlan.battery(SettingsMaker.AOSP)
+        assertEquals(aosp + SwitchOnStep.NEVER_SLEEPING, SwitchOnPlan.battery(SettingsMaker.SAMSUNG))
+        assertEquals(aosp + SwitchOnStep.AUTOSTART, SwitchOnPlan.battery(SettingsMaker.XIAOMI))
+    }
 }

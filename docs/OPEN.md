@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C6, the battery step leads to the right switch.** "Unrestricted battery" now opens
+  Embersay's own app info (the battery-optimisation list Android offers does not list it) and
+  shows numbered steps under the row: app info, Battery, Unrestricted; on Samsung also "Never
+  sleeping apps", on Xiaomi also "Autostart". The return to Embersay once it is unrestricted
+  is unchanged. Try on the A20e: Settings -> Reliability -> Open; check the app info opens and
+  the labels (German: "Akku", "Uneingeschränkt", "Nie schlafende Apps") match One UI.
 - **C5, the accessibility steps name the maker's way.** On Samsung the steps in words and the
   note before the settings open start with "Installed apps", on Xiaomi/Redmi/POCO with
   "Downloaded apps" (German: "Installierte Apps", "Heruntergeladene Apps"); other phones keep

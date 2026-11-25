@@ -64,6 +64,7 @@ import app.amethyst.core.update.UpdateNotice
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.AccessibilityConsentDialog
 import app.amethyst.ui.AmberIcons
+import app.amethyst.ui.BatterySteps
 import app.amethyst.ui.DictateOrb
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.recognitionRowName
@@ -648,6 +649,7 @@ fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
         actionLabel = stringResource(R.string.open),
         onAction = actions.openBattery,
     )
+    if (!setup.batteryUnrestricted) BatterySteps()
 }
 
 @Composable

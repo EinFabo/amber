@@ -36,6 +36,16 @@
     <string name="switch_on_downloaded_note">Xiaomi zeigt heruntergeladene Dienste unter diesem Eintrag</string>
     <string name="switch_on_note_installed">Tippe in den Android-Einstellungen auf „Installierte Apps“, dann auf %1$s, schalte es ein und erlaube es. Embersay kommt danach von selbst hierher zurück.</string>
     <string name="switch_on_note_downloaded">Tippe in den Android-Einstellungen auf „Heruntergeladene Apps“, dann auf %1$s, schalte es ein und erlaube es. Embersay kommt danach von selbst hierher zurück.</string>
+    <string name="battery_group">So kommst du zu „Akku ohne Einschränkung“</string>
+    <string name="battery_step_app_info">Öffne die App-Info von Embersay</string>
+    <string name="battery_step_app_info_note">Der Knopf macht das</string>
+    <string name="battery_step_battery">Tippe auf „Akku“</string>
+    <string name="battery_step_unrestricted">Wähle „Uneingeschränkt“</string>
+    <string name="battery_step_unrestricted_note">Embersay kommt danach von selbst hierher zurück</string>
+    <string name="battery_step_never_sleeping">Füge Embersay außerdem zu „Nie schlafende Apps“ hinzu</string>
+    <string name="battery_step_never_sleeping_note">In Einstellungen → Akku → Hintergrundnutzungsbeschränkungen</string>
+    <string name="battery_step_autostart">Schalte „Autostart“ ein</string>
+    <string name="battery_step_autostart_note">In der App-Info oder unter Einstellungen → Apps → Berechtigungen</string>
     <string name="where_allow">Zulassen</string>
     <string name="where_as_text">Die Schritte in Worten</string>
     <string name="where_hide_text">Schritte ausblenden</string>

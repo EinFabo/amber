@@ -75,7 +75,7 @@ class SetupTest {
     }
 
     @Test
-    fun `the battery list falls back to the app info`() {
+    fun `the battery step opens the app info, not the filtered list`() {
         settingsAnswer(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", app.packageName, null)))
         assertTrue(Setup.openBatterySettings(app))
         assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, shadowOf(app).nextStartedActivity.action)
