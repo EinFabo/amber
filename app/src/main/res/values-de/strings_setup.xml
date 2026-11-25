@@ -203,6 +203,7 @@
     <string name="engine_step_keeps_going">Du kannst weitermachen, der Download läuft im Hintergrund.</string>
     <string name="engine_step_waits">Wartet auf WLAN und lädt dann von selbst herunter. Du kannst weitermachen.</string>
     <string name="engine_step_ready">Heruntergeladen und bereit</string>
+    <string name="engine_step_small_first">Startet mit einem kleinen Modell, das bessere folgt.</string>
     <string name="engine_step_no_download">kein Download</string>
     <string name="engine_step_in_settings">in den Einstellungen einrichten</string>
     <string name="engine_step_download_size">%1$s Download</string>

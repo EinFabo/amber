@@ -727,7 +727,8 @@ private fun AmethystScreens(
 
     /** The introduction's engine choice: added if missing, with its model, and made active. */
     fun useEngine(option: EngineOption) {
-        updateSettings { FirstRun.use(it, option, PhoneLocales.tags()) }
+        // A big choice on a new install starts with the small stand-in where it fits (FirstRun.use).
+        updateSettings { FirstRun.use(it, option, PhoneLocales.tags(), phone) { model -> !graph.modelDownloads.needsDownload(model) } }
     }
 
     fun back() {

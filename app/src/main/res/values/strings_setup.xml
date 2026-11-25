@@ -203,6 +203,7 @@
     <string name="engine_step_keeps_going">You can continue. The download keeps running.</string>
     <string name="engine_step_waits">Downloads automatically on Wi-Fi. You can continue.</string>
     <string name="engine_step_ready">Downloaded and ready</string>
+    <string name="engine_step_small_first">Starts with a small model, the better one follows.</string>
     <string name="engine_step_no_download">no download</string>
     <string name="engine_step_in_settings">set up in Settings</string>
     <string name="engine_step_download_size">%1$s download</string>

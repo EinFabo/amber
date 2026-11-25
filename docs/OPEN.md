@@ -5,6 +5,14 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C7, "Step by step" with a big model starts with the small stand-in too.** On a new install,
+  choosing Parakeet or a big Whisper in the engine step now makes the small Whisper model the
+  active recognition first (about 80 MB), the choice downloads behind it and takes over by
+  itself - as Quick setup does (`FirstRun.use`, `FirstRun.standInFor`); the card says "Starts
+  with a small model, the better one follows." Where the small one does not fit (storage, no
+  Whisper CPU), or on a replay, the choice is active at once as before. Only one model is ever
+  loaded: the small one is released before the switch. Try on the A20e: Step by step, choose
+  Parakeet, continue - the practice step waits for ~80 MB, not 670 MB.
 - **C6, the battery step leads to the right switch.** "Unrestricted battery" now opens
   Embersay's own app info (the battery-optimisation list Android offers does not list it) and
   shows numbered steps under the row: app info, Battery, Unrestricted; on Samsung also "Never

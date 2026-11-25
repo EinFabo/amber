@@ -455,6 +455,54 @@ class FirstRunTest {
     }
 
     @Test
+    fun `step by step with a big model gets the small stand-in first where it fits`() {
+        val after = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(), nothingReady)
+        assertEquals(EngineOption.FUTO_74, option(after))
+        assertEquals(EngineOption.PARAKEET, FirstRun.pending(after))
+        assertEquals(EngineOption.FUTO_74, FirstRun.smallFirst(after))
+        assertEquals(PendingStage.SMALL_FIRST, FirstRun.stage(after))
+        assertEquals(EngineOption.FUTO_74.name, after.firstRun.standIn)
+        // The same plan quick setup makes: the small model first, over any network.
+        assertTrue(FirstRun.anyNetwork(after, EngineOption.FUTO_74))
+        assertFalse(FirstRun.anyNetwork(after, EngineOption.PARAKEET))
+        assertEquals(EngineOption.FUTO_74, FirstRun.standInFor(EngineOption.PARAKEET, phone(), nothingReady))
+    }
+
+    @Test
+    fun `step by step with a big model that is there already, or no room for the small one, is as before`() {
+        val plain = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE)
+        val thereAlready = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone()) { it == EngineOption.PARAKEET }
+        val noRoom = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(freeMb = 1_000), nothingReady)
+        val noCpu = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(whisperCpu = false), nothingReady)
+        for (after in listOf(plain, thereAlready, noRoom, noCpu)) {
+            assertEquals(EngineOption.PARAKEET, option(after))
+            assertNull(FirstRun.pending(after))
+            assertNull(after.firstRun.standIn)
+        }
+        assertEquals(EngineOption.PARAKEET, FirstRun.wanted(noRoom))
+        assertNull(FirstRun.standInFor(EngineOption.PARAKEET, phone(freeMb = 1_000), nothingReady))
+    }
+
+    @Test
+    fun `choosing the small model itself, or a replay, gets no stand-in`() {
+        val small = FirstRun.use(fresh, EngineOption.FUTO_74, TEST_PHONE, phone(), nothingReady)
+        assertEquals(EngineOption.FUTO_74, option(small))
+        assertNull(FirstRun.pending(small))
+        assertNull(small.firstRun.standIn)
+        val replay = fresh.copy(onboardingDone = true)
+        assertNull(FirstRun.pending(FirstRun.use(replay, EngineOption.PARAKEET, TEST_PHONE, phone(), nothingReady)))
+    }
+
+    @Test
+    fun `the stand-in's model is not fetched again where it is on the phone`() {
+        val after = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone()) { it == EngineOption.FUTO_74 }
+        assertEquals(EngineOption.FUTO_74, option(after))
+        assertEquals(EngineOption.PARAKEET, FirstRun.pending(after))
+        assertNull(after.firstRun.wantedModel)
+        assertEquals(PendingStage.SMALL_STANDS_IN, FirstRun.stage(after))
+    }
+
+    @Test
     fun `choosing the waiting recognition oneself keeps its model wanted`() {
         val waiting = viaAndroid.withEngine(EngineConfig.fromPreset(EnginePresets.LOCAL_PARAKEET))
         for (chosen in listOf(FirstRun.use(waiting, EngineOption.PARAKEET, TEST_PHONE), FirstRun.chosen(waiting, parakeet))) {

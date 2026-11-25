@@ -200,9 +200,33 @@ object FirstRun {
      * made the active recognition. Whatever waited to take over waits no longer - also when the
      * choice is the stand-in itself, which is then theirs and stays. A model the choice still
      * has to fetch is written down, so its download outlives the process like quick setup's.
+     *
+     * With the [phone]'s facts, a new install's choice of a big download gets what [plan] gives
+     * the recommended one: the [SMALL] model first ([standInFor]) - its recognition active, the
+     * choice waiting behind it - so the practice step does not block for the whole big download.
+     * [ready] says whether a model is on the phone already. A replay of the introduction (the
+     * flag set) keeps the choice active at once.
      */
-    fun use(settings: AmethystSettings, option: EngineOption, phoneTags: List<String>): AmethystSettings =
-        activate(settings, option, phoneTags).let { chosen ->
+    fun use(
+        settings: AmethystSettings,
+        option: EngineOption,
+        phoneTags: List<String>,
+        phone: PhoneFacts? = null,
+        ready: (EngineOption) -> Boolean = { false },
+    ): AmethystSettings {
+        val small = phone?.takeIf { applies(settings) }?.let { standInFor(option, it, ready) }
+        if (small != null) {
+            return activate(settings, small, phoneTags).let { chosen ->
+                chosen.copy(
+                    firstRun = chosen.firstRun.copy(
+                        pendingEngine = option.name,
+                        wantedModel = small.name.takeIf { !ready(small) },
+                        standIn = small.name,
+                    ),
+                )
+            }
+        }
+        return activate(settings, option, phoneTags).let { chosen ->
             chosen.copy(
                 firstRun = chosen.firstRun.copy(
                     pendingEngine = null,
@@ -211,6 +235,16 @@ object FirstRun {
                 ),
             )
         }
+    }
+
+    /**
+     * The small model that would stand in while [option] downloads, on this [phone]: [option] is
+     * a big download that is not on the phone yet ([ready]), and the [SMALL] model fits beside
+     * it - as in [plan]. Null: [option] is active at once. Never both loaded: the small one is
+     * the active recognition until the big model is there, then it is switched and released.
+     */
+    fun standInFor(option: EngineOption, phone: PhoneFacts, ready: (EngineOption) -> Boolean): EngineOption? =
+        SMALL.takeIf { option.downloadBytes > 0 && !ready(option) && option != SMALL && smallFits(phone, option) }
 
     /**
      * The user's own choice in Settings: the recognition [engineId] becomes the active one, and

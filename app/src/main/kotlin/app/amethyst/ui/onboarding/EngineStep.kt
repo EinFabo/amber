@@ -25,6 +25,7 @@ import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
 import app.amethyst.core.onboarding.EngineCard
 import app.amethyst.core.onboarding.EngineNames
+import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.EngineConfig
@@ -102,7 +103,10 @@ internal fun EngineStep(settings: AmethystSettings, content: OnboardingContent, 
             if (shown == EngineOption.SERVER && advice.recommended == EngineOption.SERVER) {
                 Hint(stringResource(R.string.no_recognition_note), AmberPalette.Primary)
             }
-            OptionCard(shown, recommended = shown == advice.recommended, state = state, content = content)
+            // The small model that starts first, where the choice is a big download and this is a new install.
+            val standIn = !settings.onboardingDone &&
+                FirstRun.standInFor(shown, phone) { other -> stateOf(other, content) is OptionState.Ready } != null
+            OptionCard(shown, recommended = shown == advice.recommended, state = state, content = content, standIn = standIn)
             if (state is OptionState.Failed) {
                 // A smaller download may still fit where this one failed for room or connection.
                 advice.others.firstOrNull { it.downloadBytes in 1 until shown.downloadBytes }?.let { smaller ->
@@ -146,7 +150,7 @@ private fun KeptCard(engine: EngineConfig) {
 }
 
 @Composable
-private fun OptionCard(option: EngineOption, recommended: Boolean, state: OptionState, content: OnboardingContent) {
+private fun OptionCard(option: EngineOption, recommended: Boolean, state: OptionState, content: OnboardingContent, standIn: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -158,6 +162,7 @@ private fun OptionCard(option: EngineOption, recommended: Boolean, state: Option
         Text(words(EngineNames.of(option)), style = MaterialTheme.typography.titleLarge, color = AmberPalette.Text)
         TrustBadge(trustOf(option, content.phone))
         Hint(listOfNotNull(sizeText(option), waitText(option)).joinToString(" · "), AmberPalette.Text)
+        if (standIn) Hint(stringResource(R.string.engine_step_small_first))
         when (state) {
             OptionState.Missing -> Unit
             is OptionState.Running -> {
