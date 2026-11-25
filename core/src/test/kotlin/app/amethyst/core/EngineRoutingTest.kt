@@ -178,4 +178,14 @@ class EngineRoutingTest {
         val back = SettingsCodec.decode(SettingsCodec.encode(settings), TEST_PHONE)
         assertEquals(AppEngine(AppEngineMode.ENGINE, whisper.id), back.profiles.single().appEngine)
     }
+
+    @Test
+    fun `the key store is not asked for an engine without a key alias`() {
+        var asked = 0
+        val counting: (String?) -> Boolean = { asked++; true }
+        assertNull(EngineRouting.notUsable(android, counting, allModels))
+        assertEquals(0, asked)
+        EngineRouting.notUsable(groq, counting, allModels)
+        assertEquals(1, asked)
+    }
 }

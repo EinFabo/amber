@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **E3, the first tap does not build the key store on the main thread.** Choosing the speech
+  recognition asked the key store about a key even for the phone's own and on-device
+  recognition, which built it (Keystore, Tink) right in the start of a dictation. It now asks
+  only an engine that has a key; the store is built in the background when the service
+  connects. Try right after a reboot on a slow phone: the first tap with the phone's own speech
+  recognition starts without a pause.
 - **E2, no window walk on the main thread when a field starts.** Compose fields up to 1.7 name
   no node, so a started field was searched for in the app's window (up to 1,500 nodes) right in
   the keyboard callback, and again on the bubble tap - the app in front could stutter. The

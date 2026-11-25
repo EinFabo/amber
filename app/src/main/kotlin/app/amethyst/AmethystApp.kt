@@ -690,7 +690,10 @@ class Graph(
 
     /**
      * The speech recognition for a dictation into [packageName]: the app's own while it is
-     * ready, else the one for every app ([EngineRouting]).
+     * ready, else the one for every app ([EngineRouting]). The key store is only touched for an
+     * engine with a key alias ([EngineRouting.notUsable]), so a start with the phone's own or an
+     * on-device recognition never builds it on the main thread; the lazy store itself builds on IO
+     * ([warmSecretStore]).
      */
     fun engineFor(packageName: String?): EngineRouting.Decision =
         EngineRouting.decide(settings.value, packageName, { secretStore.has(it) }, ::modelReady)

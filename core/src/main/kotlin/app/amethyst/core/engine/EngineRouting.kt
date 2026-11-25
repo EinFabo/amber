@@ -64,7 +64,7 @@ object EngineRouting {
         modelReady: (EngineConfig) -> Boolean,
     ): NotUsable? = when {
         !engine.enabled -> NotUsable.SWITCHED_OFF
-        !EngineConfigValidator.isReady(engine, hasKey(engine.apiKeyAlias)) -> NotUsable.NOT_SET_UP
+        !EngineConfigValidator.isReady(engine, engine.apiKeyAlias != null && hasKey(engine.apiKeyAlias)) -> NotUsable.NOT_SET_UP
         !modelReady(engine) -> NotUsable.NO_MODEL
         else -> null
     }
