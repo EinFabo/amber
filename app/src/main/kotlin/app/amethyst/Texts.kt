@@ -329,12 +329,12 @@ object Texts {
         },
     )
 
-    /** Where the voice goes, in a word or two. */
+    /** Where the voice goes, in a word or two: the badge's words, so one word names a level everywhere. */
     fun place(context: Context, trust: TrustLevel): String = context.getString(
         when (trust) {
-            TrustLevel.ON_DEVICE -> R.string.place_on_device
-            TrustLevel.ENCLAVE_VERIFIED -> R.string.place_enclave
-            TrustLevel.CLOUD -> R.string.place_cloud
+            TrustLevel.ON_DEVICE -> R.string.trust_on_device
+            TrustLevel.ENCLAVE_VERIFIED -> R.string.trust_enclave_verified
+            TrustLevel.CLOUD -> R.string.trust_cloud
         },
     )
 

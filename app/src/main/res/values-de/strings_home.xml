@@ -84,9 +84,6 @@
     <string name="stats_clear_title">Statistik löschen?</string>
     <string name="stats_clear_text">Alle Zahlen und Zeiten werden von diesem Handy gelöscht.</string>
     <string name="clear">Löschen</string>
-    <string name="place_phone">Auf dem Handy</string>
-    <string name="place_verified_enclave">Geprüfte Enklave</string>
-    <string name="place_server">Server</string>
     <string name="duration_s">%1$s&#160;s</string>
     <string name="duration_min_s">%1$d&#160;min %2$d&#160;s</string>
     <string name="duration_min">%1$d&#160;min</string>

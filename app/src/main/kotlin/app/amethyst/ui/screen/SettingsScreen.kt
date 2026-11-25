@@ -92,6 +92,7 @@ import app.amethyst.ui.presetLine
 import app.amethyst.ui.recognitionRowName
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
+import app.amethyst.ui.theme.badgeLabel
 import app.amethyst.ui.theme.placeExplanation
 import app.amethyst.ui.words
 import kotlin.math.roundToInt
@@ -300,10 +301,11 @@ fun RecognitionScreen(
     SubPage(modifier) {
         val groups = settings.engines.groupBy { it.trustLevelForDisplay() }
         listOf(
-            TrustLevel.ON_DEVICE to stringResource(R.string.recognition_group_phone),
-            TrustLevel.ENCLAVE_VERIFIED to stringResource(R.string.recognition_group_enclave),
-            TrustLevel.CLOUD to stringResource(R.string.recognition_group_server),
-        ).forEach { (level, title) ->
+            TrustLevel.ON_DEVICE,
+            TrustLevel.ENCLAVE_VERIFIED,
+            TrustLevel.CLOUD,
+        ).forEach { level ->
+            val title = level.badgeLabel()
             val engines = groups[level].orEmpty()
             if (engines.isNotEmpty()) {
                 SectionCard(title = title, subtitle = level.placeExplanation()) {

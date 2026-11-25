@@ -32,6 +32,7 @@ import app.amethyst.ui.ShareBar
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
 import app.amethyst.ui.theme.badgeColor
+import app.amethyst.ui.theme.badgeLabel
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -87,7 +88,7 @@ fun StatsScreen(
                 listOf(TrustLevel.ON_DEVICE, TrustLevel.ENCLAVE_VERIFIED, TrustLevel.CLOUD).forEach { level ->
                     val count = stats.dictationsByTrust[level] ?: 0
                     if (count > 0) {
-                        ShareBar(level.place(), "$count", count / total, level.badgeColor())
+                        ShareBar(level.badgeLabel(), "$count", count / total, level.badgeColor())
                     }
                 }
             }
@@ -179,15 +180,6 @@ internal fun ValueRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium, color = AmberPalette.Muted)
     }
 }
-
-@Composable
-private fun TrustLevel.place(): String = stringResource(
-    when (this) {
-        TrustLevel.ON_DEVICE -> R.string.place_phone
-        TrustLevel.ENCLAVE_VERIFIED -> R.string.place_verified_enclave
-        TrustLevel.CLOUD -> R.string.place_server
-    },
-)
 
 private const val MAX_APPS = 5
 

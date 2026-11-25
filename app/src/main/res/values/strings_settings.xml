@@ -28,9 +28,6 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_bubble_note">The bubble and quick menu keep their own colors</string>
-    <string name="recognition_group_phone">On this phone</string>
-    <string name="recognition_group_enclave">Verified enclave</string>
-    <string name="recognition_group_server">Server</string>
     <string name="recognition_add">Add speech recognition</string>
     <string name="add_recognition_android">Runs on this phone. Nothing to download. Stops at the first pause.</string>
     <string name="add_recognition_whisper">Runs on this phone, also without internet. Quick. One download of 82 MB.</string>

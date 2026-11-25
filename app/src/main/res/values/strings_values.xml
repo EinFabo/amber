@@ -55,9 +55,6 @@
     <string name="summary_version_up_to_date">Version %1$s · up to date</string>
     <string name="summary_version_newer">Version %1$s · %2$s available</string>
 
-    <string name="place_on_device">On this phone</string>
-    <string name="place_enclave">Verified enclave</string>
-    <string name="place_cloud">Cloud</string>
 
     <string name="updates_from_installer">From where you installed Embersay</string>
     <string name="updates_available">%1$s available</string>
