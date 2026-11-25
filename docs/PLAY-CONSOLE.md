@@ -10,10 +10,18 @@ the texts as they are; change them only together with the app.
   with at least 12 testers who stay opted in for 14 days in a row before it can apply for
   production (https://support.google.com/googleplay/android-developer/answer/14151465). Start it
   with the first internal build; it runs while the rest is finished.
-- **Play App Signing.** Upload the existing store key as the app signing key ("use your own
-  key"), so Play, GitHub and F-Droid builds of `com.embersay` can update one another. Build the
-  bundle with `./gradlew :app:bundleRelease` (native libraries stay uncompressed in the bundle,
-  symbol tables included).
+- **Play App Signing.** The GitHub and F-Droid builds of `com.embersay` are signed with the
+  GitHub key (`c3f69e72...`, see `docs/fdroid/com.embersay.yml`), not with the store key, which
+  signs only the builds in Fabi's own store. Two ways, to be chosen:
+  - *Upload the GitHub key as the app signing key* ("use your own key"): Play, GitHub and
+    F-Droid builds then update one another. The trade-off: the key leaves the phone-only
+    custody once, and Google holds a copy of it for good.
+  - *Let Google make the app signing key* (the default): the GitHub key stays only Fabi's, with
+    an upload key of its own. The trade-off: Play installs and GitHub or F-Droid installs
+    cannot update each other; someone who switches source has to uninstall first.
+
+  Build the bundle with `./gradlew :app:bundleRelease` (native libraries stay uncompressed in
+  the bundle, symbol tables included).
 - **Privacy policy.** A public URL on your domain (the same text as `docs/PRIVACY.md`), with the
   controller's name, postal address and a contact e-mail filled in - the app still shows the
   placeholder line in red until they are in. Set `PrivacyPolicy.PRIVACY_URL` to the same address.
@@ -42,8 +50,9 @@ Embersay is **not** an accessibility tool (`isAccessibilityTool` is not set).
 
 - **Video (YouTube, unlisted), in this order, in one take:**
   1. Fresh install, open Embersay, Quick setup.
-  2. The step "Let Embersay insert your text": tap the disclosure ("What Embersay reads and
-     does"), scroll slowly through it.
+  2. The step "Let Embersay insert your text": the disclosure ("What Embersay reads and
+     does") is on screen with the "Agree and open settings" button, its rows are not behind a
+     tap; scroll slowly through them.
   3. Tap "Not now" - show that nothing was turned on - then open it again from Home's setup card.
   4. Tap "Agree and open settings", turn the service on in Android's settings, come back.
   5. Open a messaging app, tap a text field: the bubble appears. Tap it, speak a sentence, tap
@@ -110,6 +119,6 @@ No account, no ads, no analytics, no advertising ID.
 
 - Texts: `fastlane/metadata/android/{en-US,de-DE}/` (title, short and full description,
   changelogs) - within Play's limits; brand names stay out of the title and short description.
-- **Still to make (Fabi / next session on the Pixel):** phone screenshots at most 2:1 and
-  without alpha (the current ones are 1080x2340 RGBA and partly outdated), a feature graphic
+- **Still to make (Fabi / next session on the Pixel):** phone screenshots without alpha (Play
+  allows up to 2.3:1, so the current 1080x2340 fits; they are RGBA and partly outdated), a feature graphic
   1024x500, the 512 px icon as a full square.

@@ -35,7 +35,9 @@ Questions about this policy can also be asked at https://github.com/EinFabo/ambe
   sensitive, but some keyboards (Gboard, Samsung) keep their own clipboard history, where copied
   text may stay. With the history on, a dictation's recording is also kept on the phone while
   it is made, encrypted with the same keys, so it is not lost if Embersay is ended before the
-  text is there: it is deleted once the text is there, after 24 hours at most, and with the history.
+  text is there. It is deleted once the text is there; a recording kept for Try again stays only
+  as long as that is offered (ten minutes); anything left over goes after 24 hours at most, and
+  with the history.
 - Diagnostics: the last dictations with their timings and, on the phone only, their text.
   A report you copy to share holds each dictation's shape (characters, words, language), not
   its words, and no app's name: each app is "app 1", "app 2" and so on, the same one throughout
@@ -128,8 +130,9 @@ this may send your voice to its maker.
 ## Permissions
 
 - Microphone: to record a dictation. Embersay records only between your tap to start and the
-  end of that dictation. While it records, Embersay shows a "Recording…" notification with a
-  Stop button, and Android shows that the microphone is in use. The bubble records through the
+  end of that dictation. While it records, Embersay normally shows a "Recording…" notification
+  with a Stop button (Android may refuse the notice; the recording then goes on without it), and
+  Android shows that the microphone is in use. The bubble records through the
   accessibility service; where Android does not let it open the microphone that way (Android 9
   and 10, or a start Android silences), an invisible screen of Embersay's opens for a moment
   to start the recording.

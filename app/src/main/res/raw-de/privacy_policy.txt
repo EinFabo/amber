@@ -38,8 +38,9 @@ Fragen zu dieser Erklärung kannst du auch unter https://github.com/EinFabo/ambe
   Tastaturen (Gboard, Samsung) führen einen eigenen Verlauf der Zwischenablage, in dem kopierter
   Text bleiben kann. Mit dem Verlauf bleibt auch die Aufnahme eines Diktats auf dem Handy, während
   sie entsteht, verschlüsselt mit denselben Schlüsseln, damit sie nicht verloren geht, wenn
-  Embersay beendet wird, bevor der Text da ist: Sie wird gelöscht, sobald der Text da ist, nach
-  höchstens 24 Stunden und mit dem Verlauf.
+  Embersay beendet wird, bevor der Text da ist: Sie wird gelöscht, sobald der Text da ist. Eine
+  Aufnahme, die für „Nochmal versuchen“ behalten wird, bleibt nur so lange, wie das angeboten wird
+  (zehn Minuten); was übrig bleibt, geht nach höchstens 24 Stunden und mit dem Verlauf.
 - Diagnose: die letzten Diktate mit ihren Zeiten und, nur auf dem Handy, ihrem Text. Ein Bericht,
   den du zum Teilen kopierst, enthält die Form jedes Diktats (Zeichen, Wörter, Sprache), nicht
   seine Wörter, und keinen App-Namen: jede App heißt darin „app 1“, „app 2“ und so weiter, im
@@ -139,8 +140,9 @@ dass sie deine Stimme an ihren Hersteller senden kann.
 ## Berechtigungen
 
 - Mikrofon: um ein Diktat aufzunehmen. Embersay nimmt nur zwischen deinem Tippen zum Start und dem
-  Ende dieses Diktats auf. Während es aufnimmt, zeigt Embersay die Benachrichtigung „Aufnahme
-  läuft…“ mit einer Taste zum Stoppen, und Android zeigt, dass das Mikrofon benutzt wird. Die
+  Ende dieses Diktats auf. Während es aufnimmt, zeigt Embersay normalerweise die Benachrichtigung
+  „Aufnahme läuft …“ mit einer Taste zum Stoppen (Android kann sie ablehnen; die Aufnahme läuft
+  dann ohne sie weiter), und Android zeigt, dass das Mikrofon benutzt wird. Die
   Bubble nimmt über die Bedienungshilfe auf; wo Android sie das Mikrofon so nicht öffnen lässt
   (Android 9 und 10, oder ein Start, den Android stummschaltet), öffnet sich für einen Moment ein
   unsichtbarer Bildschirm von Embersay, um die Aufnahme zu starten.

@@ -5,6 +5,18 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **F8-F9, the store listing and honest privacy texts.** The listing (`fastlane/metadata/android`)
+  says in plain words what you get (tap the bubble, speak, the text is in; the voice stays on
+  the phone unless you choose a server; each dictation shows where it went), names that the
+  cleanup needs your own API key or server, leaves password fields out, and keeps product
+  names to a closing "Works with" paragraph. Titles "Embersay: Voice Dictation" and "Embersay:
+  Sprache zu Text" (the brief's German title was 32 characters, Play allows 30). The launch note
+  is `changelogs/71.txt` in both languages; versionCode is still 70, so bump it with the release.
+  `tools/check_listing.py` holds the limits and the word rules. The privacy texts say the
+  recording notification "normally" appears, and that a recording kept for Try again stays for
+  its ten minutes besides the 24 hours at most. PLAY-CONSOLE.md names the GitHub key and both
+  Play App Signing ways. Try: read the listing on a phone in both languages once; nothing else.
+
 - **F1-F4, polish and words.** Home on a fresh install shows one row ("Your dictations show up
   here") instead of History plus Today saying "nothing yet"; the test field sits right under
   the flame and its status line; the language pack's two buttons wrap under each other. German
@@ -388,9 +400,9 @@ Open for Fabi:
   or formatting (a mail draft, Google Docs) - pasted, not written back flat; a field that shows
   its hint as text gets no words spliced onto it. Android 9/10 in landscape: the bubble clear
   of the navigation bar on the side.
-- Note for item 22: `docs/PRIVACY.md` and both raw texts say a shared Diagnostics report "names
-  the app each dictation went into" - true until the report replaces the names; change that
-  line in all three with it.
+- Note for item 22: done. A copied Diagnostics report already replaces each app's name by "app 1",
+  "app 2" ... (`AppAliases`, `Anonymize`), and `docs/PRIVACY.md` and both raw texts say so (checked
+  2026-11-25); the list on the phone still shows the names.
 
 ## Renamed to Embersay (2026-11-17)
 
@@ -645,7 +657,7 @@ a tool, a bubble, text into other apps). Biggest first:
       (About → Privacy policy, store review item 18) and extended to Play and the website; the
       contact and the URL are Fabi's (see "Store review 2026-11-22").
 - [ ] **Listing assets**: a feature graphic 1024x500 (missing); screenshots are 1080x2340
-      (over Play's 2:1) and RGBA - crop and flatten; the 512 icon must be a full square.
+      (fits Play's 2.3:1) and RGBA - flatten them (drop the alpha); the 512 icon must be a full square.
 - Already fine: targetSdk 36; the native libraries are 16 KB aligned (checked in the release
   APK); the GitHub update check is off for Play installs and never installs anything itself;
   no overlay or install-packages permission.
@@ -821,8 +833,8 @@ Open - Fabi's decisions:
 - [ ] **Play Console:** a developer account (identity, trader status), an app bundle
       (`bundleRelease`) with Play App Signing - Play and GitHub installs then cannot update
       each other -, the accessibility and foreground-service declarations with a video each,
-      the data safety form, a feature graphic 1024x500, screenshots without alpha at most
-      2:1, a closed test with 12 testers for 14 days.
+      the data safety form, a feature graphic 1024x500, screenshots without alpha (at most
+      2.3:1), a closed test with 12 testers for 14 days.
 - [ ] **F-Droid:** not before the end of January 2027 (three months of development); prove
       the recipe in a fork of fdroiddata; Go built from source and tinfoil-go as a submodule
       if the review asks; the rest of NOTICE (ONNX Runtime's third-party notices, the Go
@@ -1708,7 +1720,7 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
       Central. `tools/fetch-sherpa-aar.sh` is gone. The way F-Droid takes: Marmalade STT
       (`app.marmalade.stt`) and Ramblr do the same.
 - [x] **The Tinfoil AAR** is in the recipe (`build:` runs `tools/build-tinfoil-aar.sh`; Go from
-      bookworm-backports, gomobile and the Go version pinned from tinfoil-go's go.mod).
+      trixie-backports, gomobile and the Go version pinned from tinfoil-go's go.mod).
 - [x] **Reproducible build and signing** (`tools/check-reproducible.sh`; release signed with
       `apksigner --alignment-preserved true`, so `apksigcopier` works).
 - [x] **Recipe draft** `docs/fdroid/app.amber.yml` + `docs/fdroid/README.md`: `fdroid lint`
@@ -1735,7 +1747,7 @@ Amber in F-Droid, built there from source. What stands in the way today, found i
       HEAD, as `tools/check-reproducible.sh` does.
 - [ ] **Recipe JDK**: README and CI build with JDK 21; F-Droid's build server may default to
       17. Either install 21 in the recipe (`sudo:`) or prove that 17 gives the same bytes - and
-      check whether `bookworm-backports` exists on the build server for `golang-go` at all
+      check whether `trixie-backports` exists on the build server for `golang-go` at all
       (Cryptocam's recipe installs Go with `-t testing`).
 - [ ] **NOTICE is incomplete** (from before this branch): ONNX Runtime's own third-party notices
       and the Go modules compiled into `libgojni.so` (tinfoil-go's dependencies) are not listed.
