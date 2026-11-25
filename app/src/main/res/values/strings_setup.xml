@@ -30,6 +30,12 @@
     <string name="switch_on_step2">Turn on “Use %1$s”</string>
     <string name="switch_on_step3">Tap “Allow”</string>
     <string name="switch_on_step3_note">Embersay then returns here automatically</string>
+    <string name="switch_on_installed">Tap “Installed apps”</string>
+    <string name="switch_on_installed_note">Samsung keeps downloaded services under this row</string>
+    <string name="switch_on_downloaded">Tap “Downloaded apps”</string>
+    <string name="switch_on_downloaded_note">Xiaomi keeps downloaded services under this row</string>
+    <string name="switch_on_note_installed">In Android\'s settings, tap “Installed apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
+    <string name="switch_on_note_downloaded">In Android\'s settings, tap “Downloaded apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
     <string name="where_allow">Allow</string>
     <string name="where_as_text">Show steps as text</string>
     <string name="where_hide_text">Hide steps</string>

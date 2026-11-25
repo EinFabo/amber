@@ -20,6 +20,7 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.onboarding.AmberVariant
 import app.amethyst.core.onboarding.EngineName
 import app.amethyst.core.onboarding.RealAppNudge
+import app.amethyst.core.onboarding.SwitchOnStep
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.core.settings.RecognitionRows
@@ -50,6 +51,17 @@ object Texts {
      */
     fun english(context: Context): Context =
         context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(Locale.ENGLISH) })
+
+    /** A step in Android's settings: what to tap, and a line more if there is one. [service] is the name Android lists Embersay's service by. */
+    fun switchOnStep(context: Context, step: SwitchOnStep, service: String): Pair<String, String?> = with(context) {
+        when (step) {
+            SwitchOnStep.INSTALLED_APPS -> getString(R.string.switch_on_installed) to getString(R.string.switch_on_installed_note)
+            SwitchOnStep.DOWNLOADED_APPS -> getString(R.string.switch_on_downloaded) to getString(R.string.switch_on_downloaded_note)
+            SwitchOnStep.TAP_SERVICE -> getString(R.string.switch_on_step1, service) to getString(R.string.switch_on_step1_note)
+            SwitchOnStep.TURN_ON -> getString(R.string.switch_on_step2, service) to null
+            SwitchOnStep.ALLOW -> getString(R.string.switch_on_step3) to getString(R.string.switch_on_step3_note)
+        }
+    }
 
     fun problem(context: Context, problem: Problem): String = with(context) {
         when (problem) {

@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C5, the accessibility steps name the maker's way.** On Samsung the steps in words and the
+  note before the settings open start with "Installed apps", on Xiaomi/Redmi/POCO with
+  "Downloaded apps" (German: "Installierte Apps", "Heruntergeladene Apps"); other phones keep
+  the three taps. The steps are values in `:core` (`SwitchOnPlan`, `SettingsMaker`), worded in
+  `Texts.switchOnStep`. Try on the A20e (One UI): tap "The steps in words" after coming back
+  without the service on, and check the first step is the row One UI really shows.
 - **C4, dismissing Android's microphone dialog is not a refusal.** "Allow" for the microphone
   always tries Android's question first; only an answer that comes back within 300 ms with no
   reason to give (no dialog was shown: Android's "Don't ask again") sends the next "Allow" to

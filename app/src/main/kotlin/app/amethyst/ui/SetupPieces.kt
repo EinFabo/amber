@@ -13,15 +13,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.os.Build
 import app.amethyst.R
+import app.amethyst.Texts
+import app.amethyst.core.onboarding.SettingsMaker
+import app.amethyst.core.onboarding.SwitchOnPlan
+import app.amethyst.core.onboarding.SwitchOnStep
 import app.amethyst.core.settings.Features
 import app.amethyst.ui.theme.AmberPalette
 import app.amethyst.ui.theme.AmberShapes
@@ -128,8 +135,13 @@ fun FullDisclosure(label: String = stringResource(R.string.full_text)) {
 @Composable
 fun SwitchOnNote() {
     val name = stringResource(R.string.accessibility_label)
+    val note = when (SwitchOnPlan.accessibility(SettingsMaker.of(Build.MANUFACTURER)).first()) {
+        SwitchOnStep.INSTALLED_APPS -> R.string.switch_on_note_installed
+        SwitchOnStep.DOWNLOADED_APPS -> R.string.switch_on_note_downloaded
+        else -> R.string.switch_on_note
+    }
     GroupFootnote(
-        stringResource(R.string.switch_on_note, name),
+        stringResource(note, name),
         AmberIcons.OpenInNew,
     )
 }
@@ -157,16 +169,18 @@ fun RestrictedSettingsNote(modifier: Modifier = Modifier) {
     }
 }
 
-/** The same three taps as numbered steps, for someone who came back without the service on. */
+/** The taps as numbered steps for this phone's settings, for someone who came back without the service on. */
 @Composable
 fun SwitchOnSteps() {
+    val context = LocalContext.current
     val name = stringResource(R.string.accessibility_label)
+    val steps = remember { SwitchOnPlan.accessibility(SettingsMaker.of(Build.MANUFACTURER)) }
     SettingsGroup(stringResource(R.string.switch_on_group)) {
-        Step(1, stringResource(R.string.switch_on_step1, name), stringResource(R.string.switch_on_step1_note))
-        RowDivider()
-        Step(2, stringResource(R.string.switch_on_step2, name), null)
-        RowDivider()
-        Step(3, stringResource(R.string.switch_on_step3), stringResource(R.string.switch_on_step3_note))
+        steps.forEachIndexed { index, step ->
+            if (index > 0) RowDivider()
+            val (title, note) = Texts.switchOnStep(context, step, name)
+            Step(index + 1, title, note)
+        }
     }
 }
 
