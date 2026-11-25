@@ -31,12 +31,14 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 - **G1, the update check asks first.** A GitHub-signed install that no store made has the check
   off until the user agrees: Home shows "Check GitHub for new versions?" once (Yes, check / No,
-  after the setup, with the other one-time cards); the Updates page keeps the switch. Settings
+  after the setup, with the other one-time cards); the Updates page keeps the switch. The card
+  says where to change the answer: Settings → About Embersay → Updates (it said "Settings,
+  Updates", which does not exist), and like the other one-time cards it is never cut off. Settings
   that already checked (a last check or a release seen) count as yes and are not asked;
   switched off stays no; never checked is asked (`UpdateSettings.choice`). Play, F-Droid and
   other store installs are never asked and never check. Try: a fresh GitHub-signed debug build
-  (card shows, no request before Yes); an old settings file with a last check (no card, checks
-  continue).
+  (card shows, no request before Yes; at 200 % font in German its last sentence is there in
+  full); an old settings file with a last check (no card, checks continue).
 
 - **F8-F9, the store listing and honest privacy texts.** The listing (`fastlane/metadata/android`)
   says in plain words what you get (tap the bubble, speak, the text is in; the voice stays on
@@ -116,7 +118,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   no recording notification.
 - **E1, Settings warns before a model too big for the phone.** "Add speech recognition" and
   the model list offered Parakeet and the large Whisper model on a 3 GB phone, where they get
-  the app killed. Such rows now say "Too big for this phone's memory" (same memory rule as the
+  the app killed. Such rows now say "Too big for this phone's memory" (German "Zu groß für den
+  Arbeitsspeicher dieses Handys" - "Speicher" alone reads as storage; same memory rule as the
   fallback after an out-of-memory), and choosing one asks first ("Use anyway"). A model picked
   from a file, or a phone that reports no memory, is never marked. Try on a 3 GB phone: Settings,
   Speech recognition, Add: Parakeet is marked and asks; in Whisper's models the large one is
@@ -245,13 +248,18 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   on the A20e: Home -> Reliability -> Open; check the list opens, the labels match One UI
   (German: "Akkunutzung optimieren", "Alle", the switch), the return comes, and then the
   "Never sleeping apps" row with Open (where does it land?) and Done. On the Pixel (12+): the
-  app info opens, "Akku" and "Uneingeschränkt" or "Nicht eingeschränkt"?
+  app info opens, "Akku" and "Uneingeschränkt" or "Nicht eingeschränkt"? The steps' heading is
+  now "How to allow unrestricted battery use" / "So erlaubst du die Akkunutzung ohne
+  Einschränkung" (it quoted a label no phone shows), the first step's note "Use the button
+  above" / "Mit dem Knopf oben".
 - **C5, the accessibility steps name the maker's way.** On Samsung the steps in words and the
   note before the settings open start with "Installed apps", on Xiaomi/Redmi/POCO with
   "Downloaded apps" (German: "Installierte Apps", "Heruntergeladene Apps"); other phones keep
   the three taps. The steps are values in `:core` (`SwitchOnPlan`, `SettingsMaker`), worded in
   `Texts.switchOnStep`. Try on the A20e (One UI): tap "The steps in words" after coming back
-  without the service on, and check the first step is the row One UI really shows.
+  without the service on, and check the first step is the row One UI really shows. The lead
+  above them no longer counts "three taps" (four on Samsung and Xiaomi): "Not on yet. These
+  steps turn it on." / "Noch nicht an. Mit diesen Schritten schaltest du es ein."
 - **C4, dismissing Android's microphone dialog is not a refusal.** "Allow" for the microphone
   always tries Android's question first. Android stops asking either visibly - a refusal after
   which it has no reason to give any more, though it had one before (Android 11's second
@@ -259,11 +267,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   answer that comes back within 300 ms (no dialog shown): the app info opens in that same tap,
   on the microphone step and on Home's cards alike (`MicrophoneAsk.answer`). Tapping outside
   the dialog, or "Don't allow" once, asks again. Under "Allow" on the microphone step a hint
-  says: Choose "While using the app". Try on a phone (the A20e too, where the answer may be
+  says: Choose "While using the app" - from Android 11 only (final review): Android 9 and 10
+  ask Allow or Deny and get no hint. Try on a phone (the A20e too, where the answer may be
   slow): fresh install, tap Allow, tap outside Android's dialog, tap Allow again - the dialog
   returns; refuse twice and tap Allow once more - the app info opens at that tap, also from
   Home's "Allow". Check the hint matches Android's wording (German: "Während der Nutzung der
-  App").
+  App"); on the A20e (Android 11) it shows, on an Android 9/10 emulator it does not.
 - **C10, the microphone before the accessibility service.** The introduction (both ways) now
   asks for the microphone first, as Home's setup card does - one tap on Android's own
   question - and the accessibility service second; the last step's "Go to the missing step"
@@ -272,7 +281,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   follow the quick setup - microphone, then accessibility, then the try.
 - **C3, "All set" only when it is.** The last step now checks the bubble's service and the
   microphone too: if either is missing it is titled "Two things are still missing" or "One
-  thing is still missing", names what, and its button goes back to the first missing step
+  thing is still missing" (German "Zwei Sachen fehlen noch" / "Eine Sache fehlt noch"), names
+  what, and its button goes back to the first missing step
   instead of "Try it" - ahead of every model and language pack state. "Finish anyway" under
   it still ends the introduction (Home then shows what is missing). The accessibility step no
   longer says "On" for a service that is switched on but not running: it shows "The bubble's
@@ -293,7 +303,9 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   recommends "Choose a model or server", the last
   step is titled "Nothing can recognize speech yet" with the way to Settings, the practice step
   says the same above its tasks and blocks the tap, and Home's recognition row reads "Nothing
-  on this phone can recognize speech yet. Tap to download a model or use a server." in red.
+  can recognize speech yet. Tap for a model or a server." in red (shortened in the final review,
+  and never cut off: German "Noch kann nichts Sprache erkennen. Tippe für ein Modell oder einen
+  Server.").
   Try on a phone or emulator without a speech recognizer (no Google app): go through the
   introduction and look at the last step, the practice step and Home; on a phone with one,
   nothing changes.
@@ -314,7 +326,9 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   is not running" with "Open accessibility settings", and the practice step blocks the same way
   with "The bubble's service is switched on but not running. Switch it off and on again." A
   service that is still connecting right after the app started is given 2 s, and Home and the
-  practice step look again the moment the service connects or goes away. Try on a phone:
+  practice step look again the moment the service connects or goes away. Under that card Home
+  no longer nudges to dictate in another app (final review: the nudge asks for a running
+  service, not only a switched-on one). Try on a phone:
   force-stop Embersay with its service on, open Home - a card that shows while the service is
   slow to come back should go by itself once it connects, without leaving Home; switching it
   off and on removes it.
@@ -366,7 +380,8 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   sealed every 2 s with the history's key of the day (`RecordingSpool`, `SpoolWriter`). It goes
   when the text is there, on a cancel while listening, with the history off or "Delete all";
   while the recording is kept for "Try again" it stays as long as that (10 min). After the app
-  was ended, Home shows "Recording cut off" with "Recover last recording" (into the test field,
+  was ended, Home shows "Recording cut off" (its text never cut off at a large font) with
+  "Recover last recording" (into the test field,
   with the speech recognition set now) and Delete, for up to 24 h. Try on a phone: history on,
   dictate for 10 s into any app and, still recording or while the bubble works, run
   `adb shell am force-stop com.embersay.debug` (or swipe the app away and kill it); open

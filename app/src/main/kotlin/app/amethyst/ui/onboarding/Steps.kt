@@ -1,5 +1,6 @@
 package app.amethyst.ui.onboarding
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -237,8 +238,9 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
                 ContinueButton(onNext)
             } else {
                 ContinueButton({ asked = true; actions.requestMicrophone() }, stringResource(R.string.allow))
-                // Android's own wording of the choice that grants it, so "Allow" is not followed by a guess.
-                Hint(stringResource(R.string.mic_choose_while_using))
+                // Android's own wording of the choice that grants it, so "Allow" is not followed by a
+                // guess. Only from Android 11: before it the question has just Allow and Deny.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Hint(stringResource(R.string.mic_choose_while_using))
                 if (refused) LaterButton(stringResource(R.string.continue_without_mic), onNext)
             }
         },

@@ -607,7 +607,7 @@ private fun AmethystScreens(
     val installedApps by produceState<Map<String, String>?>(null, apps) {
         value = runCatching { apps.all() }.getOrDefault(emptyList()).associate { it.packageName to it.label }
     }
-    val nudge = RealAppNudges.of(RealAppNudges.reached(settings.firstRun.realAppReached, statList), setup.ready && settings.bubble.enabled, installedApps)
+    val nudge = RealAppNudges.of(RealAppNudges.reached(settings.firstRun.realAppReached, statList), setup.working && settings.bubble.enabled, installedApps)
     // Home's "Last dictation" while it is kept: looked at again with every dictation, every
     // change of what is kept, and every half minute - so it goes when its ten minutes are up.
     val cleanupTrouble by graph.cleanupTrouble.open.collectAsStateWithLifecycle()

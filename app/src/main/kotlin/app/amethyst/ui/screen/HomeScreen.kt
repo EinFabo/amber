@@ -377,7 +377,8 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
                 active.mayGoToMaker() -> stringResource(R.string.home_android_leaves)
                 else -> null
             },
-            summaryMaxLines = 3,
+            // Said in full, at any font size: the way out is the last words.
+            summaryMaxLines = Int.MAX_VALUE,
             icon = AmberIcons.Mic,
             titleColor = if (active == null || nothingRecognizes) AmberPalette.Error else AmberPalette.Text,
             below = active?.let { { TrustBadge(it.trustLevelForDisplay()) } },
@@ -453,7 +454,8 @@ private fun UpdateQuestionCard(onYes: () -> Unit, onNo: () -> Unit) {
             title = stringResource(R.string.update_question_title),
             summary = stringResource(R.string.update_question_summary),
             icon = AmberIcons.Update,
-            summaryMaxLines = 3,
+            // Where to change the answer is its last sentence: never cut, at any font size.
+            summaryMaxLines = Int.MAX_VALUE,
             trailing = null,
             onClick = null,
         )
@@ -509,7 +511,7 @@ private fun RecoverRecordingCard(onRecover: () -> Unit, onDelete: () -> Unit) {
             title = stringResource(R.string.home_recover_title),
             summary = stringResource(R.string.home_recover_summary),
             icon = AmberIcons.Mic,
-            summaryMaxLines = 4,
+            summaryMaxLines = Int.MAX_VALUE,
             trailing = null,
             onClick = null,
         )
@@ -566,7 +568,7 @@ private fun ServiceNotRunningCard(onOpenSettings: () -> Unit) {
             title = stringResource(R.string.service_not_running_title),
             summary = stringResource(R.string.service_not_running),
             icon = AmberIcons.Info,
-            summaryMaxLines = 4,
+            summaryMaxLines = Int.MAX_VALUE,
             trailing = null,
             onClick = null,
         )

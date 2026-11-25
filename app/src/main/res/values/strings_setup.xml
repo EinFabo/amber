@@ -36,9 +36,9 @@
     <string name="switch_on_downloaded_note">Xiaomi keeps downloaded services under this row</string>
     <string name="switch_on_note_installed">In Android\'s settings, tap “Installed apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
     <string name="switch_on_note_downloaded">In Android\'s settings, tap “Downloaded apps”, then %1$s, turn it on and tap Allow. Embersay then returns here automatically.</string>
-    <string name="battery_group">To unrestricted battery use</string>
+    <string name="battery_group">How to allow unrestricted battery use</string>
     <string name="battery_step_app_info">Open Embersay\'s app info</string>
-    <string name="battery_step_app_info_note">The button does it</string>
+    <string name="battery_step_app_info_note">Use the button above</string>
     <string name="battery_step_battery">Tap “Battery”</string>
     <string name="battery_step_unrestricted">Choose “Unrestricted”</string>
     <string name="battery_step_unrestricted_note">Embersay then returns here automatically</string>
@@ -91,7 +91,7 @@
     <string name="welcome_only_dictating_note">The microphone is off the rest of the time</string>
     <string name="access_title">Let Embersay insert your text</string>
     <string name="access_lead_locked">Not on yet. If Android blocked the switch, here\'s how to unblock it.</string>
-    <string name="access_lead_waiting">Not on yet. It takes three taps.</string>
+    <string name="access_lead_waiting">Not on yet. These steps turn it on.</string>
     <string name="access_lead">Android\'s accessibility service lets Embersay show the bubble over other apps and insert text into the field you\'re in.</string>
     <string name="access_open_again">Open settings again</string>
     <string name="access_done">On. The bubble can now appear in every app.</string>

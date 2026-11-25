@@ -105,7 +105,7 @@
     <string name="unknown">Unbekannt</string>
     <string name="updates_check">Nach Updates suchen</string>
     <string name="update_question_title">Auf GitHub nach neuen Versionen schauen?</string>
-    <string name="update_question_summary">Einmal am Tag. GitHub sieht deine IP-Adresse und welche Version du hast, sonst nichts. Du kannst das unter Einstellungen, Updates ändern.</string>
+    <string name="update_question_summary">Einmal am Tag. GitHub sieht deine IP-Adresse und welche Version du hast, sonst nichts. Du kannst das unter Einstellungen → Über Embersay → Updates ändern.</string>
     <string name="update_question_yes">Ja, schauen</string>
     <string name="update_question_no">Nein</string>
     <string name="updates_check_summary">Einmal am Tag, auf GitHub</string>

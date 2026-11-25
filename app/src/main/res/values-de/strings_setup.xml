@@ -36,9 +36,9 @@
     <string name="switch_on_downloaded_note">Xiaomi zeigt heruntergeladene Dienste unter diesem Eintrag</string>
     <string name="switch_on_note_installed">Tippe in den Android-Einstellungen auf „Installierte Apps“, dann auf %1$s, schalte es ein und erlaube es. Embersay kommt danach von selbst hierher zurück.</string>
     <string name="switch_on_note_downloaded">Tippe in den Android-Einstellungen auf „Heruntergeladene Apps“, dann auf %1$s, schalte es ein und erlaube es. Embersay kommt danach von selbst hierher zurück.</string>
-    <string name="battery_group">So kommst du zu „Akku ohne Einschränkung“</string>
+    <string name="battery_group">So erlaubst du die Akkunutzung ohne Einschränkung</string>
     <string name="battery_step_app_info">Öffne die App-Info von Embersay</string>
-    <string name="battery_step_app_info_note">Der Knopf macht das</string>
+    <string name="battery_step_app_info_note">Mit dem Knopf oben</string>
     <string name="battery_step_battery">Tippe auf „Akku“</string>
     <string name="battery_step_unrestricted">Wähle „Uneingeschränkt“</string>
     <string name="battery_step_unrestricted_note">Embersay kommt danach von selbst hierher zurück</string>
@@ -91,7 +91,7 @@
     <string name="welcome_only_dictating_note">Sonst ist das Mikrofon aus</string>
     <string name="access_title">Lass Embersay für dich schreiben</string>
     <string name="access_lead_locked">Noch nicht an. Wenn Android den Schalter gesperrt hat, geht es so weiter.</string>
-    <string name="access_lead_waiting">Noch nicht an. Das sind drei Schritte.</string>
+    <string name="access_lead_waiting">Noch nicht an. Mit diesen Schritten schaltest du es ein.</string>
     <string name="access_lead">Über die Bedienungshilfe von Android kann Embersay die Bubble über anderen Apps zeigen und Text in das Feld einfügen, in dem du schreibst.</string>
     <string name="access_open_again">Einstellungen noch einmal öffnen</string>
     <string name="access_done">An. Die Bubble kann jetzt in jeder App erscheinen.</string>
@@ -128,8 +128,8 @@
     <string name="ready_step_title">Embersay bereithalten</string>
     <string name="ready_step_lead">Optional. Manche Handys schalten sonst das Mikrofon im Hintergrund ab.</string>
     <string name="done_title">Alles bereit</string>
-    <string name="done_title_setup_missing_two">Zwei Dinge fehlen noch</string>
-    <string name="done_title_setup_missing_one">Ein Ding fehlt noch</string>
+    <string name="done_title_setup_missing_two">Zwei Sachen fehlen noch</string>
+    <string name="done_title_setup_missing_one">Eine Sache fehlt noch</string>
     <string name="done_go_to_missing">Zum fehlenden Schritt</string>
     <string name="done_finish_anyway">Trotzdem fertig</string>
     <string name="done_missing_service">Die Bedienungshilfe von Embersay läuft noch nicht.</string>
