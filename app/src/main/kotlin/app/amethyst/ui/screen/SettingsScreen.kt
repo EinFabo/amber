@@ -46,6 +46,7 @@ import app.amethyst.R
 import app.amethyst.Texts
 import app.amethyst.core.bubble.QuickMenuLayout
 import app.amethyst.core.engine.ConfigIssue
+import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.EngineConfigValidator
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePresets
@@ -340,21 +341,37 @@ fun RecognitionScreen(
         }
     }
 
+    fun addPreset(preset: app.amethyst.core.engine.EnginePreset) {
+        val language = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())
+        // A server is added as often as wanted, each with an id of its own.
+        val added = if (preset == EnginePresets.SERVER) {
+            Servers.newServer(Servers.newId(taken = settings.engines.map { it.id }.toSet()), language)
+        } else {
+            EngineConfig.fromPreset(preset, languageTag = language)
+        }
+        onUpdateSettings { it.withEngine(added) }
+        onOpenEngine(added.id)
+    }
+
+    val ramMb = rememberTotalRamMb()
+    // A speech recognition too big for the memory, until the question is answered.
+    var askingPreset by remember { mutableStateOf<app.amethyst.core.engine.EnginePreset?>(null) }
+    askingPreset?.let { preset ->
+        TooBigDialog(
+            name = catalog(preset.displayName),
+            onUse = { askingPreset = null; addPreset(preset) },
+            onDismiss = { askingPreset = null },
+        )
+    }
+
     if (showPresets) {
         PresetDialog(
             existingIds = settings.engines.map { it.id }.toSet(),
+            tooBig = { EngineAdvice.tooBigForMemory(it, ramMb) },
             onDismiss = { showPresets = false },
             onPick = { preset ->
                 showPresets = false
-                val language = EngineConfig.defaultLanguageTag(preset.kind, PhoneLocales.tags())
-                // A server is added as often as wanted, each with an id of its own.
-                val added = if (preset == EnginePresets.SERVER) {
-                    Servers.newServer(Servers.newId(taken = settings.engines.map { it.id }.toSet()), language)
-                } else {
-                    EngineConfig.fromPreset(preset, languageTag = language)
-                }
-                onUpdateSettings { it.withEngine(added) }
-                onOpenEngine(added.id)
+                if (EngineAdvice.tooBigForMemory(preset, ramMb)) askingPreset = preset else addPreset(preset)
             },
         )
     }
@@ -700,6 +717,7 @@ internal const val MAX_BUBBLE_DP = 96
 @Composable
 private fun PresetDialog(
     existingIds: Set<String>,
+    tooBig: (app.amethyst.core.engine.EnginePreset) -> Boolean,
     onDismiss: () -> Unit,
     onPick: (app.amethyst.core.engine.EnginePreset) -> Unit,
 ) {
@@ -735,6 +753,7 @@ private fun PresetDialog(
                                 TrustBadge(preset.trustLevelForDisplay())
                             }
                             if (preset.note.isNotBlank()) Hint(catalog(preset.note))
+                            if (tooBig(preset)) Hint(stringResource(R.string.model_too_big), AmberPalette.Error)
                         }
                     }
             }

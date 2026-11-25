@@ -58,6 +58,7 @@ import app.amethyst.core.engine.AmberCatalog
 import app.amethyst.core.engine.AmberCatalogs
 import app.amethyst.core.engine.ConfigIssue
 import app.amethyst.core.engine.EngineConfigValidator
+import app.amethyst.core.engine.EngineAdvice
 import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EnginePreset
 import app.amethyst.core.engine.EnginePresets
@@ -550,6 +551,12 @@ private fun WhisperModelsCard(
     }
     // The model asked to be deleted, by id and name, until the question is answered.
     var deleting by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val ramMb = rememberTotalRamMb()
+    // A model too big for the memory, by id and name, until the question is answered.
+    var asking by remember { mutableStateOf<Pair<String, String>?>(null) }
+    asking?.let { (id, name) ->
+        TooBigDialog(name = name, onUse = { asking = null; onSelect(id) }, onDismiss = { asking = null })
+    }
     deleting?.let { (id, name) ->
         DeleteModelDialog(
             name = name,
@@ -576,7 +583,8 @@ private fun WhisperModelsCard(
                 note = catalog(spec.note),
                 state = states[spec.id] ?: SlotState.Missing,
                 selected = spec.id == selectedId,
-                onSelect = { onSelect(spec.id) },
+                tooBig = EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, spec.id, ramMb),
+                onSelect = { if (EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, spec.id, ramMb)) asking = spec.id to title else onSelect(spec.id) },
                 onDownload = { onDownload(spec) },
                 onCancel = { onCancel(spec.id) },
                 onDelete = { deleting = spec.id to title },
@@ -622,6 +630,8 @@ private fun ModelRow(
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
+    /** Known to need more memory than the phone has ([EngineAdvice.tooBigForMemory]). */
+    tooBig: Boolean = false,
     /** The button that brings a damaged model anew ([FileProblem.Damaged]). */
     againLabel: String = stringResource(R.string.download_again),
 ) {
@@ -656,6 +666,7 @@ private fun ModelRow(
             Hint(sizeLabel)
         }
         Hint(note)
+        if (tooBig) Hint(stringResource(R.string.model_too_big), AmberPalette.Error)
 
         AnimatedContent(
             targetState = state,

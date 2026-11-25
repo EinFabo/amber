@@ -85,4 +85,8 @@
     <string name="server_recognized">%1$s erkannt. Embersay kennt Adresse und Modelle.</string>
     <string name="server_key_optional">API-Schlüssel (optional)</string>
     <string name="server_key_elsewhere">Dieser Schlüssel wurde für %1$s eingegeben und geht nicht an diese Adresse. Gib ihn noch einmal ein, um ihn hier zu nutzen.</string>
+    <string name="model_too_big">Zu groß für den Speicher dieses Handys</string>
+    <string name="model_too_big_title">%1$s trotzdem nutzen?</string>
+    <string name="model_too_big_text">Es braucht mehr Speicher, als dieses Handy hat. Das Diktieren kann langsam sein oder Embersay kann sich beenden. Du kannst es trotzdem nutzen.</string>
+    <string name="model_too_big_use">Trotzdem nutzen</string>
 </resources>

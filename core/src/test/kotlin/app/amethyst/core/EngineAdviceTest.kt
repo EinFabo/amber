@@ -1,7 +1,10 @@
 package app.amethyst.core
 
 import app.amethyst.core.engine.EngineAdvice
+import app.amethyst.core.engine.EngineKind
 import app.amethyst.core.engine.EngineOption
+import app.amethyst.core.engine.EnginePresets
+import app.amethyst.core.engine.whisper.WhisperModels
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.WelcomePrivacy
 import app.amethyst.core.engine.sherpa.ParakeetModel
@@ -119,5 +122,35 @@ class EngineAdviceTest {
         assertEquals(WelcomePrivacy.NOTHING_YET, EngineAdvice.welcomePrivacy(bare))
         // De-Googled with a model that fits: the model keeps it on the phone.
         assertEquals(WelcomePrivacy.ON_PHONE, EngineAdvice.welcomePrivacy(bare.copy(totalRamMb = 8_000, freeStorageMb = 4_000, whisperCpu = true)))
+    }
+
+    @Test
+    fun `settings marks Parakeet and the large Whisper model too big for a 3 GB phone`() {
+        val threeGb = 2_800L
+        val sixGb = 5_500L
+        assertTrue(EngineAdvice.tooBigForMemory(EngineKind.LOCAL_SHERPA, null, threeGb))
+        assertTrue(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, WhisperModels.ACFT_LARGE_V3_TURBO_Q8.id, threeGb))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, WhisperModels.FUTO_MULTILINGUAL_244.id, threeGb))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, WhisperModels.FUTO_MULTILINGUAL_74.id, threeGb))
+        // 2 GB: the 244 model does not fit either.
+        assertTrue(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, WhisperModels.FUTO_MULTILINGUAL_244.id, 1_800))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.LOCAL_SHERPA, null, sixGb))
+    }
+
+    @Test
+    fun `a picked file, an unknown memory and other engines are never marked`() {
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, WhisperModels.IMPORTED_ID, 2_800))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.LOCAL_SHERPA, null, 0))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.ANDROID_ON_DEVICE, null, 2_800))
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.OPENAI_COMPATIBLE, "x", 2_800))
+        // No model named: the default (small) one.
+        assertFalse(EngineAdvice.tooBigForMemory(EngineKind.WHISPER_CPP, null, 2_800))
+    }
+
+    @Test
+    fun `a preset is weighed by its kind and model`() {
+        assertTrue(EngineAdvice.tooBigForMemory(EnginePresets.LOCAL_PARAKEET, 2_800))
+        assertFalse(EngineAdvice.tooBigForMemory(EnginePresets.LOCAL_WHISPER, 2_800))
+        assertFalse(EngineAdvice.tooBigForMemory(EnginePresets.SERVER, 2_800))
     }
 }

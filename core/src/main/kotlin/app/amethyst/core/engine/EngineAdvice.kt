@@ -128,12 +128,28 @@ object EngineAdvice {
      * The option [config] runs, for weighing it against the phone: Parakeet, or a Whisper model
      * from the catalog. Null for a Whisper file the user picked, and for any engine elsewhere.
      */
-    fun optionOf(config: EngineConfig): EngineOption? = when (config.kind) {
+    fun optionOf(config: EngineConfig): EngineOption? = optionOf(config.kind, config.modelId)
+
+    fun optionOf(kind: EngineKind, modelId: String?): EngineOption? = when (kind) {
         EngineKind.LOCAL_SHERPA -> EngineOption.PARAKEET
         EngineKind.WHISPER_CPP -> {
-            val model = config.modelId ?: WhisperModels.default.id
+            val model = modelId?.takeIf { it.isNotBlank() } ?: WhisperModels.default.id
             EngineOption.entries.firstOrNull { it.whisperModelId == model }
         }
         else -> null
     }
+
+    /**
+     * Whether Settings marks a [kind]/[modelId] "Too big for this phone's memory" on a phone that
+     * reports [totalRamMb]: a catalog model that [fitsInMemory] says no to. Never for a file the
+     * user picked (size unknown), another engine, or memory not known (0).
+     */
+    fun tooBigForMemory(kind: EngineKind, modelId: String?, totalRamMb: Long): Boolean {
+        if (totalRamMb <= 0) return false
+        val option = optionOf(kind, modelId) ?: return false
+        return !fitsInMemory(option, totalRamMb)
+    }
+
+    fun tooBigForMemory(preset: EnginePreset, totalRamMb: Long): Boolean =
+        tooBigForMemory(preset.kind, preset.modelId, totalRamMb)
 }

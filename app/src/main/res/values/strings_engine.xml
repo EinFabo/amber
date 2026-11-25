@@ -85,4 +85,8 @@
     <string name="server_recognized">Recognized as %1$s. Embersay knows its address and models.</string>
     <string name="server_key_optional">API key (optional)</string>
     <string name="server_key_elsewhere">This key was entered for %1$s and isn\'t sent to this address. Enter it again to use it here.</string>
+    <string name="model_too_big">Too big for this phone\'s memory</string>
+    <string name="model_too_big_title">Use %1$s anyway?</string>
+    <string name="model_too_big_text">It needs more memory than this phone has. Dictating may be slow, or Embersay may stop. You can still use it.</string>
+    <string name="model_too_big_use">Use anyway</string>
 </resources>

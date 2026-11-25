@@ -5,6 +5,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **E1, Settings warns before a model too big for the phone.** "Add speech recognition" and
+  the model list offered Parakeet and the large Whisper model on a 3 GB phone, where they get
+  the app killed. Such rows now say "Too big for this phone's memory" (same memory rule as the
+  fallback after an out-of-memory), and choosing one asks first ("Use anyway"). A model picked
+  from a file, or a phone that reports no memory, is never marked. Try on a 3 GB phone: Settings,
+  Speech recognition, Add: Parakeet is marked and asks; in Whisper's models the large one is
+  marked and asks, the small ones are not.
 - **D7, music pauses while recording, by default.** Music from the speaker ended up in the
   recording. "Pause music" is now on for a fresh install and for settings that never said
   anything about it. A saved file lists every setting, so who turned it off (or had it off
