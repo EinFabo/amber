@@ -5,6 +5,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **E2, no window walk on the main thread when a field starts.** Compose fields up to 1.7 name
+  no node, so a started field was searched for in the app's window (up to 1,500 nodes) right in
+  the keyboard callback, and again on the bubble tap - the app in front could stutter. The
+  search now runs in the background within 50 ms and its answer comes back to the bubble; a
+  field the keyboard calls a password never gets the bubble, and for a plain text field of that
+  kind the bubble appears a moment later, once the search has answered. A newer field drops an
+  older answer. The tap uses the keyboard's input type and that answer first. Diagnostics, Keyboard
+  shows "field search: N nodes, M ms". Try in a Compose app (a login screen with a password
+  field and a plain field): the bubble shows for the plain field after a blink, never for the
+  password field; typing in a huge list screen no longer hitches.
 - **E1, Settings warns before a model too big for the phone.** "Add speech recognition" and
   the model list offered Parakeet and the large Whisper model on a 3 GB phone, where they get
   the app killed. Such rows now say "Too big for this phone's memory" (same memory rule as the

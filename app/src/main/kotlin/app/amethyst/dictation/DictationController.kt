@@ -26,6 +26,7 @@ import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.audio.StopReason
 import app.amethyst.core.bubble.BubbleEvent
 import app.amethyst.core.bubble.DeliveryLook
+import app.amethyst.core.bubble.SecretField
 import app.amethyst.core.bubble.TextFieldKind
 import app.amethyst.core.capture.CallWatch
 import app.amethyst.core.capture.LoudnessLog
@@ -2210,7 +2211,9 @@ class DictationController(
     /** The field that has focus now is the one this run is for. */
     private fun takeStartTarget() {
         val service = graph.accessibilityService
-        startTarget = service?.focusedTarget()
+        // The input type decides first; the bubble's own search has answered for the rest, and
+        // a walk still needed is cut short - this runs on the tap.
+        startTarget = service?.focusedTarget(budgetMs = SecretField.SEARCH_BUDGET_MS)
         startNode = startTarget?.let { service?.textInserter?.inputFocus() }
         startApp = service?.appInFront
     }

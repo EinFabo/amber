@@ -33,6 +33,32 @@ object SecretField {
         return !forBubble || kind.wantsDictation
     }
 
+    /** How long the bubble's and the tap's search may walk the windows. */
+    const val SEARCH_BUDGET_MS = 50L
+
+    /** What the bubble does for a field that just started taking text. */
+    enum class Gate {
+        /** The keyboard's input type settles it: the bubble may come now. */
+        SHOW,
+
+        /** The keyboard says "secret": no bubble, and no search. */
+        NEVER,
+
+        /** The input type says nothing against it: no bubble until the search has answered. */
+        WAIT,
+    }
+
+    /**
+     * The bubble's gate for a field that started with [editorType] and no focused node named by
+     * Android ([focusFound] false). A password the keyboard names never gets the bubble, not
+     * even for a moment; a text field Compose may have made a password is waited for.
+     */
+    fun gate(editorType: Int, focusFound: Boolean): Gate = when {
+        TextFieldKind.of(editorType) == TextFieldKind.SECRET -> Gate.NEVER
+        searchNeeded(editorType, focusFound, forBubble = true) -> Gate.WAIT
+        else -> Gate.SHOW
+    }
+
     /** Secret when any of them says so; what is not known says nothing. */
     fun isSecret(editorType: Int?, node: Node?): Boolean =
         (editorType != null && TextFieldKind.of(editorType) == TextFieldKind.SECRET) ||

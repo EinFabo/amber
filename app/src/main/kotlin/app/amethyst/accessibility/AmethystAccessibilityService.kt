@@ -35,6 +35,7 @@ import app.amethyst.core.commands.RunMode
 import app.amethyst.core.insert.InputTarget
 import app.amethyst.dictation.DictationState
 import app.amethyst.ui.MainActivity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Hosts the bubble and performs the insertion.
@@ -400,7 +402,7 @@ class AmethystAccessibilityService : AccessibilityService() {
      * Android 13 the input method's field id. Not only editable nodes - a terminal view or a
      * web field takes text through the input connection without saying it is editable.
      */
-    fun focusedTarget(): InputTarget? = runCatching {
+    fun focusedTarget(budgetMs: Long? = null): InputTarget? = runCatching {
         val editor = startedEditor()
         val node = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         if (node != null) {
@@ -417,8 +419,8 @@ class AmethystAccessibilityService : AccessibilityService() {
         } else if (editor != null) {
             // Android names no node: a Compose field (up to 1.7). Its password fields may ask
             // for a plain text keyboard, so the field's node is searched for and asked.
-            val searched = if (SecretField.searchNeeded(editor.inputType, focusFound = false)) searchedField(editor) else null
-            val secret = SecretField.isSecret(editor.inputType, searched?.let { SecretField.Node(it.inputType, it.isPassword) })
+            val secret = SecretField.isSecret(editor.inputType, null) ||
+                (SecretField.searchNeeded(editor.inputType, focusFound = false) && searchedSecret(editor, budgetMs))
             InputTarget(
                 packageName = editor.packageName ?: return@runCatching null,
                 windowId = NO_WINDOW,
@@ -438,28 +440,69 @@ class AmethystAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * The focused editable node of [editor]'s app, found by searching its windows: for a field
-     * Android's focus lookup names no node for. A walk through the window - asked for only
-     * where [SecretField.searchNeeded] says so.
+     * Whether the field of [editor] is secret by its own node, found by searching the app's
+     * windows: for a field Android's focus lookup names no node for. A walk - asked for only
+     * where [SecretField.searchNeeded] says so, and what the bubble's search has found for
+     * this input stands ([searchedVerdict]). With [budgetMs] the walk stops after that long
+     * and says no: it is for the bubble and the tap, which must not wait for a big window.
      */
-    private fun searchedField(editor: EditorInfo): AccessibilityNodeInfo? {
-        if (!::textInserter.isInitialized) return null
-        return textInserter.searchFocusedEditable(owner = editor.packageName ?: return null)
+    private fun searchedSecret(editor: EditorInfo, budgetMs: Long?): Boolean {
+        searchedVerdict?.let { return it }
+        if (!::textInserter.isInitialized) return false
+        val owner = editor.packageName ?: return false
+        val node = if (budgetMs == null) {
+            textInserter.searchFocusedEditable(owner)
+        } else {
+            textInserter.searchFocusedEditableWithin(owner, budgetMs).node
+        }
+        return node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
     }
 
     /**
-     * Whether the focused node is a password field - Compose and View password fields can carry
-     * a plain text input type. Asked when an input starts, not when the same one restarts.
-     * Where Android names no focused node (Compose up to 1.7) the field is searched for, and
-     * only if the bubble would show for it: the search walks the app's window.
+     * What the search for the current input's node found: secret or not. Null while unknown -
+     * not asked, still running, or stopped at its time limit.
      */
-    private fun focusedIsPassword(): Boolean = runCatching {
-        val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (focused != null) return@runCatching focused.isPassword
-        val editor = startedEditor() ?: return@runCatching false
-        SecretField.searchNeeded(editor.inputType, focusFound = false, forBubble = true) &&
-            searchedField(editor)?.isPassword == true
-    }.getOrDefault(false)
+    @Volatile
+    private var searchedVerdict: Boolean? = null
+
+    /** Counts every input that starts or ends: an answer from the search for an older one is dropped. */
+    private var inputGeneration = 0
+
+    /** The search for the field's node is running: the bubble waits for it ([SecretField.Gate.WAIT]). */
+    private var searchPending = false
+
+    /**
+     * Searches the app's windows for the started field's node off the main thread, within
+     * [SecretField.SEARCH_BUDGET_MS], and hands the answer back to the main thread - unless another input
+     * began or ended meanwhile. A failure of the search is no answer, as it was before.
+     */
+    private fun searchOffMain(editor: EditorInfo, restarting: Boolean) {
+        val generation = ++inputGeneration
+        val owner = editor.packageName
+        searchPending = true
+        scope.launch {
+            val found: Pair<Boolean?, String?> = withContext(Dispatchers.IO) {
+                try {
+                    if (!::textInserter.isInitialized || owner == null) return@withContext null to null
+                    val walk = textInserter.searchFocusedEditableWithin(owner, SecretField.SEARCH_BUDGET_MS)
+                    val secret = walk.node?.let { TextFieldKind.of(it.inputType, it.isPassword) == TextFieldKind.SECRET } == true
+                    // A walk stopped at its limit knows nothing: not secret, and asked again at the tap.
+                    (if (walk.complete) secret else null) to "field search: ${walk.nodes} nodes, ${walk.millis} ms"
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null to null
+                }
+            }
+            if (generation != inputGeneration) return@launch
+            found.second?.let(::note)
+            searchPending = false
+            searchedVerdict = found.first
+            inputIsPassword = found.first == true
+            inputKind = TextFieldKind.of(editor.inputType, isPassword = inputIsPassword)
+            announceInput(editor, restarting)
+        }
+    }
 
     private fun currentFocusKind(): TextFieldKind =
         runCatching { kindOf(findFocus(AccessibilityNodeInfo.FOCUS_INPUT)) }.getOrDefault(TextFieldKind.NONE)
@@ -526,23 +569,48 @@ class AmethystAccessibilityService : AccessibilityService() {
             // same field - some apps restart the input with every keystroke - so its answer
             // stands, and an input type that says "secret" needs no second opinion.
             val again = restarting && before != TextFieldKind.NONE
-            if (!again) inputIsPassword = TextFieldKind.of(attribute.inputType) != TextFieldKind.SECRET && focusedIsPassword()
-            inputKind = TextFieldKind.of(attribute.inputType, isPassword = inputIsPassword)
-            if (!again || inputKind != before) {
-                Log.i(TAG, "field: input started in ${DebugLog.redact(attribute.packageName?.toString())}, $inputKind${if (restarting) ", restarting" else ""}")
+            if (!again) {
+                inputGeneration++
+                searchedVerdict = null
+                searchPending = false
+                val focused = runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
+                when (SecretField.gate(attribute.inputType, focusFound = focused != null)) {
+                    SecretField.Gate.NEVER -> inputIsPassword = false
+                    SecretField.Gate.SHOW -> inputIsPassword = focused?.isPassword == true
+                    SecretField.Gate.WAIT -> {
+                        // The bubble stays away until the search says what the field is.
+                        inputIsPassword = false
+                        inputKind = TextFieldKind.of(attribute.inputType)
+                        searchOffMain(attribute, restarting)
+                        return
+                    }
+                }
             }
-            // The field's own app: the surest answer to "where is the user typing".
-            if (inputKind != TextFieldKind.NONE) attribute.packageName?.let(::inFront)
-            updateTextFieldFocus(focus.inputStarted(inputKind, restarting))
+            if (searchPending) return
+            inputKind = TextFieldKind.of(attribute.inputType, isPassword = inputIsPassword)
+            announceInput(attribute, restarting, before)
         }
 
         override fun onFinishInput() {
             super.onFinishInput()
             Log.i(TAG, "field: input finished")
+            inputGeneration++
+            searchPending = false
+            searchedVerdict = null
             inputKind = TextFieldKind.NONE
             inputIsPassword = false
             updateTextFieldFocus(focus.inputFinished())
         }
+    }
+
+    /** The field's kind is known: log it, note the app in front, and tell the bubble. */
+    private fun announceInput(attribute: EditorInfo, restarting: Boolean, before: TextFieldKind = TextFieldKind.NONE) {
+        if (!restarting || inputKind != before) {
+            Log.i(TAG, "field: input started in ${DebugLog.redact(attribute.packageName?.toString())}, $inputKind${if (restarting) ", restarting" else ""}")
+        }
+        // The field's own app: the surest answer to "where is the user typing".
+        if (inputKind != TextFieldKind.NONE) attribute.packageName?.let(::inFront)
+        updateTextFieldFocus(focus.inputStarted(inputKind, restarting))
     }
 
     /** The node of the field taking input called itself a password field, asked once per field. */

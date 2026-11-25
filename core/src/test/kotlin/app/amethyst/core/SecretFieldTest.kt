@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.bubble.SecretField
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -72,5 +73,19 @@ class SecretFieldTest {
         assertFalse(SecretField.isSecret(text, SecretField.Node(inputType = text, isPassword = false)))
         assertFalse(SecretField.isSecret(text, null))
         assertFalse(SecretField.isSecret(null, null))
+    }
+
+    @Test
+    fun `the bubble never shows for a password the keyboard names and waits for a text field`() {
+        assertEquals(SecretField.Gate.NEVER, SecretField.gate(textPassword, focusFound = false))
+        assertEquals(SecretField.Gate.NEVER, SecretField.gate(textPassword, focusFound = true))
+        assertEquals(SecretField.Gate.WAIT, SecretField.gate(text, focusFound = false))
+    }
+
+    @Test
+    fun `the bubble does not wait where Android names the node or the field is no text`() {
+        assertEquals(SecretField.Gate.SHOW, SecretField.gate(text, focusFound = true))
+        assertEquals(SecretField.Gate.SHOW, SecretField.gate(number, focusFound = false))
+        assertEquals(SecretField.Gate.SHOW, SecretField.gate(none, focusFound = false))
     }
 }

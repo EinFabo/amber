@@ -154,7 +154,7 @@ class TextInserter(
             return connection to "input connection (${connection.packageName})"
         }
 
-        val searched = findFocusedEditable()
+        val searched = findFocusedEditable().node
         if (searched != null) {
             return NodeTarget(service, searched, fallbackPackage) to
                 "searched: ${searched.describe()} (findFocus: ${focused?.describe() ?: "nothing"})"
@@ -180,8 +180,26 @@ class TextInserter(
         // The field found last time is asked again first - two calls instead of a walk through
         // the window. A dictation asks at its start, at its end and at the write.
         lastSearched?.takeIf { stillTheFocusedField(it, owner) }?.let { return it }
-        return findFocusedEditable(onlyInUse = owner == null, owner = owner).also { lastSearched = it }
+        return findFocusedEditable(onlyInUse = owner == null, owner = owner).node.also { lastSearched = it }
     }
+
+    /**
+     * [searchFocusedEditable] with a time limit, for the bubble and the tap, which must not
+     * wait for a big window: the walk stops after [budgetMs] ([Walk.complete] false). Safe off
+     * the main thread - it touches nodes only, and the nodes it returns are read where it runs.
+     */
+    fun searchFocusedEditableWithin(owner: String?, budgetMs: Long): Walk {
+        val start = System.nanoTime()
+        lastSearched?.takeIf { stillTheFocusedField(it, owner) }?.let {
+            return Walk(it, nodes = 0, millis = (System.nanoTime() - start) / NANOS_PER_MS, complete = true)
+        }
+        val walk = findFocusedEditable(onlyInUse = owner == null, owner = owner, budgetMs = budgetMs)
+        if (walk.complete) lastSearched = walk.node
+        return walk
+    }
+
+    /** What a walk through the windows found, how many nodes it looked at and how long it took. */
+    class Walk(val node: AccessibilityNodeInfo?, val nodes: Int, val millis: Long, val complete: Boolean)
 
     /** What [searchFocusedEditable] found last; never trusted without asking it again. */
     @Volatile
@@ -276,7 +294,13 @@ class TextInserter(
      * Breadth-first through every window, the active one first, bounded so it stays cheap. With
      * [onlyInUse] only the active or focused window; with [owner] only that app's windows.
      */
-    private fun findFocusedEditable(onlyInUse: Boolean = false, owner: String? = null): AccessibilityNodeInfo? {
+    private fun findFocusedEditable(onlyInUse: Boolean = false, owner: String? = null, budgetMs: Long? = null): Walk {
+        val start = System.nanoTime()
+        val deadline = budgetMs?.let { start + it * NANOS_PER_MS }
+        var visited = 0
+        var complete = true
+        fun done(node: AccessibilityNodeInfo?) = Walk(node, visited, (System.nanoTime() - start) / NANOS_PER_MS, complete)
+
         val roots = runCatching {
             service.windows
                 .filter { !onlyInUse || it.isActive || it.isFocused }
@@ -287,17 +311,22 @@ class TextInserter(
         for (root in roots) {
             if (owner != null && root.packageName?.toString() != owner) continue
             val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
-            var visited = 0
-            while (queue.isNotEmpty() && visited < MAX_NODES_SEARCHED) {
+            var inWindow = 0
+            while (queue.isNotEmpty() && inWindow < MAX_NODES_SEARCHED) {
+                if (deadline != null && System.nanoTime() > deadline) {
+                    complete = false
+                    return done(null)
+                }
                 val node = queue.removeFirst()
+                inWindow++
                 visited++
                 // Read anew: what Android remembers of a node may be from before it got focus,
                 // or from before it lost it - and the answer decides what kind of field this is.
-                if (node.isEditable && runCatching { node.refresh() }.getOrDefault(false) && node.isEditable && node.isFocused) return node
+                if (node.isEditable && runCatching { node.refresh() }.getOrDefault(false) && node.isEditable && node.isFocused) return done(node)
                 for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
             }
         }
-        return null
+        return done(null)
     }
 
     private fun AccessibilityNodeInfo.describe(): String =
@@ -511,6 +540,7 @@ class TextInserter(
     companion object {
         private const val TAG = "Embersay"
         private const val MAX_NODES_SEARCHED = 1_500
+        private const val NANOS_PER_MS = 1_000_000L
 
         /** Spans a plain SET_TEXT write loses that someone would miss: links and mentions, styles, pictures. */
         private val FORMATTING = listOf(
