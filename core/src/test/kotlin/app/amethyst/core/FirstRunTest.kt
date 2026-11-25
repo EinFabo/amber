@@ -470,9 +470,26 @@ class FirstRunTest {
     }
 
     @Test
+    fun `wait for wi-fi holds every download, the stand-in's too`() {
+        // Mobile data, "Wait for Wi-Fi" for Parakeet: the small model still stands in, but its
+        // 82 MB wait for Wi-Fi like the rest - nothing goes over mobile data unasked.
+        val after = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(), nothingReady, wifiOnly = true)
+        assertEquals(EngineOption.FUTO_74, FirstRun.smallFirst(after))
+        assertEquals(EngineOption.FUTO_74, FirstRun.wanted(after))
+        assertFalse(FirstRun.anyNetwork(after, EngineOption.FUTO_74))
+        assertFalse(FirstRun.anyNetwork(after, EngineOption.PARAKEET))
+        // Chosen again with mobile data allowed: the small one may go over any network again.
+        val again = FirstRun.use(after, EngineOption.PARAKEET, TEST_PHONE, phone(), nothingReady)
+        assertTrue(FirstRun.anyNetwork(again, EngineOption.FUTO_74))
+        // Quick setup afterwards (back to the welcome): its plan's small model over any network, as its note says.
+        val quick = FirstRun.quick(after.copy(activeEngineId = fresh.activeEngineId), viaSmall, apps, TEST_PHONE)
+        assertTrue(FirstRun.anyNetwork(quick, EngineOption.FUTO_74))
+    }
+
+    @Test
     fun `step by step with a big model that is there already, or no room for the small one, is as before`() {
         val plain = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE)
-        val thereAlready = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone()) { it == EngineOption.PARAKEET }
+        val thereAlready = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(), ready = { it == EngineOption.PARAKEET })
         val noRoom = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(freeMb = 1_000), nothingReady)
         val noCpu = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(whisperCpu = false), nothingReady)
         for (after in listOf(plain, thereAlready, noRoom, noCpu)) {
@@ -496,7 +513,7 @@ class FirstRunTest {
 
     @Test
     fun `the stand-in's model is not fetched again where it is on the phone`() {
-        val after = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone()) { it == EngineOption.FUTO_74 }
+        val after = FirstRun.use(fresh, EngineOption.PARAKEET, TEST_PHONE, phone(), ready = { it == EngineOption.FUTO_74 })
         assertEquals(EngineOption.FUTO_74, option(after))
         assertEquals(EngineOption.PARAKEET, FirstRun.pending(after))
         assertNull(after.firstRun.wantedModel)

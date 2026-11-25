@@ -30,8 +30,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   itself - as Quick setup does (`FirstRun.use`, `FirstRun.standInFor`); the card says "Starts
   with a small model, the better one follows." Where the small one does not fit (storage, no
   Whisper CPU), or on a replay, the choice is active at once as before. Only one model is ever
-  loaded: the small one is released before the switch. Try on the A20e: Step by step, choose
-  Parakeet, continue - the practice step waits for ~80 MB, not 670 MB.
+  loaded: the small one is released before the switch. On mobile data, "Wait for Wi-Fi" holds
+  every download, the small one's too (`FirstRunSettings.wifiOnly`, `FirstRun.anyNetwork`);
+  "Download over mobile data" and Quick setup still fetch the small one at once. Try on the
+  A20e: Step by step, choose Parakeet, continue - the practice step waits for ~80 MB, not
+  670 MB. Then fresh, on mobile data only: choose Parakeet, "Wait for Wi-Fi" - no data is used
+  (Android's data usage for Embersay stays put) until Wi-Fi is on, then the small one comes first.
 - **C6, the battery step leads to the right switch.** From Android 12, "Unrestricted battery"
   opens Embersay's own app info and shows numbered steps under the row: app info, Battery,
   Unrestricted. Before Android 12 (the A20e), where the app info has no "Unrestricted", it

@@ -736,9 +736,12 @@ private fun AmethystScreens(
     val androidRecognizer by produceState<Boolean?>(null) { value = withContext(Dispatchers.IO) { FirstRunSetup.androidRecognizer(context) } }
 
     /** The introduction's engine choice: added if missing, with its model, and made active. */
-    fun useEngine(option: EngineOption) {
-        // A big choice on a new install starts with the small stand-in where it fits (FirstRun.use).
-        updateSettings { FirstRun.use(it, option, PhoneLocales.tags(), phone) { model -> !graph.modelDownloads.needsDownload(model) } }
+    fun useEngine(option: EngineOption, wifiOnly: Boolean = false) {
+        // A big choice on a new install starts with the small stand-in where it fits (FirstRun.use);
+        // after "Wait for Wi-Fi" the stand-in's download waits for Wi-Fi too.
+        updateSettings {
+            FirstRun.use(it, option, PhoneLocales.tags(), phone, ready = { model -> !graph.modelDownloads.needsDownload(model) }, wifiOnly = wifiOnly)
+        }
     }
 
     fun back() {
@@ -856,7 +859,7 @@ private fun AmethystScreens(
                                                 graph.modelDownloads.start(option, mobileData)
                                             },
                                             onWaitForWifi = { option ->
-                                                useEngine(option)
+                                                useEngine(option, wifiOnly = true)
                                                 graph.modelDownloads.waitForWifi(option)
                                             },
                                             onOpenRecognition = { open(Screen.Page(SettingsPage.RECOGNITION)) },

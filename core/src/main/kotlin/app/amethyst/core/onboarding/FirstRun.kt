@@ -181,6 +181,7 @@ object FirstRun {
                         pendingEngine = plan.later?.name,
                         wantedModel = plan.now.name.takeIf { plan.nowMissing },
                         standIn = plan.now.name.takeIf { plan.later != null && plan.now.downloadBytes > 0 },
+                        wifiOnly = false,
                     ),
                 )
             }
@@ -212,7 +213,8 @@ object FirstRun {
      * the recommended one: the [SMALL] model first ([standInFor]) - its recognition active, the
      * choice waiting behind it - so the practice step does not block for the whole big download.
      * [ready] says whether a model is on the phone already. A replay of the introduction (the
-     * flag set) keeps the choice active at once.
+     * flag set) keeps the choice active at once. [wifiOnly] is the user's "Wait for Wi-Fi": it
+     * holds every download of the choice, the stand-in's too ([anyNetwork]).
      */
     fun use(
         settings: AmethystSettings,
@@ -220,6 +222,7 @@ object FirstRun {
         phoneTags: List<String>,
         phone: PhoneFacts? = null,
         ready: (EngineOption) -> Boolean = { false },
+        wifiOnly: Boolean = false,
     ): AmethystSettings {
         val small = phone?.takeIf { applies(settings) }?.let { standInFor(option, it, ready) }
         if (small != null) {
@@ -229,6 +232,7 @@ object FirstRun {
                         pendingEngine = option.name,
                         wantedModel = small.name.takeIf { !ready(small) },
                         standIn = small.name,
+                        wifiOnly = wifiOnly,
                     ),
                 )
             }
@@ -239,6 +243,7 @@ object FirstRun {
                     pendingEngine = null,
                     wantedModel = option.name.takeIf { option.downloadBytes > 0 },
                     standIn = settings.firstRun.standIn.takeIf { it != option.name },
+                    wifiOnly = wifiOnly,
                 ),
             )
         }
@@ -402,8 +407,12 @@ object FirstRun {
     fun wanted(settings: AmethystSettings): EngineOption? =
         smallFirst(settings) ?: pending(settings) ?: downloadable(settings.firstRun.wantedModel)
 
-    /** Whether [option]'s download may go over mobile data without asking: only the small model's, fetched first. */
-    fun anyNetwork(settings: AmethystSettings, option: EngineOption): Boolean = smallFirst(settings) == option
+    /**
+     * Whether [option]'s download may go over mobile data without asking: only the small model's,
+     * fetched first - and not after the user's "Wait for Wi-Fi" ([app.amethyst.core.settings.FirstRunSettings.wifiOnly]).
+     */
+    fun anyNetwork(settings: AmethystSettings, option: EngineOption): Boolean =
+        !settings.firstRun.wifiOnly && smallFirst(settings) == option
 
     /** Where the first run's download stands; null when nothing is on its way. */
     fun stage(settings: AmethystSettings): PendingStage? = when {

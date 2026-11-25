@@ -732,6 +732,12 @@ data class FirstRunSettings(
      * their app names. Absent in older settings: false, and the statistics still tell.
      */
     val realAppReached: Boolean = false,
+    /**
+     * The user chose "Wait for Wi-Fi" for the introduction's choice: every first-run download
+     * waits for Wi-Fi, the stand-in's small model too ([app.amethyst.core.onboarding.FirstRun.anyNetwork]).
+     * Absent in older settings: false.
+     */
+    val wifiOnly: Boolean = false,
 )
 
 /**
