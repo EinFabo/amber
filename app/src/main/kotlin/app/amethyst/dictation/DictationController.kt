@@ -1239,7 +1239,7 @@ class DictationController(
                 onRecorded = { ms ->
                     limitLeft = if (_mode.value == RunMode.DICTATION) RecordingLimit.left(ms, vadConfig.maxDurationMs) else null
                 },
-                onChunk = chunkSink?.let { it::submit },
+                onChunk = chunkSink?.let { sink -> { audio, pauseMs -> sink.submit(audio, pauseMs) } },
                 minChunkMs = captureSettings.chunkMinMs ?: (prepared?.engine ?: engine).capabilities.minChunkMs,
                 pause = pause,
                 onStarted = ::microphoneOpen,

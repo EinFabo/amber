@@ -2,6 +2,9 @@ package app.amethyst.core.engine
 
 import app.amethyst.core.audio.PcmAudio
 import app.amethyst.core.privacy.TrustLevel
+import app.amethyst.core.text.Abbreviations
+import app.amethyst.core.text.CommonWords
+import app.amethyst.core.text.LanguageGuess
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancelAndJoin
@@ -31,8 +34,19 @@ class ChunkedTranscription(
     @Volatile
     var onChunkDone: ((pendingMs: Long) -> Unit)? = null
 
-    private val queue = Channel<PcmAudio>(Channel.UNLIMITED)
+    private class Queued(val audio: PcmAudio, val pauseAfterMs: Int)
+
+    private val queue = Channel<Queued>(Channel.UNLIMITED)
     private val texts = mutableListOf<String>()
+
+    /** For each text, how long the pause was at the cut in front of it ([join]). */
+    private val pausesBefore = mutableListOf<Int>()
+
+    /** The pause at the cut in front of the chunk being recognized; only the worker touches it. */
+    private var pauseBefore = 0
+
+    /** A chunk before the one being recognized held nothing: the words after it follow a pause. */
+    private var skipped = false
     private var lockedLanguage: String? = null
     private var weakestTrust: TrustLevel? = null
     private var servedBy: String? = null
@@ -49,18 +63,24 @@ class ChunkedTranscription(
         private set
 
     private val worker = scope.launch {
-        for (chunk in queue) {
+        for (queued in queue) {
+            val chunk = queued.audio
             if (failure == null) transcribe(chunk)
+            pauseBefore = queued.pauseAfterMs
             val left = pendingMs.addAndGet(-chunk.durationMs)
             onChunkDone?.invoke(left)
         }
     }
 
-    /** Queues a finished chunk. Safe to call from the recording thread. */
-    fun submit(chunk: PcmAudio) {
+    /**
+     * Queues a finished chunk; [pauseAfterMs] is the pause the recording was cut at behind it
+     * (`ChunkPlanner.Chunk.pauseMs`), 0 for the last chunk and for a cut in speech.
+     * Safe to call from the recording thread.
+     */
+    fun submit(chunk: PcmAudio, pauseAfterMs: Int = 0) {
         chunkCount++
         pendingMs.addAndGet(chunk.durationMs)
-        queue.trySend(chunk)
+        queue.trySend(Queued(chunk, pauseAfterMs))
     }
 
     /**
@@ -76,7 +96,7 @@ class ChunkedTranscription(
 
         failure?.let { return engine.transcribe(whole, options) }
 
-        val text = join(texts)
+        val text = join(texts, pausesBefore, LanguageGuess.forSeam(texts.joinToString(" "), lockedLanguage, options.languageTag))
         if (text.isBlank()) {
             return Result.failure(SttFailure(SttFailure.NOTHING_RECOGNIZED, "no chunk contained speech"))
         }
@@ -116,6 +136,8 @@ class ChunkedTranscription(
         engine.transcribe(chunk, chunkOptions).fold(
             onSuccess = { transcript ->
                 texts += transcript.text
+                pausesBefore += if (skipped) LONG_PAUSE_MS else pauseBefore
+                skipped = false
                 // Only a plain code ("de") is locked; some services report names ("german").
                 if (lockedLanguage == null) {
                     lockedLanguage = transcript.detectedLanguage?.lowercase()?.takeIf { LANGUAGE_CODE.matches(it) }
@@ -126,6 +148,8 @@ class ChunkedTranscription(
             },
             onFailure = { error ->
                 if ((error as? SttFailure)?.nothingRecognized != true) failure = error
+                // A chunk with nothing in it was a silence: the next words follow a pause.
+                else skipped = true
             },
         )
     }
@@ -147,5 +171,38 @@ class ChunkedTranscription(
                         else -> "$acc $part"
                     }
                 }
+
+        /** A pause this long ends a sentence: the cut there keeps its full stop and capital. */
+        const val LONG_PAUSE_MS = 800
+
+        /**
+         * [join] for chunks cut at known pauses: [pausesMs] holds, for each part, the pause at
+         * the cut in front of it (the first one is not looked at). A cut at a breath - under
+         * [LONG_PAUSE_MS] - is often inside a sentence: when the part before ends in a plain
+         * "." (no abbreviation's, no "...") and this one starts with a small word of [language]
+         * ([CommonWords]), the "." goes and the word is written lower-case ("Ich wollte dir
+         * sagen." + "Dass ich komme." - no comma is guessed). After a pause, or before any other
+         * word, both stay.
+         */
+        fun join(parts: List<String>, pausesMs: List<Int>, language: String?): String {
+            val kept = parts.indices.filter { parts[it].isNotBlank() }
+            var text = ""
+            for ((n, i) in kept.withIndex()) {
+                val part = parts[i].trim()
+                text = when {
+                    n == 0 -> part
+                    part.first() in ",.;:!?" -> text + part
+                    else -> {
+                        val pause = pausesMs.getOrElse(i) { LONG_PAUSE_MS }
+                        val lowered = if (pause < LONG_PAUSE_MS && endsPlainSentence(text)) CommonWords.lowerLeading(part, language) else part
+                        if (lowered != part) text.dropLast(1) + " " + lowered else "$text $part"
+                    }
+                }
+            }
+            return text
+        }
+
+        private fun endsPlainSentence(text: String): Boolean =
+            text.endsWith('.') && !text.endsWith("..") && !text.endsWith("…") && !Abbreviations.endsWith(text)
     }
 }

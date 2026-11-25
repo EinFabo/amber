@@ -5,6 +5,16 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D3, Long dictations get no stray full stops at the cuts.** A long dictation is cut into
+  pieces and each came back as a sentence of its own. The cut now prefers a real pause of
+  800 ms; a breath of 450 ms cuts only in the last quarter before the longest piece (25 s), so
+  the wait after you stop can be a little longer. When a cut was at a breath (or in speech)
+  and the next piece starts with a small word (`CommonWords`), the full stop goes and the
+  capital with it: "Ich wollte dir sagen" + "dass ich komme" - no comma is guessed. After a
+  pause, before any other word, after "?", "!", "..." or an abbreviation ("etc.", "z. B.",
+  "Dr.", `Abbreviations`) both stay. Try on the Pixel: dictate a minute with short breaths
+  mid-sentence ("Ich wollte dir sagen ... dass ich komme") and with real pauses between
+  sentences.
 - **D2, Capitals and full stops fit the text around them.** A recognizer writes every
   dictation as a sentence of its own. Mid-sentence ("Meet me at" + "The station."), a common
   small word now loses its capital: "Meet me at the station." Only words from short lists

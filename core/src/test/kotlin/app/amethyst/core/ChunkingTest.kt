@@ -45,13 +45,31 @@ class ChunkingTest {
     @Test
     fun `cuts in the middle of a pause once the chunk is long enough`() {
         val planner = ChunkPlanner(rate)
-        val (chunks, _) = planner.feed(listOf(true to seconds(5.0), false to seconds(0.6)))
+        val (chunks, _) = planner.feed(listOf(true to seconds(5.0), false to seconds(1.0)))
 
         val chunk = chunks.single()
         assertEquals(0, chunk.start)
-        // The pause reaches 450 ms after 23 frames (460 ms); the cut goes 230 ms back from there,
-        // into the middle of the pause: 5 s of speech + 230 ms.
-        assertEquals(5 * rate + 230 * rate / 1000, chunk.end)
+        // The pause reaches 800 ms after 40 frames; the cut goes 400 ms back from there, into
+        // the middle of the pause: 5 s of speech + 400 ms.
+        assertEquals(5 * rate + 400 * rate / 1000, chunk.end)
+        assertEquals(800, chunk.pauseMs)
+    }
+
+    @Test
+    fun `a breath of 450 ms does not cut an early chunk but cuts in the last quarter before the longest`() {
+        val early = ChunkPlanner(rate)
+        assertTrue(early.feed(listOf(true to seconds(5.0), false to seconds(0.7))).first.isEmpty())
+
+        val late = ChunkPlanner(rate)
+        val chunk = late.feed(listOf(true to seconds(19.0), false to seconds(0.6))).first.single()
+        assertEquals(460, chunk.pauseMs)
+    }
+
+    @Test
+    fun `a forced cut says there was no pause`() {
+        val planner = ChunkPlanner(rate, maxChunkMs = 10_000, quietSearchMs = 2_000)
+        val chunks = planner.feed(listOf(true to seconds(11.0))).first
+        assertEquals(0, chunks.single().pauseMs)
     }
 
     @Test
@@ -94,7 +112,7 @@ class ChunkingTest {
     @Test
     fun `a pause cut leaves no speech pending, new speech does`() {
         val planner = ChunkPlanner(rate)
-        planner.feed(listOf(true to seconds(5.0), false to seconds(0.6)))
+        planner.feed(listOf(true to seconds(5.0), false to seconds(1.0)))
         assertTrue(!planner.speechSinceCut)
         planner.onFrame(seconds(6.0) * frame, 2_000.0, speech = true)
         assertTrue(planner.speechSinceCut)
@@ -153,6 +171,74 @@ class ChunkingTest {
     fun `chunk texts join with single spaces and keep punctuation attached`() {
         assertEquals("Hallo Welt, wie geht's?", ChunkedTranscription.join(listOf("Hallo Welt", ", wie geht's?")))
         assertEquals("Erster Satz. Zweiter Satz.", ChunkedTranscription.join(listOf(" Erster Satz. ", "", "Zweiter Satz.")))
+    }
+
+    @Test
+    fun `a cut at a breath joins a small next word into the sentence, a pause keeps both`() {
+        val parts = listOf("Ich wollte dir sagen.", "Dass ich komme.")
+        assertEquals(
+            "Ich wollte dir sagen dass ich komme.",
+            ChunkedTranscription.join(parts, listOf(0, 450), "de"),
+        )
+        assertEquals(
+            "Ich wollte dir sagen. Dass ich komme.",
+            ChunkedTranscription.join(parts, listOf(0, 800), "de"),
+        )
+        // A cut in speech (0 ms) is as short as a breath.
+        assertEquals(
+            "Wir treffen uns am Bahnhof.",
+            ChunkedTranscription.join(listOf("Wir treffen uns.", "Am Bahnhof."), listOf(0, 0), "de"),
+        )
+    }
+
+    @Test
+    fun `a next word not on the list keeps the full stop and its capital`() {
+        assertEquals(
+            "I met him. Peter came too.",
+            ChunkedTranscription.join(listOf("I met him.", "Peter came too."), listOf(0, 450), "en"),
+        )
+        assertEquals(
+            "Das war gut. Morgen kommt er.",
+            ChunkedTranscription.join(listOf("Das war gut.", "Morgen kommt er."), listOf(0, 450), "de"),
+        )
+    }
+
+    @Test
+    fun `a full stop that ends an abbreviation stays at a breath`() {
+        assertEquals(
+            "Wir brauchen Stifte, Papier etc. Und Kleber.",
+            ChunkedTranscription.join(listOf("Wir brauchen Stifte, Papier etc.", "Und Kleber."), listOf(0, 450), "de"),
+        )
+        assertEquals(
+            "Das ist z. B. So.",
+            ChunkedTranscription.join(listOf("Das ist z. B.", "So."), listOf(0, 450), "de"),
+        )
+        assertEquals(
+            "Ich frage Dr. Meyer.",
+            ChunkedTranscription.join(listOf("Ich frage Dr.", "Meyer."), listOf(0, 450), "de"),
+        )
+    }
+
+    @Test
+    fun `only a plain full stop goes at a breath`() {
+        assertEquals(
+            "Wirklich? Und dann?",
+            ChunkedTranscription.join(listOf("Wirklich?", "Und dann?"), listOf(0, 450), "de"),
+        )
+        assertEquals(
+            "Moment... Und weiter",
+            ChunkedTranscription.join(listOf("Moment...", "Und weiter"), listOf(0, 450), "de"),
+        )
+    }
+
+    @Test
+    fun `finish joins by the pause each chunk was cut at`() = runTest {
+        val engine = ScriptedEngine(listOf(Result.success("Ich wollte dir sagen."), Result.success("Dass ich komme."), Result.success("Und so.")), language = "de")
+        val chunked = ChunkedTranscription(engine, TranscribeOptions(), this)
+        chunked.submit(audio(10), pauseAfterMs = 450)
+        chunked.submit(audio(10), pauseAfterMs = 800)
+        val result = chunked.finish(audio(10), audio(30)).getOrThrow()
+        assertEquals("Ich wollte dir sagen dass ich komme. Und so.", result.text)
     }
 
     /** Answers each chunk with the next text; records what options it was called with. */

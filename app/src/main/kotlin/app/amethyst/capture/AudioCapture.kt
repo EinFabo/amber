@@ -66,10 +66,11 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
          */
         onRecorded: (Long) -> Unit = {},
         /**
-         * Receives each finished part of a running recording, cut at a pause, so it can be
-         * recognized while the user goes on speaking. Null records in one piece.
+         * Receives each finished part of a running recording, cut at a pause, and the pause's
+         * length in ms (0 for a cut in speech), so it can be recognized while the user goes on
+         * speaking. Null records in one piece.
          */
-        onChunk: ((PcmAudio) -> Unit)? = null,
+        onChunk: ((PcmAudio, Int) -> Unit)? = null,
         /** The shortest chunk worth cutting off; see EngineCapabilities.minChunkMs. */
         minChunkMs: Int = 4_000,
         /**
@@ -229,7 +230,7 @@ class AudioCapture(private val sampleRate: Int = PcmAudio.DEFAULT_SAMPLE_RATE) {
                         onRecorded(recorded.durationMs)
                         onAmplitude(PcmAccumulator.normalizeLoudness(rms))
                         planner?.onFrame(recorded.sampleCount, rms, speech = rms > vad.speechThreshold)?.let { chunk ->
-                            onChunk?.invoke(recorded.slice(chunk.start, chunk.end))
+                            onChunk?.invoke(recorded.slice(chunk.start, chunk.end), chunk.pauseMs)
                             chunks++
                         }
                         step.decision
