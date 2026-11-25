@@ -659,7 +659,7 @@ class FirstRunTest {
         assertEquals(listOf(OnboardingStep.ACCESSIBILITY), FirstRun.setupMissing(microphone = true, ServiceHealth.OFF))
         assertEquals(listOf(OnboardingStep.ACCESSIBILITY), FirstRun.setupMissing(microphone = true, ServiceHealth.NOT_RUNNING))
         assertEquals(
-            listOf(OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE),
+            listOf(OnboardingStep.MICROPHONE, OnboardingStep.ACCESSIBILITY),
             FirstRun.setupMissing(microphone = false, ServiceHealth.OFF),
         )
     }

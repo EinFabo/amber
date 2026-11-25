@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **C10, the microphone before the accessibility service.** The introduction (both ways) now
+  asks for the microphone first, as Home's setup card does - one tap on Android's own
+  question - and the accessibility service second; the last step's "Go to the missing step"
+  lists the microphone first too. The step is kept as a name, so a phone in the middle of the
+  introduction during an update stays on the right step. Try on a phone: start fresh and
+  follow the quick setup - microphone, then accessibility, then the try.
 - **C3, "All set" only when it is.** The last step now checks the bubble's service and the
   microphone too: if either is missing it is titled "Two things are still missing" or "One
   thing is still missing", names what, and its button goes back to the first missing step

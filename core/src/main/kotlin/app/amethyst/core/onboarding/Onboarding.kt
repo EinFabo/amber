@@ -5,9 +5,11 @@ import app.amethyst.core.settings.AmethystSettings
 /**
  * The introduction's screens, in the order they are shown. How a recording ends is no longer
  * asked: it runs until the second tap ([app.amethyst.core.settings.CaptureSettings.autoStopOnSilence]).
+ * The microphone comes first, as on Home's setup card: it is one tap on Android's own question,
+ * and the accessibility service after it is the longer trip through Android's settings.
  * PRACTICE tries the real flame right after BUBBLE explained it ([Practice]).
  */
-enum class OnboardingStep { WELCOME, ACCESSIBILITY, MICROPHONE, ENGINE, CLEANUP, APP_STYLES, BUBBLE, PRACTICE, RELIABILITY, DONE }
+enum class OnboardingStep { WELCOME, MICROPHONE, ACCESSIBILITY, ENGINE, CLEANUP, APP_STYLES, BUBBLE, PRACTICE, RELIABILITY, DONE }
 
 /**
  * The way through the introduction, chosen on the welcome step. Its third choice, skipping
@@ -34,7 +36,7 @@ object Onboarding {
      * skipped with one tap.
      */
     private val QUICK = listOf(
-        OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE, OnboardingStep.DONE,
+        OnboardingStep.WELCOME, OnboardingStep.MICROPHONE, OnboardingStep.ACCESSIBILITY, OnboardingStep.PRACTICE, OnboardingStep.DONE,
     )
 
     fun steps(settings: AmethystSettings, path: OnboardingPath = OnboardingPath.DEEP): List<OnboardingStep> = when (path) {

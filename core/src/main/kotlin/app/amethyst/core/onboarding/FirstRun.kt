@@ -289,13 +289,13 @@ object FirstRun {
     }
 
     /**
-     * The steps of the introduction whose work is not done, in the order they come: the service
-     * (off, or on without ever connecting - a service still [ServiceHealth.STARTING] is not
-     * counted missing) and the microphone. Empty: the bubble can work.
+     * The steps of the introduction whose work is not done, in the order they come: the microphone
+     * and the service (off, or on without ever connecting - a service still
+     * [ServiceHealth.STARTING] is not counted missing). Empty: the bubble can work.
      */
     fun setupMissing(microphone: Boolean, service: ServiceHealth): List<OnboardingStep> = listOfNotNull(
-        OnboardingStep.ACCESSIBILITY.takeIf { service == ServiceHealth.OFF || service == ServiceHealth.NOT_RUNNING },
         OnboardingStep.MICROPHONE.takeIf { !microphone },
+        OnboardingStep.ACCESSIBILITY.takeIf { service == ServiceHealth.OFF || service == ServiceHealth.NOT_RUNNING },
     )
 
     /**

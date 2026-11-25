@@ -72,15 +72,17 @@ class OnboardingTest {
 
     @Test
     fun `the quick way asks for the two permissions, tries the bubble and is done`() {
-        val quick = listOf(OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE, OnboardingStep.DONE)
+        val quick = listOf(OnboardingStep.WELCOME, OnboardingStep.MICROPHONE, OnboardingStep.ACCESSIBILITY, OnboardingStep.PRACTICE, OnboardingStep.DONE)
         assertEquals(quick, Onboarding.steps(plain, OnboardingPath.QUICK))
         // A cleanup someone has on a replay brings no styles step into it.
         assertEquals(quick, Onboarding.steps(withCleanup, OnboardingPath.QUICK))
-        assertEquals(OnboardingStep.PRACTICE, Onboarding.next(OnboardingStep.MICROPHONE, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.PRACTICE, Onboarding.next(OnboardingStep.ACCESSIBILITY, plain, OnboardingPath.QUICK))
         assertEquals(OnboardingStep.DONE, Onboarding.next(OnboardingStep.PRACTICE, plain, OnboardingPath.QUICK))
-        assertEquals(OnboardingStep.MICROPHONE, Onboarding.previous(OnboardingStep.PRACTICE, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.ACCESSIBILITY, Onboarding.previous(OnboardingStep.PRACTICE, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.MICROPHONE, Onboarding.next(OnboardingStep.WELCOME, plain, OnboardingPath.QUICK))
+        assertEquals(OnboardingStep.ACCESSIBILITY, Onboarding.next(OnboardingStep.MICROPHONE, plain, OnboardingPath.QUICK))
         assertNull(Onboarding.next(OnboardingStep.DONE, plain, OnboardingPath.QUICK))
-        assertEquals(2 to 5, Onboarding.position(OnboardingStep.ACCESSIBILITY, plain, OnboardingPath.QUICK))
+        assertEquals(2 to 5, Onboarding.position(OnboardingStep.MICROPHONE, plain, OnboardingPath.QUICK))
         assertEquals(5 to 5, Onboarding.position(OnboardingStep.DONE, plain, OnboardingPath.QUICK))
     }
 
@@ -93,8 +95,9 @@ class OnboardingTest {
 
     @Test
     fun `a later step is forward, an earlier one back - also across the steps a way leaves out`() {
-        assertTrue(Onboarding.forward(OnboardingStep.WELCOME, OnboardingStep.ACCESSIBILITY))
-        assertTrue(Onboarding.forward(OnboardingStep.MICROPHONE, OnboardingStep.PRACTICE))
+        assertTrue(Onboarding.forward(OnboardingStep.WELCOME, OnboardingStep.MICROPHONE))
+        assertTrue(Onboarding.forward(OnboardingStep.MICROPHONE, OnboardingStep.ACCESSIBILITY))
+        assertFalse(Onboarding.forward(OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE))
         assertFalse(Onboarding.forward(OnboardingStep.PRACTICE, OnboardingStep.MICROPHONE))
         // The practice step's way back to the service it needs.
         assertFalse(Onboarding.forward(OnboardingStep.PRACTICE, OnboardingStep.ACCESSIBILITY))
@@ -105,6 +108,6 @@ class OnboardingTest {
     fun `the welcome step has no number - the way is chosen there`() {
         assertNull(Onboarding.position(OnboardingStep.WELCOME, plain))
         assertNull(Onboarding.position(OnboardingStep.WELCOME, plain, OnboardingPath.QUICK))
-        assertEquals(2 to 9, Onboarding.position(OnboardingStep.ACCESSIBILITY, plain))
+        assertEquals(2 to 9, Onboarding.position(OnboardingStep.MICROPHONE, plain))
     }
 }
