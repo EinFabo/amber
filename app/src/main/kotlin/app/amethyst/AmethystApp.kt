@@ -638,9 +638,21 @@ class Graph(
 
     val dictation = DictationController(app, this, appScope)
 
+    private val connection = MutableStateFlow(false)
+
+    /**
+     * Whether the accessibility service is connected, following [accessibilityService]: Home and
+     * the practice step look at the service's health again when it connects or goes away.
+     */
+    val serviceConnected: StateFlow<Boolean> get() = connection
+
     /** Set by the accessibility service while it is connected; null means no insertion path. */
     @Volatile
     var accessibilityService: AmethystAccessibilityService? = null
+        set(value) {
+            field = value
+            connection.value = value != null
+        }
 
     /** Short messages over another app: the service's own overlay while it is connected, else a toast. */
     val messages = Messages(app) { accessibilityService }

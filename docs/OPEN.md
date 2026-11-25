@@ -21,9 +21,11 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   system); Home and the practice step now check the live connection too. Home shows "The bubble
   is not running" with "Open accessibility settings", and the practice step blocks the same way
   with "The bubble's service is switched on but not running. Switch it off and on again." A
-  service that is still connecting right after the app started is given 2 s. Try on a phone:
-  force-stop Embersay with its service on, open Home - the card should appear only if the
-  service really did not come back; switching it off and on removes it.
+  service that is still connecting right after the app started is given 2 s, and Home and the
+  practice step look again the moment the service connects or goes away. Try on a phone:
+  force-stop Embersay with its service on, open Home - a card that shows while the service is
+  slow to come back should go by itself once it connects, without leaving Home; switching it
+  off and on removes it.
 - **A1, cancel after the recording ended keeps it.** Holding the bubble to cancel while it is
   working (after you stopped talking) now keeps the recording for "Try again" and says so
   ("Stopped. The recording is kept for Try again."). Try on a phone: dictate, stop, and cancel

@@ -166,6 +166,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -211,6 +212,14 @@ class MainActivity : ComponentActivity() {
         takeSetup(Setup.snapshot(this, accessibilityTried))
         // Recreated (a rotation): the page asked for was opened then.
         if (savedInstanceState == null) takeAppPage(intent)
+        // The bubble's service connecting late or going away while a screen is open: Home and the
+        // practice step look again at once, not only at the next return. The value at each start
+        // is skipped - onResume looks then anyway.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                graph.serviceConnected.drop(1).collect { refreshSetup() }
+            }
+        }
 
         // The settings are read a moment after the first frame. Until then the choice made
         // last time stands in - without it a light Amber on a dark phone began dark. Before
