@@ -80,6 +80,7 @@
     <string name="toast_may_arrive">Text may still appear. If not, hold the bubble and choose Copy last.</string>
     <string name="toast_may_arrive_on_clipboard">Text may still appear. If not, paste it from the clipboard.</string>
     <string name="toast_not_inserted_password">Not inserted. This is a password field.</string>
+    <string name="toast_no_dictation_password">No dictation. This looks like a password field.</string>
     <string name="toast_insert_again">Couldn\'t insert. Tap the field, hold the bubble, choose Insert again.</string>
     <string name="toast_screen_off_insert_again">Screen was off. Tap the field, hold the bubble, choose Insert again.</string>
     <string name="fallback_no_credit">No credit left at %1$s. Recognized with %2$s instead.</string>

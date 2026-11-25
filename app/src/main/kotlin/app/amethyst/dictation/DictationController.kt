@@ -435,6 +435,10 @@ class DictationController(
         // every app. Taken once, at the start; the proxy activity's re-entry keeps it.
         if (source != TriggerSource.PROXY_ACTIVITY) {
             takeStartTarget()
+            if (!TargetCheck.mayStart(startTarget)) {
+                refuseSecretField()
+                return
+            }
             runInAmber = source == TriggerSource.IN_APP
             runPackage = targetApp()
         }
@@ -1651,6 +1655,11 @@ class DictationController(
             return false
         }
         takeStartTarget()
+        // The kept recording stays kept: Try again works once a text field has focus.
+        if (!TargetCheck.mayStart(startTarget)) {
+            refuseSecretField()
+            return false
+        }
         runInAmber = inAmber
         runPackage = targetApp()
         val routed = graph.engineFor(runPackage).engine
@@ -2241,6 +2250,16 @@ class DictationController(
             formatted = formatted,
         )
         deliver(transcript, graph.settings.value, transcript.engineId)
+    }
+
+    /**
+     * The field in focus is a password field - or one the tap's search could not settle in
+     * time ([TargetCheck.mayStart]): no microphone opens, nothing goes to a speech recognition,
+     * and a toast says why. Never the field's text or app in the log.
+     */
+    private fun refuseSecretField() {
+        Log.i(TAG, "not starting: the field in focus is, or may be, a password field")
+        toast(R.string.toast_no_dictation_password)
     }
 
     /** The field that has focus now is the one this run is for. */

@@ -40,6 +40,15 @@ object TargetCheck {
     }
 
     /**
+     * Whether a dictation may start for [start], the field in focus at the tap: never for a
+     * password or PIN field - its words would go to the speech recognition, a server's too,
+     * before [verdict] refused them at the end. That includes a field the tap's own search could
+     * not settle in time, which is taken for a secret one. Null - no field, with the bubble
+     * shown everywhere - and any other kind may start; where the words go is decided at the end.
+     */
+    fun mayStart(start: InputTarget?): Boolean = start?.kind != TextFieldKind.SECRET
+
+    /**
      * [appAtStart]: the app in front when the dictation started, for one started without a
      * field (bubble shown everywhere). The field focused at the end is then the one the user
      * chose - in that app. In another one it may be a field that took focus by itself, an

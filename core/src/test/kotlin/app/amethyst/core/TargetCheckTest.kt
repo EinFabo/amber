@@ -6,10 +6,25 @@ import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.insert.TargetCheck.Verdict
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TargetCheckTest {
 
     private val aliceChat = InputTarget("com.whatsapp", windowId = 41, fieldId = 7)
+
+    @Test
+    fun `a dictation never starts for a password field - nothing is recorded or sent`() {
+        // Also a field the tap's own search could not settle in time: the walk cut short says secret.
+        assertFalse(TargetCheck.mayStart(aliceChat.copy(kind = TextFieldKind.SECRET)))
+    }
+
+    @Test
+    fun `a dictation starts for a text field, and with no field at all where the bubble shows everywhere`() {
+        assertTrue(TargetCheck.mayStart(aliceChat))
+        assertTrue(TargetCheck.mayStart(null))
+        assertTrue(TargetCheck.mayStart(aliceChat.copy(kind = TextFieldKind.NUMERIC)))
+    }
 
     @Test
     fun `the same field gets the text`() {

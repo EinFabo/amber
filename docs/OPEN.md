@@ -101,12 +101,19 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   field the keyboard calls a password never gets the bubble, and for a plain text field of that
   kind the bubble appears a moment later, once the search has answered. A newer field drops an
   older answer. A search cut at 50 ms keeps going to its end (at most 1,500 nodes) and the
-  bubble keeps waiting - never shown over a password on a guess; the tap refuses without an
-  answer. The tap uses the keyboard's input type and that answer first. Diagnostics, Keyboard
+  bubble keeps waiting - never shown over a password on a guess. The tap uses the keyboard's
+  input type and that answer first; until the final review fix the tap did not refuse anything
+  by itself (the words only met the password check at the end, after the recognition had them).
+  Now a tap or Try again in a password field, or in one the tap's own 50 ms search could not
+  settle, opens no microphone and says "No dictation. This looks like a password field."
+  (`TargetCheck.mayStart`) - also with the bubble shown everywhere ("Only with a text field"
+  off), where a password field used to record. Diagnostics, Keyboard
   shows "field search: N nodes, M ms". Try in a Compose app (a login screen with a password
   field and a plain field): the bubble shows for the plain field after a blink, never for the
   password field, also a long screen where the search needs more than 50 ms - the bubble comes
-  late, never over the password); typing in a huge list screen no longer hitches.
+  late, never over the password); typing in a huge list screen no longer hitches. And with
+  "Only with a text field" off: tap the bubble in a password field - the toast, no microphone,
+  no recording notification.
 - **E1, Settings warns before a model too big for the phone.** "Add speech recognition" and
   the model list offered Parakeet and the large Whisper model on a 3 GB phone, where they get
   the app killed. Such rows now say "Too big for this phone's memory" (same memory rule as the
