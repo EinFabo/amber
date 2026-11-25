@@ -11,6 +11,7 @@ import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.LanguagePackAnswer
 import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.onboarding.PendingStage
+import app.amethyst.core.onboarding.ServiceHealth
 import app.amethyst.core.onboarding.PendingVerdict
 import app.amethyst.core.onboarding.QuickPlan
 import app.amethyst.core.settings.AmethystSettings
@@ -639,5 +640,27 @@ class FirstRunTest {
         // Not while the bubble cannot work: the introduction comes back to the missing step.
         assertFalse(FirstRun.finished(OnboardingStep.PRACTICE, setupReady = false))
         assertFalse(FirstRun.finished(OnboardingStep.DONE, setupReady = false))
+    }
+
+    @Test
+    fun `the last step says what setup is missing whatever the model state`() {
+        assertEquals(DoneState.SETUP_MISSING, FirstRun.atDone(stage = null, activeDownload = null, setupMissing = true))
+        assertEquals(DoneState.SETUP_MISSING, FirstRun.atDone(PendingStage.OWN, activeDownload = null, pack = LanguagePack.MISSING, setupMissing = true))
+        // Before even the missing recognition: the bubble needs to work first.
+        assertEquals(DoneState.SETUP_MISSING, FirstRun.atDone(stage = null, activeDownload = null, nothingRecognizes = true, setupMissing = true))
+        assertEquals(DoneState.READY, FirstRun.atDone(stage = null, activeDownload = null, setupMissing = false))
+    }
+
+    @Test
+    fun `what is missing is the service and the microphone, the service step first`() {
+        assertEquals(emptyList(), FirstRun.setupMissing(microphone = true, ServiceHealth.RUNNING))
+        assertEquals(emptyList(), FirstRun.setupMissing(microphone = true, ServiceHealth.STARTING))
+        assertEquals(listOf(OnboardingStep.MICROPHONE), FirstRun.setupMissing(microphone = false, ServiceHealth.RUNNING))
+        assertEquals(listOf(OnboardingStep.ACCESSIBILITY), FirstRun.setupMissing(microphone = true, ServiceHealth.OFF))
+        assertEquals(listOf(OnboardingStep.ACCESSIBILITY), FirstRun.setupMissing(microphone = true, ServiceHealth.NOT_RUNNING))
+        assertEquals(
+            listOf(OnboardingStep.ACCESSIBILITY, OnboardingStep.MICROPHONE),
+            FirstRun.setupMissing(microphone = false, ServiceHealth.OFF),
+        )
     }
 }

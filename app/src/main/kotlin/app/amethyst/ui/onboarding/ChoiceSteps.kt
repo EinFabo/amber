@@ -24,6 +24,7 @@ import app.amethyst.core.onboarding.CleanupServices
 import app.amethyst.core.onboarding.DoneState
 import app.amethyst.core.onboarding.EngineNames
 import app.amethyst.core.onboarding.FirstRun
+import app.amethyst.core.onboarding.OnboardingStep
 import app.amethyst.core.settings.AmethystSettings
 import app.amethyst.core.settings.AppCleanupMode
 import app.amethyst.core.settings.AppProfiles
@@ -206,6 +207,9 @@ internal fun DoneStep(
     onGetLanguagePack: () -> Unit = {},
     /** Whether the phone has a recognizer of Android's; null while it is read. */
     androidRecognizer: Boolean? = null,
+    /** The steps whose work is not done ([FirstRun.setupMissing]); the first is where the button goes back to. */
+    setupMissing: List<OnboardingStep> = emptyList(),
+    onGoTo: (OnboardingStep) -> Unit = {},
     onFinish: () -> Unit,
 ) {
     val rows = rememberRowsIn(6)
@@ -216,11 +220,12 @@ internal fun DoneStep(
     // note under the recognition row says which). The same for Android's language pack.
     LanguagePackWatch(settings.activeEngine, checkLanguagePack)
     val noRecognition = FirstRun.nothingRecognizes(settings, androidRecognizer)
-    val state = FirstRun.atDone(pending?.stage, download, languagePack, noRecognition)
+    val state = FirstRun.atDone(pending?.stage, download, languagePack, noRecognition, setupMissing = setupMissing.isNotEmpty())
     StepPage(
         title = stringResource(
             when (state) {
                 DoneState.READY -> R.string.done_title
+                DoneState.SETUP_MISSING -> if (setupMissing.size > 1) R.string.done_title_setup_missing_two else R.string.done_title_setup_missing_one
                 DoneState.NO_RECOGNITION -> R.string.done_title_no_recognition
                 DoneState.MODEL_MISSING -> R.string.done_title_model_missing
                 DoneState.LANGUAGE_PACK_MISSING -> R.string.done_title_language_pack
@@ -230,8 +235,21 @@ internal fun DoneStep(
         ),
         lead = stringResource(R.string.done_lead),
         top = { DoneOrb(downloaded) },
-        buttons = { ContinueButton(onFinish, stringResource(R.string.done_try)) },
+        buttons = {
+            if (state == DoneState.SETUP_MISSING) ContinueButton({ onGoTo(setupMissing.first()) }, stringResource(R.string.done_go_to_missing))
+            else ContinueButton(onFinish, stringResource(R.string.done_try))
+        },
     ) {
+        if (state == DoneState.SETUP_MISSING) {
+            Column(Modifier.rowIn(rows, 0), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                setupMissing.forEach { missing ->
+                    Hint(
+                        stringResource(if (missing == OnboardingStep.MICROPHONE) R.string.done_missing_microphone else R.string.done_missing_service),
+                        AmberPalette.Primary,
+                    )
+                }
+            }
+        }
         // What to do next, first: a real app, the bubble in its field - above the summary, not under the fold.
         if (nudge != null) {
             Text(

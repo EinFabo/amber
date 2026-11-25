@@ -60,6 +60,7 @@ import app.amethyst.core.engine.LanguagePack
 import app.amethyst.core.engine.ModelDownload
 import app.amethyst.core.engine.PhoneFacts
 import app.amethyst.core.engine.whisper.ModelSlots.SlotState
+import app.amethyst.core.onboarding.FirstRun
 import app.amethyst.core.onboarding.Onboarding
 import app.amethyst.core.onboarding.OnboardingPath
 import app.amethyst.core.onboarding.OnboardingStep
@@ -145,7 +146,8 @@ fun OnboardingScreen(
                 OnboardingStep.RELIABILITY -> ReliabilityStep(setup, actions, onward)
                 OnboardingStep.DONE -> DoneStep(
                     settings, content.download, content.pending, content.nudge, content.onOpenRecognition,
-                    content.languagePack, content.checkLanguagePack, content.onGetLanguagePack, content.phone?.androidRecognizer, onFinish,
+                    content.languagePack, content.checkLanguagePack, content.onGetLanguagePack, content.phone?.androidRecognizer,
+                    FirstRun.setupMissing(setup.microphoneGranted, setup.serviceHealth), onStep, onFinish,
                 )
             }
         }

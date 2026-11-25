@@ -100,6 +100,11 @@
     <string name="ready_step_title">Keep Embersay ready</string>
     <string name="ready_step_lead">Optional. Without this, some phones cut off the microphone in the background.</string>
     <string name="done_title">All set</string>
+    <string name="done_title_setup_missing_two">Two things are still missing</string>
+    <string name="done_title_setup_missing_one">One thing is still missing</string>
+    <string name="done_go_to_missing">Go to the missing step</string>
+    <string name="done_missing_service">Embersay\'s accessibility isn\'t running yet.</string>
+    <string name="done_missing_microphone">The microphone isn\'t allowed yet.</string>
     <string name="done_title_no_recognition">Nothing can recognize speech yet</string>
     <string name="no_recognition_note">Nothing on this phone can recognize speech yet. Download a model, or use a server.</string>
     <string name="no_recognition_choose">Choose a model or server</string>

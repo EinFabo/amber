@@ -69,6 +69,12 @@ enum class DoneState {
     READY,
 
     /**
+     * The bubble cannot work yet: the service is off or not running, or the microphone is not
+     * allowed ([FirstRun.setupMissing]). Ranked before everything else: no model makes up for it.
+     */
+    SETUP_MISSING,
+
+    /**
      * Nothing on this phone can recognize speech yet: Android's recognition is the active one
      * and the phone has none (de-Googled). A model or a server is the way. Ranked before the
      * model and language-pack states: those wait for something that would not help.
@@ -256,13 +262,15 @@ object FirstRun {
      * running or held - nor while Android's recognition lacks the offline pack for its
      * language ([pack], as [languagePack] reads it; null where nobody could ask). Before all
      * of those: [nothingRecognizes] ([nothingRecognizes]) - then no model or pack on its way
-     * makes this recognition work. Add states that outrank it above it.
+     * makes this recognition work. And before that, [setupMissing]: the bubble itself does not
+     * work yet. Add states that outrank it above it.
      */
     fun atDone(
         stage: PendingStage?,
         activeDownload: ModelDownload?,
         pack: LanguagePack? = null,
         nothingRecognizes: Boolean = false,
+        setupMissing: Boolean = false,
     ): DoneState {
         val modelThere = when (stage) {
             null -> activeDownload == null
@@ -270,6 +278,7 @@ object FirstRun {
             PendingStage.SMALL_FIRST, PendingStage.OWN -> false
         }
         return when {
+            setupMissing -> DoneState.SETUP_MISSING
             nothingRecognizes -> DoneState.NO_RECOGNITION
             !modelThere -> DoneState.MODEL_MISSING
             pack == LanguagePack.MISSING -> DoneState.LANGUAGE_PACK_MISSING
@@ -278,6 +287,16 @@ object FirstRun {
             else -> DoneState.READY
         }
     }
+
+    /**
+     * The steps of the introduction whose work is not done, in the order they come: the service
+     * (off, or on without ever connecting - a service still [ServiceHealth.STARTING] is not
+     * counted missing) and the microphone. Empty: the bubble can work.
+     */
+    fun setupMissing(microphone: Boolean, service: ServiceHealth): List<OnboardingStep> = listOfNotNull(
+        OnboardingStep.ACCESSIBILITY.takeIf { service == ServiceHealth.OFF || service == ServiceHealth.NOT_RUNNING },
+        OnboardingStep.MICROPHONE.takeIf { !microphone },
+    )
 
     /**
      * Whether the active recognition is Android's and the phone has none of it
