@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **G4, store images pass Play's checks.** `python3 tools/flatten_store_images.py` turns the
+  store screenshots into 24-bit RGB PNGs (RGBA before, fully opaque, so nothing changed to the
+  eye) and the 512 icon into a full amber square (it was a round icon with transparent corners,
+  RGBA). File names and sizes unchanged (1080x2340 is inside Play's 2.3:1 rule). Try: nothing on
+  a phone. New screenshots stay Fabi's item 53; run the script on them.
+
 - **G3, NOTICE names everything inside the APK.** `NOTICE` (and with it About, Licenses, which
   shows the file) now lists ONNX Runtime's own components (ONNX, protobuf, Abseil, RE2,
   FlatBuffers, XNNPACK, KleidiAI, cpuinfo, FP16, SafeInt, GSL) and the 76 Go modules inside
