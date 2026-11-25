@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.BackEventCompat
@@ -182,10 +183,18 @@ class MainActivity : ComponentActivity() {
     /** An app whose page the quick menu asked for, until the screens have opened it. */
     private val appPageRequest = MutableStateFlow<String?>(null)
 
+    /** When Android's microphone question was asked, to tell an answer with a dialog from one without. */
+    private var microphoneAskedAt: Long? = null
+
     private val requestMicrophone =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk).
-            getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_MIC_REFUSED, MicrophoneAsk.refused(granted)).apply()
+            // Remembered so the next "Allow" knows whether Android still asks (MicrophoneAsk): an
+            // answer with no dialog shown means it does not; a dismissed dialog is no refusal.
+            val elapsed = microphoneAskedAt?.let { SystemClock.elapsedRealtime() - it }
+            microphoneAskedAt = null
+            val rationale = shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)
+            getSharedPreferences(MIC_PREFS, MODE_PRIVATE).edit()
+                .putBoolean(KEY_MIC_REFUSED, MicrophoneAsk.blocked(granted, rationale, elapsed)).apply()
             refreshSetup()
         }
 
@@ -346,14 +355,17 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * "Allow" for the microphone, wherever it is: Android's question while Android still asks;
-     * after a second refusal it answers no without a word, so Amber's app info opens instead,
-     * where the microphone can still be granted.
+     * "Allow" for the microphone, wherever it is: Android's question while Android still asks,
+     * also after a dismissed one; once it has answered no without a dialog, the app info opens
+     * instead, where the microphone can still be granted.
      */
     private fun askForMicrophone() {
-        val refused = getSharedPreferences(MIC_PREFS, MODE_PRIVATE).getBoolean(KEY_MIC_REFUSED, false)
-        when (MicrophoneAsk.way(refused, shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO))) {
-            MicrophoneWay.ASK -> requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+        val blocked = getSharedPreferences(MIC_PREFS, MODE_PRIVATE).getBoolean(KEY_MIC_REFUSED, false)
+        when (MicrophoneAsk.way(blocked, shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO))) {
+            MicrophoneWay.ASK -> {
+                microphoneAskedAt = SystemClock.elapsedRealtime()
+                requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+            }
             MicrophoneWay.APP_INFO -> Setup.openAppSettings(this)
         }
     }
@@ -422,7 +434,7 @@ class MainActivity : ComponentActivity() {
         private const val THEME_PREFS = "theme"
         private const val KEY_THEME = "theme"
         private const val MIC_PREFS = "microphone"
-        private const val KEY_MIC_REFUSED = "refused"
+        private const val KEY_MIC_REFUSED = "blocked"
 
         /** Behind a three-button navigation bar, as androidx.activity's own defaults. */
         private val NAV_SCRIM_LIGHT = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)

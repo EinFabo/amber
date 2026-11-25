@@ -213,6 +213,8 @@ internal fun MicrophoneStep(setup: SetupState, actions: SetupActions, onNext: ()
                 ContinueButton(onNext)
             } else {
                 ContinueButton({ asked = true; actions.requestMicrophone() }, stringResource(R.string.allow))
+                // Android's own wording of the choice that grants it, so "Allow" is not followed by a guess.
+                Hint(stringResource(R.string.mic_choose_while_using))
                 if (refused) LaterButton(stringResource(R.string.continue_without), onNext)
             }
         },

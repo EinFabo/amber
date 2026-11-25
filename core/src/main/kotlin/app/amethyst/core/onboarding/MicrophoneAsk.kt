@@ -10,18 +10,27 @@ enum class MicrophoneWay {
 }
 
 /**
- * "Allow" for the microphone, where Android may have stopped asking. Android shows its question
- * again after one refusal and then says a reason would help ([rationale] true); after the
- * second refusal, or "Don't ask again", it refuses at once without a word, and [rationale] is
- * false again - as it is before the very first question. A refusal Amber saw before tells the
- * two apart: then only the app info can grant it, and "Allow" goes there instead of doing
- * nothing.
+ * "Allow" for the microphone, where Android may have stopped asking. The app always tries
+ * Android's question first. A refusal or a dismissal with the question on screen (tapping
+ * outside it, "Don't allow") is no reason to stop: Android asks again, and after its own
+ * "Don't ask again" it answers at once without a dialog. That answer with no question shown
+ * ([blocked]) is the one that sends "Allow" to the app info, where the microphone can still
+ * be granted.
  */
 object MicrophoneAsk {
 
-    fun way(refusedBefore: Boolean, rationale: Boolean): MicrophoneWay =
-        if (refusedBefore && !rationale) MicrophoneWay.APP_INFO else MicrophoneWay.ASK
+    /** Android's question needs longer than this to be read and answered; a quicker answer had no dialog. */
+    const val DIALOG_MS = 300L
 
-    /** Whether a refusal is remembered after Android's answer: until the microphone is granted. */
-    fun refused(granted: Boolean): Boolean = !granted
+    fun way(blocked: Boolean, rationale: Boolean): MicrophoneWay =
+        if (blocked && !rationale) MicrophoneWay.APP_INFO else MicrophoneWay.ASK
+
+    /**
+     * Whether Android will not ask any more, after its answer: the microphone was refused, with
+     * no reason to give ([rationale] false) and in less than [DIALOG_MS] ([elapsedMs], null when
+     * the time of the request is unknown: no claim) since the request - no dialog was shown.
+     * Remembered until the microphone is granted.
+     */
+    fun blocked(granted: Boolean, rationale: Boolean, elapsedMs: Long?): Boolean =
+        !granted && !rationale && elapsedMs != null && elapsedMs < DIALOG_MS
 }
