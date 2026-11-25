@@ -18,6 +18,7 @@
     <string name="variant_old_build">Amber (alte App, %1$s)</string>
     <string name="other_ambers_summary">%1$s Jede dieser Apps zeigt eine Bubble und fügt in dieselben Felder ein.</string>
     <string name="open_accessibility_settings">Bedienungshilfen öffnen</string>
+    <string name="home_dictations_here">Deine Diktate erscheinen hier</string>
     <string name="home_no_dictations">Noch keine Diktate</string>
     <string name="home_counted_here">Nur auf diesem Handy gezählt</string>
     <string name="home_nothing_today">Heute nichts diktiert</string>

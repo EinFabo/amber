@@ -15,6 +15,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -236,14 +238,13 @@ fun HomeScreen(
             },
         )
 
+        // Right under the flame and its status line: the first dictation is typed here.
+        TestFieldCard(testField, Modifier)
+
         // What did not go in can be taken from here; what did, once more.
         if (lastDictation != null) LastDictationCard(lastDictation)
 
-        if (historyCount != null) HistoryRow(historyCount, onOpenHistory)
-
-        if (settings.stats.keep) TodayRow(stats, onOpenStats)
-
-        TestFieldCard(testField, Modifier)
+        HistoryAndToday(historyCount, onOpenHistory, settings.stats.keep, stats, onOpenStats)
 
         val reliable = setup.notificationsGranted && setup.batteryUnrestricted
         // Samsung's "Never sleeping apps", Xiaomi's "Autostart": a row of its own once the
@@ -606,20 +607,48 @@ private fun LastDictationCard(text: String) {
     }
 }
 
-/** Today in one row - the door to the statistics. */
-/** The way to the history of recent dictations, with how many it keeps. */
+/**
+ * The history and today's numbers: one group of two rows, or - before the first dictation, when
+ * both would only say "nothing yet" - one row that says where the dictations will show up.
+ */
 @Composable
-private fun HistoryRow(count: Int, onOpen: () -> Unit) {
+private fun HistoryAndToday(
+    historyCount: Int?,
+    onOpenHistory: () -> Unit,
+    keepStats: Boolean,
+    stats: StatsSummary?,
+    onOpenStats: () -> Unit,
+) {
+    val statsEmpty = stats == null || stats.isEmpty
+    val historyEmpty = historyCount == null || historyCount == 0
+    if (historyEmpty && (!keepStats || statsEmpty)) {
+        // Nothing to open yet: one line, the door stays the history where there is one.
+        if (historyCount != null || keepStats) {
+            SettingsGroup(label = null) {
+                NavRow(
+                    stringResource(R.string.home_dictations_here),
+                    null,
+                    icon = AmberIcons.History,
+                    onClick = if (historyCount != null) onOpenHistory else onOpenStats,
+                )
+            }
+        }
+        return
+    }
     SettingsGroup(label = null) {
-        NavRow(
-            stringResource(R.string.settings_history),
-            if (count == 0) stringResource(R.string.history_empty) else pluralStringResource(R.plurals.history_count, count, count),
-            icon = AmberIcons.History,
-            onClick = onOpen,
-        )
+        if (historyCount != null) {
+            NavRow(
+                stringResource(R.string.settings_history),
+                if (historyCount == 0) stringResource(R.string.history_empty) else pluralStringResource(R.plurals.history_count, historyCount, historyCount),
+                icon = AmberIcons.History,
+                onClick = onOpenHistory,
+            )
+        }
+        if (keepStats) TodayRow(stats, onOpenStats)
     }
 }
 
+/** Today in one row - the door to the statistics. */
 @Composable
 private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
     val (title, summary) = when {
@@ -629,9 +658,7 @@ private fun TodayRow(stats: StatsSummary?, onOpenStats: () -> Unit) {
         else -> stringResource(R.string.home_words_today, formatCount(stats.wordsToday)) to
             (pluralStringResource(R.plurals.home_dictations_today, stats.dictationsToday, stats.dictationsToday) + " · " + formatMinutesSaved(stats.minutesSavedToday))
     }
-    SettingsGroup(label = null) {
-        NavRow(title, summary, icon = AmberIcons.BarChart, onClick = onOpenStats)
-    }
+    NavRow(title, summary, icon = AmberIcons.BarChart, onClick = onOpenStats)
 }
 
 @Composable
@@ -688,6 +715,7 @@ fun ReliabilityRows(setup: SetupState, actions: SetupActions) {
     if (!setup.batteryUnrestricted) BatterySteps()
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StatusLine(
     state: DictationState,
@@ -770,7 +798,11 @@ private fun StatusLine(
                         modifier = live,
                     )
                     when (current.remedy) {
-                        SttFailure.Remedy.INSTALL_LANGUAGE -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // A FlowRow: at 200 % font or in German the second button goes under the first.
+                        SttFailure.Remedy.INSTALL_LANGUAGE -> FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             PrimaryButton(stringResource(R.string.home_get_language_pack), onInstallLanguage)
                             GhostButton(stringResource(R.string.home_use_whisper), onUseLocalWhisper)
                         }

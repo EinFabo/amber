@@ -18,6 +18,7 @@
     <string name="variant_old_build">Amber (old app, %1$s)</string>
     <string name="other_ambers_summary">%1$s Each one shows a bubble and inserts into the same fields.</string>
     <string name="open_accessibility_settings">Open accessibility settings</string>
+    <string name="home_dictations_here">Your dictations show up here</string>
     <string name="home_no_dictations">No dictations yet</string>
     <string name="home_counted_here">Counted only on this phone</string>
     <string name="home_nothing_today">Nothing dictated today</string>
