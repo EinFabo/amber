@@ -1,0 +1,6 @@
+- Embersay heißt jetzt sayEmber
+- Kein Diktat geht mehr verloren: Fällt ein Modell oder Server aus oder wird sayEmber beendet, bleibt die Aufnahme für „Nochmal versuchen“
+- Die Einführung ist klarer: erst das Mikrofon, Schritte passend zum Hersteller, ehrliche Hinweise ohne Spracherkennung
+- Der Text passt zu dem, was im Feld steht: keine verschluckten Wörter, keine falschen Großbuchstaben
+- Musik pausiert, während du aufnimmst
+- Das App-Icon sitzt nicht mehr auf einer weißen Scheibe
