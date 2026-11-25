@@ -35,9 +35,9 @@
     <string name="add_recognition_tinfoil">Runs on a protected server, not on this phone. Needs an API key.</string>
     <string name="add_recognition_server">Runs on a server, such as Groq, OpenAI or your own. Needs an address, often an API key.</string>
     <string name="recognition_switched">%1$s is in use now</string>
-    <string name="recognition_kept">%1$s stays in use, the better model won\'t be downloaded</string>
+    <string name="recognition_kept">%1$s stays in use. The better model won\'t be downloaded.</string>
     <string name="recognition_cleanup_only">Only used for the cleanup</string>
-    <string name="recording_ending">Stopping</string>
+    <string name="recording_ending">Ending</string>
     <string name="recording_auto_stop">Stop on silence</string>
     <string name="recording_auto_stop_note">When off, recording runs until you tap again</string>
     <string name="recording_auto_stop_note_android">When off, recording runs until you tap again. Android\'s speech recognition always stops at the first pause.</string>
@@ -74,7 +74,7 @@
     <string name="bubble_hidden_show">Show again</string>
     <string name="bubble_look">Look</string>
     <string name="bubble_opacity">Opacity when idle</string>
-    <string name="percent">%1$d %%</string>
+    <string name="percent">%1$d%%</string>
     <string name="bubble_only_field">Only with a text field</string>
     <string name="bubble_only_field_note">Appears when you tap a text field</string>
     <string name="bubble_everywhere_commands">Also without a text field, for voice commands</string>

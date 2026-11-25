@@ -214,7 +214,7 @@ fun PrivacyScreen(settings: AmethystSettings, onOpen: (SettingsPage) -> Unit, mo
             NavRow(stringResource(R.string.settings_statistics), words(SettingsSummaries.onOff(settings.stats.keep)), icon = AmberIcons.BarChart) { onOpen(SettingsPage.STATS) }
             RowDivider()
             NavRow(
-                stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Lock,
+                stringResource(R.string.settings_security_mode), words(SettingsSummaries.onOff(settings.privacy.securityMode)), icon = AmberIcons.Shield,
             ) { onOpen(SettingsPage.SECURITY_MODE) }
         }
     }
@@ -535,7 +535,7 @@ fun BubbleScreen(
             NavRow(
                 stringResource(R.string.settings_quick_menu),
                 quickMenuSummary(QuickMenuLayout.idle(bubble.quickMenuIdle)),
-                icon = AmberIcons.Apps,
+                icon = AmberIcons.Menu,
                 onClick = onOpenQuickMenu,
             )
         }

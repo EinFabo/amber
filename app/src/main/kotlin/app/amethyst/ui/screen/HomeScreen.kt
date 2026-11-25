@@ -383,7 +383,7 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
             NavRow(
                 title = stringResource(R.string.home_own_recognition),
                 summary = stringResource(R.string.home_own_cleanup_in, ownEngines.joinToString { it.label }),
-                icon = AmberIcons.Palette,
+                icon = AmberIcons.Tune,
                 summaryMaxLines = 2,
                 below = { TrustBadge(ownEngineWeakest) },
                 onClick = onOpenRecognition,
@@ -406,7 +406,7 @@ private fun EngineGroup(settings: AmethystSettings, onOpenRecognition: () -> Uni
             NavRow(
                 title = stringResource(R.string.home_own_cleanup),
                 summary = stringResource(R.string.home_own_cleanup_in, ownModels.joinToString { it.label }),
-                icon = AmberIcons.Palette,
+                icon = AmberIcons.Subject,
                 summaryMaxLines = 2,
                 below = { TrustBadge(ownWeakest) },
                 onClick = onOpenCleanup,

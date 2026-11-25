@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="cleanup_who">Wer den Text bereinigt</string>
+    <string name="cleanup_who">Modell für die Bereinigung</string>
     <string name="cleanup_who_subtitle">Ein Modell bereinigt den Text, bevor Embersay ihn einfügt</string>
     <string name="cleanup_off_note">Der Text wird unverändert eingefügt</string>
     <string name="cleanup_addition">Eigene Anweisung</string>

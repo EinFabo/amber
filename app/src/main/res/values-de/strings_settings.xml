@@ -35,7 +35,7 @@
     <string name="add_recognition_tinfoil">Läuft auf einem geschützten Server, nicht auf dem Handy. Braucht einen API-Schlüssel.</string>
     <string name="add_recognition_server">Läuft auf einem Server, etwa Groq, OpenAI oder deinem eigenen. Braucht eine Adresse, oft einen API-Schlüssel.</string>
     <string name="recognition_switched">%1$s ist jetzt aktiv</string>
-    <string name="recognition_kept">%1$s bleibt aktiv, das bessere Modell wird nicht heruntergeladen</string>
+    <string name="recognition_kept">%1$s bleibt aktiv. Das bessere Modell wird nicht heruntergeladen.</string>
     <string name="recognition_cleanup_only">Nur für die Bereinigung</string>
     <string name="recording_ending">Ende</string>
     <string name="recording_auto_stop">Bei Stille automatisch stoppen</string>
@@ -70,7 +70,7 @@
     <string name="inserting_clipboard_note">Wenn eine App den Text nicht direkt annimmt</string>
     <string name="bubble_use">Bubble nutzen</string>
     <string name="bubble_use_summary">Tippen zum Diktieren, halten für das Schnellmenü</string>
-    <string name="bubble_where">Wo die Bubble erscheint</string>
+    <string name="bubble_where">Wann die Bubble erscheint</string>
     <string name="bubble_hidden_show">Zeigen</string>
     <string name="bubble_look">Aussehen</string>
     <string name="bubble_opacity">Deckkraft in Ruhe</string>

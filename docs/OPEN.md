@@ -16,6 +16,19 @@ was called Amber until 2026-11-17; the sections below that are dated before then
   (open from the start when the history is off).
   Try: a fresh install at 200 % font on a 360 dp German phone (Home, the failed language-pack
   buttons, the add dialog, History with and without entries).
+
+- **F5-F7, names, icons and the Tinfoil page.** The Tinfoil page words each verification
+  failure in the phone's language (a value in :core, `Texts.attestation`), shows its dates in
+  the phone's format, and keeps the log lines and hex digests behind a "Details" row. One word
+  per trust level, the badge's: "On this phone", "Verified enclave", "Cloud" (settings groups,
+  statistics, Home). One name per setting in the introduction and in Settings ("Only with a
+  text field", "When it appears", "Ending", "Cleanup model"); the security mode has a shield,
+  the privacy policy a document, the quick menu a menu glyph, and Home's own-recognition and
+  own-cleanup rows two different glyphs. English "50%", German "Aufnahme läuft …", the comma
+  splice split in two sentences.
+  Try: Settings > Speech recognition > Tinfoil > "Verify now" with the phone offline and
+  online, in German and English; the settings groups and the statistics bars; the Privacy and
+  About pages and the bubble page's quick menu row for their icons.
 - **E5, old model files are swept.** A model that left the catalog (with its unfinished part)
   and an older Parakeet folder stayed on the phone for good, hundreds of MB. At the start, in
   the background, they are deleted and Diagnostics say how many MB came free. Kept for sure:

@@ -115,7 +115,7 @@
     <string name="styles_step_more">You can add more apps anytime in Settings → Apps.</string>
     <string name="bubble_step_title">The bubble</string>
     <string name="bubble_step_lead">It floats over other apps at the edge of the screen.</string>
-    <string name="bubble_step_typing">Only when you type</string>
+    <string name="bubble_step_typing">Only with a text field</string>
     <string name="bubble_step_typing_note">Appears when you tap a text field</string>
     <string name="bubble_step_always">Always</string>
     <string name="bubble_step_always_note">Stays on screen in every app</string>

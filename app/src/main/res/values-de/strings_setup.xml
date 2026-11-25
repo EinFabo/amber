@@ -115,8 +115,8 @@
     <string name="styles_step_more">Weitere Apps kannst du jederzeit unter Einstellungen → Apps hinzufügen.</string>
     <string name="bubble_step_title">Die Bubble</string>
     <string name="bubble_step_lead">Die Bubble schwebt am Rand des Bildschirms über anderen Apps.</string>
-    <string name="bubble_step_typing">Nur beim Tippen</string>
-    <string name="bubble_step_typing_note">Erscheint, wenn ein Textfeld aktiv ist</string>
+    <string name="bubble_step_typing">Nur mit Textfeld</string>
+    <string name="bubble_step_typing_note">Erscheint, wenn du in ein Feld tippst</string>
     <string name="bubble_step_always">Immer</string>
     <string name="bubble_step_always_note">Bleibt in jeder App sichtbar</string>
     <string name="gesture_tap">Tippen</string>

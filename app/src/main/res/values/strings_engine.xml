@@ -2,7 +2,7 @@
 <resources>
     <string name="engine_unencrypted">Unencrypted (http). Anyone on the same network can read and change what\'s sent. Only use it on your own network: on another Wi-Fi, a different device could answer at the same address.</string>
     <string name="engine_use_active">Use this speech recognition</string>
-    <string name="engine_configuration">Configuration</string>
+    <string name="engine_configuration">About this speech recognition</string>
     <string name="engine_android_note">Uses Android\'s speech recognition. Which languages work offline depends on the phone\'s settings.</string>
     <string name="engine_android_cloud">Android\'s speech recognition may send your voice to its servers, so these dictations are marked as cloud. Parakeet and Whisper run entirely on this phone.</string>
     <string name="engine_languages">Languages</string>

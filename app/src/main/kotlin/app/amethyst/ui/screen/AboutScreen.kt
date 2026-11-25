@@ -49,7 +49,7 @@ fun AboutScreen(
         }
         SettingsGroup(label = null) {
             NavRow(
-                stringResource(R.string.settings_privacy_policy), stringResource(R.string.settings_privacy_policy_summary), icon = AmberIcons.Lock,
+                stringResource(R.string.settings_privacy_policy), stringResource(R.string.settings_privacy_policy_summary), icon = AmberIcons.Description,
                 summaryMaxLines = 2,
             ) { onOpen(SettingsPage.PRIVACY_POLICY) }
             RowDivider()
