@@ -5,6 +5,13 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **E5, old model files are swept.** A model that left the catalog (with its unfinished part)
+  and an older Parakeet folder stayed on the phone for good, hundreds of MB. At the start, in
+  the background, they are deleted and Diagnostics say how many MB came free. Kept for sure:
+  every current slot and its unfinished part, a model picked from a file, the current Parakeet
+  folder, a model an engine names, a model under check, and anything not clearly a model's file.
+  Try: download Parakeet, check the models still load after a restart, and Diagnostics shows no
+  "Swept" line when nothing was old.
 - **E4, cooler on long dictations.** The local speech recognitions always used four threads at
   top priority and a performance hint that reports "late" the whole time. Once per recognition
   the phone's heat and battery saver are read: from "moderate" heat up, or with battery saver,

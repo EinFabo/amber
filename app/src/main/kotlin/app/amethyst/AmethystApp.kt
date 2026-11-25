@@ -26,6 +26,7 @@ import app.amethyst.core.engine.KeyBinding
 import app.amethyst.core.engine.ModelLoadGuard
 import app.amethyst.core.engine.ModelLoadMarks
 import app.amethyst.core.engine.ModelRelease
+import app.amethyst.core.engine.ModelSweep
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.RecognitionEstimate
 import app.amethyst.core.engine.sherpa.ParakeetModel
@@ -263,6 +264,9 @@ class Graph(
      * files on this phone only. Reads nothing until first asked. A file it cannot write (storage
      * full) never stops a load: logged by its class, kept in memory meanwhile.
      */
+    /** Where the stores keep the models ([WhisperModelStore], [ParakeetModelStore]). */
+    private val modelsFolder = File(app.noBackupFilesDir, "models")
+
     val modelMarks = ModelLoadMarks(File(app.noBackupFilesDir, "model-guard"), trouble = { android.util.Log.w("Embersay", it) })
 
     val whisperRuntime = NativeWhisperRuntime(app, modelMarks)
@@ -704,11 +708,38 @@ class Graph(
      * still unchecked, that one or one whose check an earlier process did not finish, has its
      * files checked now.
      */
-    fun checkModelsAtStart() {
+    suspend fun checkModelsAtStart() {
         for (left in modelMarks.leftAtStart()) {
             modelNote("The app ended while loading the model ${left.modelId}. It is not loaded again until its files are checked.")
         }
         modelMarks.checking().forEach(::checkModel)
+        sweepStaleModels()
+    }
+
+    /**
+     * Deletes what the models folder keeps of models nobody uses any more ([ModelSweep]), after
+     * the checks above are under way. Kept: every catalog slot with its unfinished part, a picked
+     * file, the current Parakeet folder, a model an engine names, a model under check. Runs at
+     * the start, when no download of this process has begun; a download that begins meanwhile
+     * is of a catalog model, which stays. Diagnostics get the freed MB, never a name beyond the
+     * file's own.
+     */
+    private suspend fun sweepStaleModels() {
+        val folder = modelsFolder
+        val entries = runCatching { folder.listFiles() }.getOrNull() ?: return
+        val named = loadedSettings.filterNotNull().first().engines.mapNotNull { it.modelId }
+        val current = WhisperModels.all.map { it.id }.toSet() + WhisperModels.IMPORTED_ID + ParakeetModel.ID +
+            named + modelMarks.checking()
+        val doomed = ModelSweep.stale(entries.map { if (it.isDirectory) it.name + "/" else it.name }, current)
+        var freed = 0L
+        for (name in doomed) {
+            val target = File(folder, name.removeSuffix("/"))
+            // Never outside the models folder, whatever the name says.
+            if (target.canonicalFile.parentFile != folder.canonicalFile) continue
+            freed += target.walkBottomUp().filter { it.isFile }.sumOf { it.length() }
+            runCatching { target.deleteRecursively() }
+        }
+        if (doomed.isNotEmpty()) modelNote("Swept ${doomed.size} stale model files: ${freed / 1_000_000} MB freed.")
     }
 
     /**
