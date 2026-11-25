@@ -5,6 +5,12 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **E4, cooler on long dictations.** The local speech recognitions always used four threads at
+  top priority and a performance hint that reports "late" the whole time. Once per recognition
+  the phone's heat and battery saver are read: from "moderate" heat up, or with battery saver,
+  Whisper and Parakeet take two threads (not more than the cores) and no performance hint.
+  Android 9 counts as cool. Try a ten-minute dictation on the A20e with and without battery
+  saver: the back stays cooler and Diagnostics shows "boost off" and fewer threads in the saver.
 - **E3, the first tap does not build the key store on the main thread.** Choosing the speech
   recognition asked the key store about a key even for the phone's own and on-device
   recognition, which built it (Keystore, Tink) right in the start of a dictation. It now asks

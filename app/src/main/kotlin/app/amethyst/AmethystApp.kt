@@ -269,7 +269,7 @@ class Graph(
 
     val whisperModels: WhisperModelStore by lazy { WhisperModelStore(app, appScope, whisperRuntime, modelMarks) { httpTransport.downloadClient() } }
 
-    val sherpaRuntime = SherpaRuntime(modelMarks)
+    val sherpaRuntime = SherpaRuntime(app, modelMarks)
 
     val parakeetModels: ParakeetModelStore by lazy { ParakeetModelStore(app, appScope, sherpaRuntime, modelMarks) { httpTransport.downloadClient() } }
 

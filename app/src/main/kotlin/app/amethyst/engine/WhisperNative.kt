@@ -74,7 +74,7 @@ internal object WhisperNative {
  * on some damage and aborts the process, and the marker left behind keeps the next start from
  * loading the file again before it is checked.
  */
-class NativeWhisperRuntime(context: Context, private val marks: ModelLoadMarks) : WhisperRuntime {
+class NativeWhisperRuntime(private val context: Context, private val marks: ModelLoadMarks) : WhisperRuntime {
 
     private val lock = Any()
     private var handle = 0L
@@ -114,7 +114,7 @@ class NativeWhisperRuntime(context: Context, private val marks: ModelLoadMarks) 
             releaseLocked()
             val started = System.currentTimeMillis()
             // A slot's file is named by its id ([WhisperModelStore.fileFor]).
-            handle = marks.loading(file.nameWithoutExtension) { WhisperNative.load(modelPath, defaultThreads()) }
+            handle = marks.loading(file.nameWithoutExtension) { WhisperNative.load(modelPath, DevicePlan.now(context).threads) }
             loadedPath = modelPath
             loadedStamp = stamp
             Log.i(TAG, "whisper context ready in ${System.currentTimeMillis() - started} ms")
@@ -130,15 +130,18 @@ class NativeWhisperRuntime(context: Context, private val marks: ModelLoadMarks) 
     ): String = synchronized(lock) {
         if (handle == 0L) throw WhisperRuntimeException("model not loaded")
         val started = System.currentTimeMillis()
-        val bytes = booster.during(listOf(inferenceTid) + WhisperNative.workerTids().toList()) {
-            WhisperNative.transcribe(handle, samples, language, audioCtx, threads, prompt)
+        // Read once per recognition: a warm phone or battery saver gets fewer threads and no hint.
+        val plan = DevicePlan.now(context)
+        val used = minOf(threads, plan.threads)
+        val bytes = booster.during(listOf(inferenceTid) + WhisperNative.workerTids().toList(), plan.performanceHint) {
+            WhisperNative.transcribe(handle, samples, language, audioCtx, used, prompt)
         }
         val timings = runCatching { WhisperNative.lastTimings() }.getOrNull()?.let(WhisperTimings::parse)
         timings?.let { synchronized(timingsLock) { pendingTimings = pendingTimings?.plus(it) ?: it } }
         Log.i(
             TAG,
             "whisper: ${samples.size / 16} ms audio, ctx=$audioCtx, lang=$language, " +
-                "$threads threads -> ${System.currentTimeMillis() - started} ms (${schedulingSummary()})" +
+                "$used threads -> ${System.currentTimeMillis() - started} ms (${schedulingSummary()})" +
                 (timings?.let { " - ${it.summary()}" } ?: ""),
         )
         lastLanguage = runCatching { WhisperNative.lastLanguage() }.getOrNull()?.takeIf { it.isNotBlank() }
@@ -235,7 +238,8 @@ class NativeWhisperRuntime(context: Context, private val marks: ModelLoadMarks) 
  * work has been running - always over target, which is the truth for one long job measured
  * against a frame-sized deadline. Android answers by raising clocks and preferring big cores.
  * When the job ends the reports stop and the boost decays by itself. On devices without
- * support the session is null and nothing happens.
+ * support the session is null and nothing happens. A warm phone or battery saver turns it off
+ * ([app.amethyst.core.engine.InferenceThreads]).
  */
 private class Booster(context: Context) {
 
@@ -256,8 +260,11 @@ private class Booster(context: Context) {
     var lastRunBoosted = false
         private set
 
-    fun <T> during(tids: List<Int>, work: () -> T): T {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return work()
+    fun <T> during(tids: List<Int>, hint: Boolean, work: () -> T): T {
+        if (!hint || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            lastRunBoosted = false
+            return work()
+        }
         val current = sessionFor(tids.filter { it > 0 })
         lastRunBoosted = current != null
         if (current == null) return work()

@@ -1,5 +1,6 @@
 package app.amethyst.engine
 
+import android.content.Context
 import android.os.Process
 import android.util.Log
 import app.amethyst.core.engine.ModelLoadMarks
@@ -27,7 +28,7 @@ import java.util.concurrent.Executors
  * make sherpa-onnx abort the process, and the marker left behind keeps the next start from
  * loading it again before its files are checked.
  */
-class SherpaRuntime(private val marks: ModelLoadMarks) : TransducerRuntime {
+class SherpaRuntime(private val context: Context, private val marks: ModelLoadMarks) : TransducerRuntime {
 
     private val lock = Any()
     private var recognizer: OfflineRecognizer? = null
@@ -62,7 +63,7 @@ class SherpaRuntime(private val marks: ModelLoadMarks) : TransducerRuntime {
                         joiner = File(modelDir, "joiner.int8.onnx").path,
                     ),
                     tokens = File(modelDir, "tokens.txt").path,
-                    numThreads = NativeWhisperRuntime.defaultThreads(),
+                    numThreads = DevicePlan.now(context).threads,
                     modelType = "nemo_transducer",
                 ),
                 decodingMethod = "greedy_search",
