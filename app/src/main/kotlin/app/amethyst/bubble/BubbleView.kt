@@ -21,7 +21,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /** The visual states of the bubble. */
-enum class BubbleVisual { IDLE, LISTENING, PAUSED, TRANSCRIBING, DONE, CLIPBOARD, FAILED }
+enum class BubbleVisual { IDLE, OPENING, LISTENING, PAUSED, TRANSCRIBING, DONE, CLIPBOARD, FAILED }
 
 /**
  * The bubble, drawn by hand on a Canvas.
@@ -147,7 +147,7 @@ class BubbleView(context: Context) : View(context) {
         val r = discRadius
 
         val inverted = command && visual != BubbleVisual.FAILED
-        val banked = visual == BubbleVisual.PAUSED
+        val banked = visual == BubbleVisual.PAUSED || visual == BubbleVisual.OPENING
         disc.color = when {
             visual == BubbleVisual.FAILED -> Fire.ERROR
             banked -> RAISED
@@ -190,6 +190,8 @@ class BubbleView(context: Context) : View(context) {
             BubbleVisual.IDLE -> drawFlame(canvas, r)
             BubbleVisual.LISTENING -> drawBars(canvas, r, elapsed, still)
             BubbleVisual.PAUSED -> drawPause(canvas, r)
+            // Dim ember, no flames and no bars: the microphone is not open yet.
+            BubbleVisual.OPENING -> Unit
             // Stuck, the flame burns slower too: still alive, no longer hurrying.
             BubbleVisual.TRANSCRIBING -> drawFlame(canvas, r, if (still) 0f else if (work?.stuck() == true) elapsed * STUCK_FLICKER else elapsed)
             BubbleVisual.DONE -> drawCheck(canvas, r, if (still) 1f else ((elapsed - 40f) / 240f).coerceIn(0f, 1f))

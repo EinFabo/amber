@@ -5,6 +5,11 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **B4, with Android's speech recognition the bubble only burns once it listens.** While the
+  microphone is still opening the bubble shows a dim ember disc - no flames, no bars, no
+  sparks, no buzz - and switches to the listening look when the microphone is really open.
+  Try on a phone with Android's speech recognition: tap the bubble and start talking only when
+  the flames appear; the dim look should last a moment, and the first word after it is heard.
 - **B3, the bubble tells "on the clipboard" from "inserted".** When the words only went onto
   the clipboard, the bubble no longer shows the tick, the burst and the confirming buzz: it
   shows a copy glyph (two sheets) on the amber disc and gives the short double buzz of a

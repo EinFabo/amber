@@ -1062,7 +1062,7 @@ class DictationController(
 
     /**
      * The microphone is really open - the recorder records, the recognizer listens: the bubble
-     * buzzes (it watches [DictationState.Listening.open]), and the start tone plays if wanted -
+     * stops showing the dim opening look and burns (it watches [DictationState.Listening.open]), and the start tone plays if wanted -
      * its beep silenced in Amber's own recording ([StartToneMute]).
      */
     private fun microphoneOpen() {

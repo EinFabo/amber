@@ -27,6 +27,7 @@ import app.amethyst.core.bubble.BubblePlacement
 import app.amethyst.core.bubble.BubbleSide
 import app.amethyst.core.bubble.BubbleSpring
 import app.amethyst.core.bubble.BubbleVisibility
+import app.amethyst.core.bubble.MicLook
 import app.amethyst.core.bubble.QuickAction
 import app.amethyst.core.bubble.QuickMenuGeometry
 import app.amethyst.core.bubble.QuickSlot
@@ -640,8 +641,12 @@ class BubbleController(
         applyVisibility(immediate = false)
         view.visual = when (state) {
             DictationState.Idle -> BubbleVisual.IDLE
-            DictationState.Starting -> BubbleVisual.LISTENING
-            is DictationState.Listening -> if (state.paused) BubbleVisual.PAUSED else BubbleVisual.LISTENING
+            DictationState.Starting -> BubbleVisual.OPENING
+            is DictationState.Listening -> when {
+                state.paused -> BubbleVisual.PAUSED
+                MicLook.of(state.open) == MicLook.OPENING -> BubbleVisual.OPENING
+                else -> BubbleVisual.LISTENING
+            }
             is DictationState.Transcribing -> BubbleVisual.TRANSCRIBING
             is DictationState.Done -> if (state.copiedOnly) BubbleVisual.CLIPBOARD else BubbleVisual.DONE
             is DictationState.Commanded -> BubbleVisual.DONE
@@ -656,7 +661,7 @@ class BubbleController(
         view.limitLeft = (state as? DictationState.Listening)?.limitLeft
         if (state is DictationState.Transcribing) view.work = state.progress
         // Paused, the fire throws no sparks.
-        listening = state is DictationState.Listening && !state.paused
+        listening = state is DictationState.Listening && !state.paused && state.open
         updateSparks()
         if (state is DictationState.Failed) sparkView.extinguish()
         when (state) {
