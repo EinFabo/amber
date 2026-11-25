@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -32,6 +33,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -45,6 +48,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import app.amethyst.R
 import app.amethyst.Texts
@@ -69,6 +73,7 @@ import app.amethyst.core.settings.CleanupChoice
 import app.amethyst.core.settings.EngineConfig
 import app.amethyst.data.PhoneLocales
 import app.amethyst.ui.AmberIcons
+import app.amethyst.ui.ShowsDictatedText
 import app.amethyst.ui.ChevronRight
 import app.amethyst.ui.ConnectionTester
 import app.amethyst.ui.GhostButton
@@ -103,8 +108,8 @@ class CleanupAccess(
 
 /**
  * Which sheet is open: a row's, or the one that adds an own server. [key] is a key typed in
- * another sheet and taken along ("this looks like a Groq key") - held in memory only, never in
- * saved state.
+ * another sheet and taken along ("this looks like a Groq key") - held in memory only: the
+ * saved state ([ServiceSheetSaver]) keeps which sheet is open, not that key.
  */
 sealed interface ServiceSheet {
     val key: String
@@ -112,6 +117,34 @@ sealed interface ServiceSheet {
     data class Of(val rowId: String, override val key: String = "") : ServiceSheet
     data class NewServer(override val key: String = "") : ServiceSheet
 }
+
+/**
+ * Which sheet is open, for the saved state: rotation or a process kill while the key's website
+ * is open brings the same sheet back. Only the kind and the row's id - the key carried over
+ * from another sheet stays in memory.
+ */
+internal val ServiceSheetSaver: Saver<ServiceSheet?, Any> = Saver(
+    save = { sheet ->
+        when (sheet) {
+            is ServiceSheet.Of -> listOf("of", sheet.rowId)
+            is ServiceSheet.NewServer -> listOf("new")
+            null -> listOf("none")
+        }
+    },
+    restore = { saved ->
+        val parts = (saved as? List<*>) ?: emptyList<Any>()
+        when (parts.firstOrNull()) {
+            "of" -> (parts.getOrNull(1) as? String)?.let { ServiceSheet.Of(it) }
+            "new" -> ServiceSheet.NewServer()
+            else -> null
+        }
+    },
+)
+
+/** The open sheet, kept through rotation and a process kill ([ServiceSheetSaver]). */
+@Composable
+internal fun rememberServiceSheet(initial: ServiceSheet? = null): MutableState<ServiceSheet?> =
+    rememberSaveable(stateSaver = ServiceSheetSaver) { mutableStateOf(initial) }
 
 /**
  * The list's rows for the settings as they are, counted again once a key is stored: a key
@@ -359,13 +392,15 @@ internal fun RowSheetBody(
     initialFailure: String? = null,
 ) {
     val engine = row.engine
-    // Not saveable: a key must never land in the saved-state bundle.
-    var key by remember { mutableStateOf(carriedKey) }
+    // Saved state, so rotation or the trip to the key's website keeps what was typed - the saved
+    // state of this sheet only: it is dropped once the sheet closes, and the key is never
+    // written to settings, a log or Diagnostics but by Use.
+    var key by rememberSaveable { mutableStateOf(carriedKey) }
     // The field shows where a key is wanted: none stored at a service that needs one, or one
     // carried over. An own server that works without one keeps it a tap away.
-    var editKey by remember { mutableStateOf(carriedKey.isNotBlank() || (!row.keyStored && (row.keyRequired || row.state != ServiceState.READY))) }
-    var model by remember { mutableStateOf(CleanupServices.preselected(row, inUse).orEmpty()) }
-    var query by remember { mutableStateOf("") }
+    var editKey by rememberSaveable { mutableStateOf(carriedKey.isNotBlank() || (!row.keyStored && (row.keyRequired || row.state != ServiceState.READY))) }
+    var model by rememberSaveable { mutableStateOf(CleanupServices.preselected(row, inUse).orEmpty()) }
+    var query by rememberSaveable { mutableStateOf("") }
     var answer by remember { mutableStateOf(initialAnswer) }
     var asking by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
@@ -563,12 +598,13 @@ internal fun NewServerSheetBody(
     initialFields: ServiceFields? = null,
     initialAnswer: ServiceAnswer? = null,
 ) {
-    // Not saveable: a key must never land in the saved-state bundle, nor the address, which
-    // can carry an Amber PC's key in its path.
-    var fields by remember { mutableStateOf(initialFields ?: ServiceFields(key = carriedKey)) }
+    // Saved state, so rotation or the trip to the key's website keeps the address and the key
+    // (an Amber PC's address can carry its key): dropped once the sheet closes, never written
+    // to settings, a log or Diagnostics but by Use.
+    var fields by rememberSaveable(stateSaver = ServiceFieldsSaver) { mutableStateOf(initialFields ?: ServiceFields(key = carriedKey)) }
     var answer by remember { mutableStateOf(initialAnswer) }
-    var model by remember { mutableStateOf((initialAnswer as? ServiceAnswer.Ready)?.plan?.cleanupModel.orEmpty()) }
-    var query by remember { mutableStateOf("") }
+    var model by rememberSaveable { mutableStateOf((initialAnswer as? ServiceAnswer.Ready)?.plan?.cleanupModel.orEmpty()) }
+    var query by rememberSaveable { mutableStateOf("") }
     var tried by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf(false) }
     var used by remember { mutableStateOf(false) }
@@ -774,9 +810,23 @@ private fun Models(
     }
 }
 
-/** A key, masked: off screenshots, recordings and other eyes. */
+private val ServiceFieldsSaver: Saver<ServiceFields, Any> = Saver(
+    save = { listOf(it.key, it.address) },
+    restore = { saved ->
+        val parts = saved as List<*>
+        ServiceFields(key = parts[0] as String, address = parts[1] as String)
+    },
+)
+
+/**
+ * A key, masked: off screenshots, recordings and other eyes. The eye shows it for a check - the
+ * window then stays out of screenshots and the Recents picture for as long as it is shown - and
+ * is hidden again after a rotation.
+ */
 @Composable
 private fun KeyField(value: String, label: String, enabled: Boolean = true, onChange: (String) -> Unit) {
+    var shown by remember { mutableStateOf(false) }
+    ShowsDictatedText(active = shown)
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -786,7 +836,15 @@ private fun KeyField(value: String, label: String, enabled: Boolean = true, onCh
         shape = AmberShapes.Inner,
         colors = fieldColors(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (shown) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { shown = !shown }) {
+                Icon(
+                    if (shown) AmberIcons.VisibilityOff else AmberIcons.Visibility,
+                    contentDescription = stringResource(if (shown) R.string.cleanup_key_hide else R.string.cleanup_key_show),
+                )
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
     )
 }

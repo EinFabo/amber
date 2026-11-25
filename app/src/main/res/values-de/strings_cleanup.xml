@@ -26,6 +26,8 @@
     <string name="cleanup_key_stored">API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_none">Kein API-Schlüssel gespeichert.</string>
     <string name="cleanup_key_change">Ändern</string>
+    <string name="cleanup_key_show">Schlüssel zeigen</string>
+    <string name="cleanup_key_hide">Schlüssel verbergen</string>
     <string name="cleanup_key_optional">API-Schlüssel (optional)</string>
     <string name="cleanup_get_key">Schlüssel bei %1$s holen</string>
     <string name="cleanup_key_other">Das sieht nach einem Schlüssel von %1$s aus.</string>

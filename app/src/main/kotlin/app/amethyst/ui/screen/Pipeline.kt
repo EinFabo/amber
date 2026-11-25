@@ -75,7 +75,7 @@ fun CleanupScreen(
     // A cleanup whose server was removed runs nowhere: shown as off, which is what happens.
     val current = settings.cleanup
     val row = CleanupServices.rowOf(services.rows, current)
-    val sheet = remember { mutableStateOf(initialSheet) }
+    val sheet = rememberServiceSheet(initialSheet)
 
     SubPage(modifier) {
         SectionCard(

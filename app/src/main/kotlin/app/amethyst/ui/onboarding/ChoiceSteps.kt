@@ -47,6 +47,7 @@ import app.amethyst.ui.screen.ReliabilityRows
 import app.amethyst.ui.screen.cleanupSummary
 import app.amethyst.ui.screen.label
 import app.amethyst.ui.screen.rememberServiceRows
+import app.amethyst.ui.screen.rememberServiceSheet
 import app.amethyst.ui.screen.mayGoToMaker
 import app.amethyst.ui.screen.trustLevelForDisplay
 import app.amethyst.ui.theme.AmberPalette
@@ -72,7 +73,7 @@ internal fun CleanupStep(
     // A cleanup whose server was removed runs nowhere: shown as off, which is what happens.
     val row = CleanupServices.rowOf(services.rows, settings.cleanup)
     val current = settings.cleanup?.takeIf { row != null }
-    val sheet = remember { mutableStateOf(initialSheet) }
+    val sheet = rememberServiceSheet(initialSheet)
     // What a tap here wrote last. It counts while the store has not answered with it - told by
     // the cleanup, the one thing this step writes that decides which step comes next.
     var pending by remember { mutableStateOf<AmethystSettings?>(null) }

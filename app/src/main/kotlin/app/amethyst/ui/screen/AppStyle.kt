@@ -96,7 +96,7 @@ fun AppStyleScreen(
     val services = rememberServiceRows(settings, access)
     // "Own model" tapped, none chosen yet: the list is open, the choice still as it was.
     var pickOwn by rememberSaveable { mutableStateOf(false) }
-    val sheet = remember { mutableStateOf<ServiceSheet?>(null) }
+    val sheet = rememberServiceSheet()
     // Once per settings change rather than on every recomposition.
     val decision = remember(settings, services.keysSaved) { CleanupRouting.decide(settings, profile.packageName, null, hasKeyFor) }
     // Not remembered: a model downloaded or a key stored while the page is open changes it, not the settings.

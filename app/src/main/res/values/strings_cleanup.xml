@@ -26,6 +26,8 @@
     <string name="cleanup_key_stored">API key stored.</string>
     <string name="cleanup_key_none">No API key stored.</string>
     <string name="cleanup_key_change">Change</string>
+    <string name="cleanup_key_show">Show key</string>
+    <string name="cleanup_key_hide">Hide key</string>
     <string name="cleanup_key_optional">API key (optional)</string>
     <string name="cleanup_get_key">Get a key at %1$s</string>
     <string name="cleanup_key_other">This looks like a %1$s key.</string>
