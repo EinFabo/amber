@@ -27,7 +27,53 @@ data class AttestationResult(
      * proof that was fetched and failed, this is no reason to distrust the enclave.
      */
     val unreachable: Boolean = false,
+    /** Why it failed, for the words the screen shows; [detail] stays the English line for the log. */
+    val failure: AttestationFailure? = null,
 )
+
+/** Why an enclave could not be verified, as a value; the app words it (`Texts.attestation`). */
+sealed interface AttestationFailure {
+    /** The address is no address. */
+    data object InvalidAddress : AttestationFailure
+
+    /** Amber does not know which release the enclave at [host] must come from. */
+    data class UnknownEnclave(val host: String) : AttestationFailure
+
+    /** A build without the verifier library. */
+    data object LibraryMissing : AttestationFailure
+
+    /** The attestation document is not valid. */
+    data object DocumentInvalid : AttestationFailure
+
+    /** The signed release could not be matched to the enclave. */
+    data object ReleaseNotConfirmed : AttestationFailure
+
+    /** The processor's hardware proof was rejected. */
+    data object HardwareRejected : AttestationFailure
+    data object PolicyViolated : AttestationFailure
+
+    /** The document could not be fetched or read. */
+    data object Unavailable : AttestationFailure
+    data object Failed : AttestationFailure
+
+    companion object {
+        private val LAYER = Regex("""verification error: (\w+):""")
+
+        /**
+         * Reads the verifier's error: tinfoil-go prefixes it with the layer that rejected the
+         * document ("verification error: quote: ..."), which says more than the rest.
+         * [network] is whether it was a network or format error rather than a verdict.
+         */
+        fun fromVerifier(message: String, network: Boolean): AttestationFailure =
+            when (LAYER.find(message)?.groupValues?.get(1)) {
+                "envelope" -> DocumentInvalid
+                "provenance" -> ReleaseNotConfirmed
+                "quote" -> HardwareRejected
+                "policy" -> PolicyViolated
+                else -> if (network) Unavailable else Failed
+            }
+    }
+}
 
 /**
  * What a passing attestation established about one enclave host - everything the transport

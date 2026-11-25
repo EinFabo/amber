@@ -82,6 +82,17 @@
     <string name="proof_hpke">HPKE key</string>
     <string name="proof_verified_at">Verified at</string>
     <string name="proof_valid_until">Valid until</string>
+    <string name="attestation_invalid_address">That isn\'t a valid address.</string>
+    <string name="attestation_unknown_enclave">Embersay doesn\'t know which release the enclave at %1$s must come from.</string>
+    <string name="attestation_library_missing">This build of Embersay can\'t verify enclaves.</string>
+    <string name="attestation_document_invalid">The enclave\'s proof isn\'t valid.</string>
+    <string name="attestation_release_not_confirmed">The enclave doesn\'t match a signed release.</string>
+    <string name="attestation_hardware_rejected">The enclave\'s processor didn\'t confirm it.</string>
+    <string name="attestation_policy_violated">The enclave doesn\'t meet the rules for a verified enclave.</string>
+    <string name="attestation_unavailable">The enclave\'s proof couldn\'t be fetched. Check the connection.</string>
+    <string name="attestation_failed">The enclave couldn\'t be verified.</string>
+    <string name="enclave_details">Details</string>
+    <string name="enclave_details_note">For comparing with Tinfoil\'s own tools.</string>
     <string name="server_recognized">Recognized as %1$s. Embersay knows its address and models.</string>
     <string name="server_key_optional">API key (optional)</string>
     <string name="server_key_elsewhere">This key was entered for %1$s and isn\'t sent to this address. Enter it again to use it here.</string>

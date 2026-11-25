@@ -3,6 +3,7 @@ package app.amethyst
 import android.content.Context
 import android.content.res.Configuration
 import app.amethyst.core.bubble.QuickAction
+import app.amethyst.core.privacy.AttestationFailure
 import app.amethyst.core.bubble.QuickMenuItem
 import app.amethyst.core.bubble.QuickOff
 import app.amethyst.core.dictation.ExitKind
@@ -73,6 +74,20 @@ object Texts {
             SwitchOnStep.SWITCH_OFF_OPTIMIZING -> getString(R.string.battery_step_switch_off) to getString(R.string.battery_step_unrestricted_note)
             SwitchOnStep.NEVER_SLEEPING -> getString(R.string.battery_step_never_sleeping) to getString(R.string.battery_step_never_sleeping_note)
             SwitchOnStep.AUTOSTART -> getString(R.string.battery_step_autostart) to getString(R.string.battery_step_autostart_note)
+        }
+    }
+
+    fun attestation(context: Context, failure: AttestationFailure?): String = with(context) {
+        when (failure) {
+            AttestationFailure.InvalidAddress -> getString(R.string.attestation_invalid_address)
+            is AttestationFailure.UnknownEnclave -> getString(R.string.attestation_unknown_enclave, failure.host)
+            AttestationFailure.LibraryMissing -> getString(R.string.attestation_library_missing)
+            AttestationFailure.DocumentInvalid -> getString(R.string.attestation_document_invalid)
+            AttestationFailure.ReleaseNotConfirmed -> getString(R.string.attestation_release_not_confirmed)
+            AttestationFailure.HardwareRejected -> getString(R.string.attestation_hardware_rejected)
+            AttestationFailure.PolicyViolated -> getString(R.string.attestation_policy_violated)
+            AttestationFailure.Unavailable -> getString(R.string.attestation_unavailable)
+            AttestationFailure.Failed, null -> getString(R.string.attestation_failed)
         }
     }
 

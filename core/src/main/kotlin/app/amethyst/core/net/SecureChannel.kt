@@ -3,6 +3,7 @@ package app.amethyst.core.net
 import app.amethyst.core.engine.NotSentException
 import app.amethyst.core.engine.Problem
 import app.amethyst.core.engine.SttFailure
+import app.amethyst.core.privacy.AttestationFailure
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
@@ -167,7 +168,12 @@ class SecureChannel(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            AttestationResult(false, "Verification failed: ${e.message}", unreachable = e is java.io.IOException)
+            AttestationResult(
+                false,
+                "Verification failed: ${e.message}",
+                unreachable = e is java.io.IOException,
+                failure = if (e is java.io.IOException) AttestationFailure.Unavailable else AttestationFailure.Failed,
+            )
         }
 
     private companion object {

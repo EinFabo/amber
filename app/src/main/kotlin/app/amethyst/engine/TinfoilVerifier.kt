@@ -2,6 +2,7 @@ package app.amethyst.engine
 
 import app.amethyst.core.engine.EnginePresets
 import android.util.Log
+import app.amethyst.core.privacy.AttestationFailure
 import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.EnclaveProof
@@ -71,9 +72,9 @@ class TinfoilVerifier(
     private val verifier by lazy { Mobile.newVerifier("") }
 
     override suspend fun verify(baseUrl: String, forceFresh: Boolean): AttestationResult = mutex.withLock {
-        val host = EnginePresets.hostOf(baseUrl) ?: return@withLock failed("Not a valid address: $baseUrl")
+        val host = EnginePresets.hostOf(baseUrl) ?: return@withLock failed("Not a valid address: $baseUrl", AttestationFailure.InvalidAddress)
         val repo = EnginePresets.ENCLAVE_REPOS[host]
-            ?: return@withLock failed("For $host it is not known which repository the enclave must come from.")
+            ?: return@withLock failed("For $host it is not known which repository the enclave must come from.", AttestationFailure.UnknownEnclave(host))
 
         proofs[host]?.takeIf { !forceFresh && it.isFresh(clock()) }?.let { cached ->
             return@withLock AttestationResult(true, summary(cached), cached)
@@ -98,10 +99,10 @@ class TinfoilVerifier(
             AttestationResult(true, summary(proof), proof)
         } catch (e: LinkageError) {
             // A build made without tools/build-tinfoil-aar.sh, or a missing native library.
-            failed("The verifier library is missing from this build (${e::class.simpleName}).")
+            failed("The verifier library is missing from this build (${e::class.simpleName}).", AttestationFailure.LibraryMissing)
         } catch (e: Exception) {
             proofs.remove(host)
-            failed(describe(e), unreachable = e is Unreachable)
+            failed(describe(e), AttestationFailure.fromVerifier(e.message.orEmpty(), network = e is IOException), unreachable = e is Unreachable)
         }
     }
 
@@ -166,9 +167,9 @@ class TinfoilVerifier(
         return "$where: $message"
     }
 
-    private fun failed(detail: String, unreachable: Boolean = false): AttestationResult {
+    private fun failed(detail: String, failure: AttestationFailure, unreachable: Boolean = false): AttestationResult {
         note("Rejected: $detail")
-        return AttestationResult(false, detail, unreachable = unreachable)
+        return AttestationResult(false, detail, unreachable = unreachable, failure = failure)
     }
 
     private fun summary(proof: EnclaveProof): String =

@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -83,6 +84,11 @@ import app.amethyst.engine.ParakeetState
 import app.amethyst.engine.TinfoilVerifier
 import app.amethyst.ui.ChoiceChip
 import app.amethyst.ui.ConnectionTester
+import app.amethyst.ui.ExpandChevron
+import app.amethyst.ui.NavRow
+import app.amethyst.ui.SettingsGroup
+import app.amethyst.ui.Unfold
+import app.amethyst.ui.foldState
 import app.amethyst.ui.GhostButton
 import app.amethyst.ui.Hint
 import app.amethyst.ui.LanguageChips
@@ -101,6 +107,7 @@ import app.amethyst.ui.words
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -886,18 +893,39 @@ private fun EnclaveSection(
         )
         if (checking) ProgressLine(fraction = null)
 
-        when (val current = result) {
-            null -> Unit
-            else -> {
-                val proof = current.proof
-                if (current.verified && proof != null) ProofDetails(proof) else Hint(current.detail, AmberPalette.Error)
-            }
+        val context = LocalContext.current
+        val current = result
+        if (current != null) {
+            val proof = current.proof
+            if (current.verified && proof != null) ProofDetails(proof) else Hint(Texts.attestation(context, current.failure), AmberPalette.Error)
         }
 
-        if (log.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.enclave_history), style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
-                log.forEach { Hint(it) }
+        // The raw lines and the hex digests are diagnostics: behind one row, in the verifier's English.
+        val proof = current?.proof?.takeIf { current.verified }
+        val failedLine = current?.detail?.takeIf { !current.verified && it.isNotBlank() }
+        if (proof != null || failedLine != null || log.isNotEmpty()) {
+            var open by rememberSaveable { mutableStateOf(false) }
+            SettingsGroup(label = null) {
+                NavRow(
+                    title = stringResource(R.string.enclave_details),
+                    summary = stringResource(R.string.enclave_details_note),
+                    modifier = Modifier.foldState(open),
+                    trailing = { ExpandChevron(open) },
+                    onClick = { open = !open },
+                )
+            }
+            Unfold(open) {
+                // Selectable, so a fingerprint can be copied and compared with Tinfoil's own tools.
+                SelectionContainer {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (proof != null) ProofHex(proof)
+                        failedLine?.let { Hint(it) }
+                        if (log.isNotEmpty()) {
+                            Text(stringResource(R.string.enclave_history), style = MaterialTheme.typography.bodySmall, color = AmberPalette.Text)
+                            log.forEach { Hint(it) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -905,25 +933,31 @@ private fun EnclaveSection(
 
 @Composable
 private fun ProofDetails(proof: EnclaveProof) {
-    val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault()) // English: a format
-    // Selectable, so a fingerprint can be copied and compared with Tinfoil's own tools.
-    SelectionContainer {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ProofRow(stringResource(R.string.proof_status), stringResource(R.string.proof_verified), AmberPalette.TrustOnDevice)
-            ProofRow(stringResource(R.string.proof_host), proof.host)
-            ProofRow(stringResource(R.string.proof_release), "${proof.repo}@${proof.codeTag ?: "?"}")
-            ProofRow(stringResource(R.string.proof_platform), proof.platform)
-            ProofRow(stringResource(R.string.proof_digest), proof.codeDigest, mono = true)
-            val measurements = stringResource(R.string.proof_measurements)
-            proof.registers.forEachIndexed { index, register ->
-                ProofRow(if (index == 0) measurements else "", register.ifEmpty { "–" }, mono = true)
-            }
-            ProofRow(stringResource(R.string.proof_tls), proof.tlsKeySha256Hex, mono = true)
-            proof.hpkePublicKey?.let { ProofRow(stringResource(R.string.proof_hpke), it, mono = true) }
-            ProofRow(stringResource(R.string.proof_verified_at), time.format(Instant.ofEpochMilli(proof.verifiedAtMillis)))
-            ProofRow(stringResource(R.string.proof_valid_until), time.format(Instant.ofEpochMilli(proof.freshUntilMillis)))
-        }
+    // The phone's own date and time format, in the phone's language.
+    val locale = Texts.locale(LocalContext.current)
+    val time = remember(locale) {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(locale).withZone(ZoneId.systemDefault())
     }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ProofRow(stringResource(R.string.proof_status), stringResource(R.string.proof_verified), AmberPalette.TrustOnDevice)
+        ProofRow(stringResource(R.string.proof_host), proof.host)
+        ProofRow(stringResource(R.string.proof_release), "${proof.repo}@${proof.codeTag ?: "?"}")
+        ProofRow(stringResource(R.string.proof_platform), proof.platform)
+        ProofRow(stringResource(R.string.proof_verified_at), time.format(Instant.ofEpochMilli(proof.verifiedAtMillis)))
+        ProofRow(stringResource(R.string.proof_valid_until), time.format(Instant.ofEpochMilli(proof.freshUntilMillis)))
+    }
+}
+
+/** The digests, for the Details fold. */
+@Composable
+private fun ProofHex(proof: EnclaveProof) {
+    ProofRow(stringResource(R.string.proof_digest), proof.codeDigest, mono = true)
+    val measurements = stringResource(R.string.proof_measurements)
+    proof.registers.forEachIndexed { index, register ->
+        ProofRow(if (index == 0) measurements else "", register.ifEmpty { "–" }, mono = true)
+    }
+    ProofRow(stringResource(R.string.proof_tls), proof.tlsKeySha256Hex, mono = true)
+    proof.hpkePublicKey?.let { ProofRow(stringResource(R.string.proof_hpke), it, mono = true) }
 }
 
 @Composable

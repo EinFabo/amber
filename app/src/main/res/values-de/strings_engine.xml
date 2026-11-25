@@ -82,6 +82,17 @@
     <string name="proof_hpke">HPKE-Schlüssel</string>
     <string name="proof_verified_at">Geprüft am</string>
     <string name="proof_valid_until">Gültig bis</string>
+    <string name="attestation_invalid_address">Das ist keine gültige Adresse.</string>
+    <string name="attestation_unknown_enclave">Embersay weiß nicht, aus welcher Version die Enklave bei %1$s stammen muss.</string>
+    <string name="attestation_library_missing">Diese Version von Embersay kann Enklaven nicht prüfen.</string>
+    <string name="attestation_document_invalid">Der Nachweis der Enklave ist ungültig.</string>
+    <string name="attestation_release_not_confirmed">Die Enklave passt zu keiner signierten Version.</string>
+    <string name="attestation_hardware_rejected">Der Prozessor der Enklave hat sie nicht bestätigt.</string>
+    <string name="attestation_policy_violated">Die Enklave erfüllt die Regeln für eine geprüfte Enklave nicht.</string>
+    <string name="attestation_unavailable">Der Nachweis der Enklave ließ sich nicht abrufen. Prüfe die Verbindung.</string>
+    <string name="attestation_failed">Die Enklave ließ sich nicht prüfen.</string>
+    <string name="enclave_details">Details</string>
+    <string name="enclave_details_note">Zum Vergleichen mit den Werkzeugen von Tinfoil.</string>
     <string name="server_recognized">%1$s erkannt. Embersay kennt Adresse und Modelle.</string>
     <string name="server_key_optional">API-Schlüssel (optional)</string>
     <string name="server_key_elsewhere">Dieser Schlüssel wurde für %1$s eingegeben und geht nicht an diese Adresse. Gib ihn noch einmal ein, um ihn hier zu nutzen.</string>
