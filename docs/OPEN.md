@@ -5,6 +5,17 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **G3, NOTICE names everything inside the APK.** `NOTICE` (and with it About, Licenses, which
+  shows the file) now lists ONNX Runtime's own components (ONNX, protobuf, Abseil, RE2,
+  FlatBuffers, XNNPACK, KleidiAI, cpuinfo, FP16, SafeInt, GSL) and the 76 Go modules inside
+  `libgojni.so` with version, license and copyright line, plus the Go standard library and the
+  BSD 2-Clause text. `python3 -I tools/list_go_licenses.py` prints the Go block from the build's
+  module cache; with `--check` it fails when NOTICE misses a module or version. Try: About,
+  Licenses on a phone (the page scrolls through the new entries). Open: ONNX Runtime's
+  ThirdPartyNotices.txt is linked, not copied (it could not be fetched here); the component list
+  comes from the library's strings and the usual licenses of those projects, so compare it with
+  that file once.
+
 - **G2, Tinfoil's verifier builds without downloads.** tinfoil-go is the submodule
   `third_party/tinfoil-go` (pinned to the commit the script names, which refuses any other or a
   dirty tree), no tarball is fetched. A Go that already is the pinned version is used with

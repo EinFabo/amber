@@ -22,8 +22,104 @@ This app contains, or is built from, the following third-party software:
   - JSON for Modern C++ (https://github.com/nlohmann/json) - MIT License,
     Copyright (c) 2013-2025 Niels Lohmann
 - ONNX Runtime (https://github.com/microsoft/onnxruntime), the Android library from Maven Central
-  that sherpa-onnx runs on - MIT License, Copyright (c) Microsoft Corporation
-- tinfoil-go (https://github.com/tinfoilsh/tinfoil-go) - Apache License 2.0
+  that sherpa-onnx runs on - MIT License, Copyright (c) Microsoft Corporation. Its own third-party
+  notices (ThirdPartyNotices.txt in the project's source for the same version,
+  https://github.com/microsoft/onnxruntime/blob/v1.28.0/ThirdPartyNotices.txt) apply to what it
+  compiles in; those found in the library are:
+  - ONNX (https://github.com/onnx/onnx) - Apache License 2.0
+  - Protocol Buffers (https://github.com/protocolbuffers/protobuf) - BSD 3-Clause License,
+    Copyright 2008 Google Inc.
+  - Abseil (https://github.com/abseil/abseil-cpp) - Apache License 2.0
+  - RE2 (https://github.com/google/re2) - BSD 3-Clause License, Copyright (c) 2009 The RE2 Authors
+  - FlatBuffers (https://github.com/google/flatbuffers) - Apache License 2.0
+  - XNNPACK (https://github.com/google/XNNPACK) - BSD 3-Clause License, Copyright 2019 Google LLC
+  - KleidiAI (https://github.com/ARM-software/kleidiai) - Apache License 2.0
+  - cpuinfo (https://github.com/pytorch/cpuinfo) - BSD 2-Clause License
+  - FP16 (https://github.com/Maratyszcza/FP16) - MIT License
+  - SafeInt (https://github.com/dcleblanc/SafeInt) - MIT License
+  - Microsoft GSL (https://github.com/microsoft/GSL) - MIT License
+  - JSON for Modern C++ and Eigen (see above) - MIT License and Mozilla Public License 2.0
+- tinfoil-go (https://github.com/tinfoilsh/tinfoil-go) - Apache License 2.0, built into
+  libgojni.so (the attestation verifier) together with the Go standard library (BSD 3-Clause
+  License, Copyright 2009 The Go Authors, https://go.dev/LICENSE) and these Go modules (listed by
+  tools/list_go_licenses.py from the module cache of the build; each module's own LICENSE file
+  applies, its copyright line is given where the file has one):
+  - github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 - MIT, Copyright (c) 2014-2020 Alex Saskevich
+  - github.com/blang/semver v3.5.1+incompatible - MIT, Copyright (c) 2014 Benedikt Lang <github at benediktlang.de>
+  - github.com/cenkalti/backoff/v5 v5.0.3 - MIT, Copyright (c) 2014 Cenk Altı
+  - github.com/cespare/xxhash/v2 v2.3.0 - MIT, Copyright (c) 2016 Caleb Spare
+  - github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 - Apache-2.0, Copyright 2018 Anders Rundgren
+  - github.com/digitorus/pkcs7 v0.0.0-20250730155240-ffadbf3f398c - MIT, Copyright (c) 2015 Andrew Smith
+  - github.com/digitorus/timestamp v0.0.0-20250524132541-c45532741eea - BSD-2-Clause, Copyright (c) 2017, Digitorus B.V.
+  - github.com/go-logr/logr v1.4.3 - Apache-2.0
+  - github.com/go-logr/stdr v1.2.2 - Apache-2.0
+  - github.com/go-openapi/analysis v0.25.3 - Apache-2.0
+  - github.com/go-openapi/errors v0.22.8 - Apache-2.0
+  - github.com/go-openapi/jsonpointer v1.0.0 - Apache-2.0
+  - github.com/go-openapi/jsonreference v1.0.0 - Apache-2.0
+  - github.com/go-openapi/loads v0.24.0 - Apache-2.0
+  - github.com/go-openapi/runtime v0.32.4 - Apache-2.0
+  - github.com/go-openapi/runtime/server-middleware v0.32.4 - Apache-2.0
+  - github.com/go-openapi/spec v0.22.6 - Apache-2.0
+  - github.com/go-openapi/strfmt v0.26.4 - Apache-2.0
+  - github.com/go-openapi/swag v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/cmdutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/conv v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/fileutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/jsonname v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/jsonutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/loading v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/mangling v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/netutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/stringutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/typeutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/swag/yamlutils v0.27.0 - Apache-2.0
+  - github.com/go-openapi/validate v0.26.0 - Apache-2.0
+  - github.com/go-viper/mapstructure/v2 v2.5.0 - MIT, Copyright (c) 2013 Mitchell Hashimoto
+  - github.com/google/certificate-transparency-go v1.3.3 - Apache-2.0
+  - github.com/google/go-containerregistry v0.21.7 - Apache-2.0
+  - github.com/google/go-tdx-guest v0.3.1 - Apache-2.0
+  - github.com/google/logger v1.1.2 - Apache-2.0
+  - github.com/google/uuid v1.6.0 - BSD-3-Clause, Copyright (c) 2009,2014 Google Inc. All rights reserved.
+  - github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 - BSD-3-Clause, Copyright (c) 2015, Gengo, Inc.
+  - github.com/in-toto/attestation v1.2.0 - Apache-2.0, Copyright 2021 in-toto Developers
+  - github.com/in-toto/in-toto-golang v0.11.0 - Apache-2.0, Copyright 2018 New York University
+  - github.com/oklog/ulid/v2 v2.1.1 - Apache-2.0
+  - github.com/opencontainers/go-digest v1.0.0 - Apache-2.0, Copyright 2019, 2020 OCI Contributors
+  - github.com/pkg/errors v0.9.1 - BSD-2-Clause, Copyright (c) 2015, Dave Cheney <dave@cheney.net>
+  - github.com/secure-systems-lab/go-securesystemslib v0.11.0 - MIT, Copyright (c) 2021 NYU Secure Systems Lab
+  - github.com/shibumi/go-pathspec v1.3.0 - Apache-2.0
+  - github.com/sigstore/protobuf-specs v0.5.1 - Apache-2.0
+  - github.com/sigstore/rekor v1.5.3 - Apache-2.0
+  - github.com/sigstore/rekor-tiles/v2 v2.3.0 - Apache-2.0
+  - github.com/sigstore/sigstore v1.10.8 - Apache-2.0
+  - github.com/sigstore/sigstore-go v1.2.2 - Apache-2.0
+  - github.com/sigstore/timestamp-authority/v2 v2.1.3 - Apache-2.0
+  - github.com/theupdateframework/go-tuf/v2 v2.4.2 - Apache-2.0, Copyright 2024 The Update Framework Authors
+  - github.com/tinfoilsh/go-sev-guest v0.0.0-20260818055935-bec7bdb637fd - Apache-2.0
+  - github.com/transparency-dev/formats v0.1.1 - Apache-2.0
+  - github.com/transparency-dev/merkle v0.0.2 - Apache-2.0
+  - github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 - MIT, Copyright (c) 2014 youmark
+  - go.opentelemetry.io/auto/sdk v1.2.1 - Apache-2.0
+  - go.opentelemetry.io/otel v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
+  - go.opentelemetry.io/otel/metric v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
+  - go.opentelemetry.io/otel/trace v1.44.0 - Apache-2.0, Copyright 2009 The Go Authors.
+  - go.uber.org/multierr v1.11.0 - MIT, Copyright (c) 2017-2021 Uber Technologies, Inc.
+  - go.yaml.in/yaml/v3 v3.0.4 - MIT and Apache-2.0, Copyright (c) 2006-2010 Kirill Simonov
+  - golang.org/x/crypto v0.57.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/mobile v0.0.0-20260611195102-4dd8f1dbf5d2 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/mod v0.41.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/net v0.60.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/sync v0.23.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/sys v0.48.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/term v0.46.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - golang.org/x/text v0.42.0 - BSD-3-Clause, Copyright 2009 The Go Authors.
+  - google.golang.org/genproto/googleapis/api v0.0.0-20260713224248-f5fc221cf8c4 - Apache-2.0
+  - google.golang.org/genproto/googleapis/rpc v0.0.0-20260713224248-f5fc221cf8c4 - Apache-2.0
+  - google.golang.org/grpc v1.83.2 - Apache-2.0
+  - google.golang.org/protobuf v1.36.11 - BSD-3-Clause, Copyright (c) 2018 The Go Authors. All rights reserved.
+  - gopkg.in/yaml.v3 v3.0.1 - MIT and Apache-2.0, Copyright (c) 2006-2010 Kirill Simonov
+  - k8s.io/klog/v2 v2.140.0 - Apache-2.0
 - OkHttp and Okio (https://square.github.io/okhttp/) - Apache License 2.0
 - Kotlin, kotlinx.coroutines, kotlinx.serialization (https://kotlinlang.org) - Apache License 2.0
 - AndroidX and Jetpack Compose (https://developer.android.com/jetpack/androidx) - Apache License 2.0
@@ -38,7 +134,8 @@ Speech models are not part of the app; Amber downloads them when you choose one:
 - ACFT Whisper large-v3-turbo q8_0 (https://huggingface.co/DeadBranches/acft-whisper-large-v3-turbo_q8_0) -
   Apache License 2.0
 
-The MIT License, as it applies to whisper.cpp (Copyright (c) 2023-2026 The ggml authors),
+The MIT License, as it applies to every Go module and ONNX Runtime component listed above as MIT
+(each with the copyright holder named in its entry), and to whisper.cpp (Copyright (c) 2023-2026 The ggml authors),
 ONNX Runtime (Copyright (c) Microsoft Corporation), JSON for Modern C++ (Copyright (c) 2013-2025
 Niels Lohmann):
 
@@ -58,7 +155,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The BSD 3-Clause License, as it applies to KISS FFT (Copyright (c) 2003-2010 Mark Borgerding.
-All rights reserved.):
+All rights reserved.); the same text, with the copyright holder named in the entry, applies to
+every other component listed above as BSD 3-Clause:
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
@@ -73,6 +171,28 @@ provided that the following conditions are met:
 3. Neither the name of the copyright holder nor the names of its contributors may be used to
    endorse or promote products derived from this software without specific prior written
    permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The BSD 2-Clause License, as it applies to every component listed above as BSD 2-Clause (with
+the copyright holder named in its entry):
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of
+   conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other materials provided
+   with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
 IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
