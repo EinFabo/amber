@@ -7,9 +7,11 @@ import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.OwnClip
 import app.amethyst.core.insert.StrategyMemory
 import app.amethyst.core.insert.TargetCheck
+import app.amethyst.core.text.FieldKind
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.NormalizeOptions
 import app.amethyst.core.text.ScratchThat
+import app.amethyst.core.text.SpliceOptions
 import app.amethyst.core.text.TranscriptNormalizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -57,6 +59,7 @@ class InsertionEngineTest {
         private val retypes: Boolean = true,
         /** The words typed again are accepted and never arrive. */
         private val retypeLost: Boolean = false,
+        override val fieldKind: FieldKind = FieldKind.TEXT,
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -1012,5 +1015,48 @@ class InsertionEngineTest {
         assertTrue(outcome.insertedIntoField)
         assertEquals(emptyList(), target.retyped)
         assertEquals(null, outcome.prefixRepair)
+    }
+
+    @Test
+    fun `typed into a search field, the words go in without capital and full stop and count as there`() {
+        val target = FakeTarget(initialText = "", hasInputConnection = true, fieldKind = FieldKind.SEARCH)
+        val outcome = engine(target).insert(target, "Pizza near me.", SpliceOptions(language = "en"))
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertTrue(outcome.insertedIntoField, "the words without their full stop are the words")
+        assertFalse(outcome.uncertain)
+        assertEquals("pizza near me", target.text)
+        assertEquals("pizza near me", outcome.fragment)
+    }
+
+    @Test
+    fun `written into a search field, the words go in without capital and full stop and count as there`() {
+        val target = FakeTarget(initialText = "", fieldKind = FieldKind.SEARCH)
+        val outcome = engine(target).insert(target, "Pizza near me.", SpliceOptions(language = "en"))
+
+        assertEquals(InsertionStrategy.SET_TEXT, outcome.strategy)
+        assertEquals("pizza near me", target.text)
+        assertEquals(1, target.setTextCalls, "nothing tried twice")
+    }
+
+    @Test
+    fun `pasted into an address field, the words go in without full stop and count as there`() {
+        val target = FakeTarget(initialText = "", setTextLies = true, fieldKind = FieldKind.URI)
+        val outcome = engine(target).insert(target, "Example.com.")
+
+        assertEquals(InsertionStrategy.PASTE, outcome.strategy)
+        assertTrue(outcome.insertedIntoField)
+        assertEquals("example.com", target.text)
+    }
+
+    @Test
+    fun `dictated in front of the rest of a sentence, the full stop goes and the words count as there`() {
+        val target = FakeTarget(initialText = "tomorrow", hasInputConnection = true)
+        target.select(0, 0)
+        val outcome = engine(target).insert(target, "See you.", SpliceOptions(language = "en"))
+
+        assertTrue(outcome.insertedIntoField)
+        assertFalse(outcome.uncertain)
+        assertEquals("See you tomorrow", target.text)
     }
 }

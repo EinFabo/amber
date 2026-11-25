@@ -38,6 +38,7 @@ import app.amethyst.core.insert.TargetCheck
 import app.amethyst.core.insert.TargetRefind
 import app.amethyst.core.insert.WindowInFront
 import app.amethyst.core.insert.WindowedTarget
+import app.amethyst.core.text.FieldKind
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import android.view.inputmethod.EditorInfo
@@ -110,7 +111,9 @@ class TextInserter(
                 outcome.insertedIntoField && outcome.cursorPutBack -> " (cursor put back behind the words)"
                 outcome.insertedIntoField -> ""
                 else -> " (not in the field)"
-            } + outcome.prefixRepair?.describe(text.length).orEmpty()
+            } + outcome.prefixRepair?.describe(text.length).orEmpty() +
+            // A search box or an address got the words without capital and full stop.
+            target?.fieldKind?.takeIf { refused == null && it != FieldKind.TEXT }?.let { " (${it.name.lowercase()} field)" }.orEmpty()
         // The trace names the app and its field: logcat gets it in debug builds only.
         DebugLog.i(TAG) { "insertion: $lastTrace" }
 
@@ -329,6 +332,20 @@ class TextInserter(
             SecretField.isSecret(editorType, SecretField.Node(node.inputType, node.isPassword))
         }
 
+        /**
+         * A search box or an address, by the node's input type - the keyboard's side for what
+         * the node does not say: a Compose field names no input type, and only the EditorInfo
+         * knows whether the action key is Search.
+         */
+        override val fieldKind: FieldKind by lazy {
+            val editor = if (mayType && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                boundInput(service, expectedPackage = packageName)?.editor
+            } else {
+                null
+            }
+            FieldKind.of(node.inputType.takeIf { it != 0 } ?: editor?.inputType ?: 0, editor?.imeOptions ?: 0)
+        }
+
         override fun readField(): FieldState? {
             // refresh() failing means the node is stale - the window changed under us - which
             // is the only genuine "cannot read" case.
@@ -468,6 +485,12 @@ class TextInserter(
                     ?.let { TextFieldKind.of(it.editor.inputType) != TextFieldKind.NONE } == true
 
         override val takesLineBreaks: Boolean get() = enterMakesNewLine(service, packageName) == true
+
+        /** A search box or an address, as the keyboard's side of the field says. */
+        override val fieldKind: FieldKind by lazy {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@lazy FieldKind.TEXT
+            boundInput(service, expectedPackage = packageName)?.editor?.let { FieldKind.of(it.inputType, it.imeOptions) } ?: FieldKind.TEXT
+        }
 
         companion object {
             fun from(service: AccessibilityService, searchNode: (owner: String) -> AccessibilityNodeInfo?): InputConnectionTarget? {

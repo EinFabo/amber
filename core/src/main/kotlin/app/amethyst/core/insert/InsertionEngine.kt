@@ -1,5 +1,6 @@
 package app.amethyst.core.insert
 
+import app.amethyst.core.text.FieldKind
 import app.amethyst.core.text.FieldState
 import app.amethyst.core.text.SpliceOptions
 import app.amethyst.core.text.TextSplicer
@@ -83,6 +84,12 @@ interface EditableTarget {
      */
     val setTextFlattens: Boolean get() = false
 
+    /**
+     * A search box, a web or an e-mail address ([FieldKind]): the words go in without capital and
+     * full stop. Plain text where nothing says otherwise.
+     */
+    val fieldKind: FieldKind get() = FieldKind.TEXT
+
     /** Contents after an attempt, for verification. Null when unreadable. */
     fun readBack(): String?
 }
@@ -161,7 +168,7 @@ class InsertionEngine(
     fun insert(
         target: EditableTarget?,
         text: String,
-        options: SpliceOptions = SpliceOptions(),
+        spliceOptions: SpliceOptions = SpliceOptions(),
         allowClipboard: Boolean = true,
         expectedPackage: String? = null,
     ): InsertionOutcome {
@@ -194,6 +201,8 @@ class InsertionEngine(
         // writes, so apps keep it. SET_TEXT can show the words and still lose them - Google
         // Keep's note body displayed a SET_TEXT write and dropped it on closing (Pixel 9a,
         // 2026-10-29). What worked last time only orders the fallbacks.
+        // What kind of field it is, the field says - unless the caller already knew.
+        val options = if (spliceOptions.fieldKind == FieldKind.TEXT) spliceOptions.copy(fieldKind = target.fieldKind) else spliceOptions
         val pasteFirst = allowClipboard && target.setTextFlattens
         val order = fallbacks(memory.order(packageName), allowClipboard, pasteFirst)
         val words = if ('\n' in text && !target.takesLineBreaks) TranscriptNormalizer.oneLine(text) else text
@@ -226,7 +235,7 @@ class InsertionEngine(
                         copied = true
                         clip = fragment
                     }
-                    onClipboard && tryPaste(target, words)
+                    onClipboard && tryPaste(target, words, options)
                 }
 
                 InsertionStrategy.CLIPBOARD_ONLY -> {
@@ -316,7 +325,7 @@ class InsertionEngine(
     private fun tryCommit(target: EditableTarget, text: String, options: SpliceOptions): Commit {
         if (!target.isEditable) return Commit.NOT_POSSIBLE
         val field = target.readField()
-        val fragment = field?.let { commitFragment(it, text, options) } ?: text.trim()
+        val fragment = field?.let { commitFragment(it, text, options) } ?: unread(text, options)
         if (fragment.isEmpty() || !target.commitText(fragment)) return Commit.NOT_POSSIBLE
         committed = fragment
         // A field that cannot be read cannot be checked, and got the words without a seam: a
@@ -325,7 +334,7 @@ class InsertionEngine(
         val attempts = Landed.attempts(COMMIT_VERIFY_ATTEMPTS, text.length)
         repeat(attempts) { attempt ->
             val after = target.readBack() ?: return Commit.LANDED
-            if (Landed.inField(field, after, text)) {
+            if (Landed.inField(field, after, expected(field, text, options))) {
                 cursorPutBack = cursorBehindWords(target, tail = textAfterSelection(field))
                 if (target.readBackAligned) prefixRepair = keepPrefix(target, field, after, fragment)
                 return Commit.LANDED
@@ -439,7 +448,22 @@ class InsertionEngine(
      * would ([commitFragment]); the plain words where the field cannot be read.
      */
     private fun pasteFragment(target: EditableTarget, text: String, options: SpliceOptions): String =
-        target.readField()?.let { commitFragment(it, text, options) }?.takeIf { it.isNotEmpty() } ?: text
+        target.readField()?.let { commitFragment(it, text, options) }?.takeIf { it.isNotEmpty() }
+            ?: if (options.fieldKind == FieldKind.TEXT) text else unread(text, options)
+
+    /**
+     * The words for a field that could not be read: as they are - nothing to fit them to - but
+     * for a search box or an address, which gets them without capital and full stop either way.
+     */
+    private fun unread(text: String, options: SpliceOptions): String =
+        if (options.fieldKind == FieldKind.TEXT) text.trim() else TextSplicer.words(FieldState.EMPTY, text, options)
+
+    /**
+     * What to look for in the field once the words are in: as [TextSplicer] fits them to [field]
+     * - a full stop it dropped is not there to be found ([TextSplicer.words]).
+     */
+    private fun expected(field: FieldState?, text: String, options: SpliceOptions): String =
+        field?.let { TextSplicer.words(it, text, options) } ?: unread(text, options)
 
     private fun trySetText(target: EditableTarget, text: String, options: SpliceOptions): Boolean {
         if (!target.isEditable) return false
@@ -452,7 +476,7 @@ class InsertionEngine(
         // Verify before moving the cursor. A field that accepted the write and kept its old
         // contents would otherwise be handed a caret position that does not exist in it, and
         // the following paste would land somewhere arbitrary.
-        if (!verify(target, field, text)) return false
+        if (!verify(target, field, expected(field, text, options))) return false
 
         // Where the splice put the cursor, counted from the end: a field that reformats what
         // it is given (a line break written as two characters) would otherwise have it land
@@ -464,11 +488,11 @@ class InsertionEngine(
         return true
     }
 
-    private fun tryPaste(target: EditableTarget, text: String): Boolean {
+    private fun tryPaste(target: EditableTarget, text: String, options: SpliceOptions): Boolean {
         if (!target.isEditable) return false
         val before = target.readField()
         if (!target.paste()) return false
-        return verify(target, before, text)
+        return verify(target, before, expected(before, text, options))
     }
 
     /**

@@ -5,6 +5,22 @@ was called Amber until 2026-11-17; the sections below that are dated before then
 
 ## Frustration review 2026-11-24
 
+- **D2, Capitals and full stops fit the text around them.** A recognizer writes every
+  dictation as a sentence of its own. Mid-sentence ("Meet me at" + "The station."), a common
+  small word now loses its capital: "Meet me at the station." Only words from short lists
+  (`CommonWords`: English and German articles, pronouns, conjunctions, prepositions,
+  auxiliaries, never nouns, never "I", "Sie" or "Ihr"), in the dictation's language
+  (`LanguageGuess.forSeam`). "Ich gehe zum" + "Bahnhof." keeps "Bahnhof", "The Hague", "NASA"
+  and "IT" keep theirs, and after a quote or a new line nothing is lowered (a new line now
+  starts a sentence). Dictated in front of the rest of a sentence, the full stop goes: "|
+  tomorrow" + "See you." reads "See you tomorrow". A search box, a web or an e-mail address
+  (`FieldKind`, from the input type and the Search action key) gets no capital and no full
+  stop: "pizza near me", "example.com" (a German noun in a German search keeps its capital).
+  Off with "Capitalize sentence starts" / "No space before punctuation". Diagnostics: "(search
+  field)" after the insertion. Try on the Pixel and the A20e: type "Meet me at " in a message
+  and dictate "the station"; type "Ich gehe zum " and dictate "Bahnhof"; put the cursor before
+  "tomorrow" and dictate "see you"; dictate "pizza near me" into Google's or the Play Store's
+  search and an address into Chrome's address bar.
 - **D1, Inserting no longer eats the word the keyboard is still writing.** Android's input
   connection types over the keyboard's unfinished, underlined word, not only over the
   selection: "Hallo" not finished, "wie geht's" dictated, and the field read " wie geht's".

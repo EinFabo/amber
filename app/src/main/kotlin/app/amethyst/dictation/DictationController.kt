@@ -805,7 +805,9 @@ class DictationController(
                 return@launch
             }
             val settings = graph.settings.value
-            val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(), allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value), expectedPackage = target.packageName)
+            // Nothing is kept of the dictation's language: the words alone lean one way or none.
+            val language = LanguageGuess.forSeam(text, detected = null, engineTag = null)
+            val insertion = service.textInserter.insert(text, settings.insertion.toSpliceOptions(language), allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value), expectedPackage = target.packageName)
             Log.i(TAG, "inserted again via ${insertion.strategy} into ${DebugLog.redact(insertion.targetPackage)}: field=${insertion.insertedIntoField}")
             remember(insertion)
             when {
@@ -2305,9 +2307,15 @@ class DictationController(
         }
 
         trace?.insertingStarts()
+        // Which small words lose the recognizer's capital where the words land mid-sentence.
+        val language = LanguageGuess.forSeam(
+            transcript.text,
+            transcript.detectedLanguage,
+            settings.engines.firstOrNull { it.id == engineId }?.let { LanguageList.spokenHint(it, PhoneLocales.tags()) },
+        )
         val insertion = inserter.insert(
             cleaned,
-            settings.insertion.toSpliceOptions(),
+            settings.insertion.toSpliceOptions(language),
             allowClipboard = SecurityMode.mayUseClipboard(graph.loadedSettings.value),
             into = refound,
             expectedPackage = TargetCheck.expectedPackage(startTarget, startApp),

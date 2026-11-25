@@ -142,4 +142,13 @@ class LanguageGuessTest {
         assertEquals(null, LanguageGuess.nameOf("auto"))
         assertEquals(null, LanguageGuess.nameOf("xx"))
     }
+
+    @Test
+    fun `the language at the seam leans on a few words when nothing is sure`() {
+        assertEquals("en", LanguageGuess.forSeam("The station.", detected = null, engineTag = null))
+        assertEquals("de", LanguageGuess.forSeam("Zum Bahnhof.", detected = null, engineTag = "de-DE"))
+        assertEquals("de", LanguageGuess.forSeam("Bahnhof.", detected = null, engineTag = "de"))
+        assertEquals("fr,es", LanguageGuess.forSeam("La gare.", detected = null, engineTag = "fr,es"))
+        assertEquals(null, LanguageGuess.forSeam("Bahnhof.", detected = null, engineTag = null))
+    }
 }

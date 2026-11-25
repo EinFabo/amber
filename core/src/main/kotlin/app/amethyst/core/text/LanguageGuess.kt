@@ -142,6 +142,15 @@ object LanguageGuess {
             ?: listOf(detected, engineTag).firstOrNull { tags(it).isNotEmpty() }?.takeUnless(::mayBeGermanOrEnglish)
 
     /**
+     * The language whose small words are lower-case where the dictation lands mid-sentence
+     * ([CommonWords], [TextSplicer]): [forNormalizer], else where the few words lean
+     * ([leaning]) - a dictation of three words is rarely sure, and "The station." leans English.
+     * Null when nothing does; then only words lower-case in both count.
+     */
+    fun forSeam(text: String, detected: String?, engineTag: String?): String? =
+        forNormalizer(text, detected, engineTag) ?: leaning(text)
+
+    /**
      * "de" or "en" by which marker words [text] has more of, however few: "Sounds good to me"
      * leans English. Too little for the prompt to name a language by, enough to keep it from
      * naming the other one - an engine set to German that heard a short English sentence must

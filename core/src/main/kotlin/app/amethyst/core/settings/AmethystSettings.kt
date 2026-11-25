@@ -269,10 +269,12 @@ data class InsertionSettings(
      */
     val allowClipboard: Boolean = true,
 ) {
-    fun toSpliceOptions(): SpliceOptions = SpliceOptions(
+    /** [language]: the dictation's, for the small words lower-case mid-sentence ([app.amethyst.core.text.CommonWords]). */
+    fun toSpliceOptions(language: String? = null): SpliceOptions = SpliceOptions(
         autoSpace = autoSpace,
         autoCapitalize = autoCapitalize,
         gluePunctuation = gluePunctuation,
+        language = language,
     )
 }
 
