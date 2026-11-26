@@ -27,11 +27,26 @@ object FieldText {
      * as empty while the cursor stands at the start (or nowhere) - where a field with nothing
      * in it keeps it - so a field into which someone typed the very words of its hint, cursor
      * behind them, keeps its text.
+     *
+     * Others say neither: WhatsApp's and Telegram's message fields hand out "Message" and
+     * "Nachricht" as their text, and the cursor behind it (Pixel 9a, 2026-11-26). The editor
+     * behind the field's input connection never holds a placeholder, so [editorEmpty] - it
+     * holds nothing at all, null when it cannot be asked - makes such a field empty. Only text
+     * that could be the placeholder - no other hint named - is overruled: an editor that hands
+     * out nothing (a terminal's) must not empty a field with real text and a hint of its own.
      */
-    fun contents(text: CharSequence?, hint: CharSequence?, showingHint: Boolean, selectionStart: Int, selectionEnd: Int): String {
+    fun contents(
+        text: CharSequence?,
+        hint: CharSequence?,
+        showingHint: Boolean,
+        selectionStart: Int,
+        selectionEnd: Int,
+        editorEmpty: Boolean? = null,
+    ): String {
         if (showingHint) return ""
         val shown = text?.toString().orEmpty()
         val placeholder = hint?.toString()
+        if (editorEmpty == true && (placeholder.isNullOrEmpty() || shown == placeholder)) return ""
         val cursorAtStart = selectionStart <= 0 && selectionEnd <= 0
         return if (!placeholder.isNullOrEmpty() && shown == placeholder && cursorAtStart) "" else shown
     }

@@ -2,6 +2,7 @@ package app.amethyst.core
 
 import app.amethyst.core.insert.Clipboard
 import app.amethyst.core.insert.EditableTarget
+import app.amethyst.core.insert.FieldText
 import app.amethyst.core.insert.InsertionEngine
 import app.amethyst.core.insert.InsertionStrategy
 import app.amethyst.core.insert.OwnClip
@@ -60,6 +61,15 @@ class InsertionEngineTest {
         /** The words typed again are accepted and never arrive. */
         private val retypeLost: Boolean = false,
         override val fieldKind: FieldKind = FieldKind.TEXT,
+        /**
+         * What the field's node hands out as its text while the field is empty, without saying
+         * it shows a hint: a placeholder the app draws itself, as WhatsApp's "Message" and
+         * Telegram's "Nachricht" (Pixel 9a, 2026-11-26). Read the way [FieldText.contents] reads
+         * a node, the cursor behind it as for a node that reports no selection.
+         */
+        private val nodeShows: String? = null,
+        /** The editor behind the input connection answers when asked what it holds. */
+        private val editorReadable: Boolean = true,
     ) : EditableTarget {
         private var staleText: String? = null
         private var staleReadsLeft = 0
@@ -74,8 +84,20 @@ class InsertionEngineTest {
         var setTextCalls = 0
         var pasteCalls = 0
 
-        override fun readField(): FieldState? =
-            if (unreadable) null else FieldState(text, anchor, cursor)
+        override fun readField(): FieldState? {
+            if (unreadable) return null
+            if (text.isEmpty() && nodeShows != null) {
+                val shown = FieldText.contents(
+                    nodeShows, hint = null, showingHint = false, selectionStart = -1, selectionEnd = -1,
+                    editorEmpty = if (hasInputConnection && editorReadable) true else null,
+                )
+                return FieldState(shown, shown.length, shown.length)
+            }
+            return FieldState(text, anchor, cursor)
+        }
+
+        override fun editorHead(): String? =
+            if (!hasInputConnection || !editorReadable) null else text.substring(0, minOf(anchor, cursor))
 
         /** Selects [start] to [end], as the user would before dictating over it. */
         fun select(start: Int, end: Int) {
@@ -971,6 +993,34 @@ class InsertionEngineTest {
 
         assertEquals(0, target.setTextCalls, "a late retype on top of a written field would be text twice")
         assertEquals(1, target.retyped.size)
+        assertEquals(InsertionEngine.PrefixRepair.How.NOT_RESTORED, outcome.prefixRepair?.how)
+    }
+
+    @Test
+    fun `a placeholder the field's node hands out as text is not typed in front of the words`() {
+        // WhatsApp's "Message", Telegram's "Nachricht": the node of the empty field reads as
+        // that word, the editor holds nothing (Pixel 9a, 2026-11-26).
+        val target = FakeTarget(initialText = "", hasInputConnection = true, nodeShows = "Message")
+        val outcome = engine(target).insert(target, "Testnachricht.")
+
+        assertEquals(InsertionStrategy.COMMIT_TEXT, outcome.strategy)
+        assertEquals("Testnachricht.", target.text)
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(null, outcome.prefixRepair)
+        assertEquals("Testnachricht.", outcome.fragment)
+    }
+
+    @Test
+    fun `text the editor cannot vouch for is never typed back`() {
+        // The editor does not answer: the node's placeholder is all there is to read, and it
+        // must not become text in front of the words.
+        val target = FakeTarget(initialText = "", hasInputConnection = true, nodeShows = "Nachricht", editorReadable = false)
+        val outcome = engine(target).insert(target, "Test Nachricht.")
+
+        assertFalse(target.text.contains("Nachricht Test"), target.text)
+        assertEquals("Test Nachricht.", target.text.trim())
+        assertEquals(emptyList(), target.retyped)
+        assertEquals(0, target.setTextCalls)
         assertEquals(InsertionEngine.PrefixRepair.How.NOT_RESTORED, outcome.prefixRepair?.how)
     }
 

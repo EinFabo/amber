@@ -382,7 +382,8 @@ class TextInserter(
 
             val start = node.textSelectionStart
             val end = node.textSelectionEnd
-            val existing = currentText(start, end)
+            // The node may hand out a placeholder as text; the editor never holds one.
+            val existing = currentText(start, end, editorEmpty = editorWindow()?.isEmpty)
             return if (start in 0..existing.length && end in 0..existing.length) {
                 FieldState(existing, start, end)
             } else {
@@ -457,8 +458,24 @@ class TextInserter(
          * placeholder reports that placeholder as its text, which must not be spliced onto -
          * whether it says so or only hands out its hint ([FieldText.contents]).
          */
-        private fun currentText(selectionStart: Int, selectionEnd: Int): String =
-            FieldText.contents(node.text, node.hintText, node.isShowingHintText, selectionStart, selectionEnd)
+        private fun currentText(selectionStart: Int, selectionEnd: Int, editorEmpty: Boolean? = null): String =
+            FieldText.contents(node.text, node.hintText, node.isShowingHintText, selectionStart, selectionEnd, editorEmpty)
+
+        /** What the editor holds before the cursor, read now: never a placeholder ([EditableTarget.editorHead]). */
+        override fun editorHead(): String? = editorWindow()?.head
+
+        /**
+         * The editor behind this field's input connection, read as a keyboard reads it: the
+         * field's text, never its placeholder. Null without a connection to this app's field
+         * (below Android 13, a node without focus) and for a field that only takes key presses,
+         * whose connection has no text of its own.
+         */
+        private fun editorWindow(): FieldWindow? {
+            if (!mayType || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+            val editor = boundInput(service, expectedPackage = packageName)?.editor ?: return null
+            if (TextFieldKind.of(editor.inputType) == TextFieldKind.NONE) return null
+            return readThroughInputMethod(service, expectedPackage = packageName, FieldWindow.BEFORE, FieldWindow.AFTER)
+        }
     }
 
     /**
@@ -489,17 +506,8 @@ class TextInserter(
             SecretField.isSecret(editorType, node?.let { SecretField.Node(it.inputType, it.isPassword) })
         }
 
-        override fun read(before: Int, after: Int): FieldWindow? {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-            val connection = boundInput(service, expectedPackage = packageName)?.connection ?: return null
-            // Null from a connection that is gone or an app that does not answer in time; some
-            // editors throw instead.
-            return runCatching {
-                connection.getSurroundingText(before, after, 0)?.let { around ->
-                    FieldWindow.of(around.text, around.selectionStart, around.selectionEnd, around.offset, askedBefore = before)
-                }
-            }.getOrNull()
-        }
+        override fun read(before: Int, after: Int): FieldWindow? =
+            readThroughInputMethod(service, expectedPackage = packageName, before, after)
 
         override fun type(text: String): Boolean =
             commitThroughInputMethod(service, text, expectedPackage = packageName)
@@ -556,6 +564,22 @@ class TextInserter(
             BulletSpan::class.java,
             ImageSpan::class.java,
         )
+
+        /**
+         * Up to [before] characters before the cursor, the selection and up to [after] behind it,
+         * of the field the service's input method is bound to - [expectedPackage]'s only - as a
+         * keyboard reads them. Null from a connection that is gone or an app that does not
+         * answer in time; some editors throw instead.
+         */
+        fun readThroughInputMethod(service: AccessibilityService, expectedPackage: String?, before: Int, after: Int): FieldWindow? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+            val connection = boundInput(service, expectedPackage)?.connection ?: return null
+            return runCatching {
+                connection.getSurroundingText(before, after, 0)?.let { around ->
+                    FieldWindow.of(around.text, around.selectionStart, around.selectionEnd, around.offset, askedBefore = before)
+                }
+            }.getOrNull()
+        }
 
         /**
          * The input the service's input method is bound to, if input has started - only

@@ -151,6 +151,9 @@ abstract class WindowedTarget : EditableTarget {
         return before?.state
     }
 
+    /** The window [readField] just read is the editor's own: no placeholder is ever in it. */
+    final override fun editorHead(): String? = before?.head
+
     final override fun commitText(text: String): Boolean {
         if (!type(text)) return false
         typed = text.length

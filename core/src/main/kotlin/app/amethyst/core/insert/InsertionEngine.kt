@@ -38,6 +38,16 @@ interface EditableTarget {
      */
     fun readCursor(): FieldState? = readField()
 
+    /**
+     * What stands before the cursor as the editor itself holds it - read now through the input
+     * connection the words are typed through, which never holds a placeholder. Null when there
+     * is no editor to ask. Text a commit took away is typed back ([retype]) only when the editor
+     * had it ([InsertionEngine]): a field's node may hand out its placeholder as text, and typed
+     * in front of the words it would become text nobody said - "Message Testnachricht." in
+     * WhatsApp (Pixel 9a, 2026-11-26).
+     */
+    fun editorHead(): String? = null
+
     /** Paste whatever is on the clipboard into the field. */
     fun paste(): Boolean
 
@@ -326,6 +336,8 @@ class InsertionEngine(
         if (!target.isEditable) return Commit.NOT_POSSIBLE
         val field = target.readField()
         val fragment = field?.let { commitFragment(it, text, options) } ?: unread(text, options)
+        // What the editor held before the words, for text the commit takes away ([keepPrefix]).
+        val editorHead = field?.let { target.editorHead() }
         if (fragment.isEmpty() || !target.commitText(fragment)) return Commit.NOT_POSSIBLE
         committed = fragment
         // A field that cannot be read cannot be checked, and got the words without a seam: a
@@ -336,7 +348,7 @@ class InsertionEngine(
             val after = target.readBack() ?: return Commit.LANDED
             if (Landed.inField(field, after, expected(field, text, options))) {
                 cursorPutBack = cursorBehindWords(target, tail = textAfterSelection(field))
-                if (target.readBackAligned) prefixRepair = keepPrefix(target, field, after, fragment)
+                if (target.readBackAligned) prefixRepair = keepPrefix(target, field, after, fragment, editorHead)
                 return Commit.LANDED
             }
             if (attempt < attempts - 1) pause(VERIFY_INTERVAL_MS)
@@ -353,9 +365,15 @@ class InsertionEngine(
      * words, the cursor behind them. Where that is not possible, nothing was typed, and the
      * field is written back whole - unless that would flatten it. Never both: words typed again
      * that only show up late would land on top of a written field. Null when nothing was lost.
+     *
+     * Only what the editor itself held before the words ([editorHead]) comes back: a field's
+     * node may hand out its placeholder as text, and "lost" by the commit it would be typed in
+     * front of the words - "Message Testnachricht." (WhatsApp, Pixel 9a, 2026-11-26). Text the
+     * editor cannot vouch for stays out, reported as not restored.
      */
-    private fun keepPrefix(target: EditableTarget, field: FieldState, after: String, typed: String): PrefixRepair? {
+    private fun keepPrefix(target: EditableTarget, field: FieldState, after: String, typed: String, editorHead: String?): PrefixRepair? {
         val seam = Landed.seam(field, after, typed) as? Landed.Seam.PrefixLost ?: return null
+        if (editorHead == null || !editorHead.endsWith(seam.lost)) return PrefixRepair(seam.lost.length, PrefixRepair.How.NOT_RESTORED)
         val again = seam.lost + typed
         val how = when {
             target.retype(seam.shown, again) ->
