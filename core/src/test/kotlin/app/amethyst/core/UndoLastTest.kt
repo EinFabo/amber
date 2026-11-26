@@ -111,4 +111,17 @@ class UndoLastTest {
         assertEquals(Match.Found(20), UndoLast.match(" $cut", last, fieldStart = false))
         assertEquals(Match.Different, UndoLast.match("x$cut", last, fieldStart = false))
     }
+
+    @Test
+    fun `a dictation without a seam of its own never takes the end of a word`() {
+        // "Ja." went into an empty field. Before the cursor now stands "Naja.": not the dictation.
+        val ja = UndoLast.Insertion("com.whatsapp", "Ja.")
+        assertNull(UndoLast.charsToDelete("Naja.", ja))
+        assertNull(UndoLast.charsToDelete("Okay3ja.", ja))
+        assertEquals(3, UndoLast.charsToDelete("Ja.", ja))
+        assertEquals(3, UndoLast.charsToDelete("Gut.\nJa.", ja))
+        assertEquals(3, UndoLast.charsToDelete("(Ja.", ja))
+        // Words that began with a mark the seam pulled back stand right after the word before.
+        assertEquals(10, UndoLast.charsToDelete("Hallo, und dann", UndoLast.Insertion("com.whatsapp", ", und dann")))
+    }
 }

@@ -72,6 +72,10 @@ object UndoLast {
             i--
             j--
         }
+        // A dictation that came without a seam went in where a word could not go on: at the
+        // field's start or after a space or a mark. A word before it now is another text -
+        // "Ja." is not the end of "Naja.".
+        if (coreStart == 0 && j > 0 && fragment[0].isLetterOrDigit() && beforeCursor[j - 1].isLetterOrDigit()) return Match.Different
         // The seam before the dictation: where the field begins it may be gone.
         if (coreStart > 0 && j == 0 && !fieldStart) return Match.TooShort
         if (coreStart > 0 && j > 0) {
