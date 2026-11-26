@@ -143,7 +143,7 @@ class ChatCleanup(
             generalInstruction: String?,
             language: String?,
         ): Result<String> {
-            val cleaned = unwrap(reply)
+            val cleaned = withoutWrapper(text, unwrap(reply))
             val ownInstruction = !instruction.isNullOrBlank() || !generalInstruction.isNullOrBlank()
             val verdict = CleanupGuard.verdict(text, cleaned, style, ownInstruction, language)
             if (verdict != CleanupGuard.Verdict.OK) {
@@ -502,6 +502,30 @@ class ChatCleanup(
                 .trim()
                 .removeSurrounding("\"")
                 .trim()
+
+        /**
+         * [cleaned] without what a model put around all of it and the dictation did not have: a
+         * Markdown code fence, or quotation marks - „…“, “…”, «…», »…« - each mark once, at the
+         * two ends. Typed into the field, they would be text nobody said. Quotations of the
+         * speaker's own ("„Ich komme“, sagte er, „morgen.“") have more than one pair and stay.
+         */
+        internal fun withoutWrapper(original: String, cleaned: String): String {
+            var text = FENCE.matchEntire(cleaned)?.groupValues?.get(1)?.trim() ?: cleaned
+            val spoken = original.trim()
+            for ((open, close) in QUOTES) {
+                val wraps = text.length > 2 && text.first() == open && text.last() == close &&
+                    text.count { it == open } == 1 && text.count { it == close } == 1
+                val dictated = spoken.firstOrNull() == open && spoken.lastOrNull() == close
+                if (wraps && !dictated) text = text.substring(1, text.length - 1).trim()
+            }
+            return text
+        }
+
+        /** A Markdown code block around a whole reply, with or without a language after the backticks. */
+        private val FENCE = Regex("""(?s)^```[\w-]*[ \t]*\r?\n(.*?)\r?\n?```$""")
+
+        /** Quotation marks a reply may come wrapped in: German, English, French and Swiss ones. */
+        private val QUOTES = listOf('„' to '“', '“' to '”', '«' to '»', '»' to '«')
 
         /**
          * Whether [cleaned] is still [original], tidied; see [CleanupGuard]. With the user's own
