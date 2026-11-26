@@ -13,6 +13,7 @@ import app.amethyst.core.privacy.AttestationResult
 import app.amethyst.core.privacy.AttestationVerifier
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.OwnWords
+import app.amethyst.core.text.PromptEcho
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -177,8 +178,13 @@ class OpenAiCompatibleEngine(
 
         // A Whisper on the server may write the own words back on silence, as a small one on the phone does.
         // A Whisper model also invents a subtitle credit after real speech; another model does not.
-        val text = if (WhisperOutput.isWhisperFamily(modelId)) WhisperOutput.cleanServer(parsed.text) else parsed.text
-        val echo = OwnWords.echoed(text, options.vocabularyHint?.takeIf { capabilities.vocabulary })
+        // The own words written back in front of what was said go ([PromptEcho]).
+        val hint = options.vocabularyHint?.takeIf { capabilities.vocabulary }
+        val text = PromptEcho.withoutLeadingHint(
+            if (WhisperOutput.isWhisperFamily(modelId)) WhisperOutput.cleanServer(parsed.text) else parsed.text,
+            hint,
+        )
+        val echo = OwnWords.echoed(text, hint)
         if (text.isBlank() || echo) {
             return Result.failure(
                 SttFailure(

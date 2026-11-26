@@ -10,6 +10,7 @@ import app.amethyst.core.engine.SttFailure
 import app.amethyst.core.engine.TranscribeOptions
 import app.amethyst.core.privacy.TrustLevel
 import app.amethyst.core.text.OwnWords
+import app.amethyst.core.text.PromptEcho
 import app.amethyst.core.text.Transcript
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -123,8 +124,10 @@ class WhisperCppEngine(
                 heard?.lowercase()?.takeIf { pieces.size > 1 && LANGUAGE_CODE.matches(it) }?.let { language = it }
             }
             raws += raw
-            // The own words written back on silence or a short piece: nothing heard ([OwnWords.echoed]).
-            WhisperOutput.clean(raw).takeIf { it.isNotBlank() && !OwnWords.echoed(it, options.vocabularyHint) }?.let(texts::add)
+            // The own words written back on silence or a short piece: nothing heard ([OwnWords.echoed]);
+            // in front of what was said, they go ([PromptEcho]).
+            PromptEcho.withoutLeadingHint(WhisperOutput.clean(raw), options.vocabularyHint)
+                .takeIf { it.isNotBlank() && !OwnWords.echoed(it, options.vocabularyHint) }?.let(texts::add)
         }
         val text = ChunkedTranscription.join(texts)
         if (text.isBlank()) {

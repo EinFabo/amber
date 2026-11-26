@@ -367,6 +367,16 @@ class WhisperTest {
     }
 
     @Test
+    fun `the own words written back in front of a short dictation are not typed`() = runTest {
+        val runtime = FakeRuntime(answer = " Anna Lüdtke, Kubernetes, Amber. Ja.")
+        val transcript = engine(runtime)
+            .transcribe(speech(1), TranscribeOptions(vocabularyHint = "Anna Lüdtke, Kubernetes, Amber."))
+            .getOrThrow()
+
+        assertEquals("Ja.", transcript.text)
+    }
+
+    @Test
     fun `a chunk's preceding text reaches whisper and the detected language comes back`() = runTest {
         val runtime = FakeRuntime().apply { detected = "en" }
         val transcript = engine(runtime)

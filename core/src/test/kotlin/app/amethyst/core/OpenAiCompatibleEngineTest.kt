@@ -127,6 +127,16 @@ class OpenAiCompatibleEngineTest {
     }
 
     @Test
+    fun `the own words a whisper wrote back in front of the words are not typed`() = runTest {
+        val transport = FakeHttpTransport.json("""{"text":"Anna Lüdtke, Tinfoil. Ja."}""")
+        val transcript = engine(transport)
+            .transcribe(audio, TranscribeOptions(vocabularyHint = "Anna Lüdtke, Tinfoil."))
+            .getOrThrow()
+
+        assertEquals("Ja.", transcript.text)
+    }
+
+    @Test
     fun `a model that refuses the prompt gets the audio again without it`() = runTest {
         val transport = FakeHttpTransport { request ->
             val hasPrompt = assertIs<HttpBody.Multipart>(request.body).parts.any { it.name == "prompt" }
