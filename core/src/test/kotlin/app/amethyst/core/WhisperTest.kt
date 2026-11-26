@@ -287,6 +287,23 @@ class WhisperTest {
     }
 
     @Test
+    fun `the english amara credit is dropped too`() {
+        assertEquals("", WhisperOutput.clean("Subtitles by the Amara.org community"))
+        assertEquals("See you tomorrow.", WhisperOutput.cleanServer("See you tomorrow. Subtitles by the Amara.org community"))
+    }
+
+    @Test
+    fun `a whisper model is known by its size as well as by its name`() {
+        // Amber PC and Amber Server name theirs without "whisper" (docs/AMBER-PC.md).
+        for (id in listOf("whisper-large-v3-turbo", "whisper-1", "acft-large-v3-turbo-q8_0", "large-v3", "distil-large-v3", "Systran/faster-whisper-small", "medium", "small.en", "base-q5_1", "ggml-tiny")) {
+            assertTrue(WhisperOutput.isWhisperFamily(id), id)
+        }
+        for (id in listOf("gpt-4o-transcribe", "parakeet-tdt-0.6b-v3", "nova-3", "scribe_v1", "voxtral-mini-latest", "canary-1b-flash")) {
+            assertFalse(WhisperOutput.isWhisperFamily(id), id)
+        }
+    }
+
+    @Test
     fun `a real thank-you is kept`() {
         assertEquals("Vielen Dank.", WhisperOutput.clean(" Vielen Dank."))
     }

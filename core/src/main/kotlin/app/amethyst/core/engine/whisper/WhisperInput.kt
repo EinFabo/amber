@@ -136,6 +136,7 @@ object WhisperOutput {
     private val hallucinations = listOf(
         Regex("""(?i)^untertitel (im auftrag des zdf|der amara\.org-community|von stephanie geiges).*$"""),
         Regex("""(?i)^untertitelung (des zdf|aufgrund der amara\.org-community).*$"""),
+        Regex("""(?i)^subtitles by the amara\.org community[.!]?$"""),
         Regex("""(?i)^(vielen dank|danke) fürs zuschauen[.!]?$"""),
         Regex("""(?i)^(thanks for watching|thank you for watching)[.!]?$"""),
     )
@@ -156,9 +157,15 @@ object WhisperOutput {
 
     /**
      * Whether [modelId] names a Whisper model (Groq's whisper-large-v3, OpenAI's whisper-1):
-     * these invent subtitle credits on silence, other models do not.
+     * these invent subtitle credits on silence, other models do not. Amber PC and Amber Server
+     * name theirs by size alone ("acft-large-v3-turbo-q8_0", docs/AMBER-PC.md), so Whisper's
+     * sizes count as well.
      */
-    fun isWhisperFamily(modelId: String): Boolean = modelId.contains("whisper", ignoreCase = true)
+    fun isWhisperFamily(modelId: String): Boolean =
+        modelId.contains("whisper", ignoreCase = true) || WHISPER_SIZE.containsMatchIn(modelId)
+
+    /** Whisper's sizes as a word of a model id: "large-v3", "small.en", "ggml-tiny", "base-q5_1". */
+    private val WHISPER_SIZE = Regex("""(?i)(^|[-_/.])(tiny|base|small|medium|large)(\.en)?(-v[1-3])?([-_.]|$)""")
 
     /**
      * Drops a known invented line when it is a whole last sentence ("Wir sehen uns morgen.
