@@ -13,6 +13,7 @@ import app.amethyst.core.commands.CommandTrace
 import app.amethyst.core.commands.LineBreakPlan
 import app.amethyst.core.commands.TextEdit
 import app.amethyst.core.commands.TextEdits
+import app.amethyst.core.insert.FieldText
 import app.amethyst.core.insert.UndoLast
 import app.amethyst.core.text.FieldState
 import kotlinx.coroutines.delay
@@ -354,12 +355,15 @@ class FieldEditor(private val service: AccessibilityService, private val inserte
         return false
     }
 
-    /** The node's text and selection; a field showing its placeholder is empty. */
+    /**
+     * The node's text and selection; a field showing its placeholder is empty, also one that
+     * only hands out its hint as text ([FieldText.contents]), as the insertion reads it.
+     */
     private fun read(node: AccessibilityNodeInfo): FieldState? {
         if (!node.refresh()) return null
-        val text = if (node.isShowingHintText) "" else node.text?.toString().orEmpty()
         val start = node.textSelectionStart
         val end = node.textSelectionEnd
+        val text = FieldText.contents(node.text, node.hintText, node.isShowingHintText, start, end)
         return if (start in 0..text.length && end in 0..text.length) FieldState(text, start, end) else FieldState(text, text.length)
     }
 
