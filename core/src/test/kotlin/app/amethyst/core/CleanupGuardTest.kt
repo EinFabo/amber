@@ -238,6 +238,23 @@ class CleanupGuardTest {
     }
 
     @Test
+    fun `a short label the dictation did not have is rejected`() {
+        // One or two words and a colon are a label the model put on the text, and the label
+        // would be typed into the field in front of the words.
+        assertEquals(Verdict.PREAMBLE, verdict("ich komme morgen um drei", "Nachricht: Ich komme morgen um drei."))
+        assertEquals(Verdict.PREAMBLE, verdict("i will be there at eight", "Message: I will be there at eight."))
+        assertEquals(Verdict.PREAMBLE, verdict("ich komme morgen um drei", "Text: Ich komme morgen um drei."))
+        assertEquals(
+            Verdict.PREAMBLE,
+            verdict("ich komme morgen um drei vorbei und bringe kuchen mit", "Bereinigter Text: Ich komme morgen um drei vorbei und bringe Kuchen mit."),
+        )
+        // A label the speaker said is theirs; so is one word of it, heard a little differently.
+        assertEquals(Verdict.OK, verdict("wichtig ich komme morgen um drei", "Wichtig: Ich komme morgen um drei."))
+        assertEquals(Verdict.OK, verdict("Notiz an mich Milch kaufen", "Notiz an mich: Milch kaufen."))
+        assertEquals(Verdict.OK, verdict("Termin Zahnarzt am Montag", "Termin Zahnarzt: am Montag."))
+    }
+
+    @Test
     fun `lost line breaks are rejected`() {
         assertEquals(Verdict.LINE_BREAKS, verdict("Hallo Anna,\nich komme morgen.", "Hallo Anna, ich komme morgen."))
         assertEquals(Verdict.OK, verdict("Hallo Anna,\nich komme morgen.", "Hallo Anna,\nich komme morgen."))

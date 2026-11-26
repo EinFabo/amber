@@ -200,7 +200,9 @@ object CleanupGuard {
 
     /**
      * "Here is the cleaned text:" - a lead before a colon, early in the reply, that is mostly
-     * words the dictation did not have. "Einkaufsliste:" is the dictation's own.
+     * words the dictation did not have. "Einkaufsliste:" is the dictation's own. A label of a
+     * word or two - "Nachricht:", "Text:", "Bereinigter Text:" - counts when none of it was
+     * said: it would be typed into the field in front of the words.
      */
     private fun hasPreamble(original: String, cleaned: String): Boolean {
         // Not the colon of a time ("15:30").
@@ -208,6 +210,7 @@ object CleanupGuard {
         val lead = words(cleaned.substring(0, colon))
         val source = words(original).toSet()
         val foreign = lead.count { it !in source }
+        if (lead.size in 1..2) return foreign == lead.size
         return lead.size >= 3 && foreign * 2 > lead.size
     }
 
