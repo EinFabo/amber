@@ -789,6 +789,21 @@ class DictationController(
         skipCleanup.complete(Unit)
     }
 
+    /**
+     * Insert again or Undo last on its way: it finds the field, types or deletes, and checks its
+     * work for up to seconds. Main thread.
+     */
+    @Volatile
+    private var quickWork: Job? = null
+
+    /**
+     * Whether Insert again or Undo last may run now. Not while a dictation runs, nor while one
+     * that was cancelled has not ended: its words may still be going in, and the last dictation
+     * would then be the one before it, maybe for another chat. Nor while the last of the two is
+     * still at work: a second tap would type the words twice, or take out what was just put in.
+     */
+    private fun mayRunQuick(): Boolean = job?.isCompleted != false && quickWork?.isActive != true
+
     /** The insertion "Undo last" may take out again: its app and exactly what went in ([graph]'s memory). */
     private fun remember(insertion: InsertionOutcome) {
         val app = insertion.targetPackage
@@ -803,9 +818,10 @@ class DictationController(
     fun undoLast(): Boolean {
         // Each refusal logged too: only a haptic tells the user, and logcat must say why.
         if (isRunning) return false.also { Log.i(TAG, "undo not run: a dictation is running") }
+        if (!mayRunQuick()) return false.also { Log.i(TAG, "undo not run: a dictation or Insert again is still going in") }
         val last = graph.memory.lastInsertion ?: return false.also { Log.i(TAG, "undo not run: nothing to undo") }
         val service = graph.accessibilityService ?: return false.also { Log.i(TAG, "undo not run: no accessibility service") }
-        scope.launch {
+        quickWork = scope.launch {
             val result = service.fieldEditor.undo(last)
             if (result == FieldEditor.Undo.DONE) graph.memory.undone()
             toast(
@@ -825,13 +841,13 @@ class DictationController(
      * otherwise a toast says what came of it once it is done.
      */
     fun insertAgain(): Boolean {
-        if (isRunning) return false
+        if (!mayRunQuick()) return false.also { Log.i(TAG, "insert again not run: a dictation or the last quick action is still at work") }
         val text = graph.memory.sessionDictation()?.text ?: return false
         val service = graph.accessibilityService ?: return false
         // Off the main thread, as undoLast: finding the field walks the window's nodes (up to
         // 1500), and the insertion checks its work in short sleeps for up to seconds - on the
         // quick menu's touch handler the bubble and the app in front would freeze meanwhile.
-        scope.launch {
+        quickWork = scope.launch {
             val target = service.focusedTarget()
             if (target == null || target.kind == TextFieldKind.SECRET) {
                 toast(R.string.dictation_no_field)
