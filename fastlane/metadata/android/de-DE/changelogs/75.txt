@@ -1,0 +1,4 @@
+- Diktierst du in ein leeres WhatsApp- oder Telegram-Feld, steht kein „Message“ oder „Nachricht“ mehr vor deinen Wörtern
+- Eine Beschriftung, Anführungszeichen oder ein Codeblock, den die Bereinigung von sich aus hinzufügt, landen nicht mehr im Feld
+- „Nochmal einfügen“ und „Letztes rückgängig“ fügen die Wörter nicht mehr doppelt ein und löschen kein Wortende mehr
+- Was Whisper erfindet, ein Untertitel-Abspann oder deine Liste eigener Wörter, bleibt zuverlässiger draußen

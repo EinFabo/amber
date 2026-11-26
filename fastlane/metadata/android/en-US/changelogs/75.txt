@@ -1,0 +1,4 @@
+- Dictating into an empty WhatsApp or Telegram field no longer puts "Message" or "Nachricht" in front of your words
+- A label, quotation marks or a code block the cleanup adds on its own no longer land in the field
+- Insert again and Undo last no longer insert the words twice or take out the end of a word
+- Words Whisper invents, a subtitle credit or your own words list, are left out more reliably
